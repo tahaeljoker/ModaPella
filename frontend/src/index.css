@@ -1,0 +1,258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: Cairo, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #ffffff;
+}
+
+html, body, #root {
+  min-height: 100%;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f0ec 100%);
+}
+
+body {
+  color: #4b0f1a;
+  direction: rtl;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(128, 0, 32, 0.12);
+}
+
+.product-image {
+  background-position: center;
+  background-size: cover;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fadeIn 500ms ease forwards; }
+.slide-up { animation: slideUp 550ms ease forwards; }
+
+.stagger-container .stagger-item { opacity: 0; transform: translateY(8px); animation: fadeIn 420ms ease forwards; }
+.stagger-container .stagger-item:nth-child(1) { animation-delay: 80ms; }
+.stagger-container .stagger-item:nth-child(2) { animation-delay: 140ms; }
+.stagger-container .stagger-item:nth-child(3) { animation-delay: 200ms; }
+.stagger-container .stagger-item:nth-child(4) { animation-delay: 260ms; }
+.stagger-container .stagger-item:nth-child(5) { animation-delay: 320ms; }
+.stagger-container .stagger-item:nth-child(6) { animation-delay: 380ms; }
+.stagger-container .stagger-item:nth-child(7) { animation-delay: 440ms; }
+.stagger-container .stagger-item:nth-child(8) { animation-delay: 500ms; }
+
+/* Hero animation subtle background movement */
+.hero-bg { background-size: cover; background-position: center; transition: transform 10s linear; }
+.hero-bg.animate { transform: scale(1.02); }
+
+@keyframes blobMove {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(12px, -16px) scale(1.05); }
+  66% { transform: translate(-14px, 14px) scale(0.95); }
+}
+
+.hero-blob {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle at 30% 30%, rgba(124, 10, 18, 0.18), transparent 45%);
+  filter: blur(24px);
+  opacity: 0.95;
+  animation: blobMove 12s ease-in-out infinite;
+}
+
+@keyframes stripeMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 160px 0; }
+}
+
+@keyframes floatUpDown {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes imageFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.02); }
+}
+
+.hero-image-frame {
+  overflow: hidden;
+  border-radius: 1.5rem;
+  box-shadow: 0 28px 60px rgba(124, 10, 18, 0.08);
+}
+
+.hero-image-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 800ms ease;
+}
+
+.aspect-4-5 {
+  aspect-ratio: 4 / 5;
+}
+
+@media (min-width: 640px) {
+  .sm\:aspect-\[3\/4\] {
+    aspect-ratio: 3 / 4;
+  }
+}
+
+.aspect-4-3 {
+  aspect-ratio: 4 / 3;
+}
+
+.sm\:aspect-\[3\/2\] {
+  aspect-ratio: 3 / 2;
+}
+
+.aspect-4-5 {
+  aspect-ratio: 4 / 5;
+}
+
+.aspect-16-9 {
+  aspect-ratio: 16 / 9;
+}
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.animate-hero-img {
+  animation: imageFloat 6s ease-in-out infinite;
+}
+
+.hero-card-overlay {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: min(14rem, 100%);
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+}
+
+.wave-banner {
+  position: relative;
+  overflow: hidden;
+}
+.wave-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 50%, rgba(124, 10, 18, 0.08), transparent 22%),
+              radial-gradient(circle at 80% 40%, rgba(255, 235, 225, 0.18), transparent 16%);
+  pointer-events: none;
+}
+
+.moving-stripe {
+  height: 14px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(124,10,18,0.3) 0%, rgba(245, 218, 212,0.6) 40%, rgba(124,10,18,0.3) 100%);
+  background-size: 160px 100%;
+  animation: stripeMove 2.8s linear infinite;
+}
+
+.page-link-card {
+  transition: transform 250ms ease, box-shadow 250ms ease, background-color 250ms ease;
+}
+.page-link-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 50px rgba(124, 10, 18, 0.12);
+}
+
+/* ─── Print Styles (Invoice) ─────────────────────────────────── */
+@media print {
+  /* Hide everything on the page */
+  body > * { display: none !important; }
+
+  /* Show only the invoice print area */
+  #invoice-print-root {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    background: white;
+    z-index: 9999;
+    padding: 24px;
+    font-family: Cairo, sans-serif;
+    color: #1a0509;
+    direction: rtl;
+  }
+
+  #invoice-print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Invoice header */
+  .invoice-print-header {
+    text-align: center;
+    border-bottom: 2px solid #7C0A12;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .invoice-print-header h1 {
+    font-size: 22px;
+    font-weight: 900;
+    color: #7C0A12;
+    margin: 0;
+  }
+  .invoice-print-header p {
+    font-size: 11px;
+    color: #888;
+    margin: 4px 0 0;
+  }
+
+  /* Items table */
+  .invoice-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .invoice-print-table th {
+    background: #f7f0ec;
+    color: #7C0A12;
+    padding: 6px 8px;
+    text-align: right;
+    font-weight: 700;
+    border-bottom: 1px solid #e0c9c9;
+  }
+  .invoice-print-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #f0e8e8;
+    vertical-align: top;
+  }
+  .invoice-print-total {
+    margin-top: 16px;
+    text-align: left;
+    font-size: 16px;
+    font-weight: 900;
+    color: #7C0A12;
+    border-top: 2px solid #7C0A12;
+    padding-top: 10px;
+  }
+  .invoice-print-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 11px;
+    color: #aaa;
+  }
+}

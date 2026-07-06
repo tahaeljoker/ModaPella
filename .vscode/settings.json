@@ -1,0 +1,13 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "ConvertTo-Json": true,
+        "/^node backend/reset_transactions_runner\\.js --yes$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd d:/programming/projects/work/ModaPella/backend ; node server\\.js$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

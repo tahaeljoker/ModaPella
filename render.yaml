@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: modapella-backend
+    env: node
+    plan: free
+    buildCommand: "cd backend && npm install"
+    startCommand: "cd backend && npm start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        fromDatabase:
+          name: modapella-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@modapella.com
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: CASHIER_EMAIL
+        value: cashier@modapella.com
+      - key: CASHIER_PASSWORD
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://your-frontend-domain.vercel.app
+
+databases:
+  - name: modapella-db
+    databaseName: modapella
+    user: modapella
