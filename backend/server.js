@@ -96,6 +96,10 @@ io.on('connection', (socket) => {
 app.locals.io = io;
 
 const port = process.env.PORT || 5000;
-server.listen(port, () => {
-  console.log(`Moda Pella backend listening on port ${port}`);
-});
+if (!process.env.VERCEL) {
+  server.listen(port, () => {
+    console.log(`Moda Pella backend listening on port ${port}`);
+  });
+}
+
+module.exports = app;

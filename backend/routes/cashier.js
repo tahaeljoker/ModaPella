@@ -65,6 +65,10 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
       createdAt: { $gte: startOfDay, $lte: endOfDay }
     }).populate('user', 'name').sort({ createdAt: -1 });
 
+    console.log('--- DEBUG: Transactions Found in /safe route ---');
+    console.log(JSON.stringify(transactions, null, 2));
+    console.log('------------------------------------------------');
+
     const todayOrders = await Order.find({
       createdAt: { $gte: startOfDay, $lte: endOfDay },
       status: 'Completed'

@@ -123,10 +123,22 @@ router.post('/recover', auth, async (req, res) => {
           })
       : order.items.map(oi => oi.toObject()); // full return
 
-    const isFullReturn = !returnItems || returnItems.length === 0 ||
-      itemsToReturn.every((ri, idx) => ri.quantity >= order.items[idx]?.quantity);
+    const isFullReturn = !returnItems || returnItems.length === 0;
 
-    const refundAmount = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+    let refundAmount;
+    if (isFullReturn) {
+      refundAmount = order.totalAmount;
+    } else {
+      const originalOrderTotal = order.totalAmount + order.discount;
+      if (originalOrderTotal > 0) {
+        const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+        // Calculate refund amount proportionally to the total amount paid
+        const refundProportion = returnedItemsValue / originalOrderTotal;
+        refundAmount = Math.round((order.totalAmount * refundProportion) * 100) / 100;
+      } else {
+        refundAmount = 0;
+      }
+    }
 
     if (isFullReturn) {
       order.status = 'Returned';

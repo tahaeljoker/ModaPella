@@ -225,9 +225,8 @@
     const data = await res.json();
     console.log('   Response Status:', res.status);
     console.log('   Refund Amount:', data.refundAmount);
-    if (res.status !== 200 || data.refundAmount !== 900) { // total without discount subtraction on items directly, or is it raw total minus discount? items price total = 900, order total = 850
-      // wait, let's verify what the refund amount returned is.
-      // itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0) -> 450 * 2 = 900.
+    if (res.status !== 200 || data.refundAmount !== 850) {
+      throw new Error(`Refund amount was incorrect. Expected 850, got ${data.refundAmount}`);
     }
   });
 
