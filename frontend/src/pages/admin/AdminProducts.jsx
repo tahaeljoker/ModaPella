@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const CATEGORIES = ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Portefeuille'];
 const CAT_AR = { Blouse: 'بلوزة', Chemise: 'قميص', Skirt: 'تنورة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Portefeuille: 'محفظة' };
@@ -450,11 +451,15 @@ function AdminProducts() {
     }
   };
 
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+
   const handleDelete = async (id) => {
-    if (!window.confirm('هل تريد أرشفة هذا المنتج؟')) return;
     await api.delete(`/admin/products/${id}`);
     showToast('✅ تم الأرشفة');
     await loadProducts();
+    setIsDeleteOpen(false);
+    setProductToDelete(null);
   };
 
   const TABS = [
@@ -502,7 +507,7 @@ function AdminProducts() {
           loading={loading}
           onAdd={() => setModal('create')}
           onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
-          onDelete={handleDelete}
+          onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
         />
       ) : (
         <InventoryTab
@@ -520,6 +525,15 @@ function AdminProducts() {
           onSave={handleSave}
         />
       )}
+
+      {/* Delete Confirmation */}
+      <ConfirmModal
+        isOpen={isDeleteOpen}
+        title="تأكيد الأرشفة"
+        message="هل أنت متأكد من أرشفة هذا المنتج؟ لن يظهر مجدداً في واجهة الكاشير ولكنه سيظل في قاعدة البيانات للتقارير القديمة."
+        onConfirm={() => handleDelete(productToDelete)}
+        onCancel={() => { setIsDeleteOpen(false); setProductToDelete(null); }}
+      />
     </div>
   );
 }

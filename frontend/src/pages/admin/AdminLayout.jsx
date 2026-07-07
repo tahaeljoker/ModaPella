@@ -4,9 +4,10 @@ const navItems = [
   { to: '/admin', label: 'لوحة التحكم', icon: '📊', end: true },
   { to: '/admin/products', label: 'المنتجات والمخزون', icon: '🛒' },
   { to: '/admin/orders', label: 'الطلبات', icon: '📋' },
+  { to: '/admin/customers', label: 'العملاء', icon: '👥' },
   { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: '🏷️' },
   { to: '/admin/site', label: 'إعدادات الموقع', icon: '🎨' },
-  { to: '/admin/users', label: 'المستخدمون', icon: '👥' },
+  { to: '/admin/users', label: 'المستخدمون', icon: '🛡️' },
 ];
 
 function AdminLayout({ children }) {
@@ -58,6 +59,13 @@ function AdminLayout({ children }) {
             <p className="mt-0.5 text-sm font-semibold text-burgundy">{user.name || 'مدير'}</p>
             <p className="text-xs text-burgundy/60">{user.email || ''}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => navigate('/cashier')}
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F7F0EC] px-4 py-2 text-sm font-bold text-burgundy transition hover:bg-burgundy/10"
+          >
+            <span>⚡</span> الذهاب للكاشير
+          </button>
           <button
             type="button"
             onClick={handleLogout}

@@ -143,6 +143,55 @@ router.delete('/products/:id', auth, requireRole(['admin']), async (req, res) =>
   }
 });
 
+// ─── Customer Management (CRM) ──────────────────────────────────────────────
+
+router.get('/customers', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const orders = await Order.find({ 
+      status: 'Completed',
+      $or: [
+        { customerPhone: { $ne: '' } },
+        { customerName: { $ne: '' } }
+      ]
+    }).sort({ createdAt: -1 });
+
+    const customersMap = {};
+
+    orders.forEach(order => {
+      const key = order.customerPhone || order.customerName; // Phone preferred
+      if (!customersMap[key]) {
+        customersMap[key] = {
+          name: order.customerName || 'بدون اسم',
+          phone: order.customerPhone || 'بدون رقم',
+          totalSpent: 0,
+          ordersCount: 0,
+          lastOrderDate: order.createdAt,
+          orders: []
+        };
+      }
+      
+      customersMap[key].totalSpent += order.totalAmount;
+      customersMap[key].ordersCount += 1;
+      customersMap[key].orders.push({
+        id: order._id,
+        date: order.createdAt,
+        total: order.totalAmount,
+        items: order.items.map(i => ({ name: i.name, qty: i.quantity, price: i.price, size: i.size, color: i.color }))
+      });
+
+      // Keep the most recent order date
+      if (new Date(order.createdAt) > new Date(customersMap[key].lastOrderDate)) {
+        customersMap[key].lastOrderDate = order.createdAt;
+      }
+    });
+
+    const customersList = Object.values(customersMap).sort((a, b) => b.totalSpent - a.totalSpent);
+    res.json(customersList);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to load customers', error: error.message });
+  }
+});
+
 // ─── User Management (admin only) ─────────────────────────────────────────
 
 // GET /api/admin/users — list all staff users

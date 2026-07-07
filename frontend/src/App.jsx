@@ -24,6 +24,7 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminSiteSettings from './pages/admin/AdminSiteSettings';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminBarcodeLabels from './pages/admin/AdminBarcodeLabels';
+import AdminCustomers from './pages/admin/AdminCustomers';
 
 // Cashier Pages
 import CashierLayout from './pages/cashier/CashierLayout';
@@ -98,6 +99,7 @@ function AppContent() {
           <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminOverview /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/products" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminProducts /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminOrders /></AdminLayout></ProtectedRoute>} />
+          <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminCustomers /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/barcodes" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminBarcodeLabels /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/site" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminSiteSettings /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUsers /></AdminLayout></ProtectedRoute>} />

@@ -9,92 +9,11 @@ const navItems = [
   { to: '/cashier/safe', label: 'الخزنة', icon: '💰' },
 ];
 
-// ─── Admin Password Modal ─────────────────────────────────────────────────────
-function AdminPasswordModal({ onClose, onSuccess }) {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!password) return;
-    setLoading(true);
-    setError('');
-    try {
-      const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
-      // Verify by re-logging in with the same email
-      await api.post('/auth/login', { email: user.email, password });
-      onSuccess();
-    } catch (err) {
-      setError('كلمة المرور غير صحيحة. حاول مرة أخرى.');
-      setPassword('');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Icon */}
-        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-burgundy/10">
-          <span className="text-3xl">🔐</span>
-        </div>
-        <h3 className="text-center text-xl font-bold text-burgundy">تأكيد الدخول</h3>
-        <p className="mt-2 text-center text-sm text-burgundy/60">
-          ادخل كلمة مرور المدير للوصول إلى لوحة الإدارة
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <input
-              type="password"
-              autoFocus
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="كلمة المرور..."
-              className="w-full rounded-xl border border-burgundy/20 bg-[#F7F0EC] px-4 py-3 text-center text-burgundy outline-none transition focus:border-burgundy"
-            />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-              <span>❌</span>
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-full border border-burgundy/20 py-2.5 text-sm font-medium text-burgundy/70 transition hover:bg-burgundy/5"
-            >
-              إلغاء
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !password}
-              className="flex-1 rounded-full bg-burgundy py-2.5 text-sm font-bold text-white transition hover:bg-[#650018] disabled:opacity-50"
-            >
-              {loading ? '...' : 'دخول'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Layout ──────────────────────────────────────────────────────────────
 function CashierLayout({ children }) {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
   const role = localStorage.getItem('modapella_role');
-  const [showAdminModal, setShowAdminModal] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('modapella_token');
@@ -104,11 +23,6 @@ function CashierLayout({ children }) {
   };
 
   const handleAdminAccess = () => {
-    setShowAdminModal(true);
-  };
-
-  const handleAdminConfirmed = () => {
-    setShowAdminModal(false);
     navigate('/admin');
   };
 
@@ -153,7 +67,6 @@ function CashierLayout({ children }) {
               >
                 <span className="text-lg">🖥️</span>
                 لوحة الإدارة
-                <span className="mr-auto rounded-full bg-burgundy/10 px-1.5 py-0.5 text-[9px] font-bold text-burgundy/60">🔒</span>
               </button>
             </>
           )}
@@ -187,14 +100,6 @@ function CashierLayout({ children }) {
       <main className="mr-60 flex-1 flex flex-col overflow-hidden p-6">
         {children}
       </main>
-
-      {/* Admin Password Modal */}
-      {showAdminModal && (
-        <AdminPasswordModal
-          onClose={() => setShowAdminModal(false)}
-          onSuccess={handleAdminConfirmed}
-        />
-      )}
     </div>
   );
 }

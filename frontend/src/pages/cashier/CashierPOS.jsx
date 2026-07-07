@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
@@ -70,12 +71,53 @@ function saveInvoiceAsHTML(order) {
 
 // ─── Invoice Receipt Modal ────────────────────────────────────────────────────
 function InvoiceModal({ order, onClose }) {
+  const [copies, setCopies] = useState(1);
+
   if (!order) return null;
 
   const handlePrint = () => {
-    // Inject print root so @media print CSS works
     const printDiv = document.createElement('div');
     printDiv.id = 'invoice-print-root';
+    const id = order._id?.toString().slice(-8).toUpperCase();
+    const date = new Date(order.createdAt).toLocaleString('ar-EG');
+    
+    // Create the HTML for ONE receipt
+    const singleReceiptHTML = `
+      <div class="invoice-print-header">
+        <h1>ModaPella</h1>
+        <p>فاتورة بيع | رقم: #${id}</p>
+        <p>${date}</p>
+        ${order.customerName ? `<p>العميل: ${order.customerName} ${order.customerPhone ? `- ${order.customerPhone}` : ''}</p>` : ''}
+      </div>
+      <table class="invoice-print-table">
+        <thead><tr><th>المنتج</th><th>المقاس</th><th>اللون</th><th>الكمية</th><th>الإجمالي</th></tr></thead>
+        <tbody>
+          ${(order.items || []).map(item => `
+            <tr>
+              <td>${item.name}</td>
+              <td>${item.size || '—'}</td>
+              <td>${item.color || '—'}</td>
+              <td style="text-align:center">${item.quantity}</td>
+              <td style="text-align:left">${Number(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</td>
+            </tr>`).join('')}
+          ${order.discount > 0 ? `<tr><td colspan="4" style="color:#16a34a">خصم</td><td style="color:#16a34a">- ${Number(order.discount).toLocaleString('ar-EG')} ج.م</td></tr>` : ''}
+        </tbody>
+      </table>
+      <div class="invoice-print-total">الإجمالي: ${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م &nbsp;&nbsp; ${order.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي'}</div>
+      <div class="invoice-print-footer">
+        شكراً لتعاملكم مع ModaPella 🎀<br/>
+        تواصل معنا: 01112556672 - 01122372297
+      </div>
+      <div style="page-break-after: always;"></div>
+    `;
+
+    // Repeat the HTML based on copies
+    printDiv.innerHTML = Array(copies).fill(singleReceiptHTML).join('');
+    
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+  };
     const id = order._id?.toString().slice(-8).toUpperCase();
     const date = new Date(order.createdAt).toLocaleString('ar-EG');
     printDiv.innerHTML = `
@@ -176,7 +218,7 @@ function InvoiceModal({ order, onClose }) {
         </div>
 
         {/* Actions */}
-        <div className="grid grid-cols-3 gap-2 p-4 bg-[#F7F0EC]">
+        <div className="grid grid-cols-2 gap-2 p-4 bg-[#F7F0EC] border-b border-burgundy/10">
           <button
             onClick={onClose}
             className="rounded-xl border border-burgundy/20 py-2.5 text-sm font-medium text-burgundy/70 transition hover:bg-burgundy/10"
@@ -189,11 +231,21 @@ function InvoiceModal({ order, onClose }) {
           >
             💾 حفظ HTML
           </button>
+        </div>
+        
+        {/* Print Section with Copies Counter */}
+        <div className="p-4 bg-white flex items-center gap-3">
+          <div className="flex items-center gap-0 bg-[#F7F0EC] rounded-xl overflow-hidden border border-burgundy/15">
+            <button onClick={() => setCopies(c => Math.max(1, c - 1))} className="w-10 h-10 flex items-center justify-center text-lg font-bold text-burgundy hover:bg-burgundy/10 transition">−</button>
+            <span className="w-10 text-center font-bold text-burgundy">{copies}</span>
+            <button onClick={() => setCopies(c => c + 1)} className="w-10 h-10 flex items-center justify-center text-lg font-bold text-burgundy hover:bg-burgundy/10 transition">+</button>
+          </div>
+          <span className="text-xs font-bold text-burgundy/50 w-8">نسخة</span>
           <button
             onClick={handlePrint}
-            className="rounded-xl bg-burgundy py-2.5 text-sm font-bold text-white transition hover:bg-[#650018]"
+            className="flex-1 rounded-xl bg-burgundy py-3 text-sm font-bold text-white transition hover:bg-[#650018] shadow-lg shadow-burgundy/20"
           >
-            🖨️ طباعة
+            🖨️ طباعة الفاتورة
           </button>
         </div>
       </div>
@@ -238,10 +290,15 @@ function CashierPOS() {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [amountPaid, setAmountPaid] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
   const [editingPriceKey, setEditingPriceKey] = useState(null); // inline price edit
   const [toasts, setToasts] = useState([]);
+  
+  // Modals
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   const searchRef = useRef(null);
 
@@ -423,6 +480,8 @@ function CashierPOS() {
       const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
       const res = await api.post('/pos/sell', {
         sellerId: user._id,
+        customerName,
+        customerPhone,
         items: cart.map(i => ({
           product: i.product,
           name: i.name,
@@ -440,6 +499,8 @@ function CashierPOS() {
       setCart([]);
       setDiscount(0);
       setAmountPaid('');
+      setCustomerName('');
+      setCustomerPhone('');
     } catch (err) {
       alert(err.response?.data?.message || 'حدث خطأ أثناء إتمام البيع');
     } finally {
@@ -704,7 +765,7 @@ function CashierPOS() {
           </div>
           {cart.length > 0 && (
             <button
-              onClick={() => { setCart([]); setDiscount(0); setAmountPaid(''); }}
+              onClick={() => setIsClearConfirmOpen(true)}
               className="text-xs text-burgundy/40 hover:text-red-500 transition px-2 py-1 rounded-lg hover:bg-red-50"
             >
               مسح الكل ✕
@@ -837,6 +898,31 @@ function CashierPOS() {
                 <span className="text-xl font-extrabold text-burgundy">{EGP(totalAfterDiscount)}</span>
               </div>
 
+              {/* Customer Info */}
+              <div className="grid grid-cols-2 gap-2 border-b border-burgundy/10 pb-3">
+                <div>
+                  <p className="text-[10px] text-burgundy/50 font-bold mb-1 ml-1">اسم العميل (اختياري)</p>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                    placeholder="محمد علي..."
+                    className="w-full text-xs text-burgundy bg-white border border-burgundy/15 rounded-xl px-3 py-2 outline-none focus:border-burgundy"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] text-burgundy/50 font-bold mb-1 ml-1">رقم الهاتف (اختياري)</p>
+                  <input
+                    type="text"
+                    value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                    placeholder="010..."
+                    className="w-full text-xs text-burgundy bg-white border border-burgundy/15 rounded-xl px-3 py-2 outline-none focus:border-burgundy"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+
               {/* Payment Method */}
               <div>
                 <p className="text-xs text-burgundy/50 mb-1.5 font-medium">طريقة الدفع</p>
@@ -919,6 +1005,24 @@ function CashierPOS() {
 
       {/* Barcode scan toast notifications */}
       <Toast toasts={toasts} />
+
+      {/* Clear Cart Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isClearConfirmOpen}
+        title="تأكيد مسح الفاتورة"
+        message="هل أنت متأكد أنك تريد مسح جميع المنتجات من الفاتورة الحالية؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmText="نعم، مسح الفاتورة"
+        onConfirm={() => {
+          setCart([]);
+          setDiscount(0);
+          setAmountPaid('');
+          setCustomerName('');
+          setCustomerPhone('');
+          setIsClearConfirmOpen(false);
+          showToast('تم مسح الفاتورة بنجاح', 'success');
+        }}
+        onCancel={() => setIsClearConfirmOpen(false)}
+      />
     </div>
   );
 }

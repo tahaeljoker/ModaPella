@@ -9,7 +9,7 @@ const router = express.Router();
 
 router.post('/sell', auth, async (req, res) => {
   try {
-    const { customerId, sellerId, items, type = 'Offline', paymentMethod = 'Cash', discount = 0 } = req.body;
+    const { customerId, customerName, customerPhone, sellerId, items, type = 'Offline', paymentMethod = 'Cash', discount = 0 } = req.body;
 
     const productLookups = await Promise.all(items.map(async (item) => {
       const product = await Product.findById(item.product);
@@ -54,6 +54,8 @@ router.post('/sell', auth, async (req, res) => {
 
     const order = new Order({
       customer: customerId,
+      customerName: customerName || '',
+      customerPhone: customerPhone || '',
       seller: sellerId || req.user.id,
       items: orderItems,
       totalAmount,

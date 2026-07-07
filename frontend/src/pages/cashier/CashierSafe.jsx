@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ConfirmModal';
 import { exportToCSV } from '../../services/export';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
@@ -17,6 +18,7 @@ function CashierSafe() {
 
   const [modalType, setModalType] = useState(null); // 'EXPENSE' | 'DEPOSIT' | 'CLOSE' | 'OPEN'
   const [form, setForm] = useState({ amount: '', category: 'ضيافة', description: '' });
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState(null);
 
   const loadSafe = () => {
@@ -144,7 +146,7 @@ function CashierSafe() {
               <button onClick={() => handlePrintZReport(currentShift)} className="rounded-full border border-burgundy/30 bg-white px-4 py-2 text-sm font-bold text-burgundy transition hover:bg-burgundy/10">
                 🖨️ طباعة Z-Report
               </button>
-              <button onClick={() => setModalType('CLOSE')} className="rounded-full bg-burgundy px-6 py-2 text-sm font-bold text-white transition hover:bg-[#650018]">
+              <button onClick={() => setIsCloseConfirmOpen(true)} className="rounded-full bg-burgundy px-6 py-2 text-sm font-bold text-white transition hover:bg-[#650018]">
                 🔒 إغلاق الوردية
               </button>
             </div>
@@ -364,6 +366,19 @@ function CashierSafe() {
           </div>
         </div>
       )}
+      
+      {/* Close Shift Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isCloseConfirmOpen}
+        title="تأكيد إغلاق الوردية"
+        message="هل أنت متأكد أنك تريد إغلاق الوردية الحالية؟ ستحتاج لعد النقود الفعلية في الدرج لإتمام العملية."
+        confirmText="نعم، متابعة الإغلاق"
+        onConfirm={() => {
+          setIsCloseConfirmOpen(false);
+          setModalType('CLOSE');
+        }}
+        onCancel={() => setIsCloseConfirmOpen(false)}
+      />
     </div>
   );
 }

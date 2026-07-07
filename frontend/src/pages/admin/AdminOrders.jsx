@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ConfirmModal';
 import { exportToCSV } from '../../services/export';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
@@ -25,6 +26,8 @@ function AdminOrders() {
   const [returnQtys, setReturnQtys] = useState({}); // { itemId: qty }
   const [returnReason, setReturnReason] = useState('');
   const [returning, setReturning] = useState(false);
+  const [isFullReturnConfirmOpen, setIsFullReturnConfirmOpen] = useState(false);
+  const [orderToReturnFull, setOrderToReturnFull] = useState(null);
 
   const loadOrders = async () => {
     try {
@@ -41,6 +44,17 @@ function AdminOrders() {
     try {
       await api.patch(`/orders/${id}`, { status });
       await loadOrders();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleFullReturn = async (id) => {
+    try {
+      await api.patch(`/orders/${id}`, { status: 'Returned' });
+      await loadOrders();
+      setIsFullReturnConfirmOpen(false);
+      setOrderToReturnFull(null);
     } catch (e) {
       console.error(e);
     }
@@ -241,7 +255,7 @@ function AdminOrders() {
                           className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
                           تأكيد كمكتمل
                         </button>
-                        <button type="button" onClick={() => handleStatusChange(order._id, 'Returned')}
+                        <button type="button" onClick={() => { setOrderToReturnFull(order._id); setIsFullReturnConfirmOpen(true); }}
                           className="rounded-xl border border-red-300 px-4 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50">
                           مرتجع كامل
                         </button>
@@ -310,6 +324,16 @@ function AdminOrders() {
           </div>
         </div>
       )}
+
+      {/* Full Return Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isFullReturnConfirmOpen}
+        title="تأكيد المرتجع الكامل"
+        message="هل أنت متأكد من تحويل هذا الطلب إلى مرتجع كامل؟ سيتم إعادة جميع القطع للمخزون وتسجيل حركة بالخزنة."
+        confirmText="نعم، مرتجع كامل"
+        onConfirm={() => handleFullReturn(orderToReturnFull)}
+        onCancel={() => { setIsFullReturnConfirmOpen(false); setOrderToReturnFull(null); }}
+      />
     </div>
   );
 }
