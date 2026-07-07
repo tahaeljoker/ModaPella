@@ -74,6 +74,52 @@ function CashierSafe() {
     exportToCSV(`حركات_الخزنة_${new Date().toLocaleDateString('ar-EG')}`, headers, rows);
   };
 
+  const handlePrintZReport = (shift) => {
+    const shiftData = shift || currentShift;
+    const now = new Date().toLocaleString('ar-EG');
+    const openTime = shiftData?.createdAt ? new Date(shiftData.createdAt).toLocaleString('ar-EG') : '—';
+    const cashSales = data.todaySummary?.cashSales || 0;
+    const instapaySales = data.todaySummary?.instapaySales || 0;
+    const expenses = data.todaySummary?.expenses || 0;
+    const openingBal = shiftData?.openingBalance || 0;
+    const expectedCash = shiftData?.expectedCash ?? data.summary?.cashDrawer ?? 0;
+    const countedCash = shiftData?.closingBalance ?? expectedCash;
+    const variance = countedCash - expectedCash;
+
+    const printDiv = document.createElement('div');
+    printDiv.id = 'invoice-print-root';
+    printDiv.innerHTML = `
+      <div class="invoice-print-header">
+        <h1>ModaPella</h1>
+        <p>تقرير تقفيل الوردية (Z-Report)</p>
+        <p>${now}</p>
+      </div>
+      <table class="invoice-print-table" style="font-size:12px">
+        <tbody>
+          <tr><td>وقت الفتح</td><td style="text-align:left">${openTime}</td></tr>
+          <tr><td>وقت الإغلاق</td><td style="text-align:left">${now}</td></tr>
+          <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الإيرادات</td></tr>
+          <tr><td>مبيعات كاش 💵</td><td style="text-align:left;color:#15803d;font-weight:bold">${Number(cashSales).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>مبيعات انستا باي 📱</td><td style="text-align:left;color:#2563eb;font-weight:bold">${Number(instapaySales).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>إجمالي المبيعات</td><td style="text-align:left;font-weight:bold">${Number(cashSales + instapaySales).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الدرج النقدي</td></tr>
+          <tr><td>رصيد الافتتاح</td><td style="text-align:left">${Number(openingBal).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>مصروفات كاش</td><td style="text-align:left;color:#dc2626">- ${Number(expenses).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>الكاش المتوقع في الدرج</td><td style="text-align:left;font-weight:bold">${Number(expectedCash).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>الكاش الفعلي (عند العد)</td><td style="text-align:left;font-weight:bold">${Number(countedCash).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>الفرق (عجز/زيادة)</td><td style="text-align:left;font-weight:bold;color:${variance === 0 ? '#15803d' : variance > 0 ? '#d97706' : '#dc2626'}">${variance >= 0 ? '+' : ''}${Number(variance).toLocaleString('ar-EG')} ج.م</td></tr>
+        </tbody>
+      </table>
+      <div class="invoice-print-footer">
+        ModaPella — تقرير تقفيل الوردية<br/>
+        ${now}
+      </div>
+    `;
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+  };
+
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col gap-6 text-burgundy">
       <div className="flex items-center justify-between">
@@ -95,6 +141,9 @@ function CashierSafe() {
               <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
                 🟢 وردية مفتوحة
               </div>
+              <button onClick={() => handlePrintZReport(currentShift)} className="rounded-full border border-burgundy/30 bg-white px-4 py-2 text-sm font-bold text-burgundy transition hover:bg-burgundy/10">
+                🖨️ طباعة Z-Report
+              </button>
               <button onClick={() => setModalType('CLOSE')} className="rounded-full bg-burgundy px-6 py-2 text-sm font-bold text-white transition hover:bg-[#650018]">
                 🔒 إغلاق الوردية
               </button>
@@ -173,9 +222,18 @@ function CashierSafe() {
                       <div key={shift._id} className="rounded-[1.25rem] border border-burgundy/10 bg-burgundy/5 p-4">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-bold text-burgundy">{shift.user?.name || 'غير معروف'}</p>
-                          <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${variance === 0 ? 'bg-emerald-100 text-emerald-700' : variance > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                            {variance === 0 ? 'ممتاز' : variance > 0 ? 'زيادة' : 'نقص'}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${variance === 0 ? 'bg-emerald-100 text-emerald-700' : variance > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                              {variance === 0 ? 'ممتاز' : variance > 0 ? 'زيادة' : 'نقص'}
+                            </span>
+                            <button
+                              onClick={() => handlePrintZReport(shift)}
+                              title="طباعة تقرير الوردية"
+                              className="rounded-full bg-white border border-burgundy/15 px-2 py-1 text-[10px] text-burgundy hover:bg-burgundy/10 transition"
+                            >
+                              🖨️
+                            </button>
+                          </div>
                         </div>
                         <div className="mt-3 space-y-1 text-xs text-burgundy/70">
                           <div className="flex justify-between"><span>افتتاح</span><span>{EGP(shift.openingBalance || 0)}</span></div>

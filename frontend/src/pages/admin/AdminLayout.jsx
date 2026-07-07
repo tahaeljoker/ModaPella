@@ -2,8 +2,9 @@ import { NavLink, useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/admin', label: 'لوحة التحكم', icon: '📊', end: true },
-  { to: '/admin/products', label: 'المنتجات والمخزون', icon: '🛍️' },
+  { to: '/admin/products', label: 'المنتجات والمخزون', icon: '🛒' },
   { to: '/admin/orders', label: 'الطلبات', icon: '📋' },
+  { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: '🏷️' },
   { to: '/admin/site', label: 'إعدادات الموقع', icon: '🎨' },
   { to: '/admin/users', label: 'المستخدمون', icon: '👥' },
 ];

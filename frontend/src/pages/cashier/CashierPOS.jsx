@@ -201,6 +201,25 @@ function InvoiceModal({ order, onClose }) {
   );
 }
 
+// ─── Toast Notification ───────────────────────────────────────────────────────
+function Toast({ toasts }) {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] flex flex-col gap-2 items-center pointer-events-none">
+      {toasts.map(t => (
+        <div
+          key={t.id}
+          className={`flex items-center gap-3 rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-2xl transition-all duration-300 ${
+            t.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+          }`}
+        >
+          <span className="text-lg">{t.type === 'success' ? '✅' : '❌'}</span>
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main POS ─────────────────────────────────────────────────────────────────
 function CashierPOS() {
   const [products, setProducts] = useState([]);
@@ -222,8 +241,15 @@ function CashierPOS() {
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
   const [editingPriceKey, setEditingPriceKey] = useState(null); // inline price edit
+  const [toasts, setToasts] = useState([]);
 
   const searchRef = useRef(null);
+
+  const showToast = (message, type = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  };
 
   useEffect(() => {
     api.get('/products')
@@ -232,18 +258,76 @@ function CashierPOS() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Barcode scanner hook ──────────────────────────────────────────────────
+  // ── Barcode scanner hook — auto-add to cart ───────────────────────────────
   useEffect(() => {
     let buffer = '';
     let timer = null;
     const handleKey = (e) => {
+      // Ignore keypresses inside inputs (except search)
       if (e.target.tagName === 'INPUT' && e.target !== searchRef.current) return;
       if (e.key === 'Enter' && buffer.length > 3) {
         const sku = buffer.trim().toUpperCase();
         const found = products.find(p => p.sku === sku);
         if (found) {
-          handleSelectProduct(found);
+          // Pick first available variant (size + color) automatically
+          let autoSize = '';
+          let autoColor = '';
+          let autoStock = 0;
+
+          if (found.variants && found.variants.length > 0) {
+            // Find first variant with stock > 0
+            const availableVariant = found.variants.find(v => v.stock > 0);
+            if (availableVariant) {
+              autoSize = availableVariant.size;
+              autoColor = availableVariant.color;
+              autoStock = availableVariant.stock;
+            } else {
+              showToast(`${found.name} — نفد المخزون!`, 'error');
+              buffer = '';
+              return;
+            }
+          } else {
+            autoSize = found.sizes?.[0] || '';
+            autoColor = found.colors?.[0] || '';
+            autoStock = found.stock || 0;
+          }
+
+          if (autoStock <= 0) {
+            showToast(`${found.name} — نفد المخزون!`, 'error');
+            buffer = '';
+            return;
+          }
+
+          // Add directly to cart
+          const key = `${found._id}_${autoSize}_${autoColor}`;
+          const cartItem = {
+            _cartKey: key,
+            product: found._id,
+            name: found.name,
+            category: found.category,
+            price: found.price,
+            size: autoSize,
+            color: autoColor,
+            quantity: 1,
+            maxStock: autoStock,
+            image: found.images?.[0] || '',
+          };
+          setCart(prev => {
+            const exists = prev.find(i => i._cartKey === key);
+            if (exists) {
+              if (exists.quantity >= exists.maxStock) {
+                showToast(`${found.name} — وصلت للحد الأقصى المتاح (${exists.maxStock})`, 'error');
+                return prev;
+              }
+              showToast(`${found.name} — تمت الإضافة ✓ (${exists.quantity + 1} قطعة)`, 'success');
+              return prev.map(i => i._cartKey === key ? { ...i, quantity: i.quantity + 1 } : i);
+            }
+            showToast(`${found.name}${autoSize ? ` | ${autoSize}` : ''}${autoColor ? ` | ${autoColor}` : ''} — أُضيف للفاتورة ✓`, 'success');
+            return [...prev, cartItem];
+          });
           setSearch('');
+        } else {
+          showToast(`الكود "${sku}" غير موجود في المخزون`, 'error');
         }
         buffer = '';
         return;
@@ -832,6 +916,9 @@ function CashierPOS() {
       {completedOrder && (
         <InvoiceModal order={completedOrder} onClose={() => setCompletedOrder(null)} />
       )}
+
+      {/* Barcode scan toast notifications */}
+      <Toast toasts={toasts} />
     </div>
   );
 }
