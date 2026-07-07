@@ -118,38 +118,6 @@ function InvoiceModal({ order, onClose }) {
     window.print();
     document.body.removeChild(printDiv);
   };
-    const id = order._id?.toString().slice(-8).toUpperCase();
-    const date = new Date(order.createdAt).toLocaleString('ar-EG');
-    printDiv.innerHTML = `
-      <div class="invoice-print-header">
-        <h1>ModaPella</h1>
-        <p>فاتورة بيع | رقم: #${id}</p>
-        <p>${date}</p>
-      </div>
-      <table class="invoice-print-table">
-        <thead><tr><th>المنتج</th><th>المقاس</th><th>اللون</th><th>الكمية</th><th>الإجمالي</th></tr></thead>
-        <tbody>
-          ${(order.items || []).map(item => `
-            <tr>
-              <td>${item.name}</td>
-              <td>${item.size || '—'}</td>
-              <td>${item.color || '—'}</td>
-              <td style="text-align:center">${item.quantity}</td>
-              <td style="text-align:left">${Number(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</td>
-            </tr>`).join('')}
-          ${order.discount > 0 ? `<tr><td colspan="4" style="color:#16a34a">خصم</td><td style="color:#16a34a">- ${Number(order.discount).toLocaleString('ar-EG')} ج.م</td></tr>` : ''}
-        </tbody>
-      </table>
-      <div class="invoice-print-total">الإجمالي: ${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م &nbsp;&nbsp; ${order.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي'}</div>
-      <div class="invoice-print-footer">
-        شكراً لتعاملكم مع ModaPella 🎀<br/>
-        تواصل معنا: 01112556672 - 01122372297
-      </div>
-    `;
-    document.body.appendChild(printDiv);
-    window.print();
-    document.body.removeChild(printDiv);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
