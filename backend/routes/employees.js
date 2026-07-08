@@ -180,9 +180,9 @@ router.get('/comparison', auth, requireRole(ADMIN), async (req, res) => {
 // POST /api/employees
 router.post('/', auth, requireRole(ADMIN), async (req, res) => {
   try {
-    const { name, phone, notes } = req.body;
+    const { name, phone, notes, startDate } = req.body;
     if (!name) return res.status(400).json({ message: 'Name is required' });
-    const emp = new Employee({ name, phone, notes });
+    const emp = new Employee({ name, phone, notes, startDate });
     await emp.save();
     res.status(201).json(emp);
   } catch (e) {

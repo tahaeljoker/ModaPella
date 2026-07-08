@@ -7,7 +7,14 @@ const DATE = (d) => new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', m
 
 // ─── Employee Form Modal ───────────────────────────────────────────────────────
 function EmployeeModal({ employee, onClose, onSave }) {
-  const [form, setForm] = useState({ name: '', phone: '', notes: '', ...employee });
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    notes: '',
+    startDate: '',
+    ...employee,
+    startDate: employee?.startDate ? new Date(employee.startDate).toISOString().split('T')[0] : ''
+  });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -31,6 +38,10 @@ function EmployeeModal({ employee, onClose, onSave }) {
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">رقم الهاتف</label>
             <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} className={inp} placeholder="010..." dir="ltr" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">تاريخ بدء العمل</label>
+            <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className={inp} />
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">ملاحظات</label>
@@ -73,10 +84,18 @@ function EmployeeStatsModal({ employee, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="bg-burgundy text-white px-6 py-5">
-          <p className="text-xs opacity-70 uppercase tracking-widest">تحليلات الأداء التفصيلية</p>
-          <h3 className="text-xl font-bold mt-1">{employee.name}</h3>
-          {employee.phone && <p className="text-xs opacity-60 mt-0.5">{employee.phone}</p>}
+        <div className="bg-burgundy text-white px-6 py-5 flex justify-between items-start">
+          <div>
+            <p className="text-xs opacity-70 uppercase tracking-widest">تحليلات الأداء التفصيلية</p>
+            <h3 className="text-xl font-bold mt-1">{employee.name}</h3>
+            {employee.phone && <p className="text-xs opacity-60 mt-0.5">{employee.phone}</p>}
+          </div>
+          {employee.startDate && (
+            <div className="text-left bg-white/10 px-3 py-1.5 rounded-xl border border-white/15">
+              <p className="text-[10px] opacity-75 uppercase">تاريخ بدء العمل</p>
+              <p className="text-xs font-bold mt-0.5">{DATE(employee.startDate)}</p>
+            </div>
+          )}
         </div>
 
         {/* Date filters */}
@@ -538,21 +557,22 @@ function AdminEmployees() {
       ) : (
         <>
           <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-            <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
-              <span>الموظف</span><span>رقم الهاتف</span><span>الحالة</span><span>الإجراءات</span>
+            <div className="hidden sm:grid grid-cols-[1.2fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
+              <span>الموظف</span><span>رقم الهاتف</span><span>تاريخ بدء العمل</span><span>الحالة</span><span>الإجراءات</span>
             </div>
             <div className="divide-y divide-burgundy/6">
               {employees.map(emp => (
-                <div key={emp._id} className={`grid sm:grid-cols-[1fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3 ${!emp.active ? 'opacity-50' : ''}`}>
+                <div key={emp._id} className={`grid sm:grid-cols-[1.2fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3 ${!emp.active ? 'opacity-50' : ''}`}>
                   <div>
                     <p className="font-semibold text-sm text-burgundy">{emp.name}</p>
                     {emp.notes && <p className="text-xs text-burgundy/40 mt-0.5">{emp.notes}</p>}
                   </div>
                   <p className="text-sm text-burgundy/60 font-mono">{emp.phone || '—'}</p>
+                  <p className="text-xs text-burgundy/70 font-semibold">{emp.startDate ? DATE(emp.startDate) : 'غير مسجل'}</p>
                   <span className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-bold ${emp.active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                     {emp.active ? '🟢 نشط' : '🔴 معطّل'}
                   </span>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 flex-wrap">
                     <button onClick={() => setStatsEmp(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">📊 مبيعات</button>
                     <button onClick={() => setModal(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
                     <button onClick={() => handleToggle(emp)} className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${emp.active ? 'border-amber-200 text-amber-600 hover:bg-amber-500 hover:text-white' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white'}`}>
