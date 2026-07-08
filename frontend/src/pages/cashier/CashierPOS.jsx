@@ -15,6 +15,26 @@ const CATEGORY_LABELS = {
   Cardigan: 'كاردن',
 };
 
+const getProductIcon = (category = '', name = '') => {
+  const cat = (category || '').toLowerCase();
+  const nm = (name || '').toLowerCase();
+  if (cat.includes('bag') || cat.includes('حقيبة') || cat.includes('شنط') || nm.includes('شنط') || nm.includes('حقيب')) return '👜';
+  if (cat.includes('dress') || cat.includes('فستان') || cat.includes('دريس') || nm.includes('فستان') || nm.includes('دريس')) return '👗';
+  if (cat.includes('shoes') || cat.includes('حذاء') || cat.includes('شوز') || cat.includes('كوتش') || nm.includes('شوز') || nm.includes('حذاء') || nm.includes('كوتش')) return '👟';
+  if (cat.includes('t-shirt') || cat.includes('تيشرت') || cat.includes('تي شيرت') || nm.includes('تيشرت') || nm.includes('تي شيرت')) return '👕';
+  if (cat.includes('shirt') || cat.includes('قميص') || nm.includes('قميص') || nm.includes('شيرت')) return '👔';
+  if (cat.includes('pants') || cat.includes('trousers') || cat.includes('بنطلون') || cat.includes('جينز') || nm.includes('بنطلون') || nm.includes('جينز')) return '👖';
+  if (cat.includes('jacket') || cat.includes('جاكيت') || cat.includes('معطف') || cat.includes('بالتو') || nm.includes('جاكيت') || nm.includes('معطف')) return '🧥';
+  if (cat.includes('skirt') || cat.includes('جيب') || cat.includes('تنورة') || nm.includes('جيب') || nm.includes('تنورة')) return '👗';
+  if (cat.includes('wallet') || cat.includes('محفظة') || cat.includes('بورتفيه') || nm.includes('محفظة') || nm.includes('بورتفيه')) return '👛';
+  if (cat.includes('perfume') || cat.includes('عطر') || cat.includes('برفيوم') || nm.includes('عطر') || nm.includes('برفيوم')) return '🧴';
+  if (cat.includes('accessory') || cat.includes('إكسسوار') || cat.includes('اكسسوار') || nm.includes('إكسسوار') || nm.includes('اكسسوار')) return '💍';
+  if (cat.includes('socks') || cat.includes('شراب') || nm.includes('شراب') || nm.includes('جورب')) return '🧦';
+  if (cat.includes('blouse') || cat.includes('بلوزة') || nm.includes('بلوزة')) return '👚';
+  if (cat.includes('scarf') || cat.includes('طرحة') || cat.includes('شال') || cat.includes('حجاب') || nm.includes('طرحة') || nm.includes('شال') || nm.includes('حجاب')) return '🧣';
+  return '🛍️';
+};
+
 // ─── Save Invoice as HTML ─────────────────────────────────────────────────────
 function saveInvoiceAsHTML(order) {
   const id = order._id?.toString().slice(-8).toUpperCase();
@@ -678,9 +698,13 @@ function CashierPOS() {
                       onMouseDown={() => handleSelectProduct(product)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-right hover:bg-burgundy/5 transition border-b border-burgundy/5 last:border-0"
                     >
-                      {product.images?.[0] && (
-                        <img src={product.images[0]} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                      )}
+                      <div className="w-10 h-10 rounded-xl bg-[#F7F0EC] flex items-center justify-center text-xl flex-shrink-0 border border-burgundy/10 overflow-hidden">
+                        {product.images?.[0] ? (
+                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                        ) : (
+                          getProductIcon(product.category, product.name)
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm text-burgundy truncate">{product.name}</p>
                         <p className="text-xs text-burgundy/50">{CATEGORY_LABELS[product.category]} {product.sku && `• ${product.sku}`}</p>
@@ -738,7 +762,7 @@ function CashierPOS() {
                     />
                   ) : (
                     <div className="w-28 h-28 rounded-2xl bg-burgundy/8 flex items-center justify-center text-4xl flex-shrink-0">
-                      👗
+                      {getProductIcon(selectedProduct.category, selectedProduct.name)}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
@@ -899,9 +923,13 @@ function CashierPOS() {
               {cart.map((item) => (
                 <div key={item._cartKey} className="px-4 py-3 hover:bg-[#F7F0EC]/50 transition group">
                   <div className="flex items-start gap-3">
-                    {item.image && (
-                      <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                    )}
+                    <div className="w-12 h-12 rounded-xl bg-[#F7F0EC] flex items-center justify-center text-xl flex-shrink-0 border border-burgundy/10 overflow-hidden">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        getProductIcon(item.category, item.name)
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-burgundy leading-tight truncate">{item.name}</p>
                       <p className="text-xs text-burgundy/45 mt-0.5">
