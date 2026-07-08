@@ -7,6 +7,7 @@ const Order = require('../models/Order');
 const SiteConfig = require('../models/SiteConfig');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const Shift = require('../models/Shift');
 
 const router = express.Router();
 
