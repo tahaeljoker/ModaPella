@@ -49,6 +49,60 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
 
     const returnedAmount = returnedOrders.reduce((s, o) => s + o.totalAmount, 0);
 
+    // ─── Net Profit ────────────────────────────────────────────────────
+    const netProfit = completedOrders.reduce((sum, order) => {
+      const orderProfit = order.items.reduce((s, item) => {
+        return s + ((item.price - (item.costPrice || 0)) * item.quantity);
+      }, 0);
+      return sum + orderProfit - (order.discount || 0);
+    }, 0);
+
+    // ─── Profit Margin % ───────────────────────────────────────────────
+    const profitMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : 0;
+
+    // ─── Average Order Value ───────────────────────────────────────────
+    const avgOrderValue = completedOrders.length > 0 ? totalSales / completedOrders.length : 0;
+
+    // ─── Total Items Sold ──────────────────────────────────────────────
+    const totalItemsSold = completedOrders.reduce((sum, o) => {
+      return sum + o.items.reduce((s, i) => s + i.quantity, 0);
+    }, 0);
+
+    // ─── Category Breakdown & Top Category ─────────────────────────────
+    const categorySales = {};
+    completedOrders.forEach(o => {
+      o.items.forEach(i => {
+        const qty = i.quantity - (i.returnedQuantity || 0);
+        if (qty > 0) {
+          if (!categorySales[i.category]) {
+            categorySales[i.category] = { qty: 0, amount: 0 };
+          }
+          categorySales[i.category].qty += qty;
+          categorySales[i.category].amount += qty * i.price;
+        }
+      });
+    });
+    const categoryBreakdown = Object.entries(categorySales)
+      .map(([category, data]) => ({ category, qty: data.qty, amount: data.amount }))
+      .sort((a, b) => b.qty - a.qty);
+
+    const topCategory = categoryBreakdown.length > 0 ? categoryBreakdown[0] : null;
+
+    // ─── Contribution % (compared to all employees in same period) ────
+    const globalMatch = {};
+    if (from || to) {
+      globalMatch.createdAt = {};
+      if (from) globalMatch.createdAt.$gte = new Date(from);
+      if (to)   globalMatch.createdAt.$lte = new Date(to + 'T23:59:59');
+    }
+    globalMatch.status = 'Completed';
+    const globalTotal = await Order.aggregate([
+      { $match: globalMatch },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const allSalesTotal = globalTotal.length > 0 ? globalTotal[0].total : 0;
+    const contributionPercent = allSalesTotal > 0 ? ((totalSales / allSalesTotal) * 100).toFixed(1) : 0;
+
     res.json({
       orders: allOrders,
       count: completedOrders.length,
@@ -56,10 +110,70 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
       cashSales,
       instaSales,
       returnedCount: returnedOrders.length,
-      returnedAmount
+      returnedAmount,
+      netProfit,
+      profitMargin: Number(profitMargin),
+      avgOrderValue,
+      totalItemsSold,
+      categoryBreakdown,
+      topCategory,
+      contributionPercent: Number(contributionPercent)
     });
   } catch (e) {
     res.status(500).json({ message: 'Unable to load stats', error: e.message });
+  }
+});
+
+// GET /api/employees/comparison — comparison stats for all employees
+router.get('/comparison', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const match = { status: 'Completed', employeeName: { $ne: '' } };
+    if (from || to) {
+      match.createdAt = {};
+      if (from) match.createdAt.$gte = new Date(from);
+      if (to)   match.createdAt.$lte = new Date(to + 'T23:59:59');
+    }
+    const orders = await Order.find(match);
+
+    const empData = {};
+    orders.forEach(o => {
+      if (!o.employeeName) return;
+      if (!empData[o.employeeName]) {
+        empData[o.employeeName] = { sales: 0, profit: 0, orderCount: 0, itemsSold: 0, categories: {} };
+      }
+      const emp = empData[o.employeeName];
+      emp.sales += o.totalAmount;
+      emp.orderCount += 1;
+      const orderProfit = o.items.reduce((s, item) => s + ((item.price - (item.costPrice || 0)) * item.quantity), 0);
+      emp.profit += orderProfit - (o.discount || 0);
+      o.items.forEach(item => {
+        const qty = item.quantity - (item.returnedQuantity || 0);
+        if (qty > 0) {
+          emp.itemsSold += qty;
+          emp.categories[item.category] = (emp.categories[item.category] || 0) + qty;
+        }
+      });
+    });
+
+    const comparison = Object.entries(empData)
+      .map(([name, data]) => {
+        const topCatEntry = Object.entries(data.categories).sort((a, b) => b[1] - a[1])[0];
+        return {
+          name,
+          sales: data.sales,
+          profit: data.profit,
+          orderCount: data.orderCount,
+          itemsSold: data.itemsSold,
+          avgOrder: data.orderCount > 0 ? Math.round(data.sales / data.orderCount) : 0,
+          topCategory: topCatEntry ? { category: topCatEntry[0], qty: topCatEntry[1] } : null
+        };
+      })
+      .sort((a, b) => b.sales - a.sales);
+
+    res.json(comparison);
+  } catch (e) {
+    res.status(500).json({ message: 'Unable to load comparison', error: e.message });
   }
 });
 

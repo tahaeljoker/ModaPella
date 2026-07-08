@@ -6,8 +6,9 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const SiteConfig = require('../models/SiteConfig');
 const User = require('../models/User');
-const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
+const Transaction = require('../models/Transaction');
+const StockHistory = require('../models/StockHistory');
 
 const router = express.Router();
 
@@ -71,6 +72,58 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 5);
 
+    // Calculate category breakdown
+    const categorySales = {};
+    allOrders.forEach(o => {
+      o.items.forEach(i => {
+        const qty = i.quantity - (i.returnedQuantity || 0);
+        if (qty > 0) {
+          categorySales[i.category] = (categorySales[i.category] || 0) + (qty * i.price);
+        }
+      });
+    });
+    const categoryBreakdown = Object.entries(categorySales).map(([category, amount]) => ({
+      category,
+      amount
+    }));
+
+    // Calculate employee leaderboard
+    const employeeData = {};
+    allOrders.forEach(o => {
+      if (o.employeeName) {
+        if (!employeeData[o.employeeName]) {
+          employeeData[o.employeeName] = { amount: 0, profit: 0, orderCount: 0, itemsSold: 0, categories: {} };
+        }
+        const emp = employeeData[o.employeeName];
+        emp.amount += o.totalAmount;
+        emp.orderCount += 1;
+        const orderProfit = o.items.reduce((s, item) => {
+          return s + ((item.price - (item.costPrice || 0)) * item.quantity);
+        }, 0);
+        emp.profit += orderProfit - (o.discount || 0);
+        o.items.forEach(item => {
+          const qty = item.quantity - (item.returnedQuantity || 0);
+          if (qty > 0) {
+            emp.itemsSold += qty;
+            emp.categories[item.category] = (emp.categories[item.category] || 0) + qty;
+          }
+        });
+      }
+    });
+    const employeeLeaderboard = Object.entries(employeeData)
+      .map(([name, data]) => {
+        const topCatEntry = Object.entries(data.categories).sort((a, b) => b[1] - a[1])[0];
+        return {
+          name,
+          amount: data.amount,
+          profit: data.profit,
+          orderCount: data.orderCount,
+          itemsSold: data.itemsSold,
+          topCategory: topCatEntry ? { category: topCatEntry[0], qty: topCatEntry[1] } : null
+        };
+      })
+      .sort((a, b) => b.amount - a.amount);
+
     res.json({
       products: products.length,
       totalStock,
@@ -82,10 +135,24 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       published: siteConfig.published,
       lowStock,
       bestSellers,
+      categoryBreakdown,
+      employeeLeaderboard,
       recentOrders: orders
     });
   } catch (error) {
     res.status(500).json({ message: 'Unable to load admin overview', error: error.message });
+  }
+});
+
+// GET /api/admin/products/:id/stock-history
+router.get('/products/:id/stock-history', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const history = await StockHistory.find({ product: req.params.id })
+      .populate('performedBy', 'name')
+      .sort({ createdAt: -1 });
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to load stock history', error: error.message });
   }
 });
 
@@ -205,6 +272,40 @@ router.get('/customers', auth, requireRole(['admin']), async (req, res) => {
     res.json(customersList);
   } catch (error) {
     res.status(500).json({ message: 'Unable to load customers', error: error.message });
+  }
+});
+
+// PUT /api/admin/customers/update
+router.put('/customers/update', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { oldPhone, oldName, newPhone, newName } = req.body;
+    const query = oldPhone ? { customerPhone: oldPhone } : { customerName: oldName };
+    const result = await Order.updateMany(query, {
+      $set: {
+        customerName: newName,
+        customerPhone: newPhone
+      }
+    });
+    res.json({ message: 'Customer updated successfully', modifiedCount: result.modifiedCount });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update customer', error: error.message });
+  }
+});
+
+// POST /api/admin/customers/delete
+router.post('/customers/delete', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { phone, name } = req.body;
+    const query = phone ? { customerPhone: phone } : { customerName: name };
+    const result = await Order.updateMany(query, {
+      $set: {
+        customerName: '',
+        customerPhone: ''
+      }
+    });
+    res.json({ message: 'Customer deleted successfully', modifiedCount: result.modifiedCount });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete customer', error: error.message });
   }
 });
 

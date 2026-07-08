@@ -401,6 +401,23 @@ function AdminOverview() {
         </div>
       </div>
 
+      {/* Category Sales & Employee Performance */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Category breakdown */}
+        <div className="lg:col-span-2 rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-burgundy mb-1">👚 مبيعات الأصناف والفئات</h3>
+          <p className="text-xs text-burgundy/50 mb-5">توزيع حجم المبيعات الإجمالي على تصنيفات المنتجات المختلفة</p>
+          <CategoryPieChart breakdown={overview?.categoryBreakdown} />
+        </div>
+
+        {/* Employee Performance Leaderboard */}
+        <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-burgundy mb-1">🏆 متصدر المبيعات (الموظفين)</h3>
+          <p className="text-xs text-burgundy/50 mb-5">ترتيب الموظفين حسب قيمة المبيعات التي حققوها</p>
+          <EmployeeLeaderboard leaderboard={overview?.employeeLeaderboard} />
+        </div>
+      </div>
+
       {/* Recent orders */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
         <div className="mb-5 flex items-center justify-between">
@@ -450,6 +467,135 @@ function AdminOverview() {
           <p className="text-center text-sm text-burgundy/50 py-8">لا توجد طلبات بعد</p>
         )}
       </div>
+    </div>
+  );
+}
+
+const CAT_AR = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت' };
+
+function CategoryPieChart({ breakdown }) {
+  if (!breakdown || breakdown.length === 0) {
+    return <div className="text-center text-xs text-burgundy/40 py-8">لا توجد بيانات مبيعات تصنيفات بعد</div>;
+  }
+  const total = breakdown.reduce((sum, item) => sum + item.amount, 0);
+  if (total === 0) {
+    return <div className="text-center text-xs text-burgundy/40 py-8">لا توجد مبيعات فعلية</div>;
+  }
+
+  const COLORS = ['#7C0A12', '#D97706', '#059669', '#2563EB', '#7C3AED', '#DB2777', '#0891B2', '#4B5563'];
+  let cumulativePercent = 0;
+
+  function getCoordinatesForPercent(percent) {
+    const x = Math.cos(2 * Math.PI * percent);
+    const y = Math.sin(2 * Math.PI * percent);
+    return [x, y];
+  }
+
+  const slices = breakdown.map((item, idx) => {
+    const percent = item.amount / total;
+    const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
+    cumulativePercent += percent;
+    const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
+    const largeArcFlag = percent > 0.5 ? 1 : 0;
+    const pathData = [
+      `M 0 0`,
+      `L ${startX} ${startY}`,
+      `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`,
+      `Z`
+    ].join(' ');
+    const color = COLORS[idx % COLORS.length];
+    return { ...item, percent, pathData, color };
+  });
+
+  return (
+    <div className="flex flex-col md:flex-row items-center gap-6" dir="rtl">
+      <div className="relative w-40 h-40 flex-shrink-0 mx-auto md:mx-0">
+        <svg viewBox="-1 -1 2 2" className="w-full h-full -rotate-90">
+          {slices.map((slice, idx) => (
+            <path key={idx} d={slice.pathData} fill={slice.color} />
+          ))}
+          <circle cx="0" cy="0" r="0.6" fill="#ffffff" />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <p className="text-[10px] text-burgundy/50 font-semibold">إجمالي المبيعات</p>
+          <p className="text-xs font-extrabold text-burgundy">{Number(total).toLocaleString('ar-EG')} ج.م</p>
+        </div>
+      </div>
+      
+      <div className="flex-1 space-y-2 text-xs w-full">
+        {slices.map((slice, idx) => (
+          <div key={idx} className="flex justify-between items-center bg-burgundy/3 p-2 rounded-xl border border-burgundy/5">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: slice.color }} />
+              <span className="font-bold text-burgundy">{CAT_AR[slice.category] || slice.category}</span>
+            </div>
+            <div className="flex items-center gap-2 font-mono text-[11px] text-burgundy/60">
+              <span>{Number(slice.amount).toLocaleString('ar-EG')} ج.م</span>
+              <span className="bg-burgundy/10 text-burgundy px-1.5 py-0.5 rounded font-bold text-[9px] font-sans">
+                {(slice.percent * 100).toFixed(0)}%
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmployeeLeaderboard({ leaderboard }) {
+  if (!leaderboard || leaderboard.length === 0) {
+    return <div className="text-center text-xs text-burgundy/40 py-8">لا توجد بيانات موظفين بعد</div>;
+  }
+  const maxAmount = Math.max(...leaderboard.map(l => l.amount), 1);
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      {leaderboard.map((emp, idx) => {
+        const pct = (emp.amount / maxAmount) * 100;
+        const rankColor = idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '👤';
+        return (
+          <div key={idx} className="space-y-2 rounded-xl bg-burgundy/3 p-3 border border-burgundy/5">
+            {/* Name + Sales */}
+            <div className="flex justify-between text-xs font-bold text-burgundy">
+              <span className="flex items-center gap-1">
+                <span>{rankColor}</span>
+                <span>{emp.name}</span>
+              </span>
+              <span>{Number(emp.amount).toLocaleString('ar-EG')} ج.م</span>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full bg-burgundy/5 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-burgundy h-full rounded-full transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            {/* Sub-stats row */}
+            <div className="flex flex-wrap items-center gap-2 text-[10px]">
+              {emp.profit != null && (
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">
+                  📈 ربح: {Number(emp.profit).toLocaleString('ar-EG')} ج.م
+                </span>
+              )}
+              {emp.orderCount != null && (
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 font-bold text-blue-700">
+                  🧾 {emp.orderCount} فاتورة
+                </span>
+              )}
+              {emp.itemsSold != null && (
+                <span className="rounded-full bg-purple-50 px-2 py-0.5 font-bold text-purple-700">
+                  👚 {emp.itemsSold} قطعة
+                </span>
+              )}
+              {emp.topCategory && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-700">
+                  ⭐ {CAT_AR[emp.topCategory.category] || emp.topCategory.category}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
