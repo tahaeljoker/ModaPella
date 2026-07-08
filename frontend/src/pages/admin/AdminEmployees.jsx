@@ -111,11 +111,10 @@ function EmployeeStatsModal({ employee, onClose }) {
             </div>
 
             {/* Secondary Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 px-6 py-4 border-b border-burgundy/10">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-6 py-4 border-b border-burgundy/10">
               {[
                 { label: 'هامش الربح', value: `${stats.profitMargin}%`, icon: '📊', color: stats.profitMargin >= 40 ? 'text-emerald-700' : stats.profitMargin >= 20 ? 'text-amber-600' : 'text-red-600' },
                 { label: 'متوسط الفاتورة', value: EGP(stats.avgOrderValue), icon: '🧮', color: 'text-burgundy' },
-                { label: 'القطع المباعة', value: `${stats.totalItemsSold} قطعة`, icon: '👚', color: 'text-burgundy' },
                 { label: 'المساهمة الكلية', value: `${stats.contributionPercent}%`, icon: '🏅', color: 'text-indigo-700' },
                 { label: 'المرتجعات', value: `${stats.returnedCount || 0} (${EGP(stats.returnedAmount)})`, icon: '🔄', color: 'text-red-600' },
               ].map(s => (
