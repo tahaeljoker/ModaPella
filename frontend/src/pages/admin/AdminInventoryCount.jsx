@@ -131,10 +131,25 @@ function CountSession({ count: initialCount, onFinish }) {
     document.head.removeChild(style);
   };
 
+  const handleAutoFillSystem = () => {
+    if (window.confirm('هل تريد ملء كل المنتجات غير المجرودة لتطابق كميات السيستم الحالية؟')) {
+      setItems(prev => prev.map(i => i._counted === '' ? { ...i, _counted: String(i.systemStock) } : i));
+    }
+  };
+
+  const handleResetCounted = () => {
+    if (window.confirm('هل أنت متأكد من تصفير وإزالة جميع أرقام الجرد التي أدخلتها؟')) {
+      setItems(prev => prev.map(i => ({ ...i, _counted: '' })));
+    }
+  };
+
   const filtered = items.filter(i => {
-    const ms = !search || i.productName.toLowerCase().includes(search.toLowerCase()) ||
+    const ms = !search || 
+               i.productName.toLowerCase().includes(search.toLowerCase()) ||
                (i.size && i.size.toLowerCase().includes(search.toLowerCase())) ||
-               (i.color && i.color.toLowerCase().includes(search.toLowerCase()));
+               (i.color && i.color.toLowerCase().includes(search.toLowerCase())) ||
+               (i.sku && i.sku.toLowerCase().includes(search.toLowerCase())) ||
+               (i.supplier && i.supplier.toLowerCase().includes(search.toLowerCase()));
     
     const mc = filterCat === 'All' || i.productCategory === filterCat;
     
@@ -211,34 +226,49 @@ function CountSession({ count: initialCount, onFinish }) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 بحث بالاسم، المقاس، اللون..."
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy min-w-[200px]" />
-        
-        {/* Category Filter */}
-        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy">
-          <option value="All">كل الأصناف / الفئات</option>
-          {CATEGORIES.map(c => (
-            <option key={c} value={c}>{CAT_AR[c]}</option>
-          ))}
-        </select>
+      <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex flex-wrap gap-3 items-center">
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 بحث بالاسم، المقاس، اللون، الباركود..."
+            className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy min-w-[200px]" />
+          
+          {/* Category Filter */}
+          <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+            className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy">
+            <option value="All">كل الأصناف / الفئات</option>
+            {CATEGORIES.map(c => (
+              <option key={c} value={c}>{CAT_AR[c]}</option>
+            ))}
+          </select>
 
-        <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden">
-          {[{ id: 'all', l: 'الكل' }, { id: 'uncounted', l: '⬜ لم تُعدّ' }, { id: 'counted', l: '✅ تم العد' }, { id: 'diff', l: '⚠️ فيها فرق' }].map(f => (
-            <button key={f.id} onClick={() => setFilterStatus(f.id)}
-              className={`px-3 py-2 text-xs font-semibold transition ${filterStatus === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>{f.l}</button>
-          ))}
+          <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden">
+            {[{ id: 'all', l: 'الكل' }, { id: 'uncounted', l: '⬜ لم تُعدّ' }, { id: 'counted', l: '✅ تم العد' }, { id: 'diff', l: '⚠️ فيها فرق' }].map(f => (
+              <button key={f.id} onClick={() => setFilterStatus(f.id)}
+                className={`px-3 py-2 text-xs font-semibold transition ${filterStatus === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>{f.l}</button>
+            ))}
+          </div>
         </div>
 
-        <span className="text-xs text-burgundy/40">{filtered.length} صنف</span>
+        {count.status !== 'applied' && (
+          <div className="flex gap-2">
+            <button onClick={handleAutoFillSystem} className="rounded-xl bg-amber-500/10 border border-amber-300 px-3.5 py-2 text-xs font-bold text-amber-700 hover:bg-amber-500 hover:text-white transition">
+              🪄 ملء الباقي كالمطابق للسيستم
+            </button>
+            <button onClick={handleResetCounted} className="rounded-xl bg-red-50 border border-red-200 px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-500 hover:text-white transition">
+              🔄 تصفير المدخلات
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3 text-xs text-burgundy/50 items-center">
+        <span>{filtered.length} صنف معروض</span>
         {totalVariance !== 0 && (
           <>
-            <span className={`text-xs font-bold px-3 py-1.5 rounded-xl ${totalVariance > 0 ? 'bg-[#2563eb10] text-[#2563eb]' : 'bg-red-50 text-red-600'}`}>
+            <span className={`font-bold px-3 py-1 rounded-xl ${totalVariance > 0 ? 'bg-[#2563eb10] text-[#2563eb]' : 'bg-red-50 text-red-600'}`}>
               فرق الكميات: {totalVariance > 0 ? '+' : ''}{totalVariance} قطعة
             </span>
-            <span className={`text-xs font-bold px-3 py-1.5 rounded-xl ${totalVarianceCost > 0 ? 'bg-[#2563eb10] text-[#2563eb]' : 'bg-red-50 text-red-600'}`}>
-              فرق القيمة المادية: {totalVarianceCost > 0 ? '+' : ''}{EGP(totalVarianceCost)}
+            <span className={`font-bold px-3 py-1 rounded-xl ${totalVarianceCost > 0 ? 'bg-[#2563eb10] text-[#2563eb]' : 'bg-red-50 text-red-600'}`}>
+              فرق القيمة المالية بالتكلفة: {totalVarianceCost > 0 ? '+' : ''}{EGP(totalVarianceCost)}
             </span>
           </>
         )}
@@ -246,8 +276,8 @@ function CountSession({ count: initialCount, onFinish }) {
 
       {/* Items Table */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-        <div className="hidden sm:grid grid-cols-[2fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1.2fr] gap-3 bg-[#F7F0EC] px-5 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
-          <span>المنتج</span><span>المقاس</span><span>اللون</span><span>السيستم</span><span>العد الفعلي</span><span>الفرق (قطع)</span><span>قيمة التكلفة</span>
+        <div className="hidden sm:grid grid-cols-[2fr_0.6fr_0.6fr_0.8fr_0.8fr_1fr_1fr_1fr] gap-3 bg-[#F7F0EC] px-5 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
+          <span>المنتج</span><span>المقاس</span><span>اللون</span><span>السعر</span><span>السيستم</span><span>العد الفعلي</span><span>الفرق (قطع)</span><span>فرق التكلفة</span>
         </div>
         <div className="divide-y divide-burgundy/6">
           {filtered.map(item => {
@@ -256,13 +286,18 @@ function CountSession({ count: initialCount, onFinish }) {
             const varianceCost = variance !== null ? variance * (item.costPrice || 0) : null;
             const rowClass = variance === null ? '' : variance === 0 ? 'bg-emerald-50/30' : variance > 0 ? 'bg-blue-50/30' : 'bg-red-50/30';
             return (
-              <div key={item._id} className={`grid sm:grid-cols-[2fr_0.8fr_0.8fr_0.8fr_1fr_1fr_1.2fr] items-center gap-3 px-5 py-3 transition hover:bg-burgundy/3 ${rowClass}`}>
+              <div key={item._id} className={`grid sm:grid-cols-[2fr_0.6fr_0.6fr_0.8fr_0.8fr_1fr_1fr_1fr] items-center gap-3 px-5 py-3 transition hover:bg-burgundy/3 ${rowClass}`}>
                 <div>
                   <p className="font-semibold text-sm text-burgundy">{item.productName}</p>
-                  <p className="text-[10px] text-burgundy/40 mt-0.5">{CAT_AR[item.productCategory] || item.productCategory}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-burgundy/40 mt-0.5 font-semibold">
+                    <span className="bg-burgundy/5 text-burgundy px-1.5 py-0.5 rounded font-mono">{item.sku || 'بدون كود'}</span>
+                    {item.supplier && <span>· 🏭 {item.supplier}</span>}
+                    <span>· {CAT_AR[item.productCategory] || item.productCategory}</span>
+                  </div>
                 </div>
-                <p className="text-sm text-burgundy/60">{item.size || '—'}</p>
-                <p className="text-sm text-burgundy/60">{item.color || '—'}</p>
+                <p className="text-sm text-burgundy/60 font-semibold">{item.size || '—'}</p>
+                <p className="text-sm text-burgundy/60 font-semibold">{item.color || '—'}</p>
+                <p className="text-sm text-burgundy font-bold">{EGP(item.price)}</p>
                 <span className="rounded-full bg-burgundy/8 px-3 py-1 text-sm font-bold text-burgundy w-fit">{item.systemStock}</span>
                 <input
                   type="number"

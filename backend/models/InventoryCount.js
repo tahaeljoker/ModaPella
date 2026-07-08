@@ -5,6 +5,9 @@ const CountItemSchema = new mongoose.Schema({
   productName:  { type: String, required: true },
   productCategory: { type: String, default: '' },
   costPrice:    { type: Number, default: 0 },
+  price:        { type: Number, default: 0 },
+  sku:          { type: String, default: '' },
+  supplier:     { type: String, default: '' },
   variantKey:   { type: String, default: '' }, // e.g. "M_أحمر" or "" for no variants
   size:         { type: String, default: '' },
   color:        { type: String, default: '' },

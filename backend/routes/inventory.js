@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const Product = require('../models/Product');
 const InventoryCount = require('../models/InventoryCount');
+const StockHistory = require('../models/StockHistory');
 
 const router = express.Router();
 const ROLES = ['admin', 'manager'];
@@ -21,6 +22,9 @@ router.post('/count/new', auth, requireRole(ROLES), async (req, res) => {
             productName: p.name,
             productCategory: p.category || '',
             costPrice: p.costPrice || 0,
+            price: p.price || 0,
+            sku: p.sku || '',
+            supplier: p.supplier || '',
             variantKey: `${v.size}_${v.color}`,
             size: v.size,
             color: v.color,
@@ -35,6 +39,9 @@ router.post('/count/new', auth, requireRole(ROLES), async (req, res) => {
           productName: p.name,
           productCategory: p.category || '',
           costPrice: p.costPrice || 0,
+          price: p.price || 0,
+          sku: p.sku || '',
+          supplier: p.supplier || '',
           variantKey: '',
           size: '',
           color: '',
@@ -106,13 +113,36 @@ router.post('/counts/:id/apply', auth, requireRole(['admin']), async (req, res) 
       if (item.countedStock === null) continue; // skip uncounted
       const product = await Product.findById(item.product);
       if (!product) continue;
+      let prevStock = 0;
+      let variant = null;
       if (item.variantKey && product.variants?.length > 0) {
-        const variant = product.variants.find(v => `${v.size}_${v.color}` === item.variantKey);
-        if (variant) variant.stock = item.countedStock;
+        variant = product.variants.find(v => `${v.size}_${v.color}` === item.variantKey);
+        if (variant) {
+          prevStock = variant.stock;
+          variant.stock = item.countedStock;
+        }
       } else {
+        prevStock = product.stock;
         product.stock = item.countedStock;
       }
       await product.save();
+
+      // Log stock history
+      const history = new StockHistory({
+        product: product._id,
+        productName: product.name,
+        size: item.size || '',
+        color: item.color || '',
+        variantKey: item.variantKey || '',
+        changeType: 'Inventory Count',
+        quantityChanged: item.countedStock - prevStock,
+        previousStock: prevStock,
+        newStock: item.countedStock,
+        performedBy: req.user.id,
+        referenceId: count._id,
+        notes: `تحديث عبر جلسة جرد: "${count.label}"`
+      });
+      await history.save();
     }
 
     count.status = 'applied';
