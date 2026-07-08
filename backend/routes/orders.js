@@ -39,7 +39,14 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/summary', auth, async (req, res) => {
   try {
-    const orders = await Order.find();
+    const { from, to } = req.query;
+    const query = {};
+    if (from || to) {
+      query.createdAt = {};
+      if (from) query.createdAt.$gte = new Date(from + 'T00:00:00');
+      if (to)   query.createdAt.$lte = new Date(to   + 'T23:59:59');
+    }
+    const orders = await Order.find(query);
     const totalRevenue = orders.filter(o => o.status === 'Completed').reduce((sum, order) => sum + order.totalAmount, 0);
     const completed = orders.filter((order) => order.status === 'Completed').length;
     const returned = orders.filter((order) => order.status === 'Returned').length;

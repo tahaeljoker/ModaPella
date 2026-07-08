@@ -139,7 +139,7 @@ function StockHistoryModal({ productId, onClose }) {
   );
 }
 
-const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '' };
+const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', sku: '' };
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSave }) {
@@ -249,6 +249,30 @@ function ProductModal({ product, onClose, onSave }) {
             </div>
             <div className="sm:col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الشركة الموردة / الماركة</label>
               <input name="supplier" value={form.supplier} onChange={handleChange} className={inp} placeholder="مثال: Zara, H&M..." />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex items-center gap-2">
+                كود المنتج (SKU)
+                <span className="normal-case font-normal text-burgundy/40 text-[10px] bg-burgundy/5 px-2 py-0.5 rounded-full">اختياري — لو فراغته بيتولد تلقائي</span>
+              </label>
+              <input
+                name="sku"
+                value={form.sku || ''}
+                onChange={handleChange}
+                className={`${inp} font-mono tracking-widest uppercase`}
+                placeholder="مثال: DR-KATAN-01"
+                maxLength={30}
+              />
+              {form.sku && (
+                <p className="mt-1 text-[10px] text-emerald-600 font-semibold">
+                  ✅ سيتم حفظ الكود: <span className="font-mono">{form.sku.toUpperCase()}</span>
+                </p>
+              )}
+              {!form.sku && (
+                <p className="mt-1 text-[10px] text-burgundy/40">
+                  ⚙️ سيتولد الكود تلقائياً من النظام (مثال: DRE-1001)
+                </p>
+              )}
             </div>
           </div>
           <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الوصف</label><textarea name="description" value={form.description} onChange={handleChange} className={`${inp} min-h-[80px]`} /></div>

@@ -3,8 +3,9 @@ import api from '../../services/api';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 const CAT_AR = {
-  Blouse: 'بلوزة', Chemise: 'قميص', Skirt: 'تنورة',
-  Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Portefeuille: 'محفظة',
+  Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة',
+  Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت',
+  Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت',
 };
 const CATS = ['الكل', ...Object.keys(CAT_AR)];
 

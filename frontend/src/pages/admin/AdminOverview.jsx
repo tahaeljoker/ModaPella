@@ -108,23 +108,27 @@ function AdminOverview() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Date range filters for chart
-  const [chartFrom, setChartFrom] = useState('');
-  const [chartTo, setChartTo] = useState('');
-  const [chartLoading, setChartLoading] = useState(false);
+  // Date range filters
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo]     = useState('');
+  const [filterLoading, setFilterLoading] = useState(false);
 
-  const loadChartData = async (from = '', to = '') => {
-    setChartLoading(true);
+  const loadFiltered = async (from = '', to = '') => {
+    setFilterLoading(true);
     try {
       const params = new URLSearchParams();
       if (from) params.append('from', from);
-      if (to) params.append('to', to);
-      const res = await api.get(`/orders/weekly?${params}`);
-      setWeeklyData(res.data);
+      if (to)   params.append('to', to);
+      const [summaryRes, weeklyRes] = await Promise.all([
+        api.get(`/orders/summary?${params}`),
+        api.get(`/orders/weekly?${params}`),
+      ]);
+      setSummary(summaryRes.data);
+      setWeeklyData(weeklyRes.data);
     } catch (e) {
       console.error(e);
     } finally {
-      setChartLoading(false);
+      setFilterLoading(false);
     }
   };
 
@@ -220,7 +224,13 @@ function AdminOverview() {
           <p className="mt-3 text-3xl font-bold">{EGP(todayRevenue)}</p>
           <p className="mt-2 text-sm opacity-70">{todayOrders} طلب اليوم</p>
         </div>
-        <StatCard label="الإيرادات الكلية" value={EGP(summary.totalRevenue)} icon="💰" color="bg-white" />
+        <StatCard
+          label={dateFrom || dateTo ? `إيرادات الفترة المحددة` : 'الإيرادات الكلية'}
+          value={EGP(summary.totalRevenue)}
+          icon="💰"
+          color="bg-white"
+          sub={dateFrom || dateTo ? `${dateFrom || '...'} → ${dateTo || '...'}` : undefined}
+        />
         <StatCard 
           label="صافي الأرباح الكلية" 
           value={EGP(overview?.netProfit ?? 0)} 
@@ -239,8 +249,8 @@ function AdminOverview() {
 
       {/* Stats Row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="الطلبات المكتملة" value={summary.completed} icon="✅" />
-        <StatCard label="المرتجعات" value={summary.returned} icon="🔄" />
+        <StatCard label={dateFrom || dateTo ? 'الطلبات (الفترة)' : 'الطلبات المكتملة'} value={summary.completed} icon="✅" />
+        <StatCard label={dateFrom || dateTo ? 'المرتجعات (الفترة)' : 'المرتجعات'} value={summary.returned} icon="🔄" />
         <StatCard label="عدد المنتجات" value={overview?.products ?? 0} icon="🛍️" />
         <StatCard
           label="تنبيهات المخزون"
@@ -261,14 +271,14 @@ function AdminOverview() {
               <p className="text-xs text-burgundy/50">اعرض وحلل حجم المبيعات بالفترة المحددة</p>
             </div>
             
-            {/* Custom Date Filters */}
+            {/* Date Filters */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-burgundy/60">من:</span>
                 <input
                   type="date"
-                  value={chartFrom}
-                  onChange={e => setChartFrom(e.target.value)}
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
                   className="rounded-xl border border-burgundy/15 bg-[#F7F0EC]/30 px-2.5 py-1 text-xs text-burgundy outline-none focus:border-burgundy"
                 />
               </div>
@@ -276,19 +286,28 @@ function AdminOverview() {
                 <span className="text-xs text-burgundy/60">إلى:</span>
                 <input
                   type="date"
-                  value={chartTo}
-                  onChange={e => setChartTo(e.target.value)}
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
                   className="rounded-xl border border-burgundy/15 bg-[#F7F0EC]/30 px-2.5 py-1 text-xs text-burgundy outline-none focus:border-burgundy"
                 />
               </div>
               <button
                 type="button"
-                onClick={() => loadChartData(chartFrom, chartTo)}
-                disabled={chartLoading}
+                onClick={() => loadFiltered(dateFrom, dateTo)}
+                disabled={filterLoading}
                 className="rounded-xl bg-burgundy px-3.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-[#650018] disabled:opacity-50"
               >
-                {chartLoading ? '...' : 'تحديث'}
+                {filterLoading ? '...' : '🔍 تصفية'}
               </button>
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => { setDateFrom(''); setDateTo(''); loadFiltered(); }}
+                  className="rounded-xl border border-burgundy/20 px-3 py-1 text-xs font-bold text-burgundy hover:bg-burgundy/10 transition"
+                >
+                  ✕ إلغاء الفلتر
+                </button>
+              )}
             </div>
 
             <span className="rounded-full bg-burgundy/8 px-3 py-1 text-xs font-semibold text-burgundy">
@@ -297,7 +316,7 @@ function AdminOverview() {
           </div>
 
           <div className="relative">
-            {chartLoading && (
+            {filterLoading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/75 backdrop-blur-sm">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-burgundy/20 border-t-burgundy" />
               </div>

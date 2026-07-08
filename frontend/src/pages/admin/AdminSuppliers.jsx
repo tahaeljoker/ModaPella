@@ -7,7 +7,7 @@ const DATE = (d) => new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', mo
 
 // ─── Supplier Form Modal ───────────────────────────────────────────────────────
 function SupplierModal({ supplier, onClose, onSave }) {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', notes: '', ...supplier });
+  const [form, setForm] = useState({ name: '', phone: '', address: '', notes: '', ...supplier });
   const [loading, setLoading] = useState(false);
   const inp = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
 
@@ -31,10 +31,6 @@ function SupplierModal({ supplier, onClose, onSave }) {
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">رقم الهاتف</label>
               <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} className={inp} placeholder="010..." dir="ltr" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">البريد الإلكتروني</label>
-              <input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className={inp} placeholder="supplier@example.com" dir="ltr" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">العنوان</label>
