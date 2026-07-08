@@ -46,20 +46,20 @@ function WeeklyChart({ data }) {
         {/* Bars */}
         {data.map((d, i) => {
           const x = gap + i * (barW + gap);
-          const cashH = (d.cashRevenue / maxRevenue) * chartH;
-          const instapayH = (d.instapayRevenue / maxRevenue) * chartH;
+          const revH = (d.revenue / maxRevenue) * chartH;
+          const profitH = (Math.max(0, d.profit || 0) / maxRevenue) * chartH;
 
           return (
             <g key={i}>
-              {/* Cash bar (burgundy) */}
+              {/* Total Revenue bar (burgundy) */}
               <rect
-                x={x} y={chartH - cashH} width={barW * 0.55} height={cashH}
-                rx={Math.min(4, barW * 0.1)} fill="#7C0A12" opacity="0.85"
+                x={x} y={chartH - revH} width={barW * 0.46} height={revH}
+                rx={Math.min(4, barW * 0.1)} fill="#7C0A12" opacity="0.9"
               />
-              {/* Instapay bar (violet) */}
+              {/* Net Profit bar (emerald green) */}
               <rect
-                x={x + barW * 0.58} y={chartH - instapayH} width={barW * 0.38} height={instapayH}
-                rx={Math.min(4, barW * 0.1)} fill="#7c3aed" opacity="0.75"
+                x={x + barW * 0.5} y={chartH - profitH} width={barW * 0.46} height={profitH}
+                rx={Math.min(4, barW * 0.1)} fill="#10b981" opacity="0.9"
               />
               {/* Day label */}
               <text x={x + barW / 2} y={chartH + 16} fontSize={data.length > 10 ? "7" : "10"} fill="#7C0A1299" textAnchor="middle">
@@ -67,7 +67,7 @@ function WeeklyChart({ data }) {
               </text>
               {/* Count label */}
               {d.count > 0 && data.length <= 15 && (
-                <text x={x + barW / 2} y={chartH - Math.max(cashH, instapayH) - 4} fontSize="9" fill="#7C0A12" textAnchor="middle" fontWeight="bold">
+                <text x={x + barW / 2} y={chartH - Math.max(revH, profitH) - 4} fontSize="9" fill="#7C0A12" textAnchor="middle" fontWeight="bold">
                   {d.count}
                 </text>
               )}
@@ -87,12 +87,12 @@ function WeeklyChart({ data }) {
       {/* Legend */}
       <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-burgundy/60">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-burgundy opacity-85" />
-          كاش
+          <span className="h-3 w-3 rounded-sm bg-burgundy opacity-90" />
+          إجمالي الإيرادات
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-violet-600 opacity-75" />
-          انستا باي / فيزا
+          <span className="h-3 w-3 rounded-sm bg-emerald-500 opacity-90" />
+          صافي الأرباح
         </span>
         {data.length <= 15 && <span className="text-burgundy/40">· الرقم فوق العمود = عدد الطلبات</span>}
       </div>

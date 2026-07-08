@@ -83,11 +83,18 @@ router.get('/weekly', auth, async (req, res) => {
       const revenue = orders.reduce((s, o) => s + o.totalAmount, 0);
       const cashRevenue = orders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
       const instapayRevenue = orders.filter(o => o.paymentMethod === 'Instapay' || o.paymentMethod === 'Wallet').reduce((s, o) => s + o.totalAmount, 0);
+      
+      const profit = orders.reduce((sum, order) => {
+        const orderCost = order.items.reduce((cSum, item) => cSum + (item.costPrice || 0) * item.quantity, 0);
+        return sum + (order.totalAmount - orderCost);
+      }, 0);
+
       days.push({
         date: d.toLocaleDateString('ar-EG', { weekday: 'short', month: 'numeric', day: 'numeric' }),
         revenue,
         cashRevenue,
         instapayRevenue,
+        profit,
         count: orders.length
       });
     }

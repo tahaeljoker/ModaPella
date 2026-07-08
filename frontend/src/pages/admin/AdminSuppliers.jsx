@@ -135,6 +135,49 @@ function SupplierDetailModal({ supplierId, onClose }) {
     load();
   };
 
+  const printPaymentReceipt = (tx, supplier) => {
+    const printDiv = document.createElement('div');
+    printDiv.id = 'receipt-print-root';
+    printDiv.innerHTML = `
+      <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:32px;border:2px solid #7C0A1220;border-radius:24px;max-width:420px;margin:40px auto;background:#fff;box-shadow:0 10px 15px -3px rgba(0,0,0,0.05)">
+        <h1 style="color:#7C0A12;text-align:center;margin:0;font-size:26px;font-weight:bold">ModaPella</h1>
+        <p style="text-align:center;color:#888;font-size:12px;margin:4px 0 24px;letter-spacing:1px">إيصال سداد دفعة مورد</p>
+        
+        <div style="border-bottom:1px dashed #e0c9c9;padding-bottom:16px;margin-bottom:16px;font-size:13px;line-height:2">
+          <p style="margin:4px 0"><strong>اسم المورد:</strong> ${supplier.name}</p>
+          ${supplier.phone ? `<p style="margin:4px 0"><strong>الهاتف:</strong> ${supplier.phone}</p>` : ''}
+          <p style="margin:4px 0"><strong>تاريخ السداد:</strong> ${new Date(tx.date).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          ${tx.reference ? `<p style="margin:4px 0"><strong>رقم المرجع/الفاتورة:</strong> ${tx.reference}</p>` : ''}
+        </div>
+        
+        <div style="text-align:center;background:#f7f0ec;padding:20px;border-radius:16px;margin-bottom:20px;border:1px solid #7C0A1208">
+          <p style="margin:0;font-size:14px;color:#7C0A12;font-weight:bold">المبلغ المسدد</p>
+          <p style="margin:8px 0 0;font-size:28px;font-weight:extrabold;color:#10b981">${Number(tx.amount).toLocaleString('ar-EG')} ج.م</p>
+        </div>
+        
+        ${tx.description ? `<p style="font-size:13px;color:#555;margin:8px 0;background:#fafafa;padding:10px 12px;border-radius:8px"><strong>ملاحظات:</strong> ${tx.description}</p>` : ''}
+        
+        <div style="border-top:1px dashed #e0c9c9;padding-top:16px;margin-top:24px;text-align:center;font-size:11px;color:#b58f96;font-weight:500">
+          شكراً لكم | تم السداد والتوثيق عبر ModaPella 🎀
+        </div>
+      </div>
+    `;
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body * { visibility: hidden; }
+        #receipt-print-root, #receipt-print-root * { visibility: visible; }
+        #receipt-print-root { position: absolute; left: 0; top: 0; width: 100%; }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+    document.head.removeChild(style);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -180,6 +223,15 @@ function SupplierDetailModal({ supplierId, onClose }) {
                         {tx.type === 'purchase' ? '📦 مشتريات' : '💸 دفعة'}
                       </span>
                       {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg">{tx.reference}</span>}
+                      {tx.type === 'payment' && (
+                        <button
+                          onClick={() => printPaymentReceipt(tx, data.supplier)}
+                          className="text-[10px] bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 font-bold px-2 py-0.5 rounded-lg transition"
+                          title="طباعة إيصال سداد"
+                        >
+                          🖨️ طباعة إيصال
+                        </button>
+                      )}
                     </div>
                     {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
                     <p className="text-[10px] text-burgundy/40 mt-0.5">{DATE(tx.date)}</p>
