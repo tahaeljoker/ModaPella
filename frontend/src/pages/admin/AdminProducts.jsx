@@ -348,7 +348,7 @@ function ProductModal({ product, onClose, onSave }) {
                   <div className="absolute top-full right-0 left-0 mt-1.5 z-40 bg-white rounded-2xl p-4 shadow-xl border border-burgundy/10 space-y-2 text-right">
                     <p className="text-[11px] font-bold text-burgundy/60">حاسبة تسعير ذكي بناءً على التكلفة:</p>
                     <div className="flex gap-1.5 flex-wrap">
-                      {[15, 25, 35, 50, 60].map(pct => (
+                      {[15, 25, 35, 50, 60, 70].map(pct => (
                         <button
                           key={pct}
                           type="button"
