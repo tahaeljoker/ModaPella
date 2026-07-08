@@ -276,12 +276,57 @@ function CashierPOS() {
   // Modals
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
+  // Offline Caching
+  const [offlineSales, setOfflineSales] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('modapella_offline_sales') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncing, setSyncing] = useState(false);
+
+  const saveOfflineSales = (salesList) => {
+    setOfflineSales(salesList);
+    localStorage.setItem('modapella_offline_sales', JSON.stringify(salesList));
+  };
+
+  const handleSyncOfflineSales = async () => {
+    if (offlineSales.length === 0 || syncing) return;
+    setSyncing(true);
+    let successCount = 0;
+    const remaining = [...offlineSales];
+
+    for (let i = 0; i < offlineSales.length; i++) {
+      const item = offlineSales[i];
+      try {
+        await api.post('/pos/sell', item.payload);
+        successCount++;
+        const idx = remaining.findIndex(r => r.id === item.id);
+        if (idx !== -1) remaining.splice(idx, 1);
+      } catch (err) {
+        console.error('Failed to sync sale:', item.id, err);
+      }
+    }
+
+    saveOfflineSales(remaining);
+    setSyncing(false);
+
+    if (successCount > 0) {
+      showToast(`✅ تم مزامنة ${successCount} فاتورة معلقة بنجاح!`);
+      api.get('/products').then(res => setProducts(res.data)).catch(() => {});
+    } else {
+      showToast('❌ فشلت المزامنة. تأكد من اتصال السيرفر بالإنترنت.', 'error');
+    }
+  };
+
   const searchRef = useRef(null);
 
   const showToast = (message, type = 'success') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   };
 
   useEffect(() => {
@@ -291,6 +336,16 @@ function CashierPOS() {
       .finally(() => setLoading(false));
     // load employees list
     api.get('/employees').then(res => setEmployees(res.data)).catch(() => {});
+
+    // Offline handlers
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // ── Barcode scanner hook — auto-add to cart ───────────────────────────────
@@ -454,27 +509,60 @@ function CashierPOS() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setSubmitting(true);
+
+    const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
+    const salePayload = {
+      sellerId: user._id,
+      employeeId: selectedEmployee || null,
+      customerName,
+      customerPhone,
+      items: cart.map(i => ({
+        product: i.product,
+        name: i.name,
+        category: i.category,
+        price: i.price,
+        quantity: i.quantity,
+        size: i.size,
+        color: i.color,
+        costPrice: i.costPrice || 0
+      })),
+      paymentMethod,
+      discount: Number(discount || 0),
+      type: 'Offline',
+      createdAt: new Date().toISOString()
+    };
+
+    // If browser is offline, skip API request and save locally
+    if (!navigator.onLine) {
+      const offlineId = `OFFLINE-${Date.now()}`;
+      const emp = employees.find(e => e._id === selectedEmployee);
+      
+      const fakeOrder = {
+        _id: offlineId,
+        items: salePayload.items,
+        totalAmount: totalAfterDiscount,
+        discount: salePayload.discount,
+        paymentMethod: salePayload.paymentMethod,
+        createdAt: salePayload.createdAt,
+        _employeeName: emp?.name || '',
+        isOfflineSaved: true
+      };
+
+      saveOfflineSales([...offlineSales, { id: offlineId, payload: salePayload }]);
+      setCompletedOrder(fakeOrder);
+      showToast('⚠️ تم حفظ الفاتورة محلياً لعدم اتصالك بالإنترنت', 'error');
+      
+      setCart([]);
+      setDiscount(0);
+      setAmountPaid('');
+      setCustomerName('');
+      setCustomerPhone('');
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
-      const res = await api.post('/pos/sell', {
-        sellerId: user._id,
-        employeeId: selectedEmployee || null,
-        customerName,
-        customerPhone,
-        items: cart.map(i => ({
-          product: i.product,
-          name: i.name,
-          category: i.category,
-          price: i.price,
-          quantity: i.quantity,
-          size: i.size,
-          color: i.color,
-        })),
-        paymentMethod,
-        discount: Number(discount || 0),
-        type: 'Offline',
-      });
-      // attach employee name to order for display
+      const res = await api.post('/pos/sell', salePayload);
       const emp = employees.find(e => e._id === selectedEmployee);
       setCompletedOrder({ ...res.data.order, _employeeName: emp?.name || '' });
       setCart([]);
@@ -483,7 +571,30 @@ function CashierPOS() {
       setCustomerName('');
       setCustomerPhone('');
     } catch (err) {
-      alert(err.response?.data?.message || 'حدث خطأ أثناء إتمام البيع');
+      // If server request fails (connection refused or timeout), also save locally
+      const offlineId = `OFFLINE-${Date.now()}`;
+      const emp = employees.find(e => e._id === selectedEmployee);
+      
+      const fakeOrder = {
+        _id: offlineId,
+        items: salePayload.items,
+        totalAmount: totalAfterDiscount,
+        discount: salePayload.discount,
+        paymentMethod: salePayload.paymentMethod,
+        createdAt: salePayload.createdAt,
+        _employeeName: emp?.name || '',
+        isOfflineSaved: true
+      };
+
+      saveOfflineSales([...offlineSales, { id: offlineId, payload: salePayload }]);
+      setCompletedOrder(fakeOrder);
+      showToast('⚠️ تم حفظ الفاتورة محلياً بسبب انقطاع اتصال الخادم', 'error');
+
+      setCart([]);
+      setDiscount(0);
+      setAmountPaid('');
+      setCustomerName('');
+      setCustomerPhone('');
     } finally {
       setSubmitting(false);
     }
@@ -507,12 +618,33 @@ function CashierPOS() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex gap-0 h-[calc(100vh-48px)] -m-6 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-48px)] -m-6 overflow-hidden">
+      {/* Offline Warning Banner */}
+      {(offlineSales.length > 0 || !isOnline) && (
+        <div className={`flex items-center justify-between px-6 py-2.5 text-xs font-bold text-white transition-all ${
+          !isOnline ? 'bg-amber-600' : 'bg-emerald-600'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span>{!isOnline ? '⚠️ أنت تعمل بدون إنترنت حالياً (الوضع أوفلاين نشط)' : '📡 تم استعادة الاتصال بالإنترنت'}</span>
+            {offlineSales.length > 0 && (
+              <span>| لديك <strong>{offlineSales.length}</strong> فواتير محفوظة محلياً بانتظار المزامنة.</span>
+            )}
+          </div>
+          {offlineSales.length > 0 && isOnline && (
+            <button
+              onClick={handleSyncOfflineSales}
+              disabled={syncing}
+              className="rounded-full bg-white px-4 py-1 text-xs font-extrabold text-burgundy shadow transition hover:bg-[#F7F0EC] disabled:opacity-50"
+            >
+              {syncing ? 'جاري المزامنة...' : '🔄 مزامنة الفواتير المعلقة'}
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          CENTER — Product Search + Details
-      ═══════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col bg-[#F7F0EC] overflow-hidden">
+      <div className="flex-1 flex gap-0 overflow-hidden">
+        {/* CENTER — Product Search + Details */}
+        <div className="flex-1 flex flex-col bg-[#F7F0EC] overflow-hidden">
 
         {/* ── Top: Search Bar ────────────────────────────────────────── */}
         <div className="bg-white border-b border-burgundy/10 px-6 py-4">
@@ -1022,6 +1154,7 @@ function CashierPOS() {
         }}
         onCancel={() => setIsClearConfirmOpen(false)}
       />
+      </div>
     </div>
   );
 }
