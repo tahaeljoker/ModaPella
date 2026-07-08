@@ -10,6 +10,7 @@ const CATEGORY_LABELS = {
   'T-shirt': 'تيشيرت',
   Bag: 'شنطة',
   Cardigan: 'كاردن',
+  Suit: 'سوت',
 };
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;

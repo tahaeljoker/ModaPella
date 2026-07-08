@@ -13,11 +13,13 @@ const CATEGORY_LABELS = {
   'T-shirt': 'تيشيرت',
   Bag: 'شنطة',
   Cardigan: 'كاردن',
+  Suit: 'سوت',
 };
 
 const getProductIcon = (category = '', name = '') => {
   const cat = (category || '').toLowerCase();
   const nm = (name || '').toLowerCase();
+  if (cat.includes('suit') || cat.includes('سوت') || nm.includes('سوت')) return '👔';
   if (cat.includes('bag') || cat.includes('حقيبة') || cat.includes('شنط') || nm.includes('شنط') || nm.includes('حقيب')) return '👜';
   if (cat.includes('dress') || cat.includes('فستان') || cat.includes('دريس') || nm.includes('فستان') || nm.includes('دريس')) return '👗';
   if (cat.includes('shoes') || cat.includes('حذاء') || cat.includes('شوز') || cat.includes('كوتش') || nm.includes('شوز') || nm.includes('حذاء') || nm.includes('كوتش')) return '👟';
