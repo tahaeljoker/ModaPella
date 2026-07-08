@@ -108,8 +108,8 @@ function generateBarcode128(text) {
 function printBarcode(product) {
   if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
   const { bars, totalW } = generateBarcode128(product.sku);
-  const svgBars = bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000"/>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet">${svgBars}</svg>`;
+  const svgBars = bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000" style="shape-rendering:crispEdges"/>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="#fff" />${svgBars}</svg>`;
   const win = window.open('', '_blank', 'width=400,height=300');
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
   <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
@@ -124,14 +124,14 @@ function printBarcode(product) {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2mm 4mm;
+    padding: 3mm 4mm;
     overflow: hidden;
     direction: rtl;
   }
   .brand {
     font-size: 7.5px;
     font-weight: 900;
-    color: #7C0A12;
+    color: #000;
     line-height: 1.1;
     margin-bottom: 1px;
     text-align: center;
@@ -139,7 +139,7 @@ function printBarcode(product) {
   }
   .name {
     font-size: 7px;
-    color: #333;
+    color: #000;
     max-width: 100%;
     white-space: nowrap;
     overflow: hidden;
@@ -150,8 +150,8 @@ function printBarcode(product) {
     width: 100%;
   }
   .barcode-wrapper {
-    width: 80%;
-    height: 10mm;
+    width: 75%;
+    height: 9mm;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -169,15 +169,15 @@ function printBarcode(product) {
     font-family: monospace;
     font-size: 7.5px;
     font-weight: 700;
-    color: #1a0509;
+    color: #000;
   }
   .price {
     font-size: 8px;
     font-weight: 900;
-    color: #7C0A12;
+    color: #000;
   }
   @media print {
-    body { padding: 2mm 4mm; }
+    body { padding: 3mm 4mm; }
   }
   </style></head>
   <body>
