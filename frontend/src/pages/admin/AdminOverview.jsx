@@ -337,32 +337,69 @@ function AdminOverview() {
         </div>
       </div>
 
-      {/* Low stock warnings */}
-      {overview?.lowStock?.length > 0 && (
-        <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-amber-800">⚠️ تحذيرات المخزون المنخفض</h3>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/products')}
-              className="rounded-full bg-amber-600 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-amber-700"
-            >
-              إدارة المنتجات ←
-            </button>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {overview.lowStock.map((p) => (
-              <div key={p._id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
-                <div>
-                  <span className="font-medium text-amber-900">{p.name}</span>
-                  {p.sku && <span className="mr-2 font-mono text-xs text-amber-600">{p.sku}</span>}
-                </div>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-bold text-amber-700">{p.stock} متبقي</span>
+      {/* Analytics Grid: Low Stock & Best Sellers */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Best Sellers */}
+        {overview?.bestSellers?.length > 0 ? (
+          <div className="rounded-[2rem] border border-[#10b98125] bg-[#10b98108] p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-emerald-800 mb-1">⭐ المنتجات الأكثر مبيعاً</h3>
+              <p className="text-xs text-emerald-600/70 mb-4">أكثر 5 موديلات طلباً ومبيعاً في المتجر</p>
+              <div className="space-y-2">
+                {overview.bestSellers.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5 border border-emerald-100/50 shadow-sm">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-semibold text-burgundy">{item.name}</span>
+                    </div>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                      {item.qty} قطعة
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm flex flex-col items-center justify-center text-center py-10">
+            <p className="text-3xl mb-1">⭐</p>
+            <p className="text-sm font-semibold text-burgundy/40">لا توجد بيانات مبيعات بعد</p>
+          </div>
+        )}
+
+        {/* Low Stock Warnings */}
+        <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 flex flex-col justify-between">
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-amber-800">⚠️ المخزون المنخفض</h3>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/products')}
+                className="rounded-full bg-amber-600 px-3 py-1 text-[10px] font-bold text-white transition hover:bg-amber-700"
+              >
+                إدارة المخزون ←
+              </button>
+            </div>
+            {overview?.lowStock?.length > 0 ? (
+              <div className="grid gap-2 max-h-[220px] overflow-y-auto pr-1">
+                {overview.lowStock.slice(0, 5).map((p) => (
+                  <div key={p._id} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5 shadow-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs text-amber-900 truncate">{p.name}</p>
+                      {p.sku && <p className="font-mono text-[9px] text-amber-600 mt-0.5">{p.sku}</p>}
+                    </div>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 whitespace-nowrap">{p.stock} قطعة</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-xs text-amber-700/60 py-8">المخزون بخير ولا توجد تنبيهات</p>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Recent orders */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">

@@ -57,6 +57,20 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       amount
     }));
 
+    // Calculate best selling products
+    const productSales = {};
+    allOrders.forEach(o => {
+      o.items.forEach(i => {
+        const key = i.name;
+        productSales[key] = (productSales[key] || 0) + i.quantity;
+      });
+    });
+
+    const bestSellers = Object.entries(productSales)
+      .map(([name, qty]) => ({ name, qty }))
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 5);
+
     res.json({
       products: products.length,
       totalStock,
@@ -67,6 +81,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       expenseBreakdown,
       published: siteConfig.published,
       lowStock,
+      bestSellers,
       recentOrders: orders
     });
   } catch (error) {
