@@ -117,38 +117,62 @@ router.post('/recover', auth, async (req, res) => {
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (order.recovered) return res.status(400).json({ message: 'Order already recovered' });
 
-    // Determine which items to return
-    const itemsToReturn = returnItems && returnItems.length > 0
-      ? order.items.filter(oi => returnItems.find(ri => ri.itemId === oi._id.toString()))
-          .map(oi => {
-            const ri = returnItems.find(r => r.itemId === oi._id.toString());
-            return { ...oi.toObject(), quantity: Math.min(ri.quantity, oi.quantity) };
-          })
-      : order.items.map(oi => oi.toObject()); // full return
-
+    let itemsToReturn = [];
     const isFullReturn = !returnItems || returnItems.length === 0;
 
-    let refundAmount;
     if (isFullReturn) {
-      refundAmount = order.totalAmount;
+      // Return all remaining quantities for all items
+      order.items.forEach(item => {
+        const remainingQty = item.quantity - (item.returnedQuantity || 0);
+        if (remainingQty > 0) {
+          itemsToReturn.push({
+            product: item.product,
+            name: item.name,
+            size: item.size,
+            color: item.color,
+            quantity: remainingQty,
+            price: item.price
+          });
+          item.returnedQuantity = item.quantity;
+        }
+      });
     } else {
-      const originalOrderTotal = order.totalAmount + order.discount;
-      if (originalOrderTotal > 0) {
-        const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-        // Calculate refund amount proportionally to the total amount paid
-        const refundProportion = returnedItemsValue / originalOrderTotal;
-        refundAmount = Math.round((order.totalAmount * refundProportion) * 100) / 100;
-      } else {
-        refundAmount = 0;
+      // Validate and return specified quantities
+      for (const ri of returnItems) {
+        const item = order.items.id(ri.itemId);
+        if (!item) {
+          return res.status(400).json({ message: `صنف الفاتورة #${ri.itemId} غير موجود` });
+        }
+        const remainingQty = item.quantity - (item.returnedQuantity || 0);
+        if (ri.quantity > remainingQty) {
+          return res.status(400).json({ message: `الكمية المرتجعة للـ ${item.name} (${ri.quantity}) أكبر من الكمية المتاحة للإرجاع (${remainingQty})` });
+        }
+        item.returnedQuantity = (item.returnedQuantity || 0) + ri.quantity;
+        itemsToReturn.push({
+          product: item.product,
+          name: item.name,
+          size: item.size,
+          color: item.color,
+          quantity: ri.quantity,
+          price: item.price
+        });
       }
     }
 
-    if (isFullReturn) {
+    if (itemsToReturn.length === 0) {
+      return res.status(400).json({ message: 'لا توجد قطع متبقية للإرجاع في هذا الطلب' });
+    }
+
+    // Check if order is fully recovered now
+    const fullyRecovered = order.items.every(item => (item.returnedQuantity || 0) === item.quantity);
+    if (fullyRecovered) {
       order.status = 'Returned';
       order.recovered = true;
     }
+
     await order.save();
 
+    // Revert inventory stocks
     await Promise.all(itemsToReturn.map(async (item) => {
       const product = await Product.findById(item.product);
       if (!product) return;
@@ -163,18 +187,28 @@ router.post('/recover', auth, async (req, res) => {
       req.app.locals.io?.emit('inventory:update', product);
     }));
 
+    // Calculate refund amount proportionally
+    const originalOrderTotal = order.totalAmount + order.discount;
+    let refundAmount = 0;
+    if (originalOrderTotal > 0) {
+      const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+      const refundProportion = returnedItemsValue / originalOrderTotal;
+      refundAmount = Math.round((order.totalAmount * refundProportion) * 100) / 100;
+    }
+
+    // Log the refund transaction
     const transaction = new Transaction({
       amount: refundAmount,
       type: 'OUT',
       category: 'Refund',
       paymentMethod: order.paymentMethod,
-      description: `مرتجع ${isFullReturn ? 'كامل' : 'جزئي'} طلب #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'}`,
+      description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'}`,
       referenceId: order._id,
       user: req.user.id
     });
     await transaction.save();
 
-    res.json({ order, refundAmount, returnedItems: itemsToReturn, message: isFullReturn ? 'Full return processed' : 'Partial return processed' });
+    res.json({ order, refundAmount, returnedItems: itemsToReturn, message: fullyRecovered ? 'Full return processed' : 'Partial return processed' });
   } catch (error) {
     res.status(500).json({ message: 'Recovery failed', error: error.message });
   }

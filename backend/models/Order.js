@@ -8,7 +8,8 @@ const OrderItemSchema = new mongoose.Schema({
   price: { type: Number, required: true, min: 0 },
   size: { type: String, default: '' },
   color: { type: String, default: '' },
-  costPrice: { type: Number, default: 0 }
+  costPrice: { type: Number, default: 0 },
+  returnedQuantity: { type: Number, default: 0 }
 });
 
 const OrderSchema = new mongoose.Schema({
