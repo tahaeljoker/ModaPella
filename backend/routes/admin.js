@@ -249,4 +249,25 @@ router.delete('/users/:id', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
+// POST /api/admin/reset-transactions-prod — secure production reset
+router.post('/reset-transactions-prod', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const txRes = await Transaction.deleteMany({});
+    const shiftRes = await Shift.deleteMany({});
+    const orderRes = await Order.deleteMany({});
+    
+    // Reset product sold counters
+    await Product.updateMany({}, { $set: { sold: 0 } });
+
+    res.json({
+      message: 'Production database transactions reset successfully',
+      deletedTransactions: txRes.deletedCount,
+      deletedShifts: shiftRes.deletedCount,
+      deletedOrders: orderRes.deletedCount
+    });
+  } catch (e) {
+    res.status(500).json({ message: 'Reset failed', error: e.message });
+  }
+});
+
 module.exports = router;
