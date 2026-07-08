@@ -124,7 +124,7 @@ function printBarcode(product) {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 3mm 4mm;
+    padding: 2mm 4mm;
     overflow: hidden;
     direction: rtl;
   }
@@ -150,8 +150,8 @@ function printBarcode(product) {
     width: 100%;
   }
   .barcode-wrapper {
-    width: 72%;
-    height: 8mm;
+    width: 80%;
+    height: 10mm;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -177,7 +177,7 @@ function printBarcode(product) {
     color: #7C0A12;
   }
   @media print {
-    body { padding: 3mm 4mm; }
+    body { padding: 2mm 4mm; }
   }
   </style></head>
   <body>

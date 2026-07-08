@@ -107,7 +107,7 @@ function BarcodeLabel({ product, qty }) {
         height: '1.18in',
         border: '1px solid #ddd',
         borderRadius: '3px',
-        padding: '3mm 4mm',
+        padding: '2mm 4mm',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -130,7 +130,7 @@ function BarcodeLabel({ product, qty }) {
       </div>
 
       {svg ? (
-        <div style={{ width: '72%', height: '8mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '2px 0' }}>
+        <div style={{ width: '80%', height: '10mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '2px 0' }}>
           <svg
             viewBox={`0 0 ${svg.totalW} 60`}
             style={{ width: '100%', height: '100%' }}
@@ -205,12 +205,12 @@ function AdminBarcodeLabels() {
           : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
         return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:1.57in;height:1.18in;overflow:hidden;box-sizing:border-box;">
-          <div class="print-label-page" style="width:1.57in;height:1.18in;padding:3mm 4mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
+          <div class="print-label-page" style="width:1.57in;height:1.18in;padding:2mm 4mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
             <div style="width:100%;text-align:center;line-height:1.1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
               <div style="font-size:7.5px;font-weight:900;color:#7C0A12;">ModaPella</div>
               <div style="font-size:7px;color:#333;margin-top:0.5px;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
             </div>
-            <div style="width:72%;height:8mm;display:flex;justify-content:center;align-items:center;margin:2px 0;">
+            <div style="width:80%;height:10mm;display:flex;justify-content:center;align-items:center;margin:2px 0;">
               ${svgContent}
             </div>
             <div style="display:flex;justify-content:space-between;width:100%;align-items:center;line-height:1;margin-top:2px;">
