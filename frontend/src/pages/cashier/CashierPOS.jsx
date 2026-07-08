@@ -55,7 +55,7 @@ function saveInvoiceAsHTML(order) {
   <tbody>${itemsHTML}${discountRow}</tbody>
 </table>
 <div class="total">الإجمالي الكلي: ${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م</div>
-<div class="method">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش 💵' : 'انستا باي 📱'}</div>
+<div class="method">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش 💵' : order.paymentMethod === 'Instapay' ? 'انستا باي 📱' : 'محفظة كاش 💳'}</div>
 ${order._employeeName ? `<div class="emp">الموظف: ${order._employeeName}</div>` : ''}
 <div class="footer">
   شكراً لتعاملكم مع ModaPella 🎀<br/>
@@ -180,7 +180,7 @@ function InvoiceModal({ order, onClose }) {
             </div>
             <div className="flex justify-between text-sm text-burgundy/60">
               <span>طريقة الدفع</span>
-              <span>{order.paymentMethod === 'Cash' ? '💵 كاش' : '📱 انستا باي'}</span>
+              <span>{order.paymentMethod === 'Cash' ? '💵 كاش' : order.paymentMethod === 'Instapay' ? '📱 انستا باي' : '💳 محفظة كاش'}</span>
             </div>
           </div>
 
@@ -924,15 +924,16 @@ function CashierPOS() {
               {/* Payment Method */}
               <div>
                 <p className="text-xs text-burgundy/50 mb-1.5 font-medium">طريقة الدفع</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'Cash', label: '💵 كاش', },
                     { id: 'Instapay', label: '📱 انستا باي', },
+                    { id: 'Wallet', label: '💳 محفظة كاش', },
                   ].map(method => (
                     <button
                       key={method.id}
                       onClick={() => setPaymentMethod(method.id)}
-                      className={`py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
+                      className={`py-2.5 rounded-xl text-[10px] font-bold border-2 transition-all ${
                         paymentMethod === method.id
                           ? 'border-burgundy bg-burgundy text-white shadow-md shadow-burgundy/20'
                           : 'border-burgundy/15 text-burgundy hover:border-burgundy/30'

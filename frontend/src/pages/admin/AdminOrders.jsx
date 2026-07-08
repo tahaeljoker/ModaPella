@@ -12,8 +12,8 @@ const STATUS_COLOR = {
   Pending: 'bg-amber-100 text-amber-700',
 };
 const TYPE_AR = { Online: 'أونلاين', Offline: 'كاشير' };
-const PAY_AR = { Cash: '💵 كاش', Instapay: '💳 انستا باي' };
-const PAY_COLOR = { Cash: 'bg-blue-50 text-blue-700', Instapay: 'bg-violet-50 text-violet-700' };
+const PAY_AR = { Cash: '💵 كاش', Instapay: '📱 انستا باي', Wallet: '💳 محفظة كاش' };
+const PAY_COLOR = { Cash: 'bg-blue-50 text-blue-700', Instapay: 'bg-violet-50 text-violet-700', Wallet: 'bg-amber-50 text-amber-700' };
 
 function AdminOrders() {
   const [orders, setOrders] = useState([]);

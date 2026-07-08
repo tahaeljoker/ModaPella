@@ -24,7 +24,7 @@ const OrderSchema = new mongoose.Schema({
   discount: { type: Number, default: 0 },
   type: { type: String, enum: ['Online', 'Offline'], default: 'Online' },
   status: { type: String, enum: ['Pending', 'Completed', 'Returned'], default: 'Pending' },
-  paymentMethod: { type: String, enum: ['Cash', 'Instapay'], default: 'Cash' },
+  paymentMethod: { type: String, enum: ['Cash', 'Instapay', 'Wallet'], default: 'Cash' },
   paymentGateway: { type: String, default: 'Instapay' },
   recovered: { type: Boolean, default: false }
 }, { timestamps: true });

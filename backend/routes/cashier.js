@@ -88,7 +88,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         if (t.type === 'IN') cashDrawer += t.amount;
         if (t.type === 'OUT') cashDrawer -= t.amount;
         if (t.type === 'OUT' && t.category === 'Expense') expenses += t.amount;
-      } else if (t.paymentMethod === 'Instapay') {
+      } else if (t.paymentMethod === 'Instapay' || t.paymentMethod === 'Wallet') {
         if (t.type === 'IN') instapayTotal += t.amount;
         if (t.type === 'OUT') instapayTotal -= t.amount;
       }
@@ -99,7 +99,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
       .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
 
     const instapaySales = todayOrders
-      .filter(order => order.paymentMethod === 'Instapay')
+      .filter(order => order.paymentMethod === 'Instapay' || order.paymentMethod === 'Wallet')
       .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
 
     const netCashInSafe = cashSales - expenses;

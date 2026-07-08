@@ -82,7 +82,7 @@ router.get('/weekly', auth, async (req, res) => {
       const orders = await Order.find({ createdAt: { $gte: d, $lte: end }, status: 'Completed' });
       const revenue = orders.reduce((s, o) => s + o.totalAmount, 0);
       const cashRevenue = orders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
-      const instapayRevenue = orders.filter(o => o.paymentMethod === 'Instapay').reduce((s, o) => s + o.totalAmount, 0);
+      const instapayRevenue = orders.filter(o => o.paymentMethod === 'Instapay' || o.paymentMethod === 'Wallet').reduce((s, o) => s + o.totalAmount, 0);
       days.push({
         date: d.toLocaleDateString('ar-EG', { weekday: 'short', month: 'numeric', day: 'numeric' }),
         revenue,
