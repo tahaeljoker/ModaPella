@@ -67,7 +67,7 @@ function BarcodeLabel({ product, qty }) {
         height: '1.18in',
         border: '1px solid #ddd',
         borderRadius: '3px',
-        padding: '2px 4px',
+        padding: '3mm 4mm',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -84,17 +84,17 @@ function BarcodeLabel({ product, qty }) {
     >
       <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontSize: '7.5px', fontWeight: '900', color: '#7C0A12' }}>ModaPella</div>
-        <div style={{ fontSize: '7px', color: '#555', marginTop: '0.5px', maxWidth: '1.45in', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: '7px', color: '#555', marginTop: '0.5px', maxWidth: '100%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {product.name}
         </div>
       </div>
 
       {svg ? (
-        <div style={{ width: '1.45in', height: '8mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '2px 0' }}>
+        <div style={{ width: '100%', height: '8mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '2px 0' }}>
           <svg
             viewBox={`0 0 ${svg.totalW} 60`}
             style={{ width: '100%', height: '100%' }}
-            preserveAspectRatio="none"
+            preserveAspectRatio="xMidYMid meet"
           >
             {svg.bars.map((b, i) => (
               <rect key={i} x={b.x} y={0} width={b.width} height={60} fill="#000" />
@@ -105,7 +105,7 @@ function BarcodeLabel({ product, qty }) {
         <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center', lineHeight: '1', marginTop: '1px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', lineHeight: '1', marginTop: '2px' }}>
         <span style={{ fontSize: '7.5px', fontWeight: '700', fontFamily: 'monospace', color: '#1a0509' }}>
           {product.sku}
         </span>
@@ -159,21 +159,21 @@ function AdminBarcodeLabels() {
       return Array.from({ length: qty }, () => {
         const svg = generateBarcodeSVG(p.sku);
         const svgContent = svg
-          ? `<svg viewBox="0 0 ${svg.totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="none">
+          ? `<svg viewBox="0 0 ${svg.totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet">
               ${svg.bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000"/>`).join('')}
              </svg>`
           : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
-        return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:1.57in;height:1.15in;overflow:hidden;box-sizing:border-box;">
-          <div class="print-label-page" style="width:1.57in;height:1.15in;padding:2px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
+        return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:1.57in;height:1.18in;overflow:hidden;box-sizing:border-box;">
+          <div class="print-label-page" style="width:1.57in;height:1.18in;padding:3mm 4mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
             <div style="width:100%;text-align:center;line-height:1.1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
               <div style="font-size:7.5px;font-weight:900;color:#7C0A12;">ModaPella</div>
-              <div style="font-size:7px;color:#333;margin-top:0.5px;max-width:1.45in;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
+              <div style="font-size:7px;color:#333;margin-top:0.5px;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
             </div>
-            <div style="width:1.45in;height:8mm;display:flex;justify-content:center;align-items:center;margin:2px 0;">
+            <div style="width:100%;height:8mm;display:flex;justify-content:center;align-items:center;margin:2px 0;">
               ${svgContent}
             </div>
-            <div style="display:flex;justify-content:space-between;width:100%;padding:0 2px;align-items:center;line-height:1;margin-top:1px;">
+            <div style="display:flex;justify-content:space-between;width:100%;align-items:center;line-height:1;margin-top:2px;">
               <span style="font-size:7.5px;font-weight:700;font-family:monospace;color:#1a0509;">${p.sku}</span>
               <span style="font-size:8px;font-weight:900;color:#7C0A12;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
             </div>
@@ -211,7 +211,7 @@ function AdminBarcodeLabels() {
         .print-label-wrapper {
           display: block !important;
           width: 1.57in;
-          height: 1.15in;
+          height: 1.18in;
           page-break-after: always;
           break-after: page;
           box-sizing: border-box;

@@ -71,7 +71,7 @@ function printBarcode(product) {
   if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
   const { bars, totalW } = generateBarcodeSVG(product.sku);
   const svgBars = bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000"/>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="none">${svgBars}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet">${svgBars}</svg>`;
   const win = window.open('', '_blank', 'width=400,height=300');
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
   <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
@@ -81,12 +81,12 @@ function printBarcode(product) {
     font-family: 'Cairo', sans-serif;
     background: #fff;
     width: 1.57in;
-    height: 1.15in;
+    height: 1.18in;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2px 4px;
+    padding: 3mm 4mm;
     overflow: hidden;
     direction: rtl;
   }
@@ -96,19 +96,23 @@ function printBarcode(product) {
     color: #7C0A12;
     line-height: 1.1;
     margin-bottom: 1px;
+    text-align: center;
+    width: 100%;
   }
   .name {
     font-size: 7px;
     color: #333;
-    max-width: 1.45in;
+    max-width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.1;
     margin-bottom: 2px;
+    text-align: center;
+    width: 100%;
   }
   .barcode-wrapper {
-    width: 1.45in;
+    width: 100%;
     height: 8mm;
     display: flex;
     justify-content: center;
@@ -119,10 +123,9 @@ function printBarcode(product) {
     display: flex;
     justify-content: space-between;
     width: 100%;
-    padding: 0 2px;
     align-items: center;
     line-height: 1;
-    margin-top: 1px;
+    margin-top: 2px;
   }
   .sku {
     font-family: monospace;
@@ -136,7 +139,7 @@ function printBarcode(product) {
     color: #7C0A12;
   }
   @media print {
-    body { padding: 2px 4px; }
+    body { padding: 3mm 4mm; }
   }
   </style></head>
   <body>
