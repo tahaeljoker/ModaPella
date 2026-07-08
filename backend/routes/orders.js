@@ -49,16 +49,36 @@ router.get('/summary', auth, async (req, res) => {
   }
 });
 
-// GET /api/orders/weekly — last 7 days revenue (for dashboard chart)
+// GET /api/orders/weekly — revenue for custom date range (default to last 7 days)
 router.get('/weekly', auth, async (req, res) => {
   try {
+    const { from, to } = req.query;
+    let startDate = new Date();
+    startDate.setDate(startDate.getDate() - 6);
+    let endDate = new Date();
+
+    if (from) {
+      startDate = new Date(from);
+    }
+    if (to) {
+      endDate = new Date(to + 'T23:59:59');
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    const diffTime = Math.abs(endDate - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const limitDays = Math.min(diffDays, 31); // Cap at 31 days to prevent performance issues
+
     const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
+    for (let i = limitDays - 1; i >= 0; i--) {
+      const d = new Date(endDate);
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
       const end = new Date(d);
       end.setHours(23, 59, 59, 999);
+
       const orders = await Order.find({ createdAt: { $gte: d, $lte: end }, status: 'Completed' });
       const revenue = orders.reduce((s, o) => s + o.totalAmount, 0);
       const cashRevenue = orders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);

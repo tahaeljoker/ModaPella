@@ -21,7 +21,9 @@ function WeeklyChart({ data }) {
   const maxRevenue = Math.max(...data.map(d => d.revenue), 1);
   const chartH = 140;
   const chartW = 560;
-  const barW = 48;
+  
+  // Dynamically calculate bar width and gap based on dataset length
+  const barW = Math.max(8, Math.min(48, (chartW * 0.6) / data.length));
   const gap = (chartW - data.length * barW) / (data.length + 1);
 
   return (
@@ -52,19 +54,19 @@ function WeeklyChart({ data }) {
               {/* Cash bar (burgundy) */}
               <rect
                 x={x} y={chartH - cashH} width={barW * 0.55} height={cashH}
-                rx={4} fill="#7C0A12" opacity="0.85"
+                rx={Math.min(4, barW * 0.1)} fill="#7C0A12" opacity="0.85"
               />
               {/* Instapay bar (violet) */}
               <rect
                 x={x + barW * 0.58} y={chartH - instapayH} width={barW * 0.38} height={instapayH}
-                rx={4} fill="#7c3aed" opacity="0.75"
+                rx={Math.min(4, barW * 0.1)} fill="#7c3aed" opacity="0.75"
               />
               {/* Day label */}
-              <text x={x + barW / 2} y={chartH + 16} fontSize="10" fill="#7C0A1299" textAnchor="middle">
+              <text x={x + barW / 2} y={chartH + 16} fontSize={data.length > 10 ? "7" : "10"} fill="#7C0A1299" textAnchor="middle">
                 {d.date}
               </text>
               {/* Count label */}
-              {d.count > 0 && (
+              {d.count > 0 && data.length <= 15 && (
                 <text x={x + barW / 2} y={chartH - Math.max(cashH, instapayH) - 4} fontSize="9" fill="#7C0A12" textAnchor="middle" fontWeight="bold">
                   {d.count}
                 </text>
@@ -72,8 +74,8 @@ function WeeklyChart({ data }) {
             </g>
           );
         })}
-        {/* Total revenue tooltip at bottom */}
-        {data.map((d, i) => {
+        {/* Total revenue tooltip at bottom (only show if columns <= 15 to avoid clutter) */}
+        {data.length <= 15 && data.map((d, i) => {
           const x = gap + i * (barW + gap);
           return d.revenue > 0 ? (
             <text key={i} x={x + barW / 2} y={chartH + 30} fontSize="8" fill="#7C0A1270" textAnchor="middle">
@@ -83,7 +85,7 @@ function WeeklyChart({ data }) {
         })}
       </svg>
       {/* Legend */}
-      <div className="mt-2 flex items-center gap-4 text-xs text-burgundy/60">
+      <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-burgundy/60">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-burgundy opacity-85" />
           كاش
@@ -92,7 +94,7 @@ function WeeklyChart({ data }) {
           <span className="h-3 w-3 rounded-sm bg-violet-600 opacity-75" />
           انستا باي / فيزا
         </span>
-        <span className="text-burgundy/40">· الرقم فوق العمود = عدد الطلبات</span>
+        {data.length <= 15 && <span className="text-burgundy/40">· الرقم فوق العمود = عدد الطلبات</span>}
       </div>
     </div>
   );
@@ -105,6 +107,26 @@ function AdminOverview() {
   const [weeklyData, setWeeklyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Date range filters for chart
+  const [chartFrom, setChartFrom] = useState('');
+  const [chartTo, setChartTo] = useState('');
+  const [chartLoading, setChartLoading] = useState(false);
+
+  const loadChartData = async (from = '', to = '') => {
+    setChartLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (from) params.append('from', from);
+      if (to) params.append('to', to);
+      const res = await api.get(`/orders/weekly?${params}`);
+      setWeeklyData(res.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setChartLoading(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -232,14 +254,56 @@ function AdminOverview() {
       {/* Chart & Expense Breakdown Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Weekly Chart */}
-        <div className="lg:col-span-2 rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <h3 className="text-xl font-semibold">📊 مبيعات آخر 7 أيام</h3>
+        <div className="lg:col-span-2 rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm flex flex-col justify-between">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold">📊 تحليلات المبيعات</h3>
+              <p className="text-xs text-burgundy/50">اعرض وحلل حجم المبيعات بالفترة المحددة</p>
+            </div>
+            
+            {/* Custom Date Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-burgundy/60">من:</span>
+                <input
+                  type="date"
+                  value={chartFrom}
+                  onChange={e => setChartFrom(e.target.value)}
+                  className="rounded-xl border border-burgundy/15 bg-[#F7F0EC]/30 px-2.5 py-1 text-xs text-burgundy outline-none focus:border-burgundy"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-burgundy/60">إلى:</span>
+                <input
+                  type="date"
+                  value={chartTo}
+                  onChange={e => setChartTo(e.target.value)}
+                  className="rounded-xl border border-burgundy/15 bg-[#F7F0EC]/30 px-2.5 py-1 text-xs text-burgundy outline-none focus:border-burgundy"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => loadChartData(chartFrom, chartTo)}
+                disabled={chartLoading}
+                className="rounded-xl bg-burgundy px-3.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-[#650018] disabled:opacity-50"
+              >
+                {chartLoading ? '...' : 'تحديث'}
+              </button>
+            </div>
+
             <span className="rounded-full bg-burgundy/8 px-3 py-1 text-xs font-semibold text-burgundy">
-              إجمالي: {EGP(weekTotal)}
+              إجمالي الفترة: {EGP(weekTotal)}
             </span>
           </div>
-          <WeeklyChart data={weeklyData} />
+
+          <div className="relative">
+            {chartLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/75 backdrop-blur-sm">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-burgundy/20 border-t-burgundy" />
+              </div>
+            )}
+            <WeeklyChart data={weeklyData} />
+          </div>
         </div>
 
         {/* Expense Breakdown */}
