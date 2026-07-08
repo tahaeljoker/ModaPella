@@ -146,6 +146,27 @@ function ProductModal({ product, onClose, onSave }) {
   const [form, setForm] = useState(product || emptyProduct);
   const [loading, setLoading] = useState(false);
   const [isCalcOpen, setIsCalcOpen] = useState(false);
+  const [suppliers, setSuppliers] = useState([]);
+  const [isManualSupplier, setIsManualSupplier] = useState(false);
+
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const res = await api.get('/suppliers');
+        setSuppliers(res.data);
+        if (product?.supplier) {
+          const exists = res.data.some(s => s.name === product.supplier);
+          if (!exists) {
+            setIsManualSupplier(true);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load suppliers:', err);
+      }
+    };
+    fetchSuppliers();
+  }, [product]);
+
   const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : str) : [];
   const parsedSizes = getParsedItems(form.sizes);
   const parsedColors = getParsedItems(form.colors);
@@ -247,8 +268,45 @@ function ProductModal({ product, onClose, onSave }) {
                 disabled={hasVariants} className={`${inp} ${hasVariants ? 'bg-burgundy/5 opacity-70 cursor-not-allowed font-bold' : ''}`} required min="0" />
               {hasVariants && <p className="mt-1 text-[10px] text-burgundy/50">يُحسب تلقائياً من مجموع مخزون المتغيرات</p>}
             </div>
-            <div className="sm:col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الشركة الموردة / الماركة</label>
-              <input name="supplier" value={form.supplier} onChange={handleChange} className={inp} placeholder="مثال: Zara, H&M..." />
+            <div className="sm:col-span-2">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">الشركة الموردة / الماركة</label>
+                <button
+                  type="button"
+                  onClick={() => setIsManualSupplier(!isManualSupplier)}
+                  className="text-[10px] text-burgundy bg-burgundy/5 px-2.5 py-1 rounded-xl hover:bg-burgundy/10 font-bold transition"
+                >
+                  {isManualSupplier ? '📋 اختيار من المسجلين' : '✍️ كتابة مورد غير مسجل'}
+                </button>
+              </div>
+              {isManualSupplier ? (
+                <input
+                  name="supplier"
+                  value={form.supplier}
+                  onChange={handleChange}
+                  className={inp}
+                  placeholder="مثال: Zara, H&M..."
+                />
+              ) : (
+                <select
+                  name="supplier"
+                  value={form.supplier}
+                  onChange={handleChange}
+                  className={inp}
+                >
+                  <option value="">-- اختر مورد من القائمة --</option>
+                  {suppliers.map(s => (
+                    <option key={s._id} value={s.name}>
+                      {s.name} {s.phone ? `(${s.phone})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {!isManualSupplier && suppliers.length === 0 && (
+                <p className="mt-1 text-[10px] text-amber-600 font-medium">
+                  ⚠️ لا يوجد موردون مسجلون حالياً. يمكنك كتابة اسم المورد يدوياً أو تسجيلهم أولاً من شاشة الموردين.
+                </p>
+              )}
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex items-center gap-2">
