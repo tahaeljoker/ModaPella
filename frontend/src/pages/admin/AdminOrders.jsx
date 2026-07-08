@@ -17,9 +17,11 @@ const PAY_COLOR = { Cash: 'bg-blue-50 text-blue-700', Instapay: 'bg-violet-50 te
 
 function AdminOrders() {
   const [orders, setOrders] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
+  const [filterEmployee, setFilterEmployee] = useState('All');
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [returnModal, setReturnModal] = useState(null); // { order }
@@ -31,8 +33,12 @@ function AdminOrders() {
 
   const loadOrders = async () => {
     try {
-      const res = await api.get('/orders');
-      setOrders(res.data);
+      const [ordersRes, employeesRes] = await Promise.all([
+        api.get('/orders'),
+        api.get('/employees')
+      ]);
+      setOrders(ordersRes.data);
+      setEmployees(employeesRes.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -100,11 +106,12 @@ function AdminOrders() {
   const filtered = orders.filter((o) => {
     const matchStatus = filterStatus === 'All' || o.status === filterStatus;
     const matchType = filterType === 'All' || o.type === filterType;
+    const matchEmployee = filterEmployee === 'All' || o.employeeName === filterEmployee || (o.employee && o.employee.name === filterEmployee);
     const shortId = o._id?.slice(-6).toUpperCase() || '';
     const matchSearch = !search ||
       shortId.includes(search.toUpperCase()) ||
       o.items?.some(i => i.name.toLowerCase().includes(search.toLowerCase()));
-    return matchStatus && matchType && matchSearch;
+    return matchStatus && matchType && matchSearch && matchEmployee;
   });
 
   const totalFiltered = filtered.filter((o) => o.status === 'Completed').reduce((s, o) => s + o.totalAmount, 0);
@@ -169,6 +176,21 @@ function AdminOrders() {
             {t === 'All' ? 'كل الأنواع' : TYPE_AR[t]}
           </button>
         ))}
+        {employees.length > 0 && (
+          <>
+            <div className="mx-2 w-px bg-burgundy/20" />
+            <select
+              value={filterEmployee}
+              onChange={(e) => setFilterEmployee(e.target.value)}
+              className="rounded-full border border-burgundy/20 bg-white px-4 py-2 text-xs font-semibold text-burgundy outline-none transition focus:border-burgundy"
+            >
+              <option value="All">كل الموظفين (البائعين)</option>
+              {employees.map((emp) => (
+                <option key={emp._id} value={emp.name}>{emp.name}</option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
 
       {/* Orders list */}
@@ -249,6 +271,68 @@ function AdminOrders() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
+                        const dateStr = new Date(order.createdAt).toLocaleString('ar-EG');
+                        const itemsHTML = order.items.map(item => `
+                          <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
+                            <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
+                            <span>${(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
+                          </div>
+                        `).join('');
+
+                        const printDiv = document.createElement('div');
+                        printDiv.id = 'receipt-reprint-root';
+                        printDiv.innerHTML = `
+                          <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:15px;width:72mm;font-size:12px;color:#000;line-height:1.4">
+                            <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:3px">ModaPella 🎠</div>
+                            <div style="text-align:center;margin-bottom:12px;font-size:9px;color:#444">إعادة طباعة فاتورة (مسؤول)</div>
+                            
+                            <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
+                              <div><strong>رقم الفاتورة:</strong> #${shortId}</div>
+                              <div><strong>التاريخ:</strong> ${dateStr}</div>
+                              <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
+                              ${order.employeeName ? `<div><strong>البائع:</strong> ${order.employeeName}</div>` : ''}
+                            </div>
+
+                            <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
+                              ${itemsHTML}
+                            </div>
+
+                            <div style="font-weight:bold;font-size:12px">
+                              ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
+                              <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px">
+                                <span>الإجمالي الفعلي:</span>
+                                <span>${order.totalAmount.toLocaleString('ar-EG')} ج.م</span>
+                              </div>
+                            </div>
+
+                            <div style="text-align:center;margin-top:20px;font-size:9px;color:#666">
+                              شكراً لتعاملكم معنا! ModaPella
+                            </div>
+                          </div>
+                        `;
+
+                        const style = document.createElement('style');
+                        style.innerHTML = `
+                          @media print {
+                            body * { visibility: hidden; }
+                            #receipt-reprint-root, #receipt-reprint-root * { visibility: visible; }
+                            #receipt-reprint-root { position: absolute; left: 0; top: 0; }
+                          }
+                        `;
+                        document.head.appendChild(style);
+                        document.body.appendChild(printDiv);
+                        window.print();
+                        document.body.removeChild(printDiv);
+                        document.head.removeChild(style);
+                      }}
+                      className="rounded-xl bg-burgundy text-white px-4 py-2 text-xs font-bold transition hover:bg-[#650018]"
+                    >
+                      🖨️ طباعة الفاتورة
+                    </button>
                     {order.status === 'Pending' && (
                       <>
                         <button type="button" onClick={() => handleStatusChange(order._id, 'Completed')}

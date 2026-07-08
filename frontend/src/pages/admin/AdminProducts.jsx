@@ -73,12 +73,79 @@ function printBarcode(product) {
   setTimeout(() => { win.print(); win.close(); }, 500);
 }
 
+function StockHistoryModal({ productId, onClose }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get(`/admin/products/${productId}/stock-history`)
+      .then(r => setHistory(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [productId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
+          <h3 className="text-lg font-bold">📜 سجل حركة مخزون المنتج</h3>
+          <button onClick={onClose} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
+        </div>
+        
+        {loading ? (
+          <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+        ) : history.length === 0 ? (
+          <div className="py-8 text-center text-sm text-burgundy/40">لا توجد حركات مخزون مسجلة لهذا المنتج بعد.</div>
+        ) : (
+          <div className="relative border-r border-burgundy/20 pr-4 mr-2 space-y-4">
+            {history.map((h, i) => {
+              const diff = h.quantityChanged;
+              const diffClass = diff > 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
+              return (
+                <div key={h._id} className="relative">
+                  {/* Circle node */}
+                  <div className="absolute right-[-21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-burgundy bg-[#F7F0EC]" />
+                  
+                  <div className="bg-white rounded-2xl p-3.5 border border-burgundy/5 shadow-sm space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-burgundy">{h.changeType}</span>
+                      <span className="text-[10px] text-burgundy/40">{new Date(h.createdAt).toLocaleString('ar-EG')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs py-1">
+                      <div>
+                        {h.size || h.color ? (
+                          <span className="text-burgundy/60 font-semibold">{h.size} · {h.color}</span>
+                        ) : (
+                          <span className="text-burgundy/40">المنتج الرئيسي</span>
+                        )}
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${diffClass}`}>
+                        {diff > 0 ? `+${diff}` : diff} قطعة
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-burgundy/50 leading-relaxed">{h.notes}</p>
+                    <div className="flex items-center justify-between text-[10px] text-burgundy/30 pt-1 border-t border-burgundy/5">
+                      <span>الرصيد: {h.previousStock} ➔ {h.newStock}</span>
+                      {h.performedBy?.name && <span>بواسطة: {h.performedBy.name}</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '' };
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSave }) {
   const [form, setForm] = useState(product || emptyProduct);
   const [loading, setLoading] = useState(false);
+  const [isCalcOpen, setIsCalcOpen] = useState(false);
   const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : str) : [];
   const parsedSizes = getParsedItems(form.sizes);
   const parsedColors = getParsedItems(form.colors);
@@ -123,7 +190,47 @@ function ProductModal({ product, onClose, onSave }) {
                 {CATEGORIES.map(c => <option key={c} value={c}>{CAT_AR[c]} ({c})</option>)}
               </select>
             </div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">سعر البيع (ج.م) *</label><input type="number" name="price" value={form.price} onChange={handleChange} className={inp} required min="0" /></div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex justify-between items-center">
+                <span>سعر البيع (ج.م) *</span>
+                <button
+                  type="button"
+                  onClick={() => setIsCalcOpen(!isCalcOpen)}
+                  className="text-[10px] text-burgundy bg-burgundy/5 px-2 py-0.5 rounded hover:bg-burgundy/10 font-bold transition flex items-center gap-1"
+                >
+                  🧮 تسعير ذكي
+                </button>
+              </label>
+              <div className="relative">
+                <input type="number" name="price" value={form.price} onChange={handleChange} className={inp} required min="0" />
+                {isCalcOpen && (
+                  <div className="absolute top-full right-0 left-0 mt-1.5 z-40 bg-white rounded-2xl p-4 shadow-xl border border-burgundy/10 space-y-2 text-right">
+                    <p className="text-[11px] font-bold text-burgundy/60">حاسبة تسعير ذكي بناءً على التكلفة:</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[15, 25, 35, 50, 60].map(pct => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => {
+                            const cost = Number(form.costPrice || 0);
+                            if (cost > 0) {
+                              const calcPrice = Math.round(cost * (1 + pct / 100));
+                              setForm(p => ({ ...p, price: calcPrice }));
+                              setIsCalcOpen(false);
+                            } else {
+                              alert('برجاء إدخال سعر التكلفة أولاً');
+                            }
+                          }}
+                          className="text-[10px] bg-burgundy text-white px-2 py-1 rounded hover:bg-[#650018] font-bold"
+                        >
+                          +{pct}% ربح
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">سعر التكلفة (ج.م)</label>
               <input type="number" name="costPrice" value={form.costPrice ?? ''} onChange={handleChange} className={inp} min="0" placeholder="0" />
@@ -191,20 +298,45 @@ function ProductModal({ product, onClose, onSave }) {
 }
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
-function CatalogTab({ products, loading, onAdd, onEdit, onDelete }) {
+function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory }) {
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
-  const filtered = products.filter(p =>
-    (filter === 'All' || p.category === filter) &&
-    (!search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase()))
-  );
+  const [filterSupplier, setFilterSupplier] = useState('الكل');
+  const [filterSize, setFilterSize] = useState('الكل');
+
+  const suppliersList = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
+  const sizesList = Array.from(new Set(products.flatMap(p => p.sizes || []).filter(Boolean))).sort();
+
+  const filtered = products.filter(p => {
+    const mc = filter === 'All' || p.category === filter;
+    const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase());
+    const mSup = filterSupplier === 'الكل' || p.supplier === filterSupplier;
+    const mSz = filterSize === 'الكل' || p.sizes?.includes(filterSize) || p.variants?.some(v => v.size === filterSize);
+    return mc && ms && mSup && mSz;
+  });
+
   return (
     <div className="space-y-4">
       {/* Filters row */}
       <div className="flex flex-wrap items-center gap-3">
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="🔍 بحث بالاسم أو الكود..."
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy min-w-[180px]" />
+          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy min-w-[180px] flex-1" />
+        
+        {/* Supplier Filter */}
+        <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
+          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
+          <option value="الكل">كل الموردين</option>
+          {suppliersList.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        {/* Size Filter */}
+        <select value={filterSize} onChange={e => setFilterSize(e.target.value)}
+          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
+          <option value="الكل">كل المقاسات</option>
+          {sizesList.map(sz => <option key={sz} value={sz}>{sz}</option>)}
+        </select>
+
         <div className="flex flex-wrap gap-2">
           {['All', ...CATEGORIES].map(c => (
             <button key={c} onClick={() => setFilter(c)}
@@ -213,7 +345,7 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete }) {
             </button>
           ))}
         </div>
-        <div className="mr-auto">
+        <div>
           <button onClick={onAdd} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
             + إضافة منتج
           </button>
@@ -227,12 +359,12 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete }) {
         <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-4xl mb-3">📭</p><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
       ) : (
         <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50">
-            <span>المنتج</span><span>الفئة</span><span>السعر</span><span>المخزون</span><span>الإجراءات</span>
+          <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50">
+            <span>المنتج</span><span>الفئة</span><span>السعر</span><span>التكلفة والربح</span><span>المخزون</span><span>الإجراءات</span>
           </div>
           <div className="divide-y divide-burgundy/6">
             {filtered.map(p => (
-              <div key={p._id} className="grid sm:grid-cols-[2fr_1fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
+              <div key={p._id} className="grid sm:grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
                 {/* Product */}
                 <div className="flex items-center gap-3 min-w-0">
                   {p.images?.[0] ? (
@@ -244,15 +376,35 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete }) {
                   )}
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-sm">{p.name}</p>
-                    <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-burgundy/50">
+                    <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-burgundy/50 items-center">
                       {p.sku && <span className="font-mono bg-burgundy/5 px-1.5 py-0.5 rounded text-burgundy">{p.sku}</span>}
                       {p.supplier && <span>🏭 {p.supplier}</span>}
                     </div>
                     {p.sizes?.length > 0 && <p className="mt-0.5 text-xs text-burgundy/35">{p.sizes.join(' · ')}</p>}
+                    <button
+                      type="button"
+                      onClick={() => onShowHistory(p._id)}
+                      className="mt-1 text-[10px] text-burgundy hover:underline flex items-center gap-1 font-bold"
+                    >
+                      📜 حركة المخزون
+                    </button>
                   </div>
                 </div>
                 <span className="hidden sm:inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{CAT_AR[p.category] || p.category}</span>
                 <span className="hidden sm:block text-sm font-bold">{EGP(p.price)}</span>
+                
+                {/* Cost & Profit */}
+                <div className="hidden sm:flex flex-col text-xs space-y-0.5">
+                  <span className="text-burgundy/50">التكلفة: {p.costPrice ? EGP(p.costPrice) : '—'}</span>
+                  {p.costPrice ? (
+                    <span className="font-bold text-emerald-600">
+                      الربح: {EGP(p.price - p.costPrice)} ({(((p.price - p.costPrice) / p.price) * 100).toFixed(0)}%)
+                    </span>
+                  ) : (
+                    <span className="text-amber-500 font-semibold text-[10px]">غير مسعر تكلفة</span>
+                  )}
+                </div>
+
                 <span className={`hidden sm:inline-block rounded-full px-3 py-1 text-xs font-bold w-fit ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{p.stock} ق</span>
                 <div className="flex gap-1.5">
                   <button onClick={() => onEdit(p)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
@@ -443,6 +595,7 @@ function AdminProducts() {
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState('catalog'); // 'catalog' | 'inventory'
   const [modal, setModal]       = useState(null);
+  const [historyProductId, setHistoryProductId] = useState(null);
   const [toast, setToast]       = useState('');
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
@@ -531,6 +684,7 @@ function AdminProducts() {
           onAdd={() => setModal('create')}
           onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
           onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
+          onShowHistory={setHistoryProductId}
         />
       ) : (
         <InventoryTab
@@ -546,6 +700,14 @@ function AdminProducts() {
           product={modal === 'create' ? null : modal}
           onClose={() => setModal(null)}
           onSave={handleSave}
+        />
+      )}
+
+      {/* Stock History Modal */}
+      {historyProductId && (
+        <StockHistoryModal
+          productId={historyProductId}
+          onClose={() => setHistoryProductId(null)}
         />
       )}
 
