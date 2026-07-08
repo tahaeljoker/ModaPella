@@ -128,21 +128,29 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
 router.get('/comparison', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const { from, to } = req.query;
-    const match = { status: 'Completed', employeeName: { $ne: '' } };
+    const match = { 
+      status: 'Completed',
+      $or: [
+        { employee: { $ne: null } },
+        { employeeName: { $ne: '' } }
+      ]
+    };
     if (from || to) {
       match.createdAt = {};
       if (from) match.createdAt.$gte = new Date(from);
       if (to)   match.createdAt.$lte = new Date(to + 'T23:59:59');
     }
-    const orders = await Order.find(match);
+    const orders = await Order.find(match).populate('employee');
 
     const empData = {};
     orders.forEach(o => {
-      if (!o.employeeName) return;
-      if (!empData[o.employeeName]) {
-        empData[o.employeeName] = { sales: 0, profit: 0, orderCount: 0, itemsSold: 0, categories: {} };
+      const name = o.employeeName || (o.employee && o.employee.name);
+      if (!name) return;
+      
+      if (!empData[name]) {
+        empData[name] = { sales: 0, profit: 0, orderCount: 0, itemsSold: 0, categories: {} };
       }
-      const emp = empData[o.employeeName];
+      const emp = empData[name];
       emp.sales += o.totalAmount;
       emp.orderCount += 1;
       const orderProfit = o.items.reduce((s, item) => s + ((item.price - (item.costPrice || 0)) * item.quantity), 0);

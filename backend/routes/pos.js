@@ -4,6 +4,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
+const StockHistory = require('../models/StockHistory');
 
 const router = express.Router();
 
@@ -52,12 +53,20 @@ router.post('/sell', auth, async (req, res) => {
     const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const totalAmount = Math.max(0, rawTotal - Number(discount));
 
+    let employeeName = '';
+    if (employeeId) {
+      const Employee = require('../models/Employee');
+      const empDb = await Employee.findById(employeeId);
+      if (empDb) employeeName = empDb.name;
+    }
+
     const order = new Order({
       customer: customerId,
       customerName: customerName || '',
       customerPhone: customerPhone || '',
       seller: sellerId || req.user.id,
       employee: employeeId || null,
+      employeeName: employeeName,
       items: orderItems,
       totalAmount,
       discount: Number(discount),
@@ -68,6 +77,7 @@ router.post('/sell', auth, async (req, res) => {
     await order.save();
 
     await Promise.all(productLookups.map(async ({ item, product, variant }) => {
+      const prevStock = variant ? variant.stock : product.stock;
       if (variant) {
         variant.stock = Math.max(0, variant.stock - item.quantity);
       } else {
@@ -75,6 +85,24 @@ router.post('/sell', auth, async (req, res) => {
       }
       product.sold += item.quantity;
       await product.save();
+
+      // Log stock history
+      const history = new StockHistory({
+        product: product._id,
+        productName: product.name,
+        size: item.size || '',
+        color: item.color || '',
+        variantKey: variant ? `${item.size}_${item.color}` : '',
+        changeType: 'POS Sale',
+        quantityChanged: -item.quantity,
+        previousStock: prevStock,
+        newStock: variant ? variant.stock : product.stock,
+        performedBy: req.user.id,
+        referenceId: order._id,
+        notes: `مبيعات فاتورة #${order._id.toString().slice(-6).toUpperCase()}`
+      });
+      await history.save();
+
       req.app.locals.io?.emit('inventory:update', product);
     }));
 
@@ -176,14 +204,38 @@ router.post('/recover', auth, async (req, res) => {
     await Promise.all(itemsToReturn.map(async (item) => {
       const product = await Product.findById(item.product);
       if (!product) return;
+      let prevStock = 0;
+      let variant = null;
       if (product.variants && product.variants.length > 0) {
-        const variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) variant.stock += item.quantity;
+        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
+        if (variant) {
+          prevStock = variant.stock;
+          variant.stock += item.quantity;
+        }
       } else {
+        prevStock = product.stock;
         product.stock += item.quantity;
       }
       product.sold = Math.max(0, product.sold - item.quantity);
       await product.save();
+
+      // Log stock history
+      const history = new StockHistory({
+        product: product._id,
+        productName: product.name,
+        size: item.size || '',
+        color: item.color || '',
+        variantKey: variant ? `${item.size}_${item.color}` : '',
+        changeType: 'Refund',
+        quantityChanged: item.quantity,
+        previousStock: prevStock,
+        newStock: variant ? variant.stock : product.stock,
+        performedBy: req.user.id,
+        referenceId: order._id,
+        notes: `مرتجع فاتورة #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'}`
+      });
+      await history.save();
+
       req.app.locals.io?.emit('inventory:update', product);
     }));
 
@@ -220,15 +272,36 @@ router.patch('/storage/:productId', auth, async (req, res) => {
     const product = await Product.findById(req.params.productId);
     if (!product) return res.status(404).json({ message: 'Product not found' });
     
+    let prevStock = 0;
+    let variant = null;
     if (product.variants && product.variants.length > 0 && size && color) {
-      const variant = product.variants.find(v => v.size === size && v.color === color);
+      variant = product.variants.find(v => v.size === size && v.color === color);
       if (variant) {
+        prevStock = variant.stock;
         variant.stock = Math.max(0, variant.stock + Number(adjustment));
       }
     } else {
+      prevStock = product.stock;
       product.stock = Math.max(0, product.stock + Number(adjustment));
     }
     await product.save();
+
+    // Log stock history
+    const history = new StockHistory({
+      product: product._id,
+      productName: product.name,
+      size: size || '',
+      color: color || '',
+      variantKey: variant ? `${size}_${color}` : '',
+      changeType: 'Manual Adjustment',
+      quantityChanged: Number(adjustment),
+      previousStock: prevStock,
+      newStock: variant ? variant.stock : product.stock,
+      performedBy: req.user.id,
+      notes: `تعديل يدوي للمخزون بقيمة ${adjustment > 0 ? '+' : ''}${adjustment}`
+    });
+    await history.save();
+
     req.app.locals.io?.emit('inventory:update', product);
     res.json({ product, message: 'Storage updated' });
   } catch (error) {

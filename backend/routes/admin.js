@@ -29,7 +29,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       Transaction.find({ type: 'OUT' })
     ]);
 
-    const allOrders = await Order.find({ status: 'Completed' });
+    const allOrders = await Order.find({ status: 'Completed' }).populate('employee');
 
     const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
     const totalValue = products.reduce((sum, item) => sum + item.stock * item.price, 0);
@@ -90,11 +90,12 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     // Calculate employee leaderboard
     const employeeData = {};
     allOrders.forEach(o => {
-      if (o.employeeName) {
-        if (!employeeData[o.employeeName]) {
-          employeeData[o.employeeName] = { amount: 0, profit: 0, orderCount: 0, itemsSold: 0, categories: {} };
+      const name = o.employeeName || (o.employee && o.employee.name);
+      if (name) {
+        if (!employeeData[name]) {
+          employeeData[name] = { amount: 0, profit: 0, orderCount: 0, itemsSold: 0, categories: {} };
         }
-        const emp = employeeData[o.employeeName];
+        const emp = employeeData[name];
         emp.amount += o.totalAmount;
         emp.orderCount += 1;
         const orderProfit = o.items.reduce((s, item) => {
