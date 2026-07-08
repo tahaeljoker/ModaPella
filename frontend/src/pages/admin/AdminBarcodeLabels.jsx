@@ -73,22 +73,22 @@ function renderCode128(text) {
   return { rects, totalWidth, height };
 }
 
-// ── Label Component (40mm × 20mm thermal label style) ───────────────────────
+// ── Label Component (1.57in × 1.18in thermal label style) ───────────────────────
 function BarcodeLabel({ product, qty }) {
   const svg = renderCode128(product.sku);
   return (
     <div
       className="barcode-label"
       style={{
-        width: '40mm',
-        height: '20mm',
+        width: '1.57in',
+        height: '1.18in',
         border: '1px solid #ddd',
         borderRadius: '3px',
-        padding: '1.5px 3px',
+        padding: '2px 4px',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center', // Centers vertically in flex column
         fontFamily: 'Cairo, Arial, sans-serif',
         direction: 'rtl',
         background: '#fff',
@@ -99,30 +99,32 @@ function BarcodeLabel({ product, qty }) {
         overflow: 'hidden',
       }}
     >
-      <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1' }}>
-        <div style={{ fontSize: '7px', fontWeight: '900', color: '#7C0A12' }}>ModaPella</div>
-        <div style={{ fontSize: '6.5px', color: '#333', marginTop: '0.5px', maxWidth: '36mm', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+      <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: '7.5px', fontWeight: '900', color: '#7C0A12' }}>ModaPella</div>
+        <div style={{ fontSize: '7px', color: '#555', marginTop: '0.5px', maxWidth: '1.45in', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {product.name}
         </div>
       </div>
 
       {svg ? (
-        <svg
-          viewBox={`0 0 ${svg.totalWidth} ${svg.height}`}
-          style={{ width: '36mm', height: '6mm', margin: '1px 0' }}
-          preserveAspectRatio="none"
-        >
-          {svg.rects}
-        </svg>
+        <div style={{ width: '1.45in', height: '8mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '2px 0' }}>
+          <svg
+            viewBox={`0 0 ${svg.totalWidth} ${svg.height}`}
+            style={{ width: '100%', height: '100%' }}
+            preserveAspectRatio="none"
+          >
+            {svg.rects}
+          </svg>
+        </div>
       ) : (
         <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center', lineHeight: '1' }}>
-        <span style={{ fontSize: '7px', fontWeight: '700', fontFamily: 'monospace', color: '#1a0509' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center', lineHeight: '1', marginTop: '1px' }}>
+        <span style={{ fontSize: '7.5px', fontWeight: '700', fontFamily: 'monospace', color: '#1a0509' }}>
           {product.sku}
         </span>
-        <span style={{ fontSize: '7.5px', fontWeight: '900', color: '#7C0A12' }}>
+        <span style={{ fontSize: '8px', fontWeight: '900', color: '#7C0A12' }}>
           {EGP(product.price)}
         </span>
       </div>
@@ -172,21 +174,23 @@ function AdminBarcodeLabels() {
       return Array.from({ length: qty }, () => {
         const svg = renderCode128(p.sku);
         const svgContent = svg
-          ? `<svg viewBox="0 0 ${svg.totalWidth} ${svg.height}" style="width:36mm;height:6mm;margin:1px 0;" preserveAspectRatio="none">
+          ? `<svg viewBox="0 0 ${svg.totalWidth} ${svg.height}" style="width:100%;height:100%;" preserveAspectRatio="none">
               ${svg.rects.map(r => `<rect x="${r.props.x}" y="0" width="${r.props.width}" height="${svg.height}" fill="#1a0509"/>`).join('')}
              </svg>`
           : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
-        return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:19mm;overflow:hidden;box-sizing:border-box;">
-          <div class="print-label-page" style="width:40mm;height:19mm;padding:1.5px 3px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
-            <div style="width:100%;text-align:center;line-height:1.1;">
-              <div style="font-size:7px;font-weight:900;color:#7C0A12;">ModaPella</div>
-              <div style="font-size:6.5px;color:#333;margin-top:0.5px;max-width:36mm;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
+        return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:1.57in;height:1.15in;overflow:hidden;box-sizing:border-box;">
+          <div class="print-label-page" style="width:1.57in;height:1.15in;padding:2px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
+            <div style="width:100%;text-align:center;line-height:1.1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div style="font-size:7.5px;font-weight:900;color:#7C0A12;">ModaPella</div>
+              <div style="font-size:7px;color:#333;margin-top:0.5px;max-width:1.45in;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
             </div>
-            ${svgContent}
-            <div style="display:flex;justify-content:space-between;width:100%;padding:0 2px;align-items:center;line-height:1;">
-              <span style="font-size:7px;font-weight:700;font-family:monospace;color:#1a0509;">${p.sku}</span>
-              <span style="font-size:7.5px;font-weight:900;color:#7C0A12;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
+            <div style="width:1.45in;height:8mm;display:flex;justify-content:center;align-items:center;margin:2px 0;">
+              ${svgContent}
+            </div>
+            <div style="display:flex;justify-content:space-between;width:100%;padding:0 2px;align-items:center;line-height:1;margin-top:1px;">
+              <span style="font-size:7.5px;font-weight:700;font-family:monospace;color:#1a0509;">${p.sku}</span>
+              <span style="font-size:8px;font-weight:900;color:#7C0A12;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
             </div>
           </div>
         </div>`;
@@ -199,7 +203,7 @@ function AdminBarcodeLabels() {
     style.innerHTML = `
       @media print {
         @page {
-          size: 40mm 20mm landscape;
+          size: 1.57in 1.18in landscape;
           margin: 0;
         }
         body {
@@ -212,7 +216,7 @@ function AdminBarcodeLabels() {
         }
         #barcode-print-root {
           display: block !important;
-          width: 40mm;
+          width: 1.57in;
           margin: 0;
           padding: 0;
         }
@@ -221,8 +225,8 @@ function AdminBarcodeLabels() {
         }
         .print-label-wrapper {
           display: block !important;
-          width: 40mm;
-          height: 19mm;
+          width: 1.57in;
+          height: 1.15in;
           page-break-after: always;
           break-after: page;
           box-sizing: border-box;
@@ -275,7 +279,7 @@ function AdminBarcodeLabels() {
 
       {/* Info Banner */}
       <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm text-blue-800">
-        💡 <strong>نصيحة:</strong> استخدم ورق ملصقات (Sticker Paper) بحجم A4 للحصول على أفضل نتيجة. كل ملصق مصمم بعرض 57mm مناسب للطابعات الحرارية وطابعات الملصقات العادية.
+        💡 <strong>نصيحة:</strong> استخدم رول ملصقات باركود حراري بمقاس **1.57 × 1.18 بوصة (40 × 30 مم)**. التصميم يدعم السنترة التلقائية للمحتوى ومصمم ليناسب هذا المقاس بدقة بدون أي تداخل.
       </div>
 
       {/* Search + Select All */}
