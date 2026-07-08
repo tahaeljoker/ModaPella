@@ -3,6 +3,8 @@ const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const Supplier = require('../models/Supplier');
 const SupplierTransaction = require('../models/SupplierTransaction');
+const Transaction = require('../models/Transaction');
+const Shift = require('../models/Shift');
 
 const router = express.Router();
 const ADMIN = ['admin'];
@@ -77,13 +79,39 @@ router.delete('/:id', auth, requireRole(ADMIN), async (req, res) => {
 // POST /api/suppliers/:id/transactions — add purchase or payment
 router.post('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
   try {
-    const { type, amount, description, reference, date } = req.body;
+    const { type, amount, description, reference, date, paymentSource = 'PersonalPocket' } = req.body;
     if (!['purchase', 'payment'].includes(type)) return res.status(400).json({ message: 'Invalid type' });
     if (!amount || amount <= 0) return res.status(400).json({ message: 'Amount must be positive' });
     const supplier = await Supplier.findById(req.params.id);
     if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
-    const tx = new SupplierTransaction({ supplier: req.params.id, type, amount: Number(amount), description, reference, date: date || new Date() });
+    
+    const tx = new SupplierTransaction({
+      supplier: req.params.id,
+      type,
+      amount: Number(amount),
+      description,
+      reference,
+      paymentSource,
+      date: date || new Date()
+    });
     await tx.save();
+
+    // If source is StoreSafe, sync to Cashier Safe as an expense OUT
+    if (paymentSource === 'StoreSafe') {
+      const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+      const safeTx = new Transaction({
+        amount: Number(amount),
+        type: 'OUT',
+        category: 'Expense', // Treat as cashier expense
+        paymentMethod: 'Cash',
+        description: `${type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} ${description ? `| ${description}` : ''}`,
+        user: req.user.id,
+        shift: openShift?._id,
+        referenceId: tx._id // Link to SupplierTransaction
+      });
+      await safeTx.save();
+    }
+
     res.status(201).json(tx);
   } catch (e) {
     res.status(500).json({ message: 'Unable to add transaction', error: e.message });
@@ -94,6 +122,10 @@ router.post('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
 router.delete('/:id/transactions/:txId', auth, requireRole(ADMIN), async (req, res) => {
   try {
     await SupplierTransaction.findByIdAndDelete(req.params.txId);
+    
+    // Also delete any linked cashier safe transaction
+    await Transaction.deleteMany({ referenceId: req.params.txId });
+    
     res.json({ message: 'Transaction deleted' });
   } catch (e) {
     res.status(500).json({ message: 'Unable to delete transaction', error: e.message });

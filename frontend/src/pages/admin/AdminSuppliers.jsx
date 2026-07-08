@@ -57,7 +57,7 @@ function SupplierModal({ supplier, onClose, onSave }) {
 
 // ─── Add Transaction Modal ─────────────────────────────────────────────────────
 function AddTransactionModal({ supplierId, onClose, onSave }) {
-  const [form, setForm] = useState({ type: 'purchase', amount: '', description: '', reference: '', date: new Date().toISOString().split('T')[0] });
+  const [form, setForm] = useState({ type: 'purchase', amount: '', description: '', reference: '', date: new Date().toISOString().split('T')[0], paymentSource: 'PersonalPocket' });
   const [loading, setLoading] = useState(false);
   const inp = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
 
@@ -85,6 +85,24 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
               </button>
             ))}
           </div>
+
+          {/* Payment Source Selector */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">مصدر التمويل / الدفع</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'PersonalPocket', label: '👤 جيب شخصي / آجل', hint: 'لا يؤثر على الخزينة' },
+                { id: 'StoreSafe', label: '💵 درج كاش المحل', hint: 'يخصم من الخزينة' }
+              ].map(s => (
+                <button key={s.id} type="button" onClick={() => setForm(p => ({ ...p, paymentSource: s.id }))}
+                  className={`rounded-2xl border-2 p-3 text-right transition ${form.paymentSource === s.id ? 'border-burgundy bg-burgundy/5' : 'border-burgundy/15 bg-white hover:border-burgundy/30'}`}>
+                  <p className="font-bold text-xs text-burgundy">{s.label}</p>
+                  <p className="text-[10px] text-burgundy/50 mt-0.5">{s.hint}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المبلغ (ج.م) *</label>
             <input type="number" min="1" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className={inp} required placeholder="0.00" />
@@ -221,6 +239,9 @@ function SupplierDetailModal({ supplierId, onClose }) {
                     <div className="flex items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                         {tx.type === 'purchase' ? '📦 مشتريات' : '💸 دفعة'}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {tx.paymentSource === 'StoreSafe' ? '💵 الخزينة' : '👤 شخصي'}
                       </span>
                       {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg">{tx.reference}</span>}
                       {tx.type === 'payment' && (

@@ -8,6 +8,7 @@ const SupplierTransactionSchema = new mongoose.Schema({
   amount: { type: Number, required: true, min: 0 },
   description: { type: String, default: '' },
   reference: { type: String, default: '' }, // رقم فاتورة/وصل
+  paymentSource: { type: String, enum: ['StoreSafe', 'PersonalPocket'], default: 'PersonalPocket' },
   date: { type: Date, default: Date.now }
 }, { timestamps: true });
 
