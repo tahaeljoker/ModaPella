@@ -15,67 +15,50 @@ const CATEGORY_LABELS = {
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
-// ── Simple Code 128 barcode renderer using SVG bars ─────────────────────────
-// Uses a simplified encoding sufficient for short alphanumeric SKU codes.
-// Pattern tables for Code 128B (A-Z, 0-9, -)
-const CODE128B = {
-  ' ': [2,1,2,2,2,2], '!': [2,2,2,1,2,2], '"': [2,2,2,2,2,1],
-  '#': [1,2,1,2,2,3], '$': [1,2,1,3,2,2], '%': [1,3,1,2,2,2],
-  '&': [1,2,2,2,1,3], "'": [1,2,2,3,1,2], '(': [1,3,2,2,1,2],
-  ')': [2,2,1,2,1,3], '*': [2,2,1,3,1,2], '+': [2,3,1,2,1,2],
-  ',': [1,1,2,2,3,2], '-': [1,2,2,1,3,2], '.': [1,2,2,2,3,1],
-  '/': [1,1,3,2,2,2], '0': [1,2,3,2,2,1], '1': [1,2,3,1,2,2],
-  '2': [1,2,3,2,1,2], '3': [2,1,1,2,2,3], '4': [2,1,1,3,2,2],
-  '5': [2,2,1,1,2,3], '6': [2,2,1,3,2,1], '7': [2,1,2,2,1,3],
-  '8': [2,1,2,3,1,2], '9': [3,1,2,2,1,2], ':': [3,1,1,2,2,2],
-  ';': [2,1,3,2,1,2], '<': [3,2,1,1,2,2], '=': [3,2,1,2,2,1],
-  '>': [2,1,2,1,3,2], '?': [2,2,3,1,1,2], '@': [2,2,3,2,1,1],
-  'A': [3,1,1,1,2,3], 'B': [3,1,1,3,2,1], 'C': [3,3,1,1,2,1],
-  'D': [3,1,2,1,1,3], 'E': [3,1,2,3,1,1], 'F': [3,3,2,1,1,1],
-  'G': [3,1,4,1,1,1], 'H': [2,2,1,4,1,1], 'I': [4,3,1,1,1,1],
-  'J': [1,1,1,2,2,4], 'K': [1,1,1,4,2,2], 'L': [1,2,1,1,2,4],
-  'M': [1,2,1,4,2,1], 'N': [1,4,1,1,2,2], 'O': [1,4,1,2,2,1],
-  'P': [1,1,2,2,1,4], 'Q': [1,1,2,4,1,2], 'R': [1,2,2,1,1,4],
-  'S': [1,2,2,4,1,1], 'T': [1,4,2,1,1,2], 'U': [1,4,2,2,1,1],
-  'V': [2,4,1,2,1,1], 'W': [2,2,1,1,1,4], 'X': [4,1,3,1,1,1],
-  'Y': [2,4,1,1,1,2], 'Z': [1,1,4,2,1,2],
-  START_B: [2,1,1,4,1,2], STOP: [2,3,3,1,1,1,2]
+// ─── Barcode generator (Code 39) ──────────────────────────────────────────────
+const CODE39_MAP = {
+  '0': 'nnnwwnwnn', '1': 'wnnwnnnnw', '2': 'nnwwnnnnw', '3': 'wnwwnnnnn',
+  '4': 'nnnwwnnnw', '5': 'wnnwwnnnn', '6': 'nnwwwnnnn', '7': 'nnnwnnwnw',
+  '8': 'wnnwnnwnn', '9': 'nnwwnnwnn',
+  'A': 'wnnnnwnnw', 'B': 'nnwnnwnnw', 'C': 'wnwnnwnnn', 'D': 'nnnnwwnnw',
+  'E': 'wnnnwwnnn', 'F': 'nnwnwwnnn', 'G': 'nnnnnwwnw', 'H': 'wnnnnwwnn',
+  'I': 'nnwnnwwnn', 'J': 'nnnnwwwnn',
+  'K': 'wnnnnnnww', 'L': 'nnwnnnnww', 'M': 'wnwnnnnwn', 'N': 'nnnnwnnww',
+  'O': 'wnnnwnnwn', 'P': 'nnwnwnnwn', 'Q': 'nnnnnnwww', 'R': 'wnnnnnwwn',
+  'S': 'nnwnnnwwn', 'T': 'nnnnwnwwn',
+  'U': 'wwnnnnnnw', 'V': 'nwwnnnnnw', 'W': 'wwwnnnnnn', 'X': 'nwnnwnnnw',
+  'Y': 'wwnnwnnnn', 'Z': 'nwwnwnnnn',
+  '-': 'nnnnnwwwn', '.': 'wnnnnnwwn', ' ': 'nwnnnnnwn', '*': 'nwnnwnwnn',
+  '$': 'nwnwnwnnn', '/': 'nwnwnnnwn', '+': 'nwnnnwnwn', '%': 'nnnwnwnwn'
 };
-
-function renderCode128(text) {
-  const chars = text.toUpperCase().split('').filter(c => CODE128B[c]);
-  if (chars.length === 0) return null;
-
-  const startPattern = CODE128B['START_B'];
-  const stopPattern  = CODE128B['STOP'];
-  const barPatterns  = chars.map(c => CODE128B[c]);
-  const allPatterns  = [startPattern, ...barPatterns, stopPattern];
-
+function generateBarcodeSVG(text) {
+  const chars = ('*' + text.toUpperCase() + '*').split('');
   const bars = [];
-  allPatterns.forEach(pattern => {
-    pattern.forEach((w, i) => bars.push({ width: w, isBar: i % 2 === 0 }));
-  });
-
-  const totalUnits = bars.reduce((s, b) => s + b.width, 0);
-  const unitPx = 2;
-  const totalWidth = totalUnits * unitPx;
-  const height = 48;
   let x = 0;
+  const narrow = 2;
+  const wide = 5;
+  const interCharacterGap = 2;
 
-  const rects = bars.map((bar, i) => {
-    const rect = bar.isBar
-      ? <rect key={i} x={x} y={0} width={bar.width * unitPx} height={height} fill="#1a0509" />
-      : null;
-    x += bar.width * unitPx;
-    return rect;
-  }).filter(Boolean);
-
-  return { rects, totalWidth, height };
+  chars.forEach((ch, ci) => {
+    const pattern = CODE39_MAP[ch] || CODE39_MAP['-'];
+    pattern.split('').forEach((w, i) => {
+      const width = w === 'w' ? wide : narrow;
+      const isBar = i % 2 === 0;
+      if (isBar) {
+        bars.push({ x, width });
+      }
+      x += width;
+    });
+    if (ci < chars.length - 1) {
+      x += interCharacterGap;
+    }
+  });
+  return { bars, totalW: x };
 }
 
 // ── Label Component (1.57in × 1.18in thermal label style) ───────────────────────
 function BarcodeLabel({ product, qty }) {
-  const svg = renderCode128(product.sku);
+  const svg = generateBarcodeSVG(product.sku);
   return (
     <div
       className="barcode-label"
@@ -109,11 +92,13 @@ function BarcodeLabel({ product, qty }) {
       {svg ? (
         <div style={{ width: '1.45in', height: '8mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '2px 0' }}>
           <svg
-            viewBox={`0 0 ${svg.totalWidth} ${svg.height}`}
+            viewBox={`0 0 ${svg.totalW} 60`}
             style={{ width: '100%', height: '100%' }}
             preserveAspectRatio="none"
           >
-            {svg.rects}
+            {svg.bars.map((b, i) => (
+              <rect key={i} x={b.x} y={0} width={b.width} height={60} fill="#000" />
+            ))}
           </svg>
         </div>
       ) : (
@@ -172,10 +157,10 @@ function AdminBarcodeLabels() {
     const labelsHTML = selectedProducts.flatMap(p => {
       const qty = quantities[p._id] || 1;
       return Array.from({ length: qty }, () => {
-        const svg = renderCode128(p.sku);
+        const svg = generateBarcodeSVG(p.sku);
         const svgContent = svg
-          ? `<svg viewBox="0 0 ${svg.totalWidth} ${svg.height}" style="width:100%;height:100%;" preserveAspectRatio="none">
-              ${svg.rects.map(r => `<rect x="${r.props.x}" y="0" width="${r.props.width}" height="${svg.height}" fill="#1a0509"/>`).join('')}
+          ? `<svg viewBox="0 0 ${svg.totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="none">
+              ${svg.bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000"/>`).join('')}
              </svg>`
           : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 

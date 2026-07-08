@@ -29,34 +29,48 @@ const getProductIcon = (category = '', name = '') => {
 
 // ─── Barcode generator (Code 39) ──────────────────────────────────────────────
 const CODE39_MAP = {
-  '0':'nnnwwnwnn','1':'wnnwnnnnw','2':'nnwwnnnnw','3':'wnwwnnnnn','4':'nnnwwnnnw',
-  '5':'wnnwwnnnn','6':'nnwwwnnnn','7':'nnnwnnwnw','8':'wnnwnnwnn','9':'nnwwnnwnn',
-  'A':'wnnnnwnnw','B':'nnwnnwnnw','C':'wnwnnwnnn','D':'nnnnwwnnw','E':'wnnnwwnnn',
-  'F':'nnwnwwnnn','G':'nnnnnwwnw','H':'wnnnnwwnn','I':'nnwnnwwnn','J':'nnnnwwwnn',
-  'K':'wnnnnnnww','L':'nnwnnnnww','M':'wnwnnnnwn','N':'nnnnwnnww','O':'wnnnwnnwn',
-  'P':'nnwnwnnwn','Q':'nnnnnnwww','R':'wnnnnnwwn','S':'nnwnnnwwn','T':'nnnnwnwwn',
-  '-':'nnnnnwwwn','*':'nnnwwnwnn',
+  '0': 'nnnwwnwnn', '1': 'wnnwnnnnw', '2': 'nnwwnnnnw', '3': 'wnwwnnnnn',
+  '4': 'nnnwwnnnw', '5': 'wnnwwnnnn', '6': 'nnwwwnnnn', '7': 'nnnwnnwnw',
+  '8': 'wnnwnnwnn', '9': 'nnwwnnwnn',
+  'A': 'wnnnnwnnw', 'B': 'nnwnnwnnw', 'C': 'wnwnnwnnn', 'D': 'nnnnwwnnw',
+  'E': 'wnnnwwnnn', 'F': 'nnwnwwnnn', 'G': 'nnnnnwwnw', 'H': 'wnnnnwwnn',
+  'I': 'nnwnnwwnn', 'J': 'nnnnwwwnn',
+  'K': 'wnnnnnnww', 'L': 'nnwnnnnww', 'M': 'wnwnnnnwn', 'N': 'nnnnwnnww',
+  'O': 'wnnnwnnwn', 'P': 'nnwnwnnwn', 'Q': 'nnnnnnwww', 'R': 'wnnnnnwwn',
+  'S': 'nnwnnnwwn', 'T': 'nnnnwnwwn',
+  'U': 'wwnnnnnnw', 'V': 'nwwnnnnnw', 'W': 'wwwnnnnnn', 'X': 'nwnnwnnnw',
+  'Y': 'wwnnwnnnn', 'Z': 'nwwnwnnnn',
+  '-': 'nnnnnwwwn', '.': 'wnnnnnwwn', ' ': 'nwnnnnnwn', '*': 'nwnnwnwnn',
+  '$': 'nwnwnwnnn', '/': 'nwnwnnnwn', '+': 'nwnnnwnwn', '%': 'nnnwnwnwn'
 };
 function generateBarcodeSVG(text) {
   const chars = ('*' + text.toUpperCase() + '*').split('');
-  const bars = []; let x = 0;
-  const narrow = 2, wide = 5, gap = 2;
+  const bars = [];
+  let x = 0;
+  const narrow = 2;
+  const wide = 5;
+  const interCharacterGap = 2;
+
   chars.forEach((ch, ci) => {
     const pattern = CODE39_MAP[ch] || CODE39_MAP['-'];
-    if (!pattern) return;
     pattern.split('').forEach((w, i) => {
       const width = w === 'w' ? wide : narrow;
-      if (i % 2 === 0) bars.push({ x, width });
-      x += width + (i % 2 === 1 ? gap : 0);
+      const isBar = i % 2 === 0;
+      if (isBar) {
+        bars.push({ x, width });
+      }
+      x += width;
     });
-    if (ci < chars.length - 1) x += gap * 2;
+    if (ci < chars.length - 1) {
+      x += interCharacterGap;
+    }
   });
-  return { bars, totalW: x + 20 };
+  return { bars, totalW: x };
 }
 function printBarcode(product) {
   if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
   const { bars, totalW } = generateBarcodeSVG(product.sku);
-  const svgBars = bars.map(b => `<rect x="${b.x + 10}" y="0" width="${b.width}" height="60" fill="#000"/>`).join('');
+  const svgBars = bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000"/>`).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} 60" style="width:100%;height:100%;" preserveAspectRatio="none">${svgBars}</svg>`;
   const win = window.open('', '_blank', 'width=400,height=300');
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
