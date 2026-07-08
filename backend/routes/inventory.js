@@ -19,6 +19,8 @@ router.post('/count/new', auth, requireRole(ROLES), async (req, res) => {
           items.push({
             product: p._id,
             productName: p.name,
+            productCategory: p.category || '',
+            costPrice: p.costPrice || 0,
             variantKey: `${v.size}_${v.color}`,
             size: v.size,
             color: v.color,
@@ -31,6 +33,8 @@ router.post('/count/new', auth, requireRole(ROLES), async (req, res) => {
         items.push({
           product: p._id,
           productName: p.name,
+          productCategory: p.category || '',
+          costPrice: p.costPrice || 0,
           variantKey: '',
           size: '',
           color: '',

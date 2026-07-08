@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const CountItemSchema = new mongoose.Schema({
   product:      { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   productName:  { type: String, required: true },
+  productCategory: { type: String, default: '' },
+  costPrice:    { type: Number, default: 0 },
   variantKey:   { type: String, default: '' }, // e.g. "M_أحمر" or "" for no variants
   size:         { type: String, default: '' },
   color:        { type: String, default: '' },
