@@ -177,15 +177,17 @@ function AdminBarcodeLabels() {
              </svg>`
           : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
-        return `<div class="print-label-page" style="width:40mm;height:20mm;padding:1.5px 3px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;page-break-after:always;break-after:page;">
-          <div style="width:100%;text-align:center;line-height:1.1;">
-            <div style="font-size:7px;font-weight:900;color:#7C0A12;">ModaPella</div>
-            <div style="font-size:6.5px;color:#333;margin-top:0.5px;max-width:36mm;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
-          </div>
-          ${svgContent}
-          <div style="display:flex;justify-content:space-between;width:100%;padding:0 2px;align-items:center;line-height:1;">
-            <span style="font-size:7px;font-weight:700;font-family:monospace;color:#1a0509;">${p.sku}</span>
-            <span style="font-size:7.5px;font-weight:900;color:#7C0A12;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
+        return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:19mm;overflow:hidden;box-sizing:border-box;">
+          <div class="print-label-page" style="width:40mm;height:19mm;padding:1.5px 3px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
+            <div style="width:100%;text-align:center;line-height:1.1;">
+              <div style="font-size:7px;font-weight:900;color:#7C0A12;">ModaPella</div>
+              <div style="font-size:6.5px;color:#333;margin-top:0.5px;max-width:36mm;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
+            </div>
+            ${svgContent}
+            <div style="display:flex;justify-content:space-between;width:100%;padding:0 2px;align-items:center;line-height:1;">
+              <span style="font-size:7px;font-weight:700;font-family:monospace;color:#1a0509;">${p.sku}</span>
+              <span style="font-size:7.5px;font-weight:900;color:#7C0A12;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
+            </div>
           </div>
         </div>`;
       });
@@ -197,7 +199,7 @@ function AdminBarcodeLabels() {
     style.innerHTML = `
       @media print {
         @page {
-          size: 40mm 20mm;
+          size: 40mm 20mm landscape;
           margin: 0;
         }
         body {
@@ -217,12 +219,14 @@ function AdminBarcodeLabels() {
         #barcode-print-root, #barcode-print-root * {
           visibility: visible;
         }
-        .print-label-page {
+        .print-label-wrapper {
+          display: block !important;
           width: 40mm;
-          height: 20mm;
+          height: 19mm;
           page-break-after: always;
           break-after: page;
           box-sizing: border-box;
+          overflow: hidden;
         }
       }
     `;

@@ -62,12 +62,12 @@ function printBarcode(product) {
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
   <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: 40mm 20mm; margin: 0; }
+  @page { size: 40mm 20mm landscape; margin: 0; }
   body {
     font-family: 'Cairo', sans-serif;
     background: #fff;
     width: 40mm;
-    height: 20mm;
+    height: 19mm;
     display: flex;
     flex-direction: column;
     align-items: center;
