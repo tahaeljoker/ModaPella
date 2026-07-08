@@ -3,12 +3,13 @@ import api from '../../services/api';
 
 const CATEGORY_LABELS = {
   Blouse: 'بلوزة',
-  Chemise: 'قميص',
+  Chemise: 'شميز',
   Skirt: 'جيبة',
   Dress: 'فستان',
   Pantalon: 'بنطلون',
   'T-shirt': 'تيشيرت',
-  Portefeuille: 'محفظة',
+  Bag: 'شنطة',
+  Cardigan: 'كاردن',
 };
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;

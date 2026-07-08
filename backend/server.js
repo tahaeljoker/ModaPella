@@ -12,6 +12,9 @@ const orderRoutes = require('./routes/orders');
 const posRoutes = require('./routes/pos');
 const adminRoutes = require('./routes/admin');
 const cashierRoutes = require('./routes/cashier');
+const employeeRoutes = require('./routes/employees');
+const supplierRoutes = require('./routes/suppliers');
+const inventoryRoutes = require('./routes/inventory');
 const User = require('./models/User');
 const { attachInventorySync } = require('./services/inventorySync');
 
@@ -60,6 +63,9 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/cashier', cashierRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 app.get('/api/status', (req, res) => {
   res.json({ service: 'Moda Pella POS & E-commerce API', status: 'ok' });

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const CATEGORIES = ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Portefeuille'];
-const CAT_AR = { Blouse: 'بلوزة', Chemise: 'قميص', Skirt: 'تنورة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Portefeuille: 'محفظة' };
+const CATEGORIES = ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan'];
+const CAT_AR = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن' };
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
 // ─── Barcode generator (Code 39) ──────────────────────────────────────────────

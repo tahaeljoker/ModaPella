@@ -6,12 +6,13 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
 const CATEGORY_LABELS = {
   Blouse: 'بلوزة',
-  Chemise: 'قميص',
+  Chemise: 'شميز',
   Skirt: 'جيبة',
   Dress: 'فستان',
   Pantalon: 'بنطلون',
   'T-shirt': 'تيشيرت',
-  Portefeuille: 'محفظة',
+  Bag: 'شنطة',
+  Cardigan: 'كاردن',
 };
 
 // ─── Save Invoice as HTML ─────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ function saveInvoiceAsHTML(order) {
   .total{font-size:16px;font-weight:900;color:#7C0A12;text-align:left;margin-top:16px;border-top:2px solid #7C0A12;padding-top:10px}
   .footer{text-align:center;color:#aaa;font-size:11px;margin-top:24px;line-height:1.6}
   .method{color:#555;font-size:12px;margin-top:6px;text-align:left}
+  .emp{color:#7C0A12;font-size:11px;margin-top:4px;text-align:left;font-weight:bold}
 </style></head>
 <body>
 <h1>ModaPella</h1>
@@ -54,6 +56,7 @@ function saveInvoiceAsHTML(order) {
 </table>
 <div class="total">الإجمالي الكلي: ${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م</div>
 <div class="method">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش 💵' : 'انستا باي 📱'}</div>
+${order._employeeName ? `<div class="emp">الموظف: ${order._employeeName}</div>` : ''}
 <div class="footer">
   شكراً لتعاملكم مع ModaPella 🎀<br/>
   تواصل معنا: 01112556672 - 01122372297
@@ -88,6 +91,7 @@ function InvoiceModal({ order, onClose }) {
         <p>فاتورة بيع | رقم: #${id}</p>
         <p>${date}</p>
         ${order.customerName ? `<p>العميل: ${order.customerName} ${order.customerPhone ? `- ${order.customerPhone}` : ''}</p>` : ''}
+        ${order._employeeName ? `<p style="font-size:11px;color:#7C0A12">الموظف: ${order._employeeName}</p>` : ''}
       </div>
       <table class="invoice-print-table">
         <thead><tr><th>المنتج</th><th>المقاس</th><th>اللون</th><th>الكمية</th><th>الإجمالي</th></tr></thead>
@@ -264,6 +268,10 @@ function CashierPOS() {
   const [completedOrder, setCompletedOrder] = useState(null);
   const [editingPriceKey, setEditingPriceKey] = useState(null); // inline price edit
   const [toasts, setToasts] = useState([]);
+
+  // Employee
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmployee, setSelectedEmployee] = useState('');
   
   // Modals
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
@@ -281,6 +289,8 @@ function CashierPOS() {
       .then(res => setProducts(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
+    // load employees list
+    api.get('/employees').then(res => setEmployees(res.data)).catch(() => {});
   }, []);
 
   // ── Barcode scanner hook — auto-add to cart ───────────────────────────────
@@ -448,6 +458,7 @@ function CashierPOS() {
       const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
       const res = await api.post('/pos/sell', {
         sellerId: user._id,
+        employeeId: selectedEmployee || null,
         customerName,
         customerPhone,
         items: cart.map(i => ({
@@ -463,7 +474,9 @@ function CashierPOS() {
         discount: Number(discount || 0),
         type: 'Offline',
       });
-      setCompletedOrder(res.data.order);
+      // attach employee name to order for display
+      const emp = employees.find(e => e._id === selectedEmployee);
+      setCompletedOrder({ ...res.data.order, _employeeName: emp?.name || '' });
       setCart([]);
       setDiscount(0);
       setAmountPaid('');
@@ -890,6 +903,23 @@ function CashierPOS() {
                   />
                 </div>
               </div>
+
+              {/* Employee Selector */}
+              {employees.length > 0 && (
+                <div className="border-t border-burgundy/10 pt-3">
+                  <p className="text-[10px] text-burgundy/50 font-bold mb-1">الموظف البائع (اختياري)</p>
+                  <select
+                    value={selectedEmployee}
+                    onChange={e => setSelectedEmployee(e.target.value)}
+                    className="w-full text-xs text-burgundy bg-white border border-burgundy/15 rounded-xl px-3 py-2 outline-none focus:border-burgundy"
+                  >
+                    <option value="">— بدون تحديد موظف —</option>
+                    {employees.map(emp => (
+                      <option key={emp._id} value={emp._id}>{emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Payment Method */}
               <div>
