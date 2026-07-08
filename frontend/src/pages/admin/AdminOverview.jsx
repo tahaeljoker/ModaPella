@@ -134,6 +134,17 @@ function AdminOverview() {
     }
   };
 
+  const handleProdReset = async () => {
+    if (!window.confirm('⚠️ تحذير: هذا الإجراء سيحذف كافة الطلبات والورديات والتعاملات الحالية نهائياً على الاستضافة. هل أنت متأكد؟')) return;
+    try {
+      const res = await api.post('/admin/reset-transactions-prod');
+      alert(`✅ تم التصفير بنجاح!\nالعمليات المحذوفة: ${res.data.deletedTransactions}\nالورديات المحذوفة: ${res.data.deletedShifts}\nالفواتير المحذوفة: ${res.data.deletedOrders}`);
+      loadData();
+    } catch (e) {
+      alert(e.response?.data?.message || 'فشل تصفير قاعدة بيانات الاستضافة');
+    }
+  };
+
   useEffect(() => { loadData(); }, []);
 
   if (loading) {
@@ -157,18 +168,27 @@ function AdminOverview() {
           <h2 className="mt-1 text-3xl font-bold">مرحباً بك في ModaPella</h2>
           <p className="mt-1 text-sm text-burgundy/60">نظرة عامة على أداء المتجر</p>
         </div>
-        {siteConfig && (
+        <div className="flex gap-2">
           <button
             type="button"
-            onClick={handlePublishToggle}
-            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 ${
-              siteConfig.published ? 'bg-emerald-600' : 'bg-slate-500'
-            }`}
+            onClick={handleProdReset}
+            className="flex items-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-red-700"
           >
-            <span className={`h-2 w-2 rounded-full ${siteConfig.published ? 'bg-white animate-pulse' : 'bg-white/60'}`} />
-            {siteConfig.published ? 'الموقع منشور' : 'الموقع موقوف'}
+            🗑️ تصفير الاستضافة
           </button>
-        )}
+          {siteConfig && (
+            <button
+              type="button"
+              onClick={handlePublishToggle}
+              className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 ${
+                siteConfig.published ? 'bg-emerald-600' : 'bg-slate-500'
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${siteConfig.published ? 'bg-white animate-pulse' : 'bg-white/60'}`} />
+              {siteConfig.published ? 'الموقع منشور' : 'الموقع موقوف'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Today highlight */}
