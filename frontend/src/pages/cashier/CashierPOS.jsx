@@ -297,6 +297,62 @@ function CashierPOS() {
   
   // Modals
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [isHeldModalOpen, setIsHeldModalOpen] = useState(false);
+  const [isPriceCheckOpen, setIsPriceCheckOpen] = useState(false);
+
+  const [heldCarts, setHeldCarts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('modapella_held_carts') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const handleHoldCart = () => {
+    const note = prompt('أدخل اسم الزبون أو ملاحظة سريعة لتعليق الفاتورة:') || '';
+    if (note.trim() === '') return;
+    const newHeld = {
+      id: Date.now().toString(),
+      note,
+      cart,
+      discount,
+      customerName,
+      customerPhone,
+      selectedEmployee,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [...heldCarts, newHeld];
+    setHeldCarts(updated);
+    localStorage.setItem('modapella_held_carts', JSON.stringify(updated));
+    // clear current cart
+    setCart([]);
+    setDiscount(0);
+    setCustomerName('');
+    setCustomerPhone('');
+    setSelectedEmployee('');
+    showToast('📥 تم تعليق الفاتورة بنجاح');
+  };
+
+  const handleResumeCart = (held) => {
+    setCart(held.cart);
+    setDiscount(held.discount);
+    setCustomerName(held.customerName || '');
+    setCustomerPhone(held.customerPhone || '');
+    setSelectedEmployee(held.selectedEmployee || '');
+    // remove from held
+    const updated = heldCarts.filter(h => h.id !== held.id);
+    setHeldCarts(updated);
+    localStorage.setItem('modapella_held_carts', JSON.stringify(updated));
+    setIsHeldModalOpen(false);
+    showToast('⏳ تم استرجاع الفاتورة المعلقة');
+  };
+
+  const handleDeleteHeldCart = (id) => {
+    const updated = heldCarts.filter(h => h.id !== id);
+    setHeldCarts(updated);
+    localStorage.setItem('modapella_held_carts', JSON.stringify(updated));
+    showToast('❌ تم حذف الفاتورة المعلقة');
+  };
 
   // Offline Caching
   const [offlineSales, setOfflineSales] = useState(() => {
@@ -669,10 +725,21 @@ function CashierPOS() {
         <div className="flex-1 flex flex-col bg-[#F7F0EC] overflow-hidden">
 
         {/* ── Top: Search Bar ────────────────────────────────────────── */}
-        <div className="bg-white border-b border-burgundy/10 px-6 py-4">
-          <p className="text-[10px] font-semibold text-burgundy/40 uppercase tracking-widest mb-2">
-            🔍 البحث عن منتج أو باركود
-          </p>
+        <div className="bg-white border-b border-burgundy/10 px-6 py-4 flex flex-wrap justify-between items-center gap-2">
+          <div>
+            <p className="text-[10px] font-semibold text-burgundy/40 uppercase tracking-widest">
+              🔍 البحث عن منتج أو باركود
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsPriceCheckOpen(true)}
+            className="text-xs bg-burgundy/5 text-burgundy hover:bg-burgundy/10 px-3 py-1.5 rounded-full transition font-bold flex items-center gap-1 border border-burgundy/10 shadow-sm"
+          >
+            🔎 استعلام سريع عن الأسعار والمخزون
+          </button>
+        </div>
+        <div className="bg-white border-b border-burgundy/10 px-6 py-3">
           <div className="relative">
             <input
               ref={searchRef}
@@ -900,16 +967,36 @@ function CashierPOS() {
         <div className="px-5 py-4 border-b border-burgundy/10 flex items-center justify-between">
           <div>
             <p className="text-[10px] text-burgundy/40 uppercase tracking-widest">الفاتورة الحالية</p>
-            <h2 className="text-lg font-bold text-burgundy">سلة المشتريات</h2>
+            <h2 className="text-lg font-bold text-burgundy flex items-center gap-2">
+              <span>سلة المشتريات</span>
+              <button
+                type="button"
+                onClick={() => setIsHeldModalOpen(true)}
+                className="text-[10px] bg-burgundy/5 text-burgundy hover:bg-burgundy/10 px-2 py-0.5 rounded-full transition font-semibold"
+              >
+                ⏳ {heldCarts.length}
+              </button>
+            </h2>
           </div>
-          {cart.length > 0 && (
-            <button
-              onClick={() => setIsClearConfirmOpen(true)}
-              className="text-xs text-burgundy/40 hover:text-red-500 transition px-2 py-1 rounded-lg hover:bg-red-50"
-            >
-              مسح الكل ✕
-            </button>
-          )}
+          <div className="flex gap-1.5 items-center">
+            {cart.length > 0 && (
+              <button
+                type="button"
+                onClick={handleHoldCart}
+                className="text-[11px] text-burgundy bg-burgundy/5 px-2 py-1 rounded-lg hover:bg-burgundy/10 transition font-bold"
+              >
+                📥 تعليق
+              </button>
+            )}
+            {cart.length > 0 && (
+              <button
+                onClick={() => setIsClearConfirmOpen(true)}
+                className="text-[11px] text-burgundy/40 hover:text-red-500 transition px-2 py-1 rounded-lg hover:bg-red-50 font-bold"
+              >
+                مسح ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Cart Items */}
@@ -1184,7 +1271,142 @@ function CashierPOS() {
         }}
         onCancel={() => setIsClearConfirmOpen(false)}
       />
+
+      {/* Price Check Modal */}
+      {isPriceCheckOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsPriceCheckOpen(false)}>
+          <div className="w-full max-w-lg overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy text-right" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
+              <h3 className="text-lg font-bold">🔎 الاستعلام السريع عن السعر والمخزون</h3>
+              <button onClick={() => setIsPriceCheckOpen(false)} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
+            </div>
+            <PriceCheckModalContent products={products} />
+          </div>
+        </div>
+      )}
+
+      {/* Held Carts Modal */}
+      {isHeldModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsHeldModalOpen(false)}>
+          <div className="w-full max-w-xl overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy text-right" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
+              <h3 className="text-lg font-bold">⏳ الفواتير المعلقة والمسودات</h3>
+              <button onClick={() => setIsHeldModalOpen(false)} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
+            </div>
+            
+            {heldCarts.length === 0 ? (
+              <p className="text-center text-xs text-burgundy/40 py-8">لا توجد فواتير معلقة حالياً.</p>
+            ) : (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                {heldCarts.map(held => {
+                  const itemsCount = held.cart.reduce((s, i) => s + i.quantity, 0);
+                  const total = held.cart.reduce((s, i) => s + i.price * i.quantity, 0) - (held.discount || 0);
+                  return (
+                    <div key={held.id} className="bg-white rounded-2xl p-4 border border-burgundy/5 shadow-sm space-y-2.5">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-sm text-burgundy">زبون: {held.note || 'بدون اسم'}</h4>
+                          <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(held.createdAt).toLocaleString('ar-EG')}</p>
+                        </div>
+                        <span className="text-sm font-bold text-burgundy">{EGP(total)}</span>
+                      </div>
+                      
+                      <div className="text-xs text-burgundy/60 border-t border-burgundy/5 pt-2 flex flex-wrap justify-between gap-2">
+                        <span>عدد القطع المعلقة: {itemsCount} قطعة</span>
+                        {held.customerPhone && <span>رقم الهاتف: {held.customerPhone}</span>}
+                      </div>
+
+                      <div className="text-[11px] text-burgundy/40 bg-burgundy/3 p-2 rounded-lg">
+                        <strong>الأصناف:</strong> {held.cart.map(c => `${c.name} (${c.size}/${c.color}) x${c.quantity}`).join(' · ')}
+                      </div>
+
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleResumeCart(held)}
+                          className="rounded-xl bg-burgundy px-4 py-1.5 text-xs font-bold text-white transition hover:bg-[#650018]"
+                        >
+                          🔄 استرجاع الفاتورة
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteHeldCart(held.id)}
+                          className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-500 hover:text-white"
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       </div>
+    </div>
+  );
+}
+
+function PriceCheckModalContent({ products }) {
+  const [query, setQuery] = useState('');
+  const trimmed = query.trim().toLowerCase();
+  
+  const results = products.filter(p => 
+    p.name.toLowerCase().includes(trimmed) || 
+    (p.sku || '').toLowerCase().includes(trimmed)
+  ).slice(0, 5);
+
+  return (
+    <div className="space-y-4">
+      <input
+        type="text"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="ابحث بالاسم أو امسح الباركود..."
+        autoFocus
+        className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
+      />
+      
+      {trimmed === '' ? (
+        <p className="text-center text-xs text-burgundy/40 py-6">اكتب اسم المنتج أو امسح باركود للاستعلام...</p>
+      ) : results.length === 0 ? (
+        <p className="text-center text-xs text-burgundy/40 py-6">لا توجد منتجات مطابقة للبحث</p>
+      ) : (
+        <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+          {results.map(p => (
+            <div key={p._id} className="bg-white rounded-2xl p-4 border border-burgundy/5 shadow-sm space-y-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-bold text-sm text-burgundy">{p.name}</h4>
+                  <p className="text-[10px] text-burgundy/40 font-mono mt-0.5">{p.sku || 'بدون كود باركود'}</p>
+                </div>
+                <span className="text-sm font-bold text-burgundy">{EGP(p.price)}</span>
+              </div>
+              
+              <div className="flex justify-between text-xs text-burgundy/60 border-t border-burgundy/5 pt-2">
+                <span>الفئة: {CATEGORY_LABELS[p.category] || p.category}</span>
+                <span className="font-bold">المخزون الكلي: {p.stock} قطعة</span>
+              </div>
+
+              {p.variants && p.variants.length > 0 && (
+                <div className="bg-[#F7F0EC]/50 rounded-xl p-2.5 mt-2 space-y-1.5 text-right" dir="rtl">
+                  <p className="text-[10px] font-bold text-burgundy/40">تفاصيل الأحجام والألوان:</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {p.variants.map((v, idx) => (
+                      <div key={idx} className="flex justify-between text-xs bg-white rounded-lg px-2 py-1 border border-burgundy/5">
+                        <span className="font-semibold text-burgundy/70">{v.size} / {v.color}</span>
+                        <span className={`font-bold ${v.stock === 0 ? 'text-red-500' : 'text-burgundy'}`}>{v.stock} قطعة</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

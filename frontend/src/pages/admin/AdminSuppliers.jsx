@@ -76,12 +76,16 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
         <h3 className="mb-5 text-xl font-bold text-burgundy">تسجيل تعامل</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Type selector */}
-          <div className="grid grid-cols-2 gap-3">
-            {[{ id: 'purchase', label: '📦 مشتريات من المورد', hint: 'يزيد الدين' }, { id: 'payment', label: '💸 دفعة للمورد', hint: 'يقلل الدين' }].map(t => (
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'purchase', label: '📦 مشتريات آجل', hint: 'يزيد الدين', cls: 'border-red-400 bg-red-50', textCls: 'text-red-500' },
+              { id: 'payment', label: '💸 سداد دفعة', hint: 'يقلل الدين', cls: 'border-emerald-400 bg-emerald-50', textCls: 'text-emerald-600' },
+              { id: 'cash_purchase', label: '💵 شراء نقدي فوري', hint: 'شراء كاش فوري', cls: 'border-blue-400 bg-blue-50', textCls: 'text-blue-600' }
+            ].map(t => (
               <button key={t.id} type="button" onClick={() => setForm(p => ({ ...p, type: t.id }))}
-                className={`rounded-2xl border-2 p-3 text-right transition ${form.type === t.id ? (t.id === 'purchase' ? 'border-red-400 bg-red-50' : 'border-emerald-400 bg-emerald-50') : 'border-burgundy/15 bg-white hover:border-burgundy/30'}`}>
-                <p className="font-bold text-sm text-burgundy">{t.label}</p>
-                <p className={`text-xs mt-0.5 ${t.id === 'purchase' ? 'text-red-500' : 'text-emerald-600'}`}>{t.hint}</p>
+                className={`rounded-2xl border-2 p-2 text-right transition ${form.type === t.id ? t.cls : 'border-burgundy/15 bg-white hover:border-burgundy/30'}`}>
+                <p className="font-bold text-[10px] text-burgundy">{t.label}</p>
+                <p className={`text-[8px] mt-0.5 ${t.textCls}`}>{t.hint}</p>
               </button>
             ))}
           </div>
@@ -137,6 +141,10 @@ function SupplierDetailModal({ supplierId, onClose }) {
   const [loading, setLoading] = useState(true);
   const [addTx, setAddTx] = useState(false);
   const [deleteTxId, setDeleteTxId] = useState(null);
+  
+  const [isGeneratingPO, setIsGeneratingPO] = useState(false);
+  const [poItems, setPoItems] = useState([]);
+  const [poForm, setPoForm] = useState({ name: '', size: '', qty: 1 });
 
   const load = () => {
     setLoading(true);
@@ -151,6 +159,92 @@ function SupplierDetailModal({ supplierId, onClose }) {
     await api.delete(`/suppliers/${supplierId}/transactions/${deleteTxId}`);
     setDeleteTxId(null);
     load();
+  };
+
+  const handleAddPoItem = () => {
+    if (!poForm.name.trim() || poForm.qty <= 0) return;
+    setPoItems([...poItems, { ...poForm, id: Date.now() }]);
+    setPoForm({ name: '', size: '', qty: 1 });
+  };
+
+  const handleRemovePoItem = (id) => {
+    setPoItems(poItems.filter(item => item.id !== id));
+  };
+
+  const handlePrintPO = () => {
+    if (poItems.length === 0) return alert('الرجاء إضافة أصناف أولاً');
+    const printDiv = document.createElement('div');
+    printDiv.id = 'po-print-root';
+    const itemsHTML = poItems.map((item, idx) => `
+      <tr style="border-bottom:1px solid #ddd">
+        <td style="padding:10px;text-align:center">${idx + 1}</td>
+        <td style="padding:10px">${item.name}</td>
+        <td style="padding:10px;text-align:center">${item.size || '—'}</td>
+        <td style="padding:10px;text-align:center;font-weight:bold">${item.qty} قطعة</td>
+      </tr>
+    `).join('');
+
+    printDiv.innerHTML = `
+      <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:40px;color:#000;line-height:1.5">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7C0A12;padding-bottom:20px;margin-bottom:30px">
+          <div>
+            <h1 style="color:#7C0A12;margin:0;font-size:28px">أمر توريد بضاعة</h1>
+            <p style="margin:5px 0 0;font-size:14px;color:#666">تاريخ الطلب: ${new Date().toLocaleDateString('ar-EG')}</p>
+          </div>
+          <div style="text-align:left">
+            <h2 style="margin:0;font-size:22px;color:#333">ModaPella</h2>
+            <p style="margin:5px 0 0;font-size:12px;color:#666">إدارة المشتريات والمخازن</p>
+          </div>
+        </div>
+
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:30px;font-size:14px">
+          <p style="margin:4px 0"><strong>إلى المورد الكريم:</strong> ${data?.supplier?.name}</p>
+          ${data?.supplier?.phone ? `<p style="margin:4px 0"><strong>الهاتف:</strong> ${data.supplier.phone}</p>` : ''}
+          ${data?.supplier?.address ? `<p style="margin:4px 0"><strong>العنوان:</strong> ${data.supplier.address}</p>` : ''}
+        </div>
+
+        <p style="font-size:15px;margin-bottom:15px">يرجى توفير وتوريد البضائع المدرجة أدناه بأقرب وقت ممكن بالكميات الموضحة:</p>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:40px;font-size:14px">
+          <thead>
+            <tr style="background:#7C0A12;color:#fff">
+              <th style="padding:10px;border:1px solid #7C0A12;width:60px">#</th>
+              <th style="padding:10px;border:1px solid #7C0A12;text-align:right">المنتج / الصنف</th>
+              <th style="padding:10px;border:1px solid #7C0A12;width:100px">المقاس</th>
+              <th style="padding:10px;border:1px solid #7C0A12;width:120px">الكمية المطلوبة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHTML}
+          </tbody>
+        </table>
+
+        <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:14px">
+          <div>
+            <p>توقيع مسؤول المشتريات:</p>
+            <p style="margin-top:30px">___________________</p>
+          </div>
+          <div style="text-align:left">
+            <p>توقيع المورد:</p>
+            <p style="margin-top:30px">___________________</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body * { visibility: hidden; }
+        #po-print-root, #po-print-root * { visibility: visible; }
+        #po-print-root { position: absolute; left: 0; top: 0; width: 100%; }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+    document.head.removeChild(style);
   };
 
   const printPaymentReceipt = (tx, supplier) => {
@@ -206,11 +300,23 @@ function SupplierDetailModal({ supplierId, onClose }) {
             <h3 className="text-xl font-bold mt-0.5">{data?.supplier?.name || '...'}</h3>
             {data?.supplier?.phone && <p className="text-xs opacity-60 mt-0.5">{data.supplier.phone}</p>}
           </div>
-          <button onClick={() => setAddTx(true)} className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-bold transition">+ تعامل جديد</button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsGeneratingPO(!isGeneratingPO)}
+              className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-xs font-bold transition"
+            >
+              {isGeneratingPO ? '📂 عرض كشف الحساب' : '📝 أمر توريد'}
+            </button>
+            {!isGeneratingPO && (
+              <button onClick={() => setAddTx(true)} className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-bold transition">
+                + تعامل جديد
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Balance summary */}
-        {!loading && data && (
+        {!loading && data && !isGeneratingPO && (
           <div className="grid grid-cols-3 border-b border-burgundy/10">
             {[
               { label: 'إجمالي المشتريات', value: EGP(data.totalPurchased), cls: 'text-red-600' },
@@ -225,52 +331,147 @@ function SupplierDetailModal({ supplierId, onClose }) {
           </div>
         )}
 
-        {/* Transactions */}
-        <div className="flex-1 overflow-y-auto p-5">
-          {loading ? (
-            <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
-          ) : data?.transactions?.length === 0 ? (
-            <p className="text-center text-sm text-burgundy/40 py-12">لا توجد تعاملات بعد</p>
-          ) : (
-            <div className="space-y-2">
-              {data?.transactions?.map(tx => (
-                <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {tx.type === 'purchase' ? '📦 مشتريات' : '💸 دفعة'}
-                      </span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {tx.paymentSource === 'StoreSafe' ? '💵 الخزينة' : '👤 شخصي'}
-                      </span>
-                      {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg">{tx.reference}</span>}
-                      {tx.type === 'payment' && (
-                        <button
-                          onClick={() => printPaymentReceipt(tx, data.supplier)}
-                          className="text-[10px] bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 font-bold px-2 py-0.5 rounded-lg transition"
-                          title="طباعة إيصال سداد"
-                        >
-                          🖨️ طباعة إيصال
-                        </button>
-                      )}
-                    </div>
-                    {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
-                    <p className="text-[10px] text-burgundy/40 mt-0.5">{DATE(tx.date)}</p>
-                  </div>
-                  <div className="flex items-center gap-2 mr-3">
-                    <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : 'text-emerald-700'}`}>
-                      {tx.type === 'purchase' ? '+' : '-'} {EGP(tx.amount)}
-                    </p>
-                    <button onClick={() => setDeleteTxId(tx._id)} className="text-burgundy/20 hover:text-red-500 transition text-sm">✕</button>
-                  </div>
+        {/* PO Generator UI or Transactions UI */}
+        {isGeneratingPO ? (
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <h4 className="font-bold text-sm text-burgundy">📦 صياغة أمر توريد بضاعة</h4>
+            <div className="bg-burgundy/3 p-4 rounded-2xl border border-burgundy/5 space-y-3">
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold text-burgundy/60">اسم المنتج / الصنف</label>
+                  <input
+                    type="text"
+                    value={poForm.name}
+                    onChange={e => setPoForm({ ...poForm, name: e.target.value })}
+                    placeholder="مثال: بلوزة شيفون"
+                    className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                  />
                 </div>
-              ))}
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold text-burgundy/60">المقاس</label>
+                  <input
+                    type="text"
+                    value={poForm.size}
+                    onChange={e => setPoForm({ ...poForm, size: e.target.value })}
+                    placeholder="S, M, L, XL..."
+                    className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold text-burgundy/60">الكمية المطلوبة</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={poForm.qty}
+                    onChange={e => setPoForm({ ...poForm, qty: Math.max(1, Number(e.target.value) || 1) })}
+                    className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddPoItem}
+                className="w-full rounded-xl bg-burgundy/10 hover:bg-burgundy/20 py-2 text-xs font-bold text-burgundy transition"
+              >
+                ＋ إضافة صنف لأمر التوريد
+              </button>
             </div>
-          )}
-        </div>
 
-        <div className="p-4 bg-[#F7F0EC] border-t border-burgundy/10">
-          <button onClick={onClose} className="w-full rounded-xl border border-burgundy/20 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">إغلاق</button>
+            {/* Selected items table */}
+            {poItems.length === 0 ? (
+              <p className="text-center text-xs text-burgundy/40 py-8">الرجاء إضافة أصناف لبناء أمر التوريد</p>
+            ) : (
+              <div className="border border-burgundy/10 rounded-2xl bg-white overflow-hidden shadow-sm">
+                <table className="w-full text-xs text-right text-burgundy">
+                  <thead className="bg-[#F7F0EC] font-bold">
+                    <tr>
+                      <th className="p-3 text-center w-12">#</th>
+                      <th className="p-3">اسم الصنف</th>
+                      <th className="p-3 text-center">المقاس</th>
+                      <th className="p-3 text-center">الكمية</th>
+                      <th className="p-3 text-center w-12">حذف</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-burgundy/5">
+                    {poItems.map((item, idx) => (
+                      <tr key={item.id}>
+                        <td className="p-3 text-center">{idx + 1}</td>
+                        <td className="p-3 font-semibold">{item.name}</td>
+                        <td className="p-3 text-center">{item.size || '—'}</td>
+                        <td className="p-3 text-center font-bold">{item.qty} قطعة</td>
+                        <td className="p-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePoItem(item.id)}
+                            className="text-red-500 hover:underline"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Transactions List */
+          <div className="flex-1 overflow-y-auto p-5">
+            {loading ? (
+              <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+            ) : data?.transactions?.length === 0 ? (
+              <p className="text-center text-sm text-burgundy/40 py-12">لا توجد تعاملات بعد</p>
+            ) : (
+              <div className="space-y-2">
+                {data?.transactions?.map(tx => (
+                  <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {tx.type === 'purchase' ? '📦 مشتريات' : '💸 دفعة'}
+                        </span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {tx.paymentSource === 'StoreSafe' ? '💵 الخزينة' : '👤 شخصي'}
+                        </span>
+                        {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg">{tx.reference}</span>}
+                        {tx.type === 'payment' && (
+                          <button
+                            onClick={() => printPaymentReceipt(tx, data.supplier)}
+                            className="text-[10px] bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 font-bold px-2 py-0.5 rounded-lg transition"
+                            title="طباعة إيصال سداد"
+                          >
+                            🖨️ طباعة إيصال
+                          </button>
+                        )}
+                      </div>
+                      {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
+                      <p className="text-[10px] text-burgundy/40 mt-0.5">{DATE(tx.date)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 mr-3">
+                      <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : 'text-emerald-700'}`}>
+                        {tx.type === 'purchase' ? '+' : '-'} {EGP(tx.amount)}
+                      </p>
+                      <button onClick={() => setDeleteTxId(tx._id)} className="text-burgundy/20 hover:text-red-500 transition text-sm">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="p-4 bg-[#F7F0EC] border-t border-burgundy/10 flex gap-3">
+          {isGeneratingPO && (
+            <button
+              onClick={handlePrintPO}
+              disabled={poItems.length === 0}
+              className="flex-1 rounded-xl bg-burgundy text-white py-2.5 text-sm font-bold transition hover:bg-[#650018] disabled:opacity-50"
+            >
+              🖨️ طباعة أمر التوريد (PDF)
+            </button>
+          )}
+          <button onClick={onClose} className="rounded-xl border border-burgundy/20 px-6 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">إغلاق</button>
         </div>
       </div>
 

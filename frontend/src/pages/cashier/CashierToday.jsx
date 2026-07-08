@@ -73,9 +73,70 @@ function OrderDetailModal({ order, onClose }) {
           </div>
         </div>
 
-        {/* Close */}
-        <div className="p-4 bg-[#F7F0EC]">
-          <button onClick={onClose} className="w-full rounded-xl border border-burgundy/20 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">
+        {/* Close & Print */}
+        <div className="p-4 bg-[#F7F0EC] flex gap-3">
+          <button
+            onClick={() => {
+              const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
+              const dateStr = new Date(order.createdAt).toLocaleString('ar-EG');
+              const itemsHTML = order.items.map(item => `
+                <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
+                  <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
+                  <span>${(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
+                </div>
+              `).join('');
+
+              const printDiv = document.createElement('div');
+              printDiv.id = 'receipt-reprint-root';
+              printDiv.innerHTML = `
+                <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:15px;width:72mm;font-size:12px;color:#000;line-height:1.4">
+                  <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:3px">ModaPella 🎠</div>
+                  <div style="text-align:center;margin-bottom:12px;font-size:9px;color:#444">إعادة طباعة فاتورة</div>
+                  
+                  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
+                    <div><strong>رقم الفاتورة:</strong> #${shortId}</div>
+                    <div><strong>التاريخ:</strong> ${dateStr}</div>
+                    <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
+                    ${order.employeeName ? `<div><strong>البائع:</strong> ${order.employeeName}</div>` : ''}
+                  </div>
+
+                  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
+                    ${itemsHTML}
+                  </div>
+
+                  <div style="font-weight:bold;font-size:12px">
+                    ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
+                    <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px">
+                      <span>الإجمالي الفعلي:</span>
+                      <span>${order.totalAmount.toLocaleString('ar-EG')} ج.م</span>
+                    </div>
+                  </div>
+
+                  <div style="text-align:center;margin-top:20px;font-size:9px;color:#666">
+                    شكراً لتعاملكم معنا! ModaPella
+                  </div>
+                </div>
+              `;
+
+              const style = document.createElement('style');
+              style.innerHTML = `
+                @media print {
+                  body * { visibility: hidden; }
+                  #receipt-reprint-root, #receipt-reprint-root * { visibility: visible; }
+                  #receipt-reprint-root { position: absolute; left: 0; top: 0; }
+                }
+              `;
+              document.head.appendChild(style);
+              document.body.appendChild(printDiv);
+              window.print();
+              document.body.removeChild(printDiv);
+              document.head.removeChild(style);
+            }}
+            className="flex-1 rounded-xl bg-burgundy text-white py-2.5 text-sm font-bold transition hover:bg-[#650018]"
+          >
+            🖨️ طباعة الفاتورة
+          </button>
+          <button onClick={onClose} className="rounded-xl border border-burgundy/20 px-6 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">
             إغلاق
           </button>
         </div>

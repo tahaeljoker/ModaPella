@@ -80,11 +80,52 @@ router.delete('/:id', auth, requireRole(ADMIN), async (req, res) => {
 router.post('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const { type, amount, description, reference, date, paymentSource = 'PersonalPocket' } = req.body;
-    if (!['purchase', 'payment'].includes(type)) return res.status(400).json({ message: 'Invalid type' });
+    if (!['purchase', 'payment', 'cash_purchase'].includes(type)) return res.status(400).json({ message: 'Invalid type' });
     if (!amount || amount <= 0) return res.status(400).json({ message: 'Amount must be positive' });
     const supplier = await Supplier.findById(req.params.id);
     if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
     
+    if (type === 'cash_purchase') {
+      const txPurchase = new SupplierTransaction({
+        supplier: req.params.id,
+        type: 'purchase',
+        amount: Number(amount),
+        description: description ? `${description} (شراء نقدي فوري)` : 'شراء نقدي فوري',
+        reference,
+        paymentSource,
+        date: date || new Date()
+      });
+      await txPurchase.save();
+
+      const txPayment = new SupplierTransaction({
+        supplier: req.params.id,
+        type: 'payment',
+        amount: Number(amount),
+        description: description ? `${description} (شراء نقدي فوري)` : 'شراء نقدي فوري',
+        reference,
+        paymentSource,
+        date: date || new Date()
+      });
+      await txPayment.save();
+
+      if (paymentSource === 'StoreSafe') {
+        const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+        const safeTx = new Transaction({
+          amount: Number(amount),
+          type: 'OUT',
+          category: 'Expense',
+          paymentMethod: 'Cash',
+          description: `شراء نقدي فوري (مورد) - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} ${description ? `| ${description}` : ''}`,
+          user: req.user.id,
+          shift: openShift?._id,
+          referenceId: txPayment._id
+        });
+        await safeTx.save();
+      }
+
+      return res.status(201).json(txPurchase);
+    }
+
     const tx = new SupplierTransaction({
       supplier: req.params.id,
       type,
@@ -103,8 +144,8 @@ router.post('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
         amount: Number(amount),
         type: 'OUT',
         category: 'Expense', // Treat as cashier expense
-        paymentMethod: 'Cash',
         description: `${type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} ${description ? `| ${description}` : ''}`,
+        paymentMethod: 'Cash',
         user: req.user.id,
         shift: openShift?._id,
         referenceId: tx._id // Link to SupplierTransaction

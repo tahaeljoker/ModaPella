@@ -42,6 +42,13 @@ function CashierSafe() {
         await api.post('/cashier/safe/transaction', { ...form, type: 'OUT' });
       } else if (modalType === 'DEPOSIT') {
         await api.post('/cashier/safe/transaction', { ...form, type: 'IN', category: 'Deposit' });
+      } else if (modalType === 'TRANSFER') {
+        await api.post('/cashier/safe/transaction', {
+          amount: Number(form.amount),
+          type: 'OUT',
+          category: 'Safe Transfer',
+          description: form.description || 'تحويل نقدية إلى الخزينة الرئيسية'
+        });
       } else if (modalType === 'CLOSE') {
         // ensure there is a shift open
         if (!currentShift) return alert('لا يوجد وردية مفتوحة. افتح وردية أولاً.');
@@ -68,7 +75,7 @@ function CashierSafe() {
     const rows = data.transactions.map(t => [
       new Date(t.createdAt).toLocaleTimeString('ar-EG'),
       t.type === 'IN' ? 'داخل' : 'خارج',
-      t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Expense' ? 'مصروف' : 'أخرى',
+      t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Safe Transfer' ? 'تحويل للخزينة' : t.category === 'Expense' ? 'مصروف' : 'أخرى',
       t.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي',
       t.amount,
       t.description || ''
@@ -179,12 +186,17 @@ function CashierSafe() {
             <div className="rounded-[2rem] border border-burgundy/20 bg-white p-6 shadow-sm">
               <p className="text-sm font-bold text-burgundy/60">💸 إجمالي المصروفات (كاش)</p>
               <p className="mt-2 text-3xl font-bold text-burgundy">{EGP(data.summary.expenses)}</p>
-              <div className="mt-4 flex gap-2">
-                <button onClick={() => setModalType('EXPENSE')} className="flex-1 rounded-xl bg-burgundy/10 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy/20">
-                  سحب مصروف -
-                </button>
-                <button onClick={() => setModalType('DEPOSIT')} className="flex-1 rounded-xl bg-emerald-600/10 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-600/20">
-                  إيداع نقدية +
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button onClick={() => setModalType('EXPENSE')} className="flex-1 rounded-xl bg-burgundy/10 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy/20">
+                    سحب مصروف -
+                  </button>
+                  <button onClick={() => setModalType('DEPOSIT')} className="flex-1 rounded-xl bg-emerald-600/10 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-600/20">
+                    إيداع نقدية +
+                  </button>
+                </div>
+                <button onClick={() => setModalType('TRANSFER')} className="w-full rounded-xl bg-indigo-50 border border-indigo-100 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100/50">
+                  💸 تحويل نقدية إلى الخزينة الرئيسية
                 </button>
               </div>
             </div>
@@ -280,7 +292,7 @@ function CashierSafe() {
                             {t.type === 'IN' ? 'داخل' : 'خارج'}
                           </span>
                         </td>
-                        <td className="py-4">{t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Expense' ? 'مصروف' : 'أخرى'}</td>
+                        <td className="py-4">{t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Safe Transfer' ? 'تحويل للخزينة' : t.category === 'Expense' ? 'مصروف' : 'أخرى'}</td>
                         <td className="py-4">{t.paymentMethod}</td>
                         <td className={`py-4 font-bold ${t.type === 'IN' ? 'text-emerald-600' : 'text-red-600'}`}>{EGP(t.amount)}</td>
                         <td className="py-4 text-xs text-burgundy/70">{t.description || '-'}</td>
@@ -299,7 +311,7 @@ function CashierSafe() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
             <h3 className="mb-4 text-xl font-bold">
-              {modalType === 'EXPENSE' ? 'سحب مصروف' : modalType === 'DEPOSIT' ? 'إيداع نقدية' : modalType === 'OPEN' ? 'فتح وردية' : 'تقفيل الوردية'}
+              {modalType === 'EXPENSE' ? 'سحب مصروف' : modalType === 'DEPOSIT' ? 'إيداع نقدية' : modalType === 'TRANSFER' ? 'تحويل نقدية للخزينة الرئيسية' : modalType === 'OPEN' ? 'فتح وردية' : 'تقفيل الوردية'}
             </h3>
             
             {modalType === 'CLOSE' ? (
@@ -344,7 +356,7 @@ function CashierSafe() {
                 )}
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">السبب / التفاصيل</label>
-                  <input type="text" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder={modalType === 'EXPENSE' ? 'مثال: فاتورة كهرباء شهر مايو' : 'مثال: فكة للدرج'} className="w-full rounded-xl border border-burgundy/20 px-4 py-2 outline-none focus:border-burgundy" />
+                  <input type="text" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder={modalType === 'EXPENSE' ? 'مثال: فاتورة كهرباء شهر مايو' : modalType === 'TRANSFER' ? 'مثال: تحويل نقدية نهاية الأسبوع للخزنة الرئيسية' : 'مثال: فكة للدرج'} className="w-full rounded-xl border border-burgundy/20 px-4 py-2 outline-none focus:border-burgundy" />
                 </div>
               </form>
             )}
