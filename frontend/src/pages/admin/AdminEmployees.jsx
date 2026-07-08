@@ -92,15 +92,16 @@ function EmployeeStatsModal({ employee, onClose }) {
 
         {/* Stats Cards */}
         {!loading && stats && (
-          <div className="grid grid-cols-3 gap-3 px-6 py-4 border-b border-burgundy/10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-6 py-4 border-b border-burgundy/10">
             {[
               { label: 'إجمالي المبيعات', value: EGP(stats.totalSales), icon: '💰', cls: 'bg-burgundy text-white' },
               { label: 'عدد الفواتير', value: stats.count, icon: '🧾', cls: 'bg-emerald-50 border border-emerald-200' },
               { label: 'كاش', value: EGP(stats.cashSales), icon: '💵', cls: 'bg-white border border-burgundy/10' },
+              { label: 'المرتجعات', value: `${stats.returnedCount || 0} (${EGP(stats.returnedAmount)})`, icon: '🔄', cls: 'bg-red-50 border border-red-200 text-red-700' },
             ].map(s => (
               <div key={s.label} className={`rounded-2xl p-4 ${s.cls}`}>
                 <p className={`text-xs font-semibold ${s.cls.includes('burgundy text-white') ? 'text-white/70' : 'text-burgundy/60'}`}>{s.icon} {s.label}</p>
-                <p className={`text-xl font-extrabold mt-1 ${s.cls.includes('burgundy text-white') ? 'text-white' : s.cls.includes('emerald') ? 'text-emerald-800' : 'text-burgundy'}`}>{s.value}</p>
+                <p className={`text-lg font-extrabold mt-1 ${s.cls.includes('burgundy text-white') ? 'text-white' : s.cls.includes('emerald') ? 'text-emerald-800' : s.cls.includes('red') ? 'text-red-700' : 'text-burgundy'}`}>{s.value}</p>
               </div>
             ))}
           </div>
@@ -115,13 +116,18 @@ function EmployeeStatsModal({ employee, onClose }) {
           ) : (
             <div className="space-y-2">
               {stats?.orders?.map(order => (
-                <div key={order._id} className="flex items-center justify-between bg-[#F7F0EC] rounded-2xl px-4 py-3">
+                <div key={order._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${order.status === 'Returned' ? 'bg-red-50/50 border-red-100' : 'bg-[#F7F0EC] border-transparent'}`}>
                   <div>
-                    <p className="font-semibold text-sm text-burgundy">{order.items?.map(i => i.name).join('، ')}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-burgundy">{order.items?.map(i => i.name).join('، ')}</p>
+                      {order.status === 'Returned' && (
+                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">مرتجع كامل</span>
+                      )}
+                    </div>
                     <p className="text-xs text-burgundy/50 mt-0.5">{new Date(order.createdAt).toLocaleString('ar-EG')}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-burgundy">{EGP(order.totalAmount)}</p>
+                    <p className={`font-bold ${order.status === 'Returned' ? 'text-red-600 line-through' : 'text-burgundy'}`}>{EGP(order.totalAmount)}</p>
                     <p className="text-xs text-burgundy/50">{order.paymentMethod === 'Cash' ? '💵 كاش' : '📱 انستا'}</p>
                   </div>
                 </div>

@@ -32,17 +32,32 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const { from, to } = req.query;
     const { Types } = require('mongoose');
-    const match = { employee: new Types.ObjectId(req.params.id), status: 'Completed' };
+    const match = { employee: new Types.ObjectId(req.params.id) };
     if (from || to) {
       match.createdAt = {};
       if (from) match.createdAt.$gte = new Date(from);
       if (to)   match.createdAt.$lte = new Date(to + 'T23:59:59');
     }
-    const orders = await Order.find(match).sort({ createdAt: -1 });
-    const totalSales = orders.reduce((s, o) => s + o.totalAmount, 0);
-    const cashSales = orders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
-    const instaSales = orders.filter(o => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.totalAmount, 0);
-    res.json({ orders, count: orders.length, totalSales, cashSales, instaSales });
+    const allOrders = await Order.find(match).sort({ createdAt: -1 });
+
+    const completedOrders = allOrders.filter(o => o.status === 'Completed');
+    const returnedOrders = allOrders.filter(o => o.status === 'Returned');
+
+    const totalSales = completedOrders.reduce((s, o) => s + o.totalAmount, 0);
+    const cashSales = completedOrders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
+    const instaSales = completedOrders.filter(o => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.totalAmount, 0);
+
+    const returnedAmount = returnedOrders.reduce((s, o) => s + o.totalAmount, 0);
+
+    res.json({
+      orders: allOrders,
+      count: completedOrders.length,
+      totalSales,
+      cashSales,
+      instaSales,
+      returnedCount: returnedOrders.length,
+      returnedAmount
+    });
   } catch (e) {
     res.status(500).json({ message: 'Unable to load stats', error: e.message });
   }
