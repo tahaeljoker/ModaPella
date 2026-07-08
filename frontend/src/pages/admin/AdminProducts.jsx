@@ -57,18 +57,79 @@ function printBarcode(product) {
   if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
   const { bars, totalW } = generateBarcodeSVG(product.sku);
   const svgBars = bars.map(b => `<rect x="${b.x + 10}" y="0" width="${b.width}" height="60" fill="#000"/>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="60">${svgBars}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} 60" style="width:36mm;height:6mm;" preserveAspectRatio="none">${svgBars}</svg>`;
   const win = window.open('', '_blank', 'width=400,height=300');
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
-  <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',sans-serif;background:#fff;display:flex;justify-content:center;padding:20px}
-  .label{border:1px solid #ccc;border-radius:8px;padding:16px 20px;text-align:center}
-  .brand{font-size:13px;font-weight:700;color:#7C0A12;margin-bottom:6px}
-  .name{font-size:11px;color:#333;margin-bottom:8px}.sku{font-family:monospace;font-size:14px;font-weight:700;letter-spacing:3px;margin-top:8px}
-  .price{font-size:12px;color:#555;margin-top:4px}@media print{body{padding:0}}</style></head>
-  <body><div class="label"><div class="brand">ModaPella</div><div class="name">${product.name}</div>${svg}
-  <div class="sku">${product.sku}</div><div class="price">${Number(product.price).toLocaleString('ar-EG')} ج.م</div>
-  </div></body></html>`);
+  <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  @page { size: 40mm 20mm; margin: 0; }
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: #fff;
+    width: 40mm;
+    height: 20mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5px 3px;
+    overflow: hidden;
+    direction: rtl;
+  }
+  .brand {
+    font-size: 7px;
+    font-weight: 900;
+    color: #7C0A12;
+    line-height: 1.1;
+  }
+  .name {
+    font-size: 6.5px;
+    color: #333;
+    max-width: 36mm;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+  }
+  .barcode-wrapper {
+    width: 36mm;
+    height: 6mm;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 2px;
+    align-items: center;
+    line-height: 1;
+  }
+  .sku {
+    font-family: monospace;
+    font-size: 7px;
+    font-weight: 700;
+    color: #1a0509;
+  }
+  .price {
+    font-size: 7.5px;
+    font-weight: 900;
+    color: #7C0A12;
+  }
+  @media print {
+    body { padding: 1.5px 3px; }
+  }
+  </style></head>
+  <body>
+    <div class="brand">ModaPella</div>
+    <div class="name">${product.name}</div>
+    <div class="barcode-wrapper">${svg}</div>
+    <div class="footer">
+      <span class="sku">${product.sku}</span>
+      <span class="price">${Number(product.price).toLocaleString('ar-EG')} ج.م</span>
+    </div>
+  </body></html>`);
   win.document.close(); win.focus();
   setTimeout(() => { win.print(); win.close(); }, 500);
 }

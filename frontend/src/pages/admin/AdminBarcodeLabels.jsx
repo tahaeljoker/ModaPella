@@ -73,18 +73,18 @@ function renderCode128(text) {
   return { rects, totalWidth, height };
 }
 
-// ── Label Component (57mm × 32mm thermal label style) ───────────────────────
+// ── Label Component (40mm × 20mm thermal label style) ───────────────────────
 function BarcodeLabel({ product, qty }) {
   const svg = renderCode128(product.sku);
   return (
     <div
       className="barcode-label"
       style={{
-        width: '57mm',
-        minHeight: '30mm',
+        width: '40mm',
+        height: '20mm',
         border: '1px solid #ddd',
-        borderRadius: '4px',
-        padding: '4px 6px',
+        borderRadius: '3px',
+        padding: '1.5px 3px',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -92,39 +92,39 @@ function BarcodeLabel({ product, qty }) {
         fontFamily: 'Cairo, Arial, sans-serif',
         direction: 'rtl',
         background: '#fff',
-        margin: '2mm',
+        margin: '1mm',
         pageBreakInside: 'avoid',
         breakInside: 'avoid',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ width: '100%', textAlign: 'center' }}>
-        <div style={{ fontSize: '9px', fontWeight: '900', color: '#7C0A12', letterSpacing: '0.5px' }}>ModaPella</div>
-        <div style={{ fontSize: '8px', color: '#555', marginTop: '1px', maxWidth: '52mm', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+      <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1' }}>
+        <div style={{ fontSize: '7px', fontWeight: '900', color: '#7C0A12' }}>ModaPella</div>
+        <div style={{ fontSize: '6.5px', color: '#333', marginTop: '0.5px', maxWidth: '36mm', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {product.name}
-        </div>
-        <div style={{ fontSize: '7px', color: '#888' }}>
-          {CATEGORY_LABELS[product.category] || product.category}
-          {product.supplier ? ` · ${product.supplier}` : ''}
         </div>
       </div>
 
       {svg ? (
         <svg
           viewBox={`0 0 ${svg.totalWidth} ${svg.height}`}
-          style={{ width: '50mm', height: '12mm', margin: '2px 0' }}
+          style={{ width: '36mm', height: '6mm', margin: '1px 0' }}
           preserveAspectRatio="none"
         >
           {svg.rects}
         </svg>
       ) : (
-        <div style={{ fontSize: '8px', color: '#ccc', margin: '4px 0' }}>[ لا يوجد باركود ]</div>
+        <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
       )}
 
-      <div style={{ fontSize: '9px', fontWeight: '900', fontFamily: 'monospace', color: '#1a0509', letterSpacing: '1px' }}>
-        {product.sku}
-      </div>
-      <div style={{ fontSize: '10px', fontWeight: '900', color: '#7C0A12' }}>
-        {EGP(product.price)}
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center', lineHeight: '1' }}>
+        <span style={{ fontSize: '7px', fontWeight: '700', fontFamily: 'monospace', color: '#1a0509' }}>
+          {product.sku}
+        </span>
+        <span style={{ fontSize: '7.5px', fontWeight: '900', color: '#7C0A12' }}>
+          {EGP(product.price)}
+        </span>
       </div>
     </div>
   );
@@ -165,36 +165,73 @@ function AdminBarcodeLabels() {
   const handlePrint = () => {
     if (selectedProducts.length === 0) return alert('اختر منتجاً واحداً على الأقل لطباعة ملصقاته');
     const printDiv = document.createElement('div');
-    printDiv.id = 'invoice-print-root';
-    printDiv.style.cssText = 'display:block!important;padding:8mm;background:white;';
+    printDiv.id = 'barcode-print-root';
 
     const labelsHTML = selectedProducts.flatMap(p => {
       const qty = quantities[p._id] || 1;
       return Array.from({ length: qty }, () => {
         const svg = renderCode128(p.sku);
         const svgContent = svg
-          ? `<svg viewBox="0 0 ${svg.totalWidth} ${svg.height}" style="width:50mm;height:12mm;" preserveAspectRatio="none">
+          ? `<svg viewBox="0 0 ${svg.totalWidth} ${svg.height}" style="width:36mm;height:6mm;margin:1px 0;" preserveAspectRatio="none">
               ${svg.rects.map(r => `<rect x="${r.props.x}" y="0" width="${r.props.width}" height="${svg.height}" fill="#1a0509"/>`).join('')}
              </svg>`
-          : `<div style="font-size:7px;color:#ccc;text-align:center">بدون باركود</div>`;
+          : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
-        return `<div style="width:57mm;min-height:30mm;border:1px solid #ddd;border-radius:4px;padding:4px 6px;display:inline-flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;margin:2mm;page-break-inside:avoid;vertical-align:top;">
-          <div style="width:100%;text-align:center">
-            <div style="font-size:9px;font-weight:900;color:#7C0A12">ModaPella</div>
-            <div style="font-size:8px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52mm">${p.name}</div>
-            <div style="font-size:7px;color:#888">${CATEGORY_LABELS[p.category] || p.category}${p.supplier ? ` · ${p.supplier}` : ''}</div>
+        return `<div class="print-label-page" style="width:40mm;height:20mm;padding:1.5px 3px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;page-break-after:always;break-after:page;">
+          <div style="width:100%;text-align:center;line-height:1.1;">
+            <div style="font-size:7px;font-weight:900;color:#7C0A12;">ModaPella</div>
+            <div style="font-size:6.5px;color:#333;margin-top:0.5px;max-width:36mm;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
           </div>
           ${svgContent}
-          <div style="font-size:9px;font-weight:900;font-family:monospace;letter-spacing:1px">${p.sku}</div>
-          <div style="font-size:10px;font-weight:900;color:#7C0A12">${Number(p.price).toLocaleString('ar-EG')} ج.م</div>
+          <div style="display:flex;justify-content:space-between;width:100%;padding:0 2px;align-items:center;line-height:1;">
+            <span style="font-size:7px;font-weight:700;font-family:monospace;color:#1a0509;">${p.sku}</span>
+            <span style="font-size:7.5px;font-weight:900;color:#7C0A12;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
+          </div>
         </div>`;
       });
     }).join('');
 
-    printDiv.innerHTML = `<div style="display:flex;flex-wrap:wrap;align-items:flex-start;">${labelsHTML}</div>`;
+    printDiv.innerHTML = labelsHTML;
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        @page {
+          size: 40mm 20mm;
+          margin: 0;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          background: #fff;
+        }
+        body > * {
+          display: none !important;
+        }
+        #barcode-print-root {
+          display: block !important;
+          width: 40mm;
+          margin: 0;
+          padding: 0;
+        }
+        #barcode-print-root, #barcode-print-root * {
+          visibility: visible;
+        }
+        .print-label-page {
+          width: 40mm;
+          height: 20mm;
+          page-break-after: always;
+          break-after: page;
+          box-sizing: border-box;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
     document.body.appendChild(printDiv);
     window.print();
     document.body.removeChild(printDiv);
+    document.head.removeChild(style);
   };
 
   const toggleAll = (val) => {

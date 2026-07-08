@@ -11,7 +11,6 @@ function EmployeeModal({ employee, onClose, onSave }) {
     name: '',
     phone: '',
     notes: '',
-    startDate: '',
     ...employee,
     startDate: employee?.startDate ? new Date(employee.startDate).toISOString().split('T')[0] : ''
   });

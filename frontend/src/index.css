@@ -180,20 +180,28 @@ button, input, select, textarea {
 
 /* ─── Print Styles (Invoice) ─────────────────────────────────── */
 @media print {
+  @page {
+    size: 58mm auto;
+    margin: 0;
+  }
+
   /* Hide everything on the page */
   body > * { display: none !important; }
 
   /* Show only the invoice print area */
   #invoice-print-root {
     display: block !important;
-    position: fixed;
-    inset: 0;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm !important;
     background: white;
     z-index: 9999;
-    padding: 24px;
+    padding: 2mm 3mm !important;
     font-family: Cairo, sans-serif;
     color: #1a0509;
     direction: rtl;
+    box-sizing: border-box;
   }
 
   #invoice-print-root * {
@@ -204,55 +212,56 @@ button, input, select, textarea {
   /* Invoice header */
   .invoice-print-header {
     text-align: center;
-    border-bottom: 2px solid #7C0A12;
-    padding-bottom: 12px;
-    margin-bottom: 16px;
+    border-bottom: 2px dashed #7C0A12;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
   }
   .invoice-print-header h1 {
-    font-size: 22px;
+    font-size: 15px;
     font-weight: 900;
     color: #7C0A12;
     margin: 0;
   }
   .invoice-print-header p {
-    font-size: 11px;
-    color: #888;
-    margin: 4px 0 0;
+    font-size: 9px;
+    color: #555;
+    margin: 3px 0 0;
   }
 
   /* Items table */
   .invoice-print-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 12px;
-    font-size: 13px;
+    margin-top: 8px;
+    font-size: 9px;
   }
   .invoice-print-table th {
     background: #f7f0ec;
     color: #7C0A12;
-    padding: 6px 8px;
+    padding: 4px 2px;
     text-align: right;
     font-weight: 700;
     border-bottom: 1px solid #e0c9c9;
   }
   .invoice-print-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid #f0e8e8;
-    vertical-align: top;
+    padding: 4px 2px;
+    border-bottom: 1px dashed #f0e8e8;
+    vertical-align: middle;
   }
   .invoice-print-total {
-    margin-top: 16px;
+    margin-top: 10px;
     text-align: left;
-    font-size: 16px;
+    font-size: 11px;
     font-weight: 900;
     color: #7C0A12;
-    border-top: 2px solid #7C0A12;
-    padding-top: 10px;
+    border-top: 2px dashed #7C0A12;
+    padding-top: 6px;
   }
   .invoice-print-footer {
     text-align: center;
-    margin-top: 20px;
-    font-size: 11px;
-    color: #aaa;
+    margin-top: 15px;
+    font-size: 9px;
+    color: #666;
+    line-height: 1.4;
   }
 }

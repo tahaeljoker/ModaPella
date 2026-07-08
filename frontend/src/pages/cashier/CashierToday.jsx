@@ -80,20 +80,20 @@ function OrderDetailModal({ order, onClose }) {
               const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
               const dateStr = new Date(order.createdAt).toLocaleString('ar-EG');
               const itemsHTML = order.items.map(item => `
-                <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
+                <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:10px">
                   <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
-                  <span>${(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
+                  <span style="white-space:nowrap">${(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
                 </div>
               `).join('');
 
               const printDiv = document.createElement('div');
               printDiv.id = 'receipt-reprint-root';
               printDiv.innerHTML = `
-                <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:15px;width:72mm;font-size:12px;color:#000;line-height:1.4">
-                  <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:3px">ModaPella 🎠</div>
-                  <div style="text-align:center;margin-bottom:12px;font-size:9px;color:#444">إعادة طباعة فاتورة</div>
+                <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:2mm 3mm;width:58mm;font-size:10px;color:#000;line-height:1.4;box-sizing:border-box;">
+                  <div style="text-align:center;font-weight:bold;font-size:14px;margin-bottom:3px">ModaPella 🎠</div>
+                  <div style="text-align:center;margin-bottom:8px;font-size:8px;color:#444">إعادة طباعة فاتورة</div>
                   
-                  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
+                  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:9px">
                     <div><strong>رقم الفاتورة:</strong> #${shortId}</div>
                     <div><strong>التاريخ:</strong> ${dateStr}</div>
                     <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
@@ -104,15 +104,15 @@ function OrderDetailModal({ order, onClose }) {
                     ${itemsHTML}
                   </div>
 
-                  <div style="font-weight:bold;font-size:12px">
+                  <div style="font-weight:bold;font-size:10px">
                     ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
-                    <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px">
                       <span>الإجمالي الفعلي:</span>
                       <span>${order.totalAmount.toLocaleString('ar-EG')} ج.م</span>
                     </div>
                   </div>
 
-                  <div style="text-align:center;margin-top:20px;font-size:9px;color:#666">
+                  <div style="text-align:center;margin-top:15px;font-size:8.5px;color:#666">
                     شكراً لتعاملكم معنا! ModaPella
                   </div>
                 </div>
@@ -121,9 +121,17 @@ function OrderDetailModal({ order, onClose }) {
               const style = document.createElement('style');
               style.innerHTML = `
                 @media print {
+                  @page {
+                    size: 58mm auto;
+                    margin: 0;
+                  }
+                  body {
+                    margin: 0;
+                    padding: 0;
+                  }
                   body * { visibility: hidden; }
                   #receipt-reprint-root, #receipt-reprint-root * { visibility: visible; }
-                  #receipt-reprint-root { position: absolute; left: 0; top: 0; }
+                  #receipt-reprint-root { position: absolute; left: 0; top: 0; width: 58mm !important; }
                 }
               `;
               document.head.appendChild(style);
