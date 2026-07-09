@@ -763,13 +763,18 @@ function CashierPOS() {
               🔍 البحث عن منتج أو باركود
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsPriceCheckOpen(true)}
-            className="text-xs bg-burgundy/5 text-burgundy hover:bg-burgundy/10 px-3 py-1.5 rounded-full transition font-bold flex items-center gap-1 border border-burgundy/10 shadow-sm"
-          >
-            🔎 استعلام سريع عن الأسعار والمخزون
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-1.5 rounded-full border border-red-100 flex items-center gap-1 shadow-sm hidden sm:flex">
+              💡 تذكير: انتبه للمنتجات غير القابلة للخصم 🚫
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsPriceCheckOpen(true)}
+              className="text-xs bg-burgundy/5 text-burgundy hover:bg-burgundy/10 px-3 py-1.5 rounded-full transition font-bold flex items-center gap-1 border border-burgundy/10 shadow-sm"
+            >
+              🔎 استعلام سريع عن الأسعار
+            </button>
+          </div>
         </div>
         <div className="bg-white border-b border-burgundy/10 px-6 py-3">
           <div className="relative">
