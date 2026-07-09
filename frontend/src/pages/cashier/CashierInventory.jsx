@@ -64,9 +64,9 @@ function CashierInventory() {
     !search || p.name.toLowerCase().includes(search.toLowerCase()) || (CAT_AR[p.category] || '').includes(search)
   );
 
-  const totalItems = products.reduce((s, p) => s + p.stock, 0);
-  const totalValue = products.reduce((s, p) => s + p.stock * p.price, 0);
-  const lowStockCount = products.filter((p) => p.stock <= 5).length;
+  const totalItems = filtered.reduce((s, p) => s + p.stock, 0);
+  const totalValue = filtered.reduce((s, p) => s + p.stock * p.price, 0);
+  const lowStockCount = filtered.filter((p) => p.stock <= 5).length;
 
   return (
     <div className="space-y-6 text-burgundy">

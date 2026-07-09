@@ -74,12 +74,6 @@ function AdminInventory() {
     }
   };
 
-  // ── Derived stats ──────────────────────────────────────────────────────────
-  const totalItems   = products.reduce((s, p) => s + p.stock, 0);
-  const totalValue   = products.reduce((s, p) => s + p.stock * p.price, 0);
-  const lowCount     = products.filter(p => p.stock > 0 && p.stock <= 5).length;
-  const outCount     = products.filter(p => p.stock === 0).length;
-
   // ── Filters ────────────────────────────────────────────────────────────────
   const filtered = products.filter(p => {
     const matchSearch = !search ||
@@ -93,6 +87,12 @@ function AdminInventory() {
       filterStock === 'out' ? p.stock === 0 : true;
     return matchSearch && matchCat && matchStock;
   });
+
+  // ── Derived stats ──────────────────────────────────────────────────────────
+  const totalItems   = filtered.reduce((s, p) => s + p.stock, 0);
+  const totalValue   = filtered.reduce((s, p) => s + p.stock * p.price, 0);
+  const lowCount     = filtered.filter(p => p.stock > 0 && p.stock <= 5).length;
+  const outCount     = filtered.filter(p => p.stock === 0).length;
 
   // ── Stock badge ────────────────────────────────────────────────────────────
   const stockBadge = (stock) => {

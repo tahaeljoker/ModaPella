@@ -666,11 +666,6 @@ function InventoryTab({ products, loading, onRefresh }) {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const totalItems = products.reduce((s, p) => s + p.stock, 0);
-  const totalValue = products.reduce((s, p) => s + p.stock * p.price, 0);
-  const lowCount   = products.filter(p => p.stock > 0 && p.stock <= 5).length;
-  const outCount   = products.filter(p => p.stock === 0).length;
-
   const startAdjusting = (p) => {
     setAdjusting(p._id); setAdjValue('');
     setSelectedVariant(p.variants?.length > 0 ? `${p.variants[0].size}|${p.variants[0].color}` : '');
@@ -700,6 +695,11 @@ function InventoryTab({ products, loading, onRefresh }) {
     const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
     return ms && mc && mk;
   });
+
+  const totalItems = filtered.reduce((s, p) => s + p.stock, 0);
+  const totalValue = filtered.reduce((s, p) => s + p.stock * p.price, 0);
+  const lowCount   = filtered.filter(p => p.stock > 0 && p.stock <= 5).length;
+  const outCount   = filtered.filter(p => p.stock === 0).length;
 
   return (
     <div className="space-y-4">
