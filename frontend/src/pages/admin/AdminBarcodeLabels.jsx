@@ -12,6 +12,7 @@ const CATEGORY_LABELS = {
   Cardigan: 'كاردن',
   Suit: 'سوت',
   Tonic: 'تونيك',
+  Takem: 'طقم',
 };
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;

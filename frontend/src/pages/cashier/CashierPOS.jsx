@@ -15,11 +15,13 @@ const CATEGORY_LABELS = {
   Cardigan: 'كاردن',
   Suit: 'سوت',
   Tonic: 'تونيك',
+  Takem: 'طقم',
 };
 
 const getProductIcon = (category = '', name = '') => {
   const cat = (category || '').toLowerCase();
   const nm = (name || '').toLowerCase();
+  if (cat.includes('takem') || cat.includes('طقم') || nm.includes('طقم')) return '🧣';
   if (cat.includes('tonic') || cat.includes('تونيك') || nm.includes('تونيك')) return '👚';
   if (cat.includes('suit') || cat.includes('سوت') || nm.includes('سوت')) return '👔';
   if (cat.includes('bag') || cat.includes('حقيبة') || cat.includes('شنط') || nm.includes('شنط') || nm.includes('حقيب')) return '👜';

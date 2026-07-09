@@ -132,7 +132,7 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
 }
 
 // ─── Supplier Detail Modal ─────────────────────────────────────────────────────
-const CAT_AR_SUP = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك' };
+const CAT_AR_SUP = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP_S = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
 function SupplierDetailModal({ supplierId, onClose }) {
