@@ -80,6 +80,7 @@ function saveInvoiceAsHTML(order) {
 <body>
 <h1>ModaPella</h1>
 <div class="sub">فاتورة بيع | رقم: #${id} | التاريخ: ${date}</div>
+${order.notes ? `<div class="sub" style="font-weight:bold;margin-top:2px;">ملاحظات: ${order.notes}</div>` : ''}
 <table>
   <thead><tr><th>المنتج</th><th>المقاس</th><th>اللون</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
   <tbody>${itemsHTML}${discountRow}</tbody>
@@ -124,6 +125,7 @@ function InvoiceModal({ order, onClose }) {
           <div><strong>التاريخ:</strong> ${date}</div>
           ${order.customerName ? `<div><strong>العميل:</strong> ${order.customerName} ${order.customerPhone ? `- ${order.customerPhone}` : ''}</div>` : ''}
           ${order._employeeName ? `<div><strong>الموظف:</strong> ${order._employeeName}</div>` : ''}
+          ${order.notes ? `<div><strong>ملاحظات:</strong> ${order.notes}</div>` : ''}
         </div>
 
         <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
@@ -249,6 +251,14 @@ function InvoiceModal({ order, onClose }) {
           </div>
 
           <div className="border-t border-dashed border-burgundy/20" />
+          {order.notes && (
+            <>
+              <div className="text-xs text-burgundy/60 bg-burgundy/5 p-2.5 rounded-xl border border-burgundy/10">
+                <strong>ملاحظات:</strong> {order.notes}
+              </div>
+              <div className="border-t border-dashed border-burgundy/20" />
+            </>
+          )}
           <p className="text-center text-xs text-burgundy/40">شكراً لتعاملكم معنا 🎀</p>
           <p className="text-center text-[10px] text-burgundy/30">تواصل معنا: 01090048832</p>
         </div>
@@ -341,6 +351,7 @@ function CashierPOS() {
   const [discountType, setDiscountType] = useState('amount'); // 'amount' | 'percent'
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
   const [editingPriceKey, setEditingPriceKey] = useState(null); // inline price edit
@@ -386,6 +397,7 @@ function CashierPOS() {
     setDiscountType('amount');
     setCustomerName('');
     setCustomerPhone('');
+    setNotes('');
     setSelectedEmployee('');
     showToast('📥 تم تعليق الفاتورة بنجاح');
   };
@@ -396,6 +408,7 @@ function CashierPOS() {
     setDiscountType(held.discountType || 'amount');
     setCustomerName(held.customerName || '');
     setCustomerPhone(held.customerPhone || '');
+    setNotes(held.notes || '');
     setSelectedEmployee(held.selectedEmployee || '');
     // remove from held
     const updated = heldCarts.filter(h => h.id !== held.id);
@@ -491,6 +504,7 @@ function CashierPOS() {
           const order = res.data;
           setCustomerName(order.customerName || '');
           setCustomerPhone(order.customerPhone || '');
+          setNotes(order.notes || '');
           setDiscount(order.discount || 0);
           setPaymentMethod(order.paymentMethod || 'Cash');
           setSelectedEmployee(order.employee?._id || '');
@@ -716,6 +730,7 @@ function CashierPOS() {
       employeeId: selectedEmployee || null,
       customerName,
       customerPhone,
+      notes,
       items: cart.map(i => ({
         product: i.product,
         name: i.name,
@@ -743,6 +758,7 @@ function CashierPOS() {
         totalAmount: totalAfterDiscount,
         discount: salePayload.discount,
         paymentMethod: salePayload.paymentMethod,
+        notes: salePayload.notes || '',
         createdAt: salePayload.createdAt,
         _employeeName: emp?.name || '',
         isOfflineSaved: true
@@ -758,6 +774,7 @@ function CashierPOS() {
       setAmountPaid('');
       setCustomerName('');
       setCustomerPhone('');
+      setNotes('');
       setSubmitting(false);
       return;
     }
@@ -777,6 +794,7 @@ function CashierPOS() {
       setAmountPaid('');
       setCustomerName('');
       setCustomerPhone('');
+      setNotes('');
     } catch (err) {
       // If server request fails (connection refused or timeout), also save locally
       const offlineId = `OFFLINE-${Date.now()}`;
@@ -788,6 +806,7 @@ function CashierPOS() {
         totalAmount: totalAfterDiscount,
         discount: salePayload.discount,
         paymentMethod: salePayload.paymentMethod,
+        notes: salePayload.notes || '',
         createdAt: salePayload.createdAt,
         _employeeName: emp?.name || '',
         isOfflineSaved: true
@@ -803,6 +822,7 @@ function CashierPOS() {
       setAmountPaid('');
       setCustomerName('');
       setCustomerPhone('');
+      setNotes('');
     } finally {
       setSubmitting(false);
     }
@@ -1345,22 +1365,34 @@ function CashierPOS() {
                 </div>
               </div>
 
-              {/* Employee Selector */}
-              {employees.length > 0 && (
-                <div className="border-t border-burgundy/10 pt-3">
-                  <p className="text-[10px] text-burgundy/50 font-bold mb-1">الموظف البائع (اختياري)</p>
-                  <select
-                    value={selectedEmployee}
-                    onChange={e => setSelectedEmployee(e.target.value)}
+              {/* Employee & Notes Selector */}
+              <div className="grid grid-cols-2 gap-2 border-t border-burgundy/10 pt-3">
+                {employees.length > 0 ? (
+                  <div>
+                    <p className="text-[10px] text-burgundy/50 font-bold mb-1">الموظف البائع</p>
+                    <select
+                      value={selectedEmployee}
+                      onChange={e => setSelectedEmployee(e.target.value)}
+                      className="w-full text-xs text-burgundy bg-white border border-burgundy/15 rounded-xl px-3 py-2 outline-none focus:border-burgundy"
+                    >
+                      <option value="">— اختياري —</option>
+                      {employees.map(emp => (
+                        <option key={emp._id} value={emp._id}>{emp.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                <div className={employees.length > 0 ? "" : "col-span-2"}>
+                  <p className="text-[10px] text-burgundy/50 font-bold mb-1">ملاحظات الفاتورة</p>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="ملاحظات..."
                     className="w-full text-xs text-burgundy bg-white border border-burgundy/15 rounded-xl px-3 py-2 outline-none focus:border-burgundy"
-                  >
-                    <option value="">— بدون تحديد موظف —</option>
-                    {employees.map(emp => (
-                      <option key={emp._id} value={emp._id}>{emp.name}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
-              )}
+              </div>
 
               {/* Payment Method */}
               <div>
@@ -1459,6 +1491,7 @@ function CashierPOS() {
           setAmountPaid('');
           setCustomerName('');
           setCustomerPhone('');
+          setNotes('');
           setIsClearConfirmOpen(false);
           showToast('تم مسح الفاتورة بنجاح', 'success');
         }}

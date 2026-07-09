@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.post('/sell', auth, async (req, res) => {
   try {
-    const { customerId, customerName, customerPhone, sellerId, employeeId, items, type = 'Offline', paymentMethod = 'Cash', discount = 0 } = req.body;
+    const { customerId, customerName, customerPhone, sellerId, employeeId, items, type = 'Offline', paymentMethod = 'Cash', discount = 0, notes = '' } = req.body;
 
     const productLookups = await Promise.all(items.map(async (item) => {
       const product = await Product.findById(item.product);
@@ -72,7 +72,8 @@ router.post('/sell', auth, async (req, res) => {
       discount: Number(discount),
       type,
       status: 'Completed',
-      paymentMethod
+      paymentMethod,
+      notes: notes || ''
     });
     await order.save();
 
@@ -321,7 +322,7 @@ router.patch('/storage/:productId', auth, async (req, res) => {
 // PUT /api/pos/orders/:id — Edit an entire order
 router.put('/orders/:id', auth, async (req, res) => {
   try {
-    const { customerName, customerPhone, employeeId, items, paymentMethod, discount = 0, type = 'Offline' } = req.body;
+    const { customerName, customerPhone, employeeId, items, paymentMethod, discount = 0, type = 'Offline', notes = '' } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
     
@@ -423,6 +424,7 @@ router.put('/orders/:id', auth, async (req, res) => {
     order.discount = Number(discount);
     order.paymentMethod = paymentMethod;
     order.type = type;
+    order.notes = notes || '';
     
     await order.save();
 

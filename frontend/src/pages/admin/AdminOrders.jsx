@@ -298,6 +298,7 @@ function AdminOrders() {
                               <div><strong>التاريخ:</strong> ${dateStr}</div>
                               <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
                               ${order.employeeName ? `<div><strong>البائع:</strong> ${order.employeeName}</div>` : ''}
+                              ${order.notes ? `<div><strong>ملاحظات:</strong> ${order.notes}</div>` : ''}
                             </div>
 
                             <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
