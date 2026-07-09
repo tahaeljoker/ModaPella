@@ -142,8 +142,28 @@ function AdminInventory() {
         ))}
       </div>
 
+      {/* Category Breakdown */}
+      {products.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {Object.keys(CAT_AR)
+            .map(cat => ({
+              name: CAT_AR[cat],
+              count: products.filter(p => p.category === cat).reduce((s, p) => s + p.stock, 0)
+            }))
+            .filter(c => c.count > 0)
+            .sort((a, b) => b.count - a.count)
+            .map(c => (
+              <div key={c.name} className="bg-white border border-burgundy/10 rounded-xl px-4 py-2 flex items-center gap-3 shadow-sm hover:shadow-md transition">
+                <span className="text-xs font-bold text-burgundy/60">{c.name}</span>
+                <span className="text-sm font-extrabold text-burgundy bg-burgundy/5 px-2 py-0.5 rounded-lg">{c.count} قطعة</span>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
       {/* Search + Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 mt-2">
         <input
           type="text"
           value={search}
