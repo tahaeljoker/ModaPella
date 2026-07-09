@@ -607,8 +607,8 @@ function CashierPOS() {
   const rawTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const discountableTotal = cart.filter(i => i.allowDiscount).reduce((s, i) => s + i.price * i.quantity, 0);
   const discountAmount = discountType === 'percent'
-    ? Math.min(discountableTotal, discountableTotal * Math.min(Number(discount || 0), 100) / 100)
-    : Math.min(discountableTotal, Number(discount || 0));
+    ? Math.min(rawTotal, rawTotal * Math.min(Number(discount || 0), 100) / 100)
+    : Math.min(rawTotal, Number(discount || 0));
   const totalAfterDiscount = Math.max(0, rawTotal - discountAmount);
   const change = paymentMethod === 'Cash' && amountPaid ? Math.max(0, Number(amountPaid) - totalAfterDiscount) : 0;
 
@@ -1181,8 +1181,7 @@ function CashierPOS() {
                     max={discountType === 'percent' ? 100 : undefined}
                     onChange={e => setDiscount(e.target.value)}
                     placeholder="0"
-                    disabled={discountableTotal === 0 && cart.length > 0}
-                    className="flex-1 text-sm text-burgundy bg-transparent outline-none w-16 text-left disabled:opacity-50"
+                    className="flex-1 text-sm text-burgundy bg-transparent outline-none w-16 text-left"
                   />
                   <span className="text-xs text-burgundy/40">{discountType === 'percent' ? '%' : 'ج.م'}</span>
                 </div>
@@ -1195,9 +1194,10 @@ function CashierPOS() {
               </div>
               
               {cart.length > 0 && discountableTotal < rawTotal && (
-                 <div className="mt-1 flex items-center justify-between text-[10px]">
-                   <span className="text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100">⚠️ يوجد منتجات في الفاتورة لا تقبل الخصم</span>
-                   <span className="text-burgundy/50">المبلغ الخاضع للخصم: {EGP(discountableTotal)}</span>
+                 <div className="mt-1 text-[10px]">
+                   <p className="text-red-500 font-bold bg-red-50 px-2 py-1 rounded border border-red-100 flex items-center justify-between">
+                     <span>⚠️ تذكير: بعض المنتجات في الفاتورة غير خاضعة للخصم عادةً</span>
+                   </p>
                  </div>
               )}
 
