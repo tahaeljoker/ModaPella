@@ -286,6 +286,7 @@ function CashierPOS() {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [amountPaid, setAmountPaid] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState('amount'); // 'amount' | 'percent'
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -318,6 +319,7 @@ function CashierPOS() {
       note,
       cart,
       discount,
+      discountType,
       customerName,
       customerPhone,
       selectedEmployee,
@@ -329,6 +331,7 @@ function CashierPOS() {
     // clear current cart
     setCart([]);
     setDiscount(0);
+    setDiscountType('amount');
     setCustomerName('');
     setCustomerPhone('');
     setSelectedEmployee('');
@@ -338,6 +341,7 @@ function CashierPOS() {
   const handleResumeCart = (held) => {
     setCart(held.cart);
     setDiscount(held.discount);
+    setDiscountType(held.discountType || 'amount');
     setCustomerName(held.customerName || '');
     setCustomerPhone(held.customerPhone || '');
     setSelectedEmployee(held.selectedEmployee || '');
@@ -596,7 +600,10 @@ function CashierPOS() {
   const removeItem = (key) => setCart(prev => prev.filter(i => i._cartKey !== key));
 
   const rawTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const totalAfterDiscount = Math.max(0, rawTotal - Number(discount || 0));
+  const discountAmount = discountType === 'percent'
+    ? Math.min(rawTotal, rawTotal * Math.min(Number(discount || 0), 100) / 100)
+    : Math.min(rawTotal, Number(discount || 0));
+  const totalAfterDiscount = Math.max(0, rawTotal - discountAmount);
   const change = paymentMethod === 'Cash' && amountPaid ? Math.max(0, Number(amountPaid) - totalAfterDiscount) : 0;
 
   // ── Checkout ──────────────────────────────────────────────────────────────
@@ -621,7 +628,7 @@ function CashierPOS() {
         costPrice: i.costPrice || 0
       })),
       paymentMethod,
-      discount: Number(discount || 0),
+      discount: discountAmount,
       type: 'Offline',
       createdAt: new Date().toISOString()
     };
@@ -648,6 +655,7 @@ function CashierPOS() {
       
       setCart([]);
       setDiscount(0);
+      setDiscountType('amount');
       setAmountPaid('');
       setCustomerName('');
       setCustomerPhone('');
@@ -661,6 +669,7 @@ function CashierPOS() {
       setCompletedOrder({ ...res.data.order, _employeeName: emp?.name || '' });
       setCart([]);
       setDiscount(0);
+      setDiscountType('amount');
       setAmountPaid('');
       setCustomerName('');
       setCustomerPhone('');
@@ -686,6 +695,7 @@ function CashierPOS() {
 
       setCart([]);
       setDiscount(0);
+      setDiscountType('amount');
       setAmountPaid('');
       setCustomerName('');
       setCustomerPhone('');
@@ -1120,20 +1130,43 @@ function CashierPOS() {
               {/* Discount */}
               <div className="flex items-center gap-2">
                 <label className="text-sm text-burgundy/60 whitespace-nowrap">خصم</label>
+                {/* Type toggle */}
+                <div className="flex rounded-lg overflow-hidden border border-burgundy/20 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => { setDiscountType('amount'); setDiscount(0); }}
+                    className={`px-2.5 py-1.5 transition-all ${
+                      discountType === 'amount'
+                        ? 'bg-burgundy text-white'
+                        : 'bg-white text-burgundy/50 hover:bg-burgundy/10'
+                    }`}
+                  >ج.م</button>
+                  <button
+                    type="button"
+                    onClick={() => { setDiscountType('percent'); setDiscount(0); }}
+                    className={`px-2.5 py-1.5 transition-all ${
+                      discountType === 'percent'
+                        ? 'bg-burgundy text-white'
+                        : 'bg-white text-burgundy/50 hover:bg-burgundy/10'
+                    }`}
+                  >%</button>
+                </div>
                 <div className="flex-1 flex items-center gap-1 bg-[#F7F0EC] rounded-xl border border-burgundy/15 overflow-hidden px-3 py-1.5">
                   <input
                     type="number"
                     value={discount || ''}
                     min={0}
+                    max={discountType === 'percent' ? 100 : undefined}
                     onChange={e => setDiscount(e.target.value)}
                     placeholder="0"
                     className="flex-1 text-sm text-burgundy bg-transparent outline-none w-16 text-left"
                   />
-                  <span className="text-xs text-burgundy/40">ج.م</span>
+                  <span className="text-xs text-burgundy/40">{discountType === 'percent' ? '%' : 'ج.م'}</span>
                 </div>
-                {discount > 0 && (
+                {discountAmount > 0 && (
                   <span className="text-xs text-green-600 font-semibold bg-green-50 px-2 py-1 rounded-lg whitespace-nowrap">
-                    - {EGP(discount)}
+                    {discountType === 'percent' && <span className="opacity-70">{Number(discount)}% = </span>}
+                    - {EGP(discountAmount)}
                   </span>
                 )}
               </div>
@@ -1279,6 +1312,7 @@ function CashierPOS() {
         onConfirm={() => {
           setCart([]);
           setDiscount(0);
+          setDiscountType('amount');
           setAmountPaid('');
           setCustomerName('');
           setCustomerPhone('');

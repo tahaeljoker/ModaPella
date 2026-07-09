@@ -132,13 +132,18 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
 }
 
 // ─── Supplier Detail Modal ─────────────────────────────────────────────────────
+const CAT_AR_SUP = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك' };
+const EGP_S = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+
 function SupplierDetailModal({ supplierId, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addTx, setAddTx] = useState(false);
   const [deleteTxId, setDeleteTxId] = useState(null);
-  
-  const [isGeneratingPO, setIsGeneratingPO] = useState(false);
+  const [activeTab, setActiveTab] = useState('account'); // 'account' | 'products' | 'po'
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+
   const [poItems, setPoItems] = useState([]);
   const [poForm, setPoForm] = useState({ name: '', size: '', qty: 1 });
 
@@ -149,7 +154,20 @@ function SupplierDetailModal({ supplierId, onClose }) {
       .catch(console.error)
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); }, [supplierId]);
+
+  const loadProducts = () => {
+    setProductsLoading(true);
+    api.get('/products')
+      .then(r => setProducts(r.data || []))
+      .catch(console.error)
+      .finally(() => setProductsLoading(false));
+  };
+
+  useEffect(() => { load(); loadProducts(); }, [supplierId]);
+
+  const supplierProducts = data?.supplier?.name
+    ? products.filter(p => p.supplier && p.supplier.trim() === data.supplier.name.trim())
+    : [];
 
   const handleDeleteTx = async () => {
     await api.delete(`/suppliers/${supplierId}/transactions/${deleteTxId}`);
@@ -297,27 +315,47 @@ function SupplierDetailModal({ supplierId, onClose }) {
             {data?.supplier?.phone && <p className="text-xs opacity-60 mt-0.5">{data.supplier.phone}</p>}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => setIsGeneratingPO(!isGeneratingPO)}
-              className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-xs font-bold transition"
-            >
-              {isGeneratingPO ? '📂 عرض كشف الحساب' : '📝 أمر توريد'}
-            </button>
-            {!isGeneratingPO && (
+            {activeTab === 'account' && (
               <button onClick={() => setAddTx(true)} className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-bold transition">
                 + تعامل جديد
+              </button>
+            )}
+            {activeTab === 'po' && (
+              <button
+                onClick={handlePrintPO}
+                disabled={poItems.length === 0}
+                className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-xs font-bold transition disabled:opacity-50"
+              >
+                🖨️ طباعة أمر التوريد
               </button>
             )}
           </div>
         </div>
 
-        {/* Balance summary */}
-        {!loading && data && !isGeneratingPO && (
+        {/* Tabs */}
+        <div className="flex border-b border-burgundy/10 bg-[#F7F0EC]">
+          {[
+            { id: 'account', label: '📋 كشف الحساب' },
+            { id: 'products', label: `📦 المنتجات${supplierProducts.length > 0 ? ` (${supplierProducts.length})` : ''}` },
+            { id: 'po', label: '📝 أمر توريد' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-3 text-xs font-bold transition border-b-2 ${activeTab === tab.id ? 'border-burgundy text-burgundy' : 'border-transparent text-burgundy/40 hover:text-burgundy/70'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Balance summary — only visible on account tab */}
+        {!loading && data && activeTab === 'account' && (
           <div className="grid grid-cols-3 border-b border-burgundy/10">
             {[
-              { label: 'إجمالي المشتريات', value: EGP(data.totalPurchased), cls: 'text-red-600' },
-              { label: 'إجمالي المدفوع', value: EGP(data.totalPaid), cls: 'text-emerald-700' },
-              { label: 'الرصيد المتبقي (الدين)', value: EGP(data.balance), cls: data.balance > 0 ? 'text-red-600 font-extrabold' : 'text-emerald-700 font-extrabold' },
+              { label: 'إجمالي المشتريات', value: EGP_S(data.totalPurchased), cls: 'text-red-600' },
+              { label: 'إجمالي المدفوع', value: EGP_S(data.totalPaid), cls: 'text-emerald-700' },
+              { label: 'الرصيد المتبقي (الدين)', value: EGP_S(data.balance), cls: data.balance > 0 ? 'text-red-600 font-extrabold' : 'text-emerald-700 font-extrabold' },
             ].map(s => (
               <div key={s.label} className="p-4 text-center border-l border-burgundy/10 last:border-0">
                 <p className="text-xs text-burgundy/50">{s.label}</p>
@@ -327,146 +365,178 @@ function SupplierDetailModal({ supplierId, onClose }) {
           </div>
         )}
 
-        {/* PO Generator UI or Transactions UI */}
-        {isGeneratingPO ? (
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            <h4 className="font-bold text-sm text-burgundy">📦 صياغة أمر توريد بضاعة</h4>
-            <div className="bg-burgundy/3 p-4 rounded-2xl border border-burgundy/5 space-y-3">
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold text-burgundy/60">اسم المنتج / الصنف</label>
-                  <input
-                    type="text"
-                    value={poForm.name}
-                    onChange={e => setPoForm({ ...poForm, name: e.target.value })}
-                    placeholder="مثال: بلوزة شيفون"
-                    className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold text-burgundy/60">المقاس</label>
-                  <input
-                    type="text"
-                    value={poForm.size}
-                    onChange={e => setPoForm({ ...poForm, size: e.target.value })}
-                    placeholder="S, M, L, XL..."
-                    className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold text-burgundy/60">الكمية المطلوبة</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={poForm.qty}
-                    onChange={e => setPoForm({ ...poForm, qty: Math.max(1, Number(e.target.value) || 1) })}
-                    className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleAddPoItem}
-                className="w-full rounded-xl bg-burgundy/10 hover:bg-burgundy/20 py-2 text-xs font-bold text-burgundy transition"
-              >
-                ＋ إضافة صنف لأمر التوريد
-              </button>
-            </div>
+        {/* Tab Content */}
+        <div className="flex-1 overflow-y-auto">
 
-            {/* Selected items table */}
-            {poItems.length === 0 ? (
-              <p className="text-center text-xs text-burgundy/40 py-8">الرجاء إضافة أصناف لبناء أمر التوريد</p>
-            ) : (
-              <div className="border border-burgundy/10 rounded-2xl bg-white overflow-hidden shadow-sm">
-                <table className="w-full text-xs text-right text-burgundy">
-                  <thead className="bg-[#F7F0EC] font-bold">
-                    <tr>
-                      <th className="p-3 text-center w-12">#</th>
-                      <th className="p-3">اسم الصنف</th>
-                      <th className="p-3 text-center">المقاس</th>
-                      <th className="p-3 text-center">الكمية</th>
-                      <th className="p-3 text-center w-12">حذف</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-burgundy/5">
-                    {poItems.map((item, idx) => (
-                      <tr key={item.id}>
-                        <td className="p-3 text-center">{idx + 1}</td>
-                        <td className="p-3 font-semibold">{item.name}</td>
-                        <td className="p-3 text-center">{item.size || '—'}</td>
-                        <td className="p-3 text-center font-bold">{item.qty} قطعة</td>
-                        <td className="p-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePoItem(item.id)}
-                            className="text-red-500 hover:underline"
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Transactions List */
-          <div className="flex-1 overflow-y-auto p-5">
-            {loading ? (
-              <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
-            ) : data?.transactions?.length === 0 ? (
-              <p className="text-center text-sm text-burgundy/40 py-12">لا توجد تعاملات بعد</p>
-            ) : (
-              <div className="space-y-2">
-                {data?.transactions?.map(tx => (
-                  <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {tx.type === 'purchase' ? '📦 مشتريات' : '💸 دفعة'}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {tx.paymentSource === 'StoreSafe' ? '💵 الخزينة' : '👤 شخصي'}
-                        </span>
-                        {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg">{tx.reference}</span>}
-                        {tx.type === 'payment' && (
-                          <button
-                            onClick={() => printPaymentReceipt(tx, data.supplier)}
-                            className="text-[10px] bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 font-bold px-2 py-0.5 rounded-lg transition"
-                            title="طباعة إيصال سداد"
-                          >
-                            🖨️ طباعة إيصال
-                          </button>
-                        )}
+          {/* ── Account Tab ── */}
+          {activeTab === 'account' && (
+            <div className="p-5">
+              {loading ? (
+                <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+              ) : data?.transactions?.length === 0 ? (
+                <p className="text-center text-sm text-burgundy/40 py-12">لا توجد تعاملات بعد</p>
+              ) : (
+                <div className="space-y-2">
+                  {data?.transactions?.map(tx => (
+                    <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {tx.type === 'purchase' ? '📦 مشتريات' : '💸 دفعة'}
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {tx.paymentSource === 'StoreSafe' ? '💵 الخزينة' : '👤 شخصي'}
+                          </span>
+                          {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg">{tx.reference}</span>}
+                          {tx.type === 'payment' && (
+                            <button
+                              onClick={() => printPaymentReceipt(tx, data.supplier)}
+                              className="text-[10px] bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 font-bold px-2 py-0.5 rounded-lg transition"
+                              title="طباعة إيصال سداد"
+                            >
+                              🖨️ طباعة إيصال
+                            </button>
+                          )}
+                        </div>
+                        {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
+                        <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(tx.date).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                       </div>
-                      {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
-                      <p className="text-[10px] text-burgundy/40 mt-0.5">{DATE(tx.date)}</p>
+                      <div className="flex items-center gap-2 mr-3">
+                        <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : 'text-emerald-700'}`}>
+                          {tx.type === 'purchase' ? '+' : '-'} {EGP_S(tx.amount)}
+                        </p>
+                        <button onClick={() => setDeleteTxId(tx._id)} className="text-burgundy/20 hover:text-red-500 transition text-sm">✕</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mr-3">
-                      <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : 'text-emerald-700'}`}>
-                        {tx.type === 'purchase' ? '+' : '-'} {EGP(tx.amount)}
-                      </p>
-                      <button onClick={() => setDeleteTxId(tx._id)} className="text-burgundy/20 hover:text-red-500 transition text-sm">✕</button>
-                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Products Tab ── */}
+          {activeTab === 'products' && (
+            <div className="p-5">
+              {productsLoading ? (
+                <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+              ) : supplierProducts.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-4xl mb-3">📭</p>
+                  <p className="text-sm font-semibold text-burgundy/40">لا توجد منتجات مسجلة لهذا المورد بعد</p>
+                  <p className="text-xs text-burgundy/30 mt-1">عند إضافة منتج واختيار هذا المورد، سيظهر هنا تلقائياً</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {supplierProducts.map(p => {
+                    const stockCls = p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+                    return (
+                      <div key={p._id} className="flex items-center gap-3 rounded-2xl border border-burgundy/8 bg-[#F7F0EC]/50 px-4 py-3 hover:bg-[#F7F0EC] transition">
+                        {p.images?.[0] ? (
+                          <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
+                        ) : (
+                          <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl">🛍️</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{p.name}</p>
+                          <div className="flex flex-wrap gap-1.5 mt-0.5 items-center">
+                            {p.sku && <span className="font-mono text-[10px] bg-white border border-burgundy/10 px-1.5 py-0.5 rounded text-burgundy">{p.sku}</span>}
+                            <span className="text-[10px] bg-burgundy/8 text-burgundy px-1.5 py-0.5 rounded-full font-medium">{CAT_AR_SUP[p.category] || p.category}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${stockCls}`}>{p.stock} ق</span>
+                          <span className="text-xs font-bold text-burgundy">{EGP_S(p.price)}</span>
+                          {p.costPrice > 0 && <span className="text-[10px] text-burgundy/40">تكلفة: {EGP_S(p.costPrice)}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── PO Tab ── */}
+          {activeTab === 'po' && (
+            <div className="p-5 space-y-4">
+              <h4 className="font-bold text-sm text-burgundy">📦 صياغة أمر توريد بضاعة</h4>
+              <div className="bg-burgundy/3 p-4 rounded-2xl border border-burgundy/5 space-y-3">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-burgundy/60">اسم المنتج / الصنف</label>
+                    <input
+                      type="text"
+                      value={poForm.name}
+                      onChange={e => setPoForm({ ...poForm, name: e.target.value })}
+                      placeholder="مثال: بلوزة شيفون"
+                      className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
                   </div>
-                ))}
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-burgundy/60">المقاس</label>
+                    <input
+                      type="text"
+                      value={poForm.size}
+                      onChange={e => setPoForm({ ...poForm, size: e.target.value })}
+                      placeholder="S, M, L, XL..."
+                      className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-burgundy/60">الكمية المطلوبة</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={poForm.qty}
+                      onChange={e => setPoForm({ ...poForm, qty: Math.max(1, Number(e.target.value) || 1) })}
+                      className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddPoItem}
+                  className="w-full rounded-xl bg-burgundy/10 hover:bg-burgundy/20 py-2 text-xs font-bold text-burgundy transition"
+                >
+                  ＋ إضافة صنف لأمر التوريد
+                </button>
               </div>
-            )}
-          </div>
-        )}
+
+              {poItems.length === 0 ? (
+                <p className="text-center text-xs text-burgundy/40 py-8">الرجاء إضافة أصناف لبناء أمر التوريد</p>
+              ) : (
+                <div className="border border-burgundy/10 rounded-2xl bg-white overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-right text-burgundy">
+                    <thead className="bg-[#F7F0EC] font-bold">
+                      <tr>
+                        <th className="p-3 text-center w-12">#</th>
+                        <th className="p-3">اسم الصنف</th>
+                        <th className="p-3 text-center">المقاس</th>
+                        <th className="p-3 text-center">الكمية</th>
+                        <th className="p-3 text-center w-12">حذف</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-burgundy/5">
+                      {poItems.map((item, idx) => (
+                        <tr key={item.id}>
+                          <td className="p-3 text-center">{idx + 1}</td>
+                          <td className="p-3 font-semibold">{item.name}</td>
+                          <td className="p-3 text-center">{item.size || '—'}</td>
+                          <td className="p-3 text-center font-bold">{item.qty} قطعة</td>
+                          <td className="p-3 text-center">
+                            <button type="button" onClick={() => handleRemovePoItem(item.id)} className="text-red-500 hover:underline">✕</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="p-4 bg-[#F7F0EC] border-t border-burgundy/10 flex gap-3">
-          {isGeneratingPO && (
-            <button
-              onClick={handlePrintPO}
-              disabled={poItems.length === 0}
-              className="flex-1 rounded-xl bg-burgundy text-white py-2.5 text-sm font-bold transition hover:bg-[#650018] disabled:opacity-50"
-            >
-              🖨️ طباعة أمر التوريد (PDF)
-            </button>
-          )}
           <button onClick={onClose} className="rounded-xl border border-burgundy/20 px-6 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">إغلاق</button>
         </div>
       </div>
@@ -478,6 +548,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
+
 function AdminSuppliers() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
