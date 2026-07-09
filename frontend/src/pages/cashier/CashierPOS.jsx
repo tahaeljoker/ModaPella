@@ -808,7 +808,10 @@ function CashierPOS() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm text-burgundy truncate">{product.name}</p>
-                        <p className="text-xs text-burgundy/50">{CATEGORY_LABELS[product.category]} {product.sku && `• ${product.sku}`}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-xs text-burgundy/50">{CATEGORY_LABELS[product.category]} {product.sku && `• ${product.sku}`}</p>
+                          {product.allowDiscount === false && <span className="text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 font-bold">🚫 بلا خصم</span>}
+                        </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-sm font-bold text-burgundy">{EGP(product.price)}</p>
@@ -876,6 +879,11 @@ function CashierPOS() {
                     )}
                     {selectedProduct.supplier && (
                       <p className="text-xs text-burgundy/50 mt-0.5">🏭 {selectedProduct.supplier}</p>
+                    )}
+                    {selectedProduct.allowDiscount === false && (
+                      <div className="mt-1.5">
+                        <span className="inline-block text-[10px] text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100 font-bold">🚫 هذا المنتج غير خاضع للخصومات</span>
+                      </div>
                     )}
                     <p className="mt-2 text-2xl font-extrabold text-burgundy">{EGP(selectedProduct.price)}</p>
                   </div>
