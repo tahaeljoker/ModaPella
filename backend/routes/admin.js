@@ -179,11 +179,14 @@ router.put('/site-config', auth, requireRole(['admin']), async (req, res) => {
 });
 
 const generateSku = async (category) => {
-  const prefix = category.substring(0, 3).toUpperCase();
+  // Remove hyphens from category before building prefix (e.g. T-shirt → TSH)
+  const sanitized = category.replace(/-/g, '');
+  const prefix = sanitized.substring(0, 3).toUpperCase();
   const lastProduct = await Product.findOne({ sku: new RegExp(`^${prefix}-`) }).sort({ sku: -1 });
   if (lastProduct && lastProduct.sku) {
-    const num = parseInt(lastProduct.sku.split('-')[1]);
-    return `${prefix}-${num + 1}`;
+    const parts = lastProduct.sku.split('-');
+    const num = parseInt(parts[parts.length - 1]);
+    return `${prefix}-${isNaN(num) ? 1001 : num + 1}`;
   }
   return `${prefix}-1001`;
 };
