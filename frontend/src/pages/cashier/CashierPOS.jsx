@@ -426,7 +426,6 @@ function CashierPOS() {
     };
   }, []);
 
-  // ── Barcode scanner hook — auto-add to cart ───────────────────────────────
   useEffect(() => {
     let buffer = '';
     let timer = null;
@@ -500,7 +499,22 @@ function CashierPOS() {
         buffer = '';
         return;
       }
-      if (e.key.length === 1) buffer += e.key;
+      
+      // Reconstruct scanned characters from physical key codes (layout-independent)
+      let char = '';
+      if (e.code.startsWith('Key')) {
+        char = e.code.slice(3); // e.g. 'KeyP' -> 'P'
+      } else if (e.code.startsWith('Digit')) {
+        char = e.code.slice(5); // e.g. 'Digit1' -> '1'
+      } else if (e.code === 'Minus') {
+        char = '-';
+      } else if (e.key.length === 1) {
+        char = e.key;
+      }
+
+      if (char) {
+        buffer += char;
+      }
       clearTimeout(timer);
       timer = setTimeout(() => { buffer = ''; }, 300);
     };
