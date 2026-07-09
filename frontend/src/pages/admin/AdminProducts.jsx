@@ -132,52 +132,54 @@ function printBarcode(product) {
     direction: rtl;
   }
   .brand {
-    font-size: 8px;
+    font-size: 7px;
     font-weight: 900;
     color: #000;
-    line-height: 1.1;
+    line-height: 1;
     margin-bottom: 1px;
     text-align: center;
     width: 100%;
   }
   .name {
-    font-size: 7.5px;
+    font-size: 6px;
     color: #000;
-    max-width: 100%;
+    max-width: 90%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.1;
+    line-height: 1;
     margin-bottom: 2px;
     text-align: center;
     width: 100%;
   }
   .barcode-wrapper {
-    width: 96%;
-    height: 14mm;
+    width: 80%;
+    height: 11mm;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0.5mm 0;
+    margin: 0 auto;
   }
   .footer {
     display: flex;
     justify-content: space-between;
-    width: 100%;
+    width: 95%;
     align-items: center;
     line-height: 1;
     margin-top: 1px;
   }
   .sku {
     font-family: monospace;
-    font-size: 8px;
+    font-size: 7.5px;
     font-weight: 700;
     color: #000;
+    text-align: right;
   }
   .price {
-    font-size: 8.5px;
+    font-size: 8px;
     font-weight: 900;
     color: #000;
+    text-align: left;
   }
   @media print {
     body { padding: 1mm 2mm; }

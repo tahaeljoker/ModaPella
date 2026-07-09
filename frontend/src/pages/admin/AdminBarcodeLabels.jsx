@@ -211,16 +211,18 @@ function AdminBarcodeLabels() {
 
         return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:1.57in;height:1.14in;overflow:hidden;box-sizing:border-box;">
           <div class="print-label-page" style="width:1.57in;height:1.14in;padding:1mm 2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
-            <div style="width:100%;text-align:center;line-height:1.1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-              <div style="font-size:8px;font-weight:900;color:#000;">ModaPella</div>
-              <div style="font-size:7.5px;color:#000;margin-top:0.5px;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
+            <div style="width:100%;text-align:center;line-height:1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div style="font-size:7px;font-weight:900;color:#000;">ModaPella</div>
+              <div style="font-size:6px;color:#000;margin-top:0.5px;max-width:90%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;">${p.name}</div>
             </div>
-            <div style="width:96%;height:14mm;display:flex;justify-content:center;align-items:center;margin:0.5mm 0;">
-              ${svgContent}
+            <div style="width:100%;display:flex;justify-content:center;align-items:center;margin:1px 0;">
+              <div style="width:80%;height:11mm;display:flex;justify-content:center;align-items:center;">
+                ${svgContent}
+              </div>
             </div>
-            <div style="display:flex;justify-content:space-between;width:100%;align-items:center;line-height:1;margin-top:1px;">
-              <span style="font-size:8px;font-weight:700;font-family:monospace;color:#000;">${p.sku}</span>
-              <span style="font-size:8.5px;font-weight:900;color:#000;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
+            <div style="display:flex;justify-content:space-between;width:95%;align-items:center;line-height:1;margin-top:1px;">
+              <span style="font-size:7.5px;font-weight:700;font-family:monospace;color:#000;text-align:right;">${p.sku}</span>
+              <span style="font-size:8px;font-weight:900;color:#000;text-align:left;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
             </div>
           </div>
         </div>`;
