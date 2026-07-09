@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import { exportToCSV } from '../../services/export';
 
@@ -9,6 +11,7 @@ const DATE   = (d) => new Date(d).toLocaleDateString('ar-EG', { weekday: 'long',
 
 // ─── Order Detail Modal ────────────────────────────────────────────────────────
 function OrderDetailModal({ order, onClose }) {
+  const navigate = useNavigate();
   if (!order) return null;
   const isReturned = order.status === 'Returned';
   return (
@@ -118,33 +121,50 @@ function OrderDetailModal({ order, onClose }) {
                 </div>
               `;
 
-              const style = document.createElement('style');
-              style.innerHTML = `
-                @media print {
-                  @page {
-                    size: 58mm auto;
-                    margin: 0;
-                  }
-                  body {
-                    margin: 0;
-                    padding: 0;
-                  }
-                  body * { visibility: hidden; }
-                  #receipt-reprint-root, #receipt-reprint-root * { visibility: visible; }
-                  #receipt-reprint-root { position: absolute; left: 0; top: 0; width: 58mm !important; }
-                }
-              `;
-              document.head.appendChild(style);
               document.body.appendChild(printDiv);
-              window.print();
-              document.body.removeChild(printDiv);
-              document.head.removeChild(style);
+              setTimeout(() => {
+                window.print();
+                document.body.removeChild(printDiv);
+              }, 100);
             }}
-            className="flex-1 rounded-xl bg-burgundy text-white py-2.5 text-sm font-bold transition hover:bg-[#650018]"
+            className="rounded-xl bg-burgundy text-white px-4 py-2.5 text-xs font-bold transition hover:bg-[#650018]"
           >
             🖨️ طباعة الفاتورة
           </button>
-          <button onClick={onClose} className="rounded-xl border border-burgundy/20 px-6 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">
+          <button
+            onClick={() => {
+              const id = order._id?.toString().slice(-8).toUpperCase();
+              const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
+              const printDiv = document.createElement('div');
+              printDiv.id = 'invoice-barcode-print-root';
+              printDiv.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:58mm;font-family:Cairo,sans-serif;background:#fff;padding:5mm;box-sizing:border-box;">
+                  <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
+                  <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
+                  <div style="width:100%;height:15mm;">${barcodeSVG}</div>
+                  <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
+                </div>
+                <div style="page-break-after: always;"></div>
+              `;
+              document.body.appendChild(printDiv);
+              setTimeout(() => {
+                window.print();
+                document.body.removeChild(printDiv);
+              }, 100);
+            }}
+            className="rounded-xl border-2 border-burgundy bg-[#F7F0EC] px-4 py-2.5 text-xs font-bold text-burgundy transition hover:bg-burgundy/10"
+          >
+            🏷️ طباعة كود
+          </button>
+          {!isReturned && (
+            <button
+              onClick={() => navigate(`/cashier/pos?edit=${order._id}`)}
+              className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-100 transition"
+            >
+              ✏️ تعديل
+            </button>
+          )}
+          <button onClick={onClose} className="rounded-xl border border-burgundy/20 px-4 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">
             إغلاق
           </button>
         </div>

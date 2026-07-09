@@ -111,6 +111,17 @@ router.get('/weekly', auth, async (req, res) => {
   }
 });
 
+// GET /api/orders/:id — fetch single order
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('customer seller employee', 'name email role');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to fetch order', error: error.message });
+  }
+});
+
 // PATCH /api/orders/:id — update order status (admin only)
 router.patch('/:id', auth, async (req, res) => {
   try {

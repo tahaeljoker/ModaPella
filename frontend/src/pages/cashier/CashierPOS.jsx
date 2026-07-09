@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
@@ -114,31 +116,38 @@ function InvoiceModal({ order, onClose }) {
     
     // Create the HTML for ONE receipt
     const singleReceiptHTML = `
-      <div class="invoice-print-header">
-        <h1>ModaPella</h1>
-        <p>فاتورة بيع | رقم: #${id}</p>
-        <p>${date}</p>
-        ${order.customerName ? `<p>العميل: ${order.customerName} ${order.customerPhone ? `- ${order.customerPhone}` : ''}</p>` : ''}
-        ${order._employeeName ? `<p style="font-size:11px;color:#7C0A12">الموظف: ${order._employeeName}</p>` : ''}
-      </div>
-      <table class="invoice-print-table">
-        <thead><tr><th>المنتج</th><th>المقاس</th><th>اللون</th><th>الكمية</th><th>الإجمالي</th></tr></thead>
-        <tbody>
+      <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:10px;width:58mm;font-size:12px;color:#000;box-sizing:border-box;">
+        <div style="text-align:center;font-weight:bold;font-size:16px;margin-bottom:5px">ModaPella</div>
+        <div style="text-align:center;margin-bottom:10px;font-size:11px;color:#444">فاتورة بيع | رقم: #${id}</div>
+        
+        <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
+          <div><strong>التاريخ:</strong> ${date}</div>
+          ${order.customerName ? `<div><strong>العميل:</strong> ${order.customerName} ${order.customerPhone ? `- ${order.customerPhone}` : ''}</div>` : ''}
+          ${order._employeeName ? `<div><strong>الموظف:</strong> ${order._employeeName}</div>` : ''}
+        </div>
+
+        <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
           ${(order.items || []).map(item => `
-            <tr>
-              <td>${item.name}</td>
-              <td>${item.size || '—'}</td>
-              <td>${item.color || '—'}</td>
-              <td style="text-align:center">${item.quantity}</td>
-              <td style="text-align:left">${Number(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</td>
-            </tr>`).join('')}
-          ${order.discount > 0 ? `<tr><td colspan="4" style="color:#16a34a">خصم</td><td style="color:#16a34a">- ${Number(order.discount).toLocaleString('ar-EG')} ج.م</td></tr>` : ''}
-        </tbody>
-      </table>
-      <div class="invoice-print-total">الإجمالي: ${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م &nbsp;&nbsp; ${order.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي'}</div>
-      <div class="invoice-print-footer">
-        شكراً لتعاملكم مع ModaPella 🎀<br/>
-        تواصل معنا: 01112556672 - 01122372297
+            <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:12px">
+              <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
+              <span>${Number(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="font-weight:bold;font-size:12px">
+          ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${Number(order.discount).toLocaleString('ar-EG')} ج.م</span></div>` : ''}
+          <div style="display:flex;justify-content:space-between;font-size:14px;margin-top:5px">
+            <span>الإجمالي:</span>
+            <span>${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م</span>
+          </div>
+          <div style="font-size:10px;margin-top:2px;font-weight:normal">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
+        </div>
+
+        <div style="text-align:center;margin-top:15px;font-size:10px;color:#444">
+          شكراً لتعاملكم مع ModaPella 🎀<br/>
+          تواصل معنا: 01112556672 - 01122372297
+        </div>
       </div>
       <div style="page-break-after: always;"></div>
     `;
@@ -147,8 +156,35 @@ function InvoiceModal({ order, onClose }) {
     printDiv.innerHTML = Array(copies).fill(singleReceiptHTML).join('');
     
     document.body.appendChild(printDiv);
-    window.print();
-    document.body.removeChild(printDiv);
+    setTimeout(() => {
+      window.print();
+      document.body.removeChild(printDiv);
+    }, 100);
+  };
+
+  const handlePrintBarcode = () => {
+    const printDiv = document.createElement('div');
+    printDiv.id = 'invoice-barcode-print-root';
+    const id = order._id?.toString().slice(-8).toUpperCase();
+    const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
+
+    const singleLabelHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:58mm;height:40mm;font-family:Cairo,sans-serif;background:#fff;padding:5mm;box-sizing:border-box;">
+        <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
+        <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
+        <div style="width:100%;height:15mm;">${barcodeSVG}</div>
+        <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
+      </div>
+      <div style="page-break-after: always;"></div>
+    `;
+
+    printDiv.innerHTML = Array(copies).fill(singleLabelHTML).join('');
+    
+    document.body.appendChild(printDiv);
+    setTimeout(() => {
+      window.print();
+      document.body.removeChild(printDiv);
+    }, 100);
   };
 
   return (
@@ -241,12 +277,20 @@ function InvoiceModal({ order, onClose }) {
             <button onClick={() => setCopies(c => c + 1)} className="w-10 h-10 flex items-center justify-center text-lg font-bold text-burgundy hover:bg-burgundy/10 transition">+</button>
           </div>
           <span className="text-xs font-bold text-burgundy/50 w-8">نسخة</span>
-          <button
-            onClick={handlePrint}
-            className="flex-1 rounded-xl bg-burgundy py-3 text-sm font-bold text-white transition hover:bg-[#650018] shadow-lg shadow-burgundy/20"
-          >
-            🖨️ طباعة الفاتورة
-          </button>
+          <div className="flex gap-2 flex-1">
+            <button
+              onClick={handlePrint}
+              className="flex-1 rounded-xl bg-burgundy py-3 text-xs font-bold text-white transition hover:bg-[#650018] shadow-lg shadow-burgundy/20"
+            >
+              🖨️ طباعة الفاتورة
+            </button>
+            <button
+              onClick={handlePrintBarcode}
+              className="flex-1 rounded-xl bg-[#F7F0EC] border-2 border-burgundy py-3 text-xs font-bold text-burgundy transition hover:bg-burgundy/10 shadow-lg shadow-burgundy/20"
+            >
+              🏷️ طباعة كود
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -274,6 +318,10 @@ function Toast({ toasts }) {
 
 // ─── Main POS ─────────────────────────────────────────────────────────────────
 function CashierPOS() {
+  const [searchParams] = useSearchParams();
+  const editOrderId = searchParams.get('edit');
+  const navigate = useNavigate();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -435,6 +483,39 @@ function CashierPOS() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    if (editOrderId) {
+      api.get(`/orders/${editOrderId}`)
+        .then(res => {
+          const order = res.data;
+          setCustomerName(order.customerName || '');
+          setCustomerPhone(order.customerPhone || '');
+          setDiscount(order.discount || 0);
+          setPaymentMethod(order.paymentMethod || 'Cash');
+          setSelectedEmployee(order.employee?._id || '');
+          
+          const loadedCart = order.items.map(item => ({
+            _cartKey: `${item.product}_${item.size || ''}_${item.color || ''}`,
+            product: item.product,
+            name: item.name,
+            category: item.category,
+            price: item.price,
+            size: item.size || '',
+            color: item.color || '',
+            quantity: item.quantity,
+            maxStock: 9999, // Allow keeping existing quantity
+            allowDiscount: true,
+            costPrice: item.costPrice || 0
+          }));
+          setCart(loadedCart);
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('فشل تحميل بيانات الفاتورة المراد تعديلها', 'error');
+        });
+    }
+  }, [editOrderId]);
 
   useEffect(() => {
     let buffer = '';
@@ -674,7 +755,12 @@ function CashierPOS() {
     }
 
     try {
-      const res = await api.post('/pos/sell', salePayload);
+      let res;
+      if (editOrderId) {
+        res = await api.put(`/pos/orders/${editOrderId}`, salePayload);
+      } else {
+        res = await api.post('/pos/sell', salePayload);
+      }
       const emp = employees.find(e => e._id === selectedEmployee);
       setCompletedOrder({ ...res.data.order, _employeeName: emp?.name || '' });
       setCart([]);
@@ -1336,7 +1422,7 @@ function CashierPOS() {
                     جاري المعالجة...
                   </span>
                 ) : (
-                  `✅ إتمام البيع — ${EGP(totalAfterDiscount)}`
+                  editOrderId ? `✅ حفظ التعديلات — ${EGP(totalAfterDiscount)}` : `✅ إتمام البيع — ${EGP(totalAfterDiscount)}`
                 )}
               </button>
             </div>

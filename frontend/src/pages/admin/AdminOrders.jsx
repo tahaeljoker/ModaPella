@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import { exportToCSV } from '../../services/export';
@@ -16,6 +18,7 @@ const PAY_AR = { Cash: '💵 كاش', Instapay: '📱 انستا باي', Wallet
 const PAY_COLOR = { Cash: 'bg-blue-50 text-blue-700', Instapay: 'bg-violet-50 text-violet-700', Wallet: 'bg-amber-50 text-amber-700' };
 
 function AdminOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -286,7 +289,7 @@ function AdminOrders() {
                         const printDiv = document.createElement('div');
                         printDiv.id = 'receipt-reprint-root';
                         printDiv.innerHTML = `
-                          <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:15px;width:72mm;font-size:12px;color:#000;line-height:1.4">
+                          <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:15px;width:58mm;font-size:12px;color:#000;line-height:1.4">
                             <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:3px">ModaPella 🎠</div>
                             <div style="text-align:center;margin-bottom:12px;font-size:9px;color:#444">إعادة طباعة فاتورة (مسؤول)</div>
                             
@@ -315,23 +318,41 @@ function AdminOrders() {
                           </div>
                         `;
 
-                        const style = document.createElement('style');
-                        style.innerHTML = `
-                          @media print {
-                            body * { visibility: hidden; }
-                            #receipt-reprint-root, #receipt-reprint-root * { visibility: visible; }
-                            #receipt-reprint-root { position: absolute; left: 0; top: 0; }
-                          }
-                        `;
-                        document.head.appendChild(style);
                         document.body.appendChild(printDiv);
-                        window.print();
-                        document.body.removeChild(printDiv);
-                        document.head.removeChild(style);
+                        setTimeout(() => {
+                          window.print();
+                          document.body.removeChild(printDiv);
+                        }, 100);
                       }}
                       className="rounded-xl bg-burgundy text-white px-4 py-2 text-xs font-bold transition hover:bg-[#650018]"
                     >
                       🖨️ طباعة الفاتورة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = order._id?.toString().slice(-8).toUpperCase();
+                        const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
+                        const printDiv = document.createElement('div');
+                        printDiv.id = 'invoice-barcode-print-root';
+                        printDiv.innerHTML = `
+                          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:58mm;font-family:Cairo,sans-serif;background:#fff;padding:5mm;box-sizing:border-box;">
+                            <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
+                            <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
+                            <div style="width:100%;height:15mm;">${barcodeSVG}</div>
+                            <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
+                          </div>
+                          <div style="page-break-after: always;"></div>
+                        `;
+                        document.body.appendChild(printDiv);
+                        setTimeout(() => {
+                          window.print();
+                          document.body.removeChild(printDiv);
+                        }, 100);
+                      }}
+                      className="rounded-xl border-2 border-burgundy bg-[#F7F0EC] px-4 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy/10"
+                    >
+                      🏷️ طباعة كود
                     </button>
                     {order.status === 'Pending' && (
                       <>
@@ -346,10 +367,16 @@ function AdminOrders() {
                       </>
                     )}
                     {order.status === 'Completed' && !order.recovered && (
-                      <button type="button" onClick={() => openReturnModal(order)}
-                        className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
-                        🔄 مرتجع (جزئي أو كامل)
-                      </button>
+                      <>
+                        <button type="button" onClick={() => navigate(`/cashier/pos?edit=${order._id}`)}
+                          className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                          ✏️ تعديل الفاتورة
+                        </button>
+                        <button type="button" onClick={() => openReturnModal(order)}
+                          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
+                          🔄 مرتجع (جزئي أو كامل)
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

@@ -178,53 +178,55 @@ button, input, select, textarea {
   box-shadow: 0 20px 50px rgba(124, 10, 18, 0.12);
 }
 
-/* ─── Print Styles (Invoice) ─────────────────────────────────── */
+/* ─── Print Styles (Invoice & Barcodes) ─────────────────────────────────── */
 @media print {
   @page {
     size: 58mm auto;
     margin: 0;
   }
 
-  /* Hide everything on the page */
-  body > * { display: none !important; }
-
-  /* Show only the invoice print area */
-  #invoice-print-root {
-    display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 58mm !important;
-    background: white;
-    z-index: 9999;
-    padding: 2mm 3mm !important;
-    font-family: Cairo, sans-serif;
-    color: #1a0509;
-    direction: rtl;
-    box-sizing: border-box;
+  /* Hide everything on the page except our print containers */
+  body > div:not(#invoice-print-root):not(#receipt-reprint-root):not(#invoice-barcode-print-root):not(#barcode-print-root) {
+    display: none !important;
   }
 
-  #invoice-print-root * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  /* Styling for print roots */
+  #invoice-print-root, #receipt-reprint-root, #invoice-barcode-print-root, #barcode-print-root {
+    display: block !important;
+    position: relative !important;
+    width: 58mm !important;
+    background: white !important;
+    color: #000 !important;
+    z-index: 9999;
+    font-family: Cairo, Arial, sans-serif;
+    direction: rtl;
+    box-sizing: border-box;
+    padding: 2mm 3mm !important;
+  }
+
+  #invoice-print-root *, #receipt-reprint-root *, #invoice-barcode-print-root *, #barcode-print-root * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color: #000 !important;
+    background-color: transparent !important;
   }
 
   /* Invoice header */
   .invoice-print-header {
     text-align: center;
-    border-bottom: 2px dashed #7C0A12;
+    border-bottom: 2px dashed #000 !important;
     padding-bottom: 8px;
     margin-bottom: 10px;
   }
   .invoice-print-header h1 {
     font-size: 15px;
     font-weight: 900;
-    color: #7C0A12;
+    color: #000 !important;
     margin: 0;
   }
   .invoice-print-header p {
     font-size: 9px;
-    color: #555;
+    color: #000 !important;
     margin: 3px 0 0;
   }
 
@@ -236,32 +238,33 @@ button, input, select, textarea {
     font-size: 9px;
   }
   .invoice-print-table th {
-    background: #f7f0ec;
-    color: #7C0A12;
+    background: #fff !important;
+    color: #000 !important;
     padding: 4px 2px;
     text-align: right;
     font-weight: 700;
-    border-bottom: 1px solid #e0c9c9;
+    border-bottom: 1px solid #000 !important;
   }
   .invoice-print-table td {
     padding: 4px 2px;
-    border-bottom: 1px dashed #f0e8e8;
+    border-bottom: 1px dashed #000 !important;
     vertical-align: middle;
+    color: #000 !important;
   }
   .invoice-print-total {
     margin-top: 10px;
     text-align: left;
     font-size: 11px;
     font-weight: 900;
-    color: #7C0A12;
-    border-top: 2px dashed #7C0A12;
+    color: #000 !important;
+    border-top: 2px dashed #000 !important;
     padding-top: 6px;
   }
   .invoice-print-footer {
     text-align: center;
     margin-top: 15px;
     font-size: 9px;
-    color: #666;
+    color: #000 !important;
     line-height: 1.4;
   }
 }
