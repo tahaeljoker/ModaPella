@@ -244,19 +244,30 @@ function AdminInventory() {
                   <p className="hidden sm:block text-sm font-bold text-burgundy">{EGP(p.price)}</p>
 
                   {/* Stock */}
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-3 py-1 text-sm font-bold ${stockBadge(p.stock)}`}>
-                      {p.stock} قطعة
-                    </span>
-                    {p.variants?.length > 0 && (
-                      <button
-                        onClick={() => setExpanded(expanded === p._id ? null : p._id)}
-                        className="text-xs text-burgundy/40 hover:text-burgundy transition"
-                        title="عرض التفاصيل"
-                      >
-                        {expanded === p._id ? '▲' : '▼'}
-                      </button>
-                    )}
+                  <div className="flex flex-col gap-1 items-start">
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-sm font-bold ${stockBadge(p.stock)}`}>
+                        {p.stock} قطعة
+                      </span>
+                      {p.variants?.length > 0 && (
+                        <button
+                          onClick={() => setExpanded(expanded === p._id ? null : p._id)}
+                          className="text-xs text-burgundy/40 hover:text-burgundy transition"
+                          title="عرض التفاصيل"
+                        >
+                          {expanded === p._id ? '▲' : '▼'}
+                        </button>
+                      )}
+                    </div>
+                    {(() => {
+                      const cStock = products.filter(x => x.name.trim().toLowerCase() === p.name.trim().toLowerCase()).reduce((s, x) => s + (x.stock || 0), 0);
+                      if (cStock > p.stock) {
+                        return (
+                           <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 mt-0.5 w-fit">المجموع الكلي: {cStock}</span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   {/* Action */}

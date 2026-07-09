@@ -126,9 +126,20 @@ function CashierInventory() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`rounded-full px-4 py-1.5 text-sm font-bold ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                      {p.stock} قطعة
-                    </span>
+                    <div className="flex flex-col gap-1 items-end">
+                      <span className={`rounded-full px-4 py-1.5 text-sm font-bold ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {p.stock} قطعة
+                      </span>
+                      {(() => {
+                        const cStock = products.filter(x => x.name.trim().toLowerCase() === p.name.trim().toLowerCase()).reduce((s, x) => s + (x.stock || 0), 0);
+                        if (cStock > p.stock) {
+                          return (
+                             <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 w-fit">المجموع الكلي: {cStock}</span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                     {adjusting === p._id ? (
                       <div className="flex flex-wrap items-center gap-2">
                         {p.variants && p.variants.length > 0 && (
