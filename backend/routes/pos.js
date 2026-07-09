@@ -83,6 +83,9 @@ router.post('/sell', auth, async (req, res) => {
       } else {
         product.stock = Math.max(0, product.stock - item.quantity);
       }
+      if (product.variants && product.variants.length > 0) {
+        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      }
       product.sold += item.quantity;
       await product.save();
 
@@ -216,6 +219,9 @@ router.post('/recover', auth, async (req, res) => {
         prevStock = product.stock;
         product.stock += item.quantity;
       }
+      if (product.variants && product.variants.length > 0) {
+        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      }
       product.sold = Math.max(0, product.sold - item.quantity);
       await product.save();
 
@@ -283,6 +289,9 @@ router.patch('/storage/:productId', auth, async (req, res) => {
     } else {
       prevStock = product.stock;
       product.stock = Math.max(0, product.stock + Number(adjustment));
+    }
+    if (product.variants && product.variants.length > 0) {
+      product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
     }
     await product.save();
 
