@@ -59,7 +59,7 @@ function EmployeeModal({ employee, onClose, onSave }) {
 }
 
 // ─── Employee Stats Modal ──────────────────────────────────────────────────────
-const CAT_AR = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت' };
+const CAT_AR = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك' };
 
 function EmployeeStatsModal({ employee, onClose }) {
   const [stats, setStats] = useState(null);

@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const CATEGORIES = ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit'];
-const CAT_AR = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت' };
+const CATEGORIES = ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic'];
+const CAT_AR = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك' };
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
 const getProductIcon = (category = '', name = '') => {
   const cat = (category || '').toLowerCase();
   const nm = (name || '').toLowerCase();
+  if (cat.includes('tonic') || cat.includes('تونيك') || nm.includes('تونيك')) return '👚';
   if (cat.includes('suit') || cat.includes('سوت') || nm.includes('سوت')) return '👔';
   if (cat.includes('bag') || cat.includes('حقيبة') || cat.includes('شنط') || nm.includes('شنط') || nm.includes('حقيب')) return '👜';
   if (cat.includes('dress') || cat.includes('فستان') || cat.includes('دريس') || nm.includes('فستان') || nm.includes('دريس')) return '👗';

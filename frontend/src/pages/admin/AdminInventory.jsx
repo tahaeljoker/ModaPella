@@ -5,7 +5,7 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 const CAT_AR = {
   Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة',
   Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت',
-  Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت',
+  Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك'
 };
 const CATS = ['الكل', ...Object.keys(CAT_AR)];
 
