@@ -261,6 +261,8 @@ function StockHistoryModal({ productId, onClose }) {
 
 const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', sku: '' };
 
+const ENABLE_VARIANTS = false; // Toggle to false to exclude sizes, colors, and variants
+
 // ─── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSave }) {
   const [form, setForm] = useState(product || emptyProduct);
@@ -288,8 +290,8 @@ function ProductModal({ product, onClose, onSave }) {
   }, [product]);
 
   const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : str) : [];
-  const parsedSizes = getParsedItems(form.sizes);
-  const parsedColors = getParsedItems(form.colors);
+  const parsedSizes = ENABLE_VARIANTS ? getParsedItems(form.sizes) : [];
+  const parsedColors = ENABLE_VARIANTS ? getParsedItems(form.colors) : [];
   const [variantStocks, setVariantStocks] = useState(() => {
     const initial = {};
     if (product?.variants) product.variants.forEach(v => { initial[`${v.size || ''}_${v.color || ''}`] = v.stock; });
@@ -457,14 +459,16 @@ function ProductModal({ product, onClose, onSave }) {
           <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">روابط الصور (سطر لكل رابط)</label>
             <textarea name="images" value={typeof form.images === 'string' ? form.images : (form.images || []).join('\n')} onChange={handleChange} className={`${inp} min-h-[70px]`} placeholder="https://example.com/image.jpg" />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات (بفاصلة)</label>
-              <input name="sizes" value={typeof form.sizes === 'string' ? form.sizes : (form.sizes || []).join(', ')} onChange={handleChange} className={inp} placeholder="S, M, L, XL" />
+          {ENABLE_VARIANTS && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات (بفاصلة)</label>
+                <input name="sizes" value={typeof form.sizes === 'string' ? form.sizes : (form.sizes || []).join(', ')} onChange={handleChange} className={inp} placeholder="S, M, L, XL" />
+              </div>
+              <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان (بفاصلة)</label>
+                <input name="colors" value={typeof form.colors === 'string' ? form.colors : (form.colors || []).join(', ')} onChange={handleChange} className={inp} placeholder="أبيض, أسود, بورجندي" />
+              </div>
             </div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان (بفاصلة)</label>
-              <input name="colors" value={typeof form.colors === 'string' ? form.colors : (form.colors || []).join(', ')} onChange={handleChange} className={inp} placeholder="أبيض, أسود, بورجندي" />
-            </div>
-          </div>
+          )}
           {hasVariants && (
             <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-5 space-y-3 shadow-inner max-h-[220px] overflow-y-auto">
               <p className="text-xs font-bold uppercase tracking-wider text-burgundy/60">🔢 مخزون المقاسات والألوان</p>
