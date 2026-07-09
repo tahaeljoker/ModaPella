@@ -415,6 +415,13 @@ function SupplierDetailModal({ supplierId, onClose }) {
           {/* ── Products Tab ── */}
           {activeTab === 'products' && (
             <div className="p-5">
+              {!productsLoading && supplierProducts.length > 0 && (
+                <div className="flex items-center justify-between mb-4 text-xs font-bold text-burgundy/80 bg-white shadow-sm p-4 rounded-2xl border border-burgundy/10">
+                  <span>إجمالي الموديلات: <span className="text-burgundy text-sm">{supplierProducts.length}</span></span>
+                  <span>إجمالي القطع المتوفرة: <span className="text-emerald-700 text-sm">{supplierProducts.reduce((s, p) => s + (p.stock || 0), 0)}</span> قطعة</span>
+                </div>
+              )}
+
               {productsLoading ? (
                 <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
               ) : supplierProducts.length === 0 ? (
@@ -633,6 +640,7 @@ function AdminSuppliers() {
                 <div>
                   <p className="font-semibold text-sm">{sup.name}</p>
                   {sup.address && <p className="text-xs text-burgundy/40 mt-0.5">📍 {sup.address}</p>}
+                  <p className="text-xs text-emerald-700 font-bold mt-1">📦 {sup.totalPieces || 0} قطعة / {sup.productCount || 0} منتج</p>
                 </div>
                 <p className="text-sm text-burgundy/60 font-mono">{sup.phone || '—'}</p>
                 <p className="text-sm font-bold text-red-600">{EGP(sup.totalPurchased)}</p>

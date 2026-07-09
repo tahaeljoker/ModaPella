@@ -17,10 +17,15 @@ router.get('/', auth, requireRole(ADMIN), async (req, res) => {
     // compute balance for each
     const result = await Promise.all(suppliers.map(async (s) => {
       const txs = await SupplierTransaction.find({ supplier: s._id });
+      const products = await Product.find({ supplier: s.name });
       const totalPurchased = txs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
       const totalPaid      = txs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
       const balance = totalPurchased - totalPaid; // المبلغ المستحق للمورد
-      return { ...s.toObject(), totalPurchased, totalPaid, balance };
+      
+      const productCount = products.length;
+      const totalPieces = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+
+      return { ...s.toObject(), totalPurchased, totalPaid, balance, productCount, totalPieces };
     }));
     res.json(result);
   } catch (e) {
