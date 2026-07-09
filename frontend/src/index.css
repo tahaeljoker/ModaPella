@@ -185,15 +185,17 @@ button, input, select, textarea {
     margin: 0;
   }
 
-  /* Hide everything on the page except our print containers */
-  body > div:not(#invoice-print-root):not(#receipt-reprint-root):not(#invoice-barcode-print-root):not(#barcode-print-root) {
+  /* Hide everything on the page */
+  body > * {
     display: none !important;
   }
 
   /* Styling for print roots */
   #invoice-print-root, #receipt-reprint-root, #invoice-barcode-print-root, #barcode-print-root {
     display: block !important;
-    position: relative !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 58mm !important;
     background: white !important;
     color: #000 !important;
