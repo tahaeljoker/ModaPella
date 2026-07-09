@@ -851,6 +851,10 @@ function CashierPOS() {
                   <p className="text-xs text-burgundy/40 mt-0.5">منتج متاح</p>
                 </div>
                 <div className="bg-white rounded-2xl px-5 py-3 text-center shadow-sm border border-burgundy/8">
+                  <p className="text-2xl font-bold text-burgundy">{products.reduce((s, p) => s + (p.stock || 0), 0)}</p>
+                  <p className="text-xs text-burgundy/40 mt-0.5">قطعة بالمخزن</p>
+                </div>
+                <div className="bg-white rounded-2xl px-5 py-3 text-center shadow-sm border border-burgundy/8">
                   <p className="text-2xl font-bold text-burgundy">{cart.length}</p>
                   <p className="text-xs text-burgundy/40 mt-0.5">في الفاتورة</p>
                 </div>

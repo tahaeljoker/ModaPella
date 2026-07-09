@@ -248,16 +248,17 @@ function AdminOverview() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard label={dateFrom || dateTo ? 'الطلبات (الفترة)' : 'الطلبات المكتملة'} value={summary.completed} icon="✅" />
         <StatCard label={dateFrom || dateTo ? 'المرتجعات (الفترة)' : 'المرتجعات'} value={summary.returned} icon="🔄" />
-        <StatCard label="عدد المنتجات" value={overview?.products ?? 0} icon="🛍️" />
+        <StatCard label="المنتجات المسجلة" value={overview?.products ?? 0} icon="🛍️" />
+        <StatCard label="إجمالي القطع بالمخزن" value={overview?.totalStock ? `${overview.totalStock.toLocaleString('ar-EG')} قطعة` : '0 قطعة'} icon="📦" />
         <StatCard
           label="تنبيهات المخزون"
           value={overview?.lowStock?.length ?? 0}
           icon="⚠️"
           color={overview?.lowStock?.length > 0 ? 'bg-amber-50' : 'bg-white'}
-          sub={overview?.lowStock?.length > 0 ? 'منتج يحتاج إعادة تعبئة' : 'المخزون بخير'}
+          sub={overview?.lowStock?.length > 0 ? 'يحتاج تعبئة' : 'المخزون بخير'}
         />
       </div>
 
