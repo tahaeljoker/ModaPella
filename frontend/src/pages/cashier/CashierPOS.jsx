@@ -5,6 +5,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
 const CATEGORY_LABELS = {
+  Blazer: 'بليزر',
   Blouse: 'بلوزة',
   Chemise: 'شميز',
   Skirt: 'جيبة',
@@ -30,6 +31,7 @@ const getProductIcon = (category = '', name = '') => {
   if (cat.includes('t-shirt') || cat.includes('تيشرت') || cat.includes('تي شيرت') || nm.includes('تيشرت') || nm.includes('تي شيرت')) return '👕';
   if (cat.includes('shirt') || cat.includes('قميص') || nm.includes('قميص') || nm.includes('شيرت')) return '👔';
   if (cat.includes('pants') || cat.includes('trousers') || cat.includes('بنطلون') || cat.includes('جينز') || nm.includes('بنطلون') || nm.includes('جينز')) return '👖';
+  if (cat.includes('blazer') || cat.includes('بليزر') || nm.includes('بليزر')) return '🧥';
   if (cat.includes('jacket') || cat.includes('جاكيت') || cat.includes('معطف') || cat.includes('بالتو') || nm.includes('جاكيت') || nm.includes('معطف')) return '🧥';
   if (cat.includes('skirt') || cat.includes('جيب') || cat.includes('تنورة') || nm.includes('جيب') || nm.includes('تنورة')) return '👗';
   if (cat.includes('wallet') || cat.includes('محفظة') || cat.includes('بورتفيه') || nm.includes('محفظة') || nm.includes('بورتفيه')) return '👛';
@@ -574,6 +576,7 @@ function CashierPOS() {
       quantity,
       maxStock: availableStock,
       image: selectedProduct.images?.[0] || '',
+      allowDiscount: selectedProduct.allowDiscount !== false,
     };
 
     setCart(prev => {
@@ -602,9 +605,10 @@ function CashierPOS() {
   const removeItem = (key) => setCart(prev => prev.filter(i => i._cartKey !== key));
 
   const rawTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const discountableTotal = cart.filter(i => i.allowDiscount).reduce((s, i) => s + i.price * i.quantity, 0);
   const discountAmount = discountType === 'percent'
-    ? Math.min(rawTotal, rawTotal * Math.min(Number(discount || 0), 100) / 100)
-    : Math.min(rawTotal, Number(discount || 0));
+    ? Math.min(discountableTotal, discountableTotal * Math.min(Number(discount || 0), 100) / 100)
+    : Math.min(discountableTotal, Number(discount || 0));
   const totalAfterDiscount = Math.max(0, rawTotal - discountAmount);
   const change = paymentMethod === 'Cash' && amountPaid ? Math.max(0, Number(amountPaid) - totalAfterDiscount) : 0;
 
@@ -1089,6 +1093,9 @@ function CashierPOS() {
                           <span className="text-[10px] text-burgundy/30 opacity-0 group-hover/price:opacity-100 transition">✏️</span>
                         </button>
                       )}
+                      {!item.allowDiscount && (
+                        <p className="mt-1 text-[10px] text-red-600 bg-red-50 inline-block px-1.5 py-0.5 rounded border border-red-100 font-bold">🚫 غير مسموح بالخصم</p>
+                      )}
                     </div>
                     <button
                       onClick={() => removeItem(item._cartKey)}
@@ -1161,7 +1168,8 @@ function CashierPOS() {
                     max={discountType === 'percent' ? 100 : undefined}
                     onChange={e => setDiscount(e.target.value)}
                     placeholder="0"
-                    className="flex-1 text-sm text-burgundy bg-transparent outline-none w-16 text-left"
+                    disabled={discountableTotal === 0 && cart.length > 0}
+                    className="flex-1 text-sm text-burgundy bg-transparent outline-none w-16 text-left disabled:opacity-50"
                   />
                   <span className="text-xs text-burgundy/40">{discountType === 'percent' ? '%' : 'ج.م'}</span>
                 </div>
@@ -1172,6 +1180,13 @@ function CashierPOS() {
                   </span>
                 )}
               </div>
+              
+              {cart.length > 0 && discountableTotal < rawTotal && (
+                 <div className="mt-1 flex items-center justify-between text-[10px]">
+                   <span className="text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100">⚠️ يوجد منتجات في الفاتورة لا تقبل الخصم</span>
+                   <span className="text-burgundy/50">المبلغ الخاضع للخصم: {EGP(discountableTotal)}</span>
+                 </div>
+              )}
 
               {/* Total */}
               <div className="flex justify-between items-center py-2 border-t border-burgundy/10">

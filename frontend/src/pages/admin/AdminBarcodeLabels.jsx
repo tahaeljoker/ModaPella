@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 
 const CATEGORY_LABELS = {
+  Blazer: 'بليزر',
   Blouse: 'بلوزة',
   Chemise: 'شميز',
   Skirt: 'جيبة',

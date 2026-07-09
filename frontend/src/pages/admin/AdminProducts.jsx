@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const CATEGORIES = ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
-const CAT_AR = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
+const CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
+const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
 const getProductIcon = (category = '', name = '') => {
@@ -18,6 +18,7 @@ const getProductIcon = (category = '', name = '') => {
   if (cat.includes('t-shirt') || cat.includes('تيشرت') || cat.includes('تي شيرت') || nm.includes('تيشرت') || nm.includes('تي شيرت')) return '👕';
   if (cat.includes('shirt') || cat.includes('قميص') || nm.includes('قميص') || nm.includes('شيرت')) return '👔';
   if (cat.includes('pants') || cat.includes('trousers') || cat.includes('بنطلون') || cat.includes('جينز') || nm.includes('بنطلون') || nm.includes('جينز')) return '👖';
+  if (cat.includes('blazer') || cat.includes('بليزر') || nm.includes('بليزر')) return '🧥';
   if (cat.includes('jacket') || cat.includes('جاكيت') || cat.includes('معطف') || cat.includes('بالتو') || nm.includes('جاكيت') || nm.includes('معطف')) return '🧥';
   if (cat.includes('skirt') || cat.includes('جيب') || cat.includes('تنورة') || nm.includes('جيب') || nm.includes('تنورة')) return '👗';
   if (cat.includes('wallet') || cat.includes('محفظة') || cat.includes('بورتفيه') || nm.includes('محفظة') || nm.includes('بورتفيه')) return '👛';
@@ -261,7 +262,7 @@ function StockHistoryModal({ productId, onClose }) {
   );
 }
 
-const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', sku: '' };
+const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', allowDiscount: true };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
@@ -396,8 +397,10 @@ function ProductModal({ product, onClose, onSave }) {
               <div className="flex justify-between items-center mb-1">
                 <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">الشركة الموردة / الماركة</label>
                 <button
-                  type="button"
-                  onClick={() => setIsManualSupplier(!isManualSupplier)}
+                  onClick={() => {
+                    setIsManualSupplier(!isManualSupplier);
+                    setForm(p => ({ ...p, supplier: '', supplierId: null }));
+                  }}
                   className="text-[10px] text-burgundy bg-burgundy/5 px-2.5 py-1 rounded-xl hover:bg-burgundy/10 font-bold transition"
                 >
                   {isManualSupplier ? '📋 اختيار من المسجلين' : '✍️ كتابة مورد غير مسجل'}
@@ -407,7 +410,7 @@ function ProductModal({ product, onClose, onSave }) {
                 <input
                   name="supplier"
                   value={form.supplier}
-                  onChange={handleChange}
+                  onChange={(e) => setForm(p => ({ ...p, supplier: e.target.value, supplierId: null }))}
                   className={inp}
                   placeholder="مثال: Zara, H&M..."
                 />
@@ -415,7 +418,14 @@ function ProductModal({ product, onClose, onSave }) {
                 <select
                   name="supplier"
                   value={form.supplier}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    const selected = suppliers.find(s => s.name === e.target.value);
+                    setForm(p => ({
+                      ...p,
+                      supplier: e.target.value,
+                      supplierId: selected?._id || null
+                    }));
+                  }}
                   className={inp}
                 >
                   <option value="">-- اختر مورد من القائمة --</option>
@@ -455,6 +465,21 @@ function ProductModal({ product, onClose, onSave }) {
                   ⚙️ سيتولد الكود تلقائياً من النظام (مثال: DRE-1001)
                 </p>
               )}
+            </div>
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 cursor-pointer bg-burgundy/5 p-3 rounded-xl border border-burgundy/10 hover:bg-burgundy/10 transition">
+                <input
+                  type="checkbox"
+                  name="allowDiscount"
+                  checked={form.allowDiscount !== false}
+                  onChange={(e) => setForm(p => ({ ...p, allowDiscount: e.target.checked }))}
+                  className="w-5 h-5 accent-burgundy cursor-pointer"
+                />
+                <div>
+                  <span className="block text-sm font-bold text-burgundy">مسموح بالخصم لهذا المنتج؟</span>
+                  <span className="block text-[10px] text-burgundy/60">لو تم إلغاء التفعيل، الكاشير مش هيقدر يضيف أي خصم على المنتج ده</span>
+                </div>
+              </label>
             </div>
           </div>
           <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الوصف</label><textarea name="description" value={form.description} onChange={handleChange} className={`${inp} min-h-[80px]`} /></div>
@@ -736,6 +761,7 @@ function InventoryTab({ products, loading, onRefresh }) {
                       <p className="font-semibold text-sm truncate">{p.name}</p>
                       {p.sku && <p className="text-xs text-burgundy/40 font-mono">{p.sku}</p>}
                       {p.supplier && <p className="text-xs text-burgundy/40">🏭 {p.supplier}</p>}
+                      {p.allowDiscount === false && <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">🚫 غير مسموح بالخصم</span>}
                     </div>
                   </div>
                   <span className="hidden sm:inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">{CAT_AR[p.category] || p.category}</span>

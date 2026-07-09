@@ -132,7 +132,7 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
 }
 
 // ─── Supplier Detail Modal ─────────────────────────────────────────────────────
-const CAT_AR_SUP = { Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
+const CAT_AR_SUP = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP_S = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
 
 function SupplierDetailModal({ supplierId, onClose }) {
@@ -157,7 +157,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
 
   const loadProducts = () => {
     setProductsLoading(true);
-    api.get('/products')
+    api.get(`/suppliers/${supplierId}/products`)
       .then(r => setProducts(r.data || []))
       .catch(console.error)
       .finally(() => setProductsLoading(false));
@@ -165,9 +165,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
 
   useEffect(() => { load(); loadProducts(); }, [supplierId]);
 
-  const supplierProducts = data?.supplier?.name
-    ? products.filter(p => p.supplier && p.supplier.trim() === data.supplier.name.trim())
-    : [];
+  const supplierProducts = products;
 
   const handleDeleteTx = async () => {
     await api.delete(`/suppliers/${supplierId}/transactions/${deleteTxId}`);

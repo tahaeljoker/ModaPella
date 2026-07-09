@@ -4,7 +4,7 @@ const ProductSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   category: {
     type: String,
-    enum: ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'],
+    enum: ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'],
     required: true
   },
   description: { type: String, default: '' },
@@ -23,7 +23,9 @@ const ProductSchema = new mongoose.Schema({
   type: { type: String, default: '' },
   sku: { type: String, unique: true, sparse: true },
   supplier: { type: String, default: '' },
-  active: { type: Boolean, default: true }
+  supplierId: { type: require('mongoose').Schema.Types.ObjectId, ref: 'Supplier', default: null },
+  active: { type: Boolean, default: true },
+  allowDiscount: { type: Boolean, default: true }
 }, { timestamps: true });
 
 ProductSchema.pre('save', function (next) {

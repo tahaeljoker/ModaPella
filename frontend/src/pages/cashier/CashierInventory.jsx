@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
-const CAT_AR = { Blouse: 'بلوزة', Chemise: 'قميص', Skirt: 'تنورة', Dress: 'فستان', Pantalon: 'بنطال', 'T-shirt': 'تيشيرت', Portefeuille: 'محفظة', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
+const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'قميص', Skirt: 'تنورة', Dress: 'فستان', Pantalon: 'بنطال', 'T-shirt': 'تيشيرت', Portefeuille: 'محفظة', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 
 function CashierInventory() {
   const [products, setProducts] = useState([]);

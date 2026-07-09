@@ -5,6 +5,7 @@ import ProductCard from '../components/ProductCard';
 
 const categoryLabels = {
   All: 'كل الفئات',
+  Blazer: 'بليزر',
   Blouse: 'بلوزة',
   Chemise: 'قميص',
   Skirt: 'تنورة',

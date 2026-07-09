@@ -5,6 +5,7 @@ const Supplier = require('../models/Supplier');
 const SupplierTransaction = require('../models/SupplierTransaction');
 const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
+const Product = require('../models/Product');
 
 const router = express.Router();
 const ADMIN = ['admin'];
@@ -170,6 +171,27 @@ router.delete('/:id/transactions/:txId', auth, requireRole(ADMIN), async (req, r
     res.json({ message: 'Transaction deleted' });
   } catch (e) {
     res.status(500).json({ message: 'Unable to delete transaction', error: e.message });
+  }
+});
+
+// GET /api/suppliers/:id/products — get all products linked to this supplier
+router.get('/:id/products', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
+
+    // Support both supplierId (ObjectId) and legacy name-based matching
+    const products = await Product.find({
+      active: true,
+      $or: [
+        { supplierId: req.params.id },
+        { supplier: supplier.name }
+      ]
+    }).sort({ createdAt: -1 });
+
+    res.json(products);
+  } catch (e) {
+    res.status(500).json({ message: 'Unable to load supplier products', error: e.message });
   }
 });
 
