@@ -89,7 +89,7 @@ function saveInvoiceAsHTML(order) {
 ${order._employeeName ? `<div class="emp">الموظف: ${order._employeeName}</div>` : ''}
 <div class="footer">
   شكراً لتعاملكم مع ModaPella 🎀<br/>
-  تواصل معنا: 01112556672 - 01122372297
+  تواصل معنا: 01090048832
 </div>
 </body></html>`;
 
@@ -146,7 +146,7 @@ function InvoiceModal({ order, onClose }) {
 
         <div style="text-align:center;margin-top:15px;font-size:10px;color:#444">
           شكراً لتعاملكم مع ModaPella 🎀<br/>
-          تواصل معنا: 01112556672 - 01122372297
+          تواصل معنا: 01090048832
         </div>
       </div>
       <div style="page-break-after: always;"></div>
@@ -250,7 +250,7 @@ function InvoiceModal({ order, onClose }) {
 
           <div className="border-t border-dashed border-burgundy/20" />
           <p className="text-center text-xs text-burgundy/40">شكراً لتعاملكم معنا 🎀</p>
-          <p className="text-center text-[10px] text-burgundy/30">تواصل معنا: 01112556672 - 01122372297</p>
+          <p className="text-center text-[10px] text-burgundy/30">تواصل معنا: 01090048832</p>
         </div>
 
         {/* Actions */}
@@ -495,19 +495,27 @@ function CashierPOS() {
           setPaymentMethod(order.paymentMethod || 'Cash');
           setSelectedEmployee(order.employee?._id || '');
           
-          const loadedCart = order.items.map(item => ({
-            _cartKey: `${item.product}_${item.size || ''}_${item.color || ''}`,
-            product: item.product,
-            name: item.name,
-            category: item.category,
-            price: item.price,
-            size: item.size || '',
-            color: item.color || '',
-            quantity: item.quantity,
-            maxStock: 9999, // Allow keeping existing quantity
-            allowDiscount: true,
-            costPrice: item.costPrice || 0
-          }));
+          const loadedCart = (order.items || [])
+            .filter(item => item)
+            .map(item => {
+              const productId = item.product && typeof item.product === 'object'
+                ? item.product._id
+                : item.product;
+              
+              return {
+                _cartKey: `${productId || 'unknown'}_${item.size || ''}_${item.color || ''}`,
+                product: productId || '',
+                name: item.name || 'منتج غير معروف',
+                category: item.category || '',
+                price: item.price || 0,
+                size: item.size || '',
+                color: item.color || '',
+                quantity: item.quantity || 1,
+                maxStock: 9999,
+                allowDiscount: true,
+                costPrice: item.costPrice || 0
+              };
+            });
           setCart(loadedCart);
         })
         .catch(err => {
