@@ -261,7 +261,7 @@ function StockHistoryModal({ productId, onClose }) {
 
 const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', sku: '' };
 
-const ENABLE_VARIANTS = false; // Toggle to false to exclude sizes, colors, and variants
+const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSave }) {
@@ -290,8 +290,8 @@ function ProductModal({ product, onClose, onSave }) {
   }, [product]);
 
   const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : str) : [];
-  const parsedSizes = ENABLE_VARIANTS ? getParsedItems(form.sizes) : [];
-  const parsedColors = ENABLE_VARIANTS ? getParsedItems(form.colors) : [];
+  const parsedSizes = getParsedItems(form.sizes);
+  const parsedColors = getParsedItems(form.colors);
   const [variantStocks, setVariantStocks] = useState(() => {
     const initial = {};
     if (product?.variants) product.variants.forEach(v => { initial[`${v.size || ''}_${v.color || ''}`] = v.stock; });
@@ -299,8 +299,8 @@ function ProductModal({ product, onClose, onSave }) {
   });
   const handleChange = (e) => { const { name, value } = e.target; setForm(p => ({ ...p, [name]: value })); };
   const hasVariants = parsedSizes.length > 0 || parsedColors.length > 0;
-  const activeSizes = parsedSizes.length > 0 ? parsedSizes : [''];
-  const activeColors = parsedColors.length > 0 ? parsedColors : [''];
+  const activeSizes = parsedSizes.length > 0 ? parsedSizes : (parsedColors.length > 0 ? ['-'] : []);
+  const activeColors = parsedColors.length > 0 ? parsedColors : (parsedSizes.length > 0 ? ['-'] : []);
   const combinations = [];
   if (hasVariants) activeSizes.forEach(size => activeColors.forEach(color => combinations.push({ size, color })));
   const totalVariantStock = hasVariants
@@ -314,7 +314,7 @@ function ProductModal({ product, onClose, onSave }) {
         ...form, price: Number(form.price), stock: totalVariantStock,
         variants: hasVariants ? combinations.map(c => ({ size: c.size, color: c.color, stock: variantStocks[`${c.size}_${c.color}`] || 0 })) : [],
         images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
-        sizes: parsedSizes, colors: parsedColors,
+        sizes: activeSizes, colors: activeColors,
       };
       await onSave(payload); onClose();
     } catch (e) { console.error(e); } finally { setLoading(false); }
