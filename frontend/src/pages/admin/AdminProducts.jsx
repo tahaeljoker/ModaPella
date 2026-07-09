@@ -657,6 +657,7 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
 function InventoryTab({ products, loading, onRefresh }) {
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('الكل');
+  const [filterSupplier, setFilterSupplier] = useState('الكل');
   const [filterStock, setFilterStock] = useState('all');
   const [adjusting, setAdjusting]   = useState(null);
   const [adjValue, setAdjValue]     = useState('');
@@ -689,11 +690,14 @@ function InventoryTab({ products, loading, onRefresh }) {
 
   const stockBadge = (s) => s === 0 ? 'bg-red-100 text-red-600' : s <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
 
+  const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
+
   const filtered = products.filter(p => {
     const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase()) || (CAT_AR[p.category] || '').includes(search);
     const mc = filterCat === 'الكل' || p.category === filterCat;
     const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
-    return ms && mc && mk;
+    const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
+    return ms && mc && mk && mSup;
   });
 
   const totalItems = filtered.reduce((s, p) => s + p.stock, 0);
@@ -727,6 +731,12 @@ function InventoryTab({ products, loading, onRefresh }) {
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
           {['الكل', ...CATEGORIES].map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : CAT_AR[c]}</option>)}
+        </select>
+        <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
+          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
+          <option value="الكل">كل الموردين</option>
+          {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
+          <option value="بدون مورد">بدون مورد</option>
         </select>
         <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden">
           {[{ id: 'all', l: 'الكل' }, { id: 'low', l: '⚠️ منخفض' }, { id: 'out', l: '❌ نفد' }].map(f => (

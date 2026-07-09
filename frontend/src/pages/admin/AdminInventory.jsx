@@ -14,6 +14,7 @@ function AdminInventory() {
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('الكل');
+  const [filterSupplier, setFilterSupplier] = useState('الكل');
   const [filterStock, setFilterStock] = useState('all'); // all | low | out
   const [adjusting, setAdjusting]   = useState(null);   // product id
   const [adjValue, setAdjValue]     = useState('');
@@ -75,6 +76,8 @@ function AdminInventory() {
   };
 
   // ── Filters ────────────────────────────────────────────────────────────────
+  const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
+
   const filtered = products.filter(p => {
     const matchSearch = !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -85,7 +88,9 @@ function AdminInventory() {
       filterStock === 'all' ? true :
       filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) :
       filterStock === 'out' ? p.stock === 0 : true;
-    return matchSearch && matchCat && matchStock;
+    const matchSupplier = filterSupplier === 'الكل' ? true : 
+                          (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
+    return matchSearch && matchCat && matchStock && matchSupplier;
   });
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -177,6 +182,15 @@ function AdminInventory() {
           className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none"
         >
           {CATS.map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : CAT_AR[c] || c}</option>)}
+        </select>
+        <select
+          value={filterSupplier}
+          onChange={e => setFilterSupplier(e.target.value)}
+          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none"
+        >
+          <option value="الكل">كل الموردين</option>
+          {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
+          <option value="بدون مورد">بدون مورد</option>
         </select>
         <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden">
           {[

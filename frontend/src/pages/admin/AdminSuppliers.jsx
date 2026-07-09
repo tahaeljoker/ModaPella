@@ -556,6 +556,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
 
 function AdminSuppliers() {
   const [suppliers, setSuppliers] = useState([]);
+  const [unassignedCount, setUnassignedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -566,7 +567,15 @@ function AdminSuppliers() {
 
   const load = async () => {
     setLoading(true);
-    try { const r = await api.get('/suppliers'); setSuppliers(r.data); }
+    try { 
+      const [rSup, rInv] = await Promise.all([
+        api.get('/suppliers'),
+        api.get('/cashier/inventory')
+      ]);
+      setSuppliers(rSup.data);
+      const unassigned = rInv.data.filter(p => !p.supplier || p.supplier.trim() === '').length;
+      setUnassignedCount(unassigned);
+    }
     catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -591,7 +600,7 @@ function AdminSuppliers() {
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-xl">{toast}</div>}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
           <h2 className="text-2xl font-bold">🏭 حسابات الموردين</h2>
@@ -601,6 +610,16 @@ function AdminSuppliers() {
           + إضافة مورد
         </button>
       </div>
+
+      {unassignedCount > 0 && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+          <p className="text-2xl">⚠️</p>
+          <div>
+            <p className="font-bold text-amber-800">تنبيه: {unassignedCount} منتج بدون مورد</p>
+            <p className="text-xs text-amber-700/70 mt-0.5">يوجد منتجات غير مسجل لها مورد. يمكنك الدخول لشاشة "جرد المخزون" وفلترتها لمعرفتها.</p>
+          </div>
+        </div>
+      )}
 
       {/* Summary card */}
       {suppliers.length > 0 && (
