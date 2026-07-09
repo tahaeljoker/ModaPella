@@ -561,6 +561,10 @@ function CashierPOS() {
     return selectedProduct.stock || 0;
   })();
 
+  const combinedSupplierStock = selectedProduct
+    ? products.filter(p => p.name.trim().toLowerCase() === selectedProduct.name.trim().toLowerCase()).reduce((s, p) => s + (p.stock || 0), 0)
+    : 0;
+
   // ── Add to cart ───────────────────────────────────────────────────────────
   const addToCart = () => {
     if (!selectedProduct) return;
@@ -894,6 +898,17 @@ function CashierPOS() {
                         <span className="inline-block text-[10px] text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100 font-bold">🚫 هذا المنتج غير خاضع للخصومات</span>
                       </div>
                     )}
+                    
+                    <div className="mt-3 bg-burgundy/5 px-3 py-2 rounded-xl border border-burgundy/10">
+                      <p className="text-[10px] text-burgundy/60 font-semibold mb-0.5">📦 إحصائيات التوفر:</p>
+                      <p className="text-xs text-burgundy font-bold">رصيد المورد الحالي: {selectedProduct.stock}</p>
+                      {combinedSupplierStock > selectedProduct.stock && (
+                        <p className="text-xs text-emerald-700 font-bold mt-0.5 pt-0.5 border-t border-burgundy/10">
+                          الإجمالي (جميع الموردين لنفس الموديل): {combinedSupplierStock} قطعة
+                        </p>
+                      )}
+                    </div>
+                    
                     <p className="mt-2 text-2xl font-extrabold text-burgundy">{EGP(selectedProduct.price)}</p>
                   </div>
                   {/* Close */}
