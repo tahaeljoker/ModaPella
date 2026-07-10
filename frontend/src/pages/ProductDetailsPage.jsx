@@ -67,25 +67,25 @@ function ProductDetailsPage() {
   };
 
   return (
-    <section className="space-y-10 py-10 text-burgundy">
-      <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-10 shadow-soft">
+    <section className="space-y-6 sm:space-y-10 py-4 sm:py-10 text-burgundy">
+      <div className="rounded-2xl sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-4 sm:p-10 shadow-soft">
         <Link to="/shop" className="text-sm text-burgundy/70 underline">عودة إلى المتجر</Link>
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="overflow-hidden rounded-[2rem] bg-beige/10 aspect-[4/3] sm:aspect-[3/2]">
+        <div className="mt-6 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="overflow-hidden rounded-xl sm:rounded-[2rem] bg-beige/10 aspect-[4/3] sm:aspect-[3/2]">
             <LazyImage src={image} alt={product.name} className="w-full h-full" />
           </div>
-          <div className="space-y-6">
-            <p className="text-sm font-medium uppercase tracking-[0.35em] text-burgundy/70">{product.category}</p>
-            <h1 className="text-2xl sm:text-4xl font-semibold">{product.name}</h1>
-            <p className="text-lg leading-8 text-burgundy/80">{product.description || 'وصف مميز للمنتج يعرض تفاصيل التصميم والجودة.'}</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[1.75rem] border border-burgundy/10 bg-white p-6 text-burgundy/80">
-                <h2 className="text-sm font-semibold text-burgundy">السعر</h2>
-                <p className="mt-3 text-2xl font-semibold">${product.price.toFixed(2)}</p>
+          <div className="space-y-5 sm:space-y-6">
+            <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] sm:tracking-[0.35em] text-burgundy/60">{product.category}</p>
+            <h1 className="text-xl sm:text-3xl font-extrabold">{product.name}</h1>
+            <p className="text-sm sm:text-base leading-6 sm:leading-8 text-burgundy/75">{product.description || 'وصف مميز للمنتج يعرض تفاصيل التصميم والجودة.'}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
+                <h2 className="text-xs sm:text-sm font-semibold text-burgundy">السعر</h2>
+                <p className="mt-1.5 sm:mt-3 text-lg sm:text-2xl font-bold text-burgundy">{Number(product.price).toLocaleString('en-US')} ج.م</p>
               </div>
-              <div className="rounded-[1.75rem] border border-burgundy/10 bg-white p-6 text-burgundy/80">
-                <h2 className="text-sm font-semibold text-burgundy">المخزون المتوفر</h2>
-                <p className="mt-3 text-2xl font-semibold">{product.stock}</p>
+              <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
+                <h2 className="text-xs sm:text-sm font-semibold text-burgundy">المخزون المتوفر</h2>
+                <p className="mt-1.5 sm:mt-3 text-lg sm:text-2xl font-bold text-burgundy">{product.stock}</p>
               </div>
             </div>
             <div className="grid gap-4">
@@ -156,7 +156,7 @@ function ProductDetailsPage() {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={product.stock === 0}
-                className={`w-full rounded-3xl px-6 py-3 text-white transition ${product.stock === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-burgundy hover:bg-[#650018]'}`}
+                className={`w-full rounded-xl sm:rounded-3xl px-6 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-white transition ${product.stock === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-burgundy hover:bg-[#650018]'}`}
               >
                 {product.stock === 0 ? 'غير متوفر' : added ? 'تمت الإضافة' : 'أضف إلى السلة'}
               </button>

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
@@ -106,17 +106,17 @@ function LandingPage() {
           </div>
           <Link to="/collections" className="inline-flex items-center justify-center rounded-full border border-burgundy px-6 py-3 text-sm font-semibold text-burgundy transition hover:bg-burgundy/5">عرض الكل</Link>
         </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
           {sampleProducts.map((product) => (
-            <div key={product._id} className="rounded-[2rem] border border-burgundy/10 bg-beige/10 overflow-hidden shadow-soft transition hover:-translate-y-1 hover:shadow-xl">
+            <div key={product._id} className="rounded-2xl sm:rounded-[2rem] border border-burgundy/10 bg-beige/10 overflow-hidden shadow-soft transition hover:-translate-y-1 hover:shadow-xl">
               <div className="aspect-[4/3] overflow-hidden relative">
                 <img src={product.images[0]} alt={product.name} className="absolute inset-0 h-full w-full object-cover" />
               </div>
-              <div className="p-5">
-                <p className="text-lg font-semibold text-burgundy">{product.name}</p>
-                <p className="mt-2 text-sm text-burgundy/75">{product.category}</p>
-                <div className="mt-4 flex items-center justify-between text-sm text-burgundy/80">
-                  <span>${product.price.toFixed(2)}</span>
+              <div className="p-3 sm:p-5">
+                <p className="text-sm sm:text-base font-bold text-burgundy line-clamp-1">{product.name}</p>
+                <p className="mt-1 text-xs text-burgundy/75">{product.category}</p>
+                <div className="mt-3 flex items-center justify-between text-xs sm:text-sm text-burgundy/80">
+                  <span className="font-extrabold">{Number(product.price).toLocaleString('en-US')} ج.م</span>
                   <span>{product.stock} متوفر</span>
                 </div>
               </div>
@@ -161,13 +161,13 @@ function LandingPage() {
         </div>
 
         {products.length > 0 ? (
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 stagger-container">
+          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 stagger-container">
             {products.map((product) => (
               <div className="stagger-item" key={product._id}><ProductCard product={product} /></div>
             ))}
           </div>
         ) : (
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
             {sampleProducts.map((p) => (
               <ProductCard key={p._id} product={p} />
             ))}
@@ -178,15 +178,15 @@ function LandingPage() {
       <div className="mt-12 rounded-[2rem] border border-burgundy/10 bg-white p-8 shadow-soft">
         <h3 className="text-2xl font-semibold">Temporary Samples</h3>
         <p className="mt-2 text-sm text-burgundy/75">نماذج مؤقتة من البناطيل والبلوزات لعرض الشكل حتى يتم النشر من الداشبورد.</p>
-        <div className="mt-6 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
           {sampleProducts.concat(sampleProducts).map((p, i) => (
-            <div key={i} className="rounded-[1.5rem] overflow-hidden border border-burgundy/10 reveal-on-scroll">
+            <div key={i} className="rounded-xl sm:rounded-[1.5rem] overflow-hidden border border-burgundy/10 reveal-on-scroll">
               <div className="aspect-[4/3] overflow-hidden">
                 <LazyImage src={p.images[0]} alt={p.name} className="w-full h-full" />
               </div>
-              <div className="p-4">
-                <h4 className="font-semibold">{p.name}</h4>
-                <p className="text-sm text-burgundy/70">${p.price.toFixed(2)}</p>
+              <div className="p-3.5">
+                <h4 className="font-semibold text-sm sm:text-base line-clamp-1">{p.name}</h4>
+                <p className="text-xs sm:text-sm text-burgundy/70 font-extrabold mt-1">{Number(p.price).toLocaleString('en-US')} ج.م</p>
               </div>
             </div>
           ))}

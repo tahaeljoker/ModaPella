@@ -96,7 +96,7 @@ function CollectionsPage() {
       ) : (
         <div className="space-y-8">
           {visibleProducts.length > 0 ? (
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 stagger-container">
+            <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 stagger-container">
               {visibleProducts.map((product) => (
                 <div className="stagger-item" key={product._id}><ProductCard product={product} /></div>
               ))}
@@ -105,7 +105,7 @@ function CollectionsPage() {
             <div className="rounded-[2rem] border border-burgundy/10 bg-white p-10 shadow-soft">
               <p className="text-lg font-semibold text-burgundy">لا توجد منتجات في هذه الفئة حاليًا.</p>
               <p className="mt-2 text-sm text-burgundy/75">عرض بعض العينات حتى تعود المنتجات المتاحة.</p>
-              <div className="mt-8 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-8 grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
                 {sampleProducts.map((product) => (
                   <div className="stagger-item" key={product._id}><ProductCard product={product} /></div>
                 ))}

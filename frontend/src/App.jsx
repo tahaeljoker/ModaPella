@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import CartContext from './context/CartContext';
@@ -29,6 +29,7 @@ import AdminEmployees from './pages/admin/AdminEmployees';
 import AdminSuppliers from './pages/admin/AdminSuppliers';
 import AdminInventoryCount from './pages/admin/AdminInventoryCount';
 import AdminActivities from './pages/admin/AdminActivities';
+// import AdminDebts from './pages/admin/AdminDebts';
 
 // Cashier Pages
 import CashierLayout from './pages/cashier/CashierLayout';
@@ -52,6 +53,7 @@ const navItem = (label, to) => (
 function AppContent() {
   const { cart } = useContext(CartContext);
   const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Don't show public header/footer on admin or cashier routes
   const isDashboard = location.pathname.startsWith('/admin') || location.pathname.startsWith('/cashier');
@@ -59,30 +61,101 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-[#fcf9f8] text-burgundy">
       {!isDashboard && (
-        <header className="container mx-auto flex flex-wrap items-center justify-between gap-4 border-b border-burgundy/10 bg-[#fcf9f8] px-4 py-5 shadow-sm">
-          <div>
-            <Logo />
-            <p className="text-sm text-burgundy/70">تسوق الأزياء النسائية بأناقة</p>
-          </div>
-          <nav className="flex flex-wrap gap-2">
-            {navItem('الرئيسية', '/')}
-            {navItem('الملابس', '/shop')}
-            <NavLink
-              to="/cart"
-              className={({ isActive }) =>
-                `relative px-4 py-2 rounded-lg transition ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:text-burgundy'}`
-              }
+        <header className="container mx-auto border-b border-burgundy/10 bg-[#fcf9f8] px-4 py-5 shadow-sm relative">
+          <div className="flex items-center justify-between">
+            <div>
+              <Logo />
+              <p className="text-xs sm:text-sm text-burgundy/70 mt-0.5">تسوق الأزياء النسائية بأناقة</p>
+            </div>
+            
+            {/* Hamburger Button for mobile */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden flex flex-col justify-between w-6 h-4 text-burgundy focus:outline-none"
+              aria-label="Toggle Menu"
             >
-              سلة
-              {cart.length > 0 && (
-                <span className="absolute -top-2 -right-2 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-burgundy px-2 text-xs font-semibold text-white">
-                  {cart.length}
-                </span>
-              )}
-            </NavLink>
-            {navItem('من نحن', '/about')}
-            {navItem('اتصل بنا', '/contact')}
-          </nav>
+              <span className={`h-0.5 w-full bg-burgundy rounded transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+              <span className={`h-0.5 w-full bg-burgundy rounded transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`} />
+              <span className={`h-0.5 w-full bg-burgundy rounded transition-transform duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+            </button>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex flex-wrap gap-2">
+              {navItem('الرئيسية', '/')}
+              {navItem('الملابس', '/shop')}
+              <NavLink
+                to="/cart"
+                className={({ isActive }) =>
+                  `relative px-4 py-2 rounded-lg transition ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:text-burgundy'}`
+                }
+              >
+                سلة
+                {cart.length > 0 && (
+                  <span className="absolute -top-2 -right-2 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-burgundy px-2 text-xs font-semibold text-white">
+                    {cart.length}
+                  </span>
+                )}
+              </NavLink>
+              {navItem('من نحن', '/about')}
+              {navItem('اتصل بنا', '/contact')}
+            </nav>
+          </div>
+
+          {/* Mobile Navigation Dropdown */}
+          {isMobileMenuOpen && (
+            <nav className="md:hidden mt-4 flex flex-col gap-1.5 pb-2 border-t border-burgundy/5 pt-3 fade-in">
+              <NavLink
+                to="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+                }
+              >
+                الرئيسية
+              </NavLink>
+              <NavLink
+                to="/shop"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+                }
+              >
+                الملابس
+              </NavLink>
+              <NavLink
+                to="/cart"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `px-4 py-2.5 rounded-xl transition font-semibold text-sm flex justify-between items-center ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+                }
+              >
+                <span>سلة المشتريات</span>
+                {cart.length > 0 && (
+                  <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-burgundy px-2 text-xs font-semibold text-white">
+                    {cart.length}
+                  </span>
+                )}
+              </NavLink>
+              <NavLink
+                to="/about"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+                }
+              >
+                من نحن
+              </NavLink>
+              <NavLink
+                to="/contact"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+                }
+              >
+                اتصل بنا
+              </NavLink>
+            </nav>
+          )}
         </header>
       )}
 
@@ -112,6 +185,7 @@ function AppContent() {
           <Route path="/admin/site" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminSiteSettings /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUsers /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/activities" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminActivities /></AdminLayout></ProtectedRoute>} />
+          {/* <Route path="/admin/debts" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminDebts /></AdminLayout></ProtectedRoute>} /> */}
 
           {/* Cashier Routes */}
           <Route path="/cashier" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />

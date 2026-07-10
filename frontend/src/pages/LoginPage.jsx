@@ -33,39 +33,39 @@ function LoginPage() {
   };
 
   return (
-    <section className="mx-auto max-w-3xl rounded-3xl border border-burgundy/15 bg-white p-10 shadow-soft">
-      <div className="mb-8 space-y-3">
-        <span className="text-sm uppercase tracking-[0.35em] text-burgundy/70">بوابة الدخول</span>
-        <h1 className="text-4xl font-semibold text-burgundy">نظام الكاشير وإدارة المخزن</h1>
-        <p className="text-sm text-burgundy/80">سجل الدخول باستخدام البريد الإلكتروني وكلمة المرور الخاصة بالمدير أو الصراف.</p>
+    <section className="mx-auto max-w-md rounded-2xl sm:rounded-3xl border border-burgundy/15 bg-white p-5 sm:p-10 shadow-soft">
+      <div className="mb-6 sm:mb-8 space-y-2 sm:space-y-3">
+        <span className="text-xs sm:text-sm uppercase tracking-[0.25em] sm:tracking-[0.35em] text-burgundy/70">بوابة الدخول</span>
+        <h1 className="text-2xl sm:text-3xl font-bold text-burgundy">نظام الكاشير والإدارة</h1>
+        <p className="text-xs sm:text-sm text-burgundy/70">سجل الدخول باستخدام البريد الإلكتروني وكلمة المرور الخاصة بالمدير أو الصراف.</p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         <div>
-          <label className="block text-sm font-medium text-burgundy">البريد الإلكتروني</label>
+          <label className="block text-xs sm:text-sm font-semibold text-burgundy">البريد الإلكتروني</label>
           <input
             type="email"
             name="email"
             value={form.email}
             onChange={handleChange}
             placeholder="example@domain.com"
-            className="mt-2 w-full rounded-2xl border border-beige/30 bg-beige/5 px-4 py-3 text-burgundy outline-none transition focus:border-burgundy"
+            className="mt-1.5 w-full rounded-xl sm:rounded-2xl border border-beige/30 bg-beige/5 px-4 py-2.5 sm:py-3 text-sm text-burgundy outline-none transition focus:border-burgundy"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-burgundy">كلمة المرور</label>
+          <label className="block text-xs sm:text-sm font-semibold text-burgundy">كلمة المرور</label>
           <input
             type="password"
             name="password"
             value={form.password}
             onChange={handleChange}
             placeholder="••••••••"
-            className="mt-2 w-full rounded-2xl border border-beige/30 bg-beige/5 px-4 py-3 text-burgundy outline-none transition focus:border-burgundy"
+            className="mt-1.5 w-full rounded-xl sm:rounded-2xl border border-beige/30 bg-beige/5 px-4 py-2.5 sm:py-3 text-sm text-burgundy outline-none transition focus:border-burgundy"
             required
           />
         </div>
-        {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-        <button className="w-full rounded-3xl bg-burgundy px-5 py-3 text-white transition hover:bg-[#650018]" type="submit" disabled={loading}>
+        {error && <p className="rounded-xl sm:rounded-2xl bg-red-50 px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-red-700">{error}</p>}
+        <button className="w-full rounded-xl sm:rounded-3xl bg-burgundy px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-white transition hover:bg-[#650018]" type="submit" disabled={loading}>
           {loading ? 'جاري تسجيل الدخول...' : 'دخول النظام'}
         </button>
       </form>
