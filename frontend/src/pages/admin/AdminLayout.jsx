@@ -1,17 +1,37 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 
-const navItems = [
-  { to: '/admin', label: 'لوحة التحكم', icon: '📊', end: true },
-  { to: '/admin/products', label: 'المنتجات والمخزون', icon: '🛒' },
-  { to: '/admin/orders', label: 'الطلبات', icon: '📋' },
-  { to: '/admin/customers', label: 'العملاء', icon: '👥' },
-  { to: '/admin/employees', label: 'الموظفون', icon: '👤' },
-  { to: '/admin/suppliers', label: 'الموردون', icon: '🏾' },
-  { to: '/admin/inventory-count', label: 'الجرد', icon: '📦' },
-  { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: '🏷️' },
-  {to: '/admin/site', label: 'إعدادات الموقع', icon: '🎨'},
-  {to: '/admin/users', label: 'المستخدمون', icon: '🛡️'},
-  {to: '/admin/activities', label: 'سجل حركات النظام', icon: '📜'},
+const sections = [
+  {
+    title: 'الرئيسية والتحليلات',
+    items: [
+      { to: '/admin', label: 'لوحة التحكم', icon: '📊', end: true },
+      { to: '/admin/activities', label: 'سجل حركات النظام', icon: '📜' },
+    ]
+  },
+  {
+    title: 'إدارة المبيعات',
+    items: [
+      { to: '/admin/orders', label: 'الطلبات والفواتير', icon: '📋' },
+      { to: '/admin/employees', label: 'الموظفون والعمولات', icon: '👤' },
+      { to: '/admin/customers', label: 'العملاء والولاء', icon: '👥' },
+    ]
+  },
+  {
+    title: 'المخزون والمشتريات',
+    items: [
+      { to: '/admin/products', label: 'المنتجات والمخزن', icon: '🛒' },
+      { to: '/admin/inventory-count', label: 'جرد المخزون', icon: '📦' },
+      { to: '/admin/suppliers', label: 'حسابات الموردين', icon: '🏭' },
+      { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: '🏷️' },
+    ]
+  },
+  {
+    title: 'النظام والموقع',
+    items: [
+      { to: '/admin/site', label: 'إعدادات الموقع', icon: '🎨' },
+      { to: '/admin/users', label: 'مستخدمو النظام', icon: '🛡️' },
+    ]
+  }
 ];
 
 function AdminLayout({ children }) {
@@ -36,23 +56,30 @@ function AdminLayout({ children }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-burgundy text-white shadow-md shadow-burgundy/25'
-                    : 'text-burgundy/70 hover:bg-burgundy/8 hover:text-burgundy'
-                }`
-              }
-            >
-              <span className="text-lg">{item.icon}</span>
-              {item.label}
-            </NavLink>
+        <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
+          {sections.map((section, idx) => (
+            <div key={idx} className="space-y-1.5">
+              <p className="px-4 text-[10px] font-extrabold uppercase tracking-[0.15em] text-burgundy/40">
+                {section.title}
+              </p>
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-2xl px-4 py-2 text-xs font-bold transition-all duration-200 ${
+                      isActive
+                        ? 'bg-burgundy text-white shadow-md shadow-burgundy/25'
+                        : 'text-burgundy/70 hover:bg-burgundy/8 hover:text-burgundy'
+                    }`
+                  }
+                >
+                  <span className="text-base">{item.icon}</span>
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
