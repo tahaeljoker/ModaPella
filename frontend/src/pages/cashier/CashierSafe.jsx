@@ -3,7 +3,7 @@ import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import { exportToCSV } from '../../services/export';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const EXPENSE_CATEGORIES = ['ضيافة', 'كهرباء ومياه', 'نظافة', 'نولون شحن', 'دفع لمورد', 'أخرى'];
 
@@ -73,25 +73,25 @@ function CashierSafe() {
   const handleExport = () => {
     const headers = ['الوقت', 'نوع العملية', 'التصنيف', 'طريقة الدفع', 'المبلغ', 'التفاصيل'];
     const rows = data.transactions.map(t => [
-      new Date(t.createdAt).toLocaleTimeString('ar-EG'),
+      new Date(t.createdAt).toLocaleTimeString('ar-EG-u-nu-latn'),
       t.type === 'IN' ? 'داخل' : 'خارج',
       t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Safe Transfer' ? 'تحويل للخزينة' : t.category === 'Expense' ? 'مصروف' : 'أخرى',
       t.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي',
       t.amount,
       t.description || ''
     ]);
-    exportToCSV(`حركات_الخزنة_${new Date().toLocaleDateString('ar-EG')}`, headers, rows);
+    exportToCSV(`حركات_الخزنة_${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`, headers, rows);
   };
 
   const handlePrintZReport = (shift) => {
     const shiftData = shift || currentShift;
-    const now = new Date().toLocaleString('ar-EG');
-    const openTime = shiftData?.createdAt ? new Date(shiftData.createdAt).toLocaleString('ar-EG') : '—';
+    const now = new Date().toLocaleString('ar-EG-u-nu-latn');
+    const openTime = shiftData?.createdAt ? new Date(shiftData.createdAt).toLocaleString('ar-EG-u-nu-latn') : '—';
     const cashSales = data.todaySummary?.cashSales || 0;
     const instapaySales = data.todaySummary?.instapaySales || 0;
     const expenses = data.todaySummary?.expenses || 0;
     const openingBal = shiftData?.openingBalance || 0;
-    const expectedCash = shiftData?.expectedCash ?? data.summary?.cashDrawer ?? 0;
+    const expectedCash = shiftData?.expectedCash ?? data.summary?.expectedCash ?? 0;
     const countedCash = shiftData?.closingBalance ?? expectedCash;
     const variance = countedCash - expectedCash;
 
@@ -108,15 +108,15 @@ function CashierSafe() {
           <tr><td>وقت الفتح</td><td style="text-align:left">${openTime}</td></tr>
           <tr><td>وقت الإغلاق</td><td style="text-align:left">${now}</td></tr>
           <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الإيرادات</td></tr>
-          <tr><td>مبيعات كاش 💵</td><td style="text-align:left;color:#15803d;font-weight:bold">${Number(cashSales).toLocaleString('ar-EG')} ج.م</td></tr>
-          <tr><td>مبيعات انستا باي 📱</td><td style="text-align:left;color:#2563eb;font-weight:bold">${Number(instapaySales).toLocaleString('ar-EG')} ج.م</td></tr>
-          <tr><td>إجمالي المبيعات</td><td style="text-align:left;font-weight:bold">${Number(cashSales + instapaySales).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>مبيعات كاش 💵</td><td style="text-align:left;color:#15803d;font-weight:bold">${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>مبيعات انستا باي 📱</td><td style="text-align:left;color:#2563eb;font-weight:bold">${Number(instapaySales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>إجمالي المبيعات</td><td style="text-align:left;font-weight:bold">${Number(cashSales + instapaySales).toLocaleString('en-US')} ج.م</td></tr>
           <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الدرج النقدي</td></tr>
-          <tr><td>رصيد الافتتاح</td><td style="text-align:left">${Number(openingBal).toLocaleString('ar-EG')} ج.م</td></tr>
-          <tr><td>مصروفات كاش</td><td style="text-align:left;color:#dc2626">- ${Number(expenses).toLocaleString('ar-EG')} ج.م</td></tr>
-          <tr><td>الكاش المتوقع في الدرج</td><td style="text-align:left;font-weight:bold">${Number(expectedCash).toLocaleString('ar-EG')} ج.م</td></tr>
-          <tr><td>الكاش الفعلي (عند العد)</td><td style="text-align:left;font-weight:bold">${Number(countedCash).toLocaleString('ar-EG')} ج.م</td></tr>
-          <tr><td>الفرق (عجز/زيادة)</td><td style="text-align:left;font-weight:bold;color:${variance === 0 ? '#15803d' : variance > 0 ? '#d97706' : '#dc2626'}">${variance >= 0 ? '+' : ''}${Number(variance).toLocaleString('ar-EG')} ج.م</td></tr>
+          <tr><td>رصيد الافتتاح</td><td style="text-align:left">${Number(openingBal).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>مصروفات كاش</td><td style="text-align:left;color:#dc2626">- ${Number(expenses).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>الكاش المتوقع في الدرج</td><td style="text-align:left;font-weight:bold">${Number(expectedCash).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>الكاش الفعلي (عند العد)</td><td style="text-align:left;font-weight:bold">${Number(countedCash).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>الفرق (عجز/زيادة)</td><td style="text-align:left;font-weight:bold;color:${variance === 0 ? '#15803d' : variance > 0 ? '#d97706' : '#dc2626'}">${variance >= 0 ? '+' : ''}${Number(variance).toLocaleString('en-US')} ج.م</td></tr>
         </tbody>
       </table>
       <div class="invoice-print-footer">
@@ -286,7 +286,7 @@ function CashierSafe() {
                   ) : (
                     data.transactions.map((t) => (
                       <tr key={t._id} className="border-b border-burgundy/5 last:border-0 hover:bg-burgundy/5 transition">
-                        <td className="py-4 font-mono text-xs">{new Date(t.createdAt).toLocaleTimeString('ar-EG')}</td>
+                        <td className="py-4 font-mono text-xs">{new Date(t.createdAt).toLocaleTimeString('ar-EG-u-nu-latn')}</td>
                         <td className="py-4">
                           <span className={`rounded-full px-2 py-1 text-xs font-bold ${t.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                             {t.type === 'IN' ? 'داخل' : 'خارج'}

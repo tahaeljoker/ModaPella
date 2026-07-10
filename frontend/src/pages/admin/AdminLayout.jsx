@@ -9,8 +9,9 @@ const navItems = [
   { to: '/admin/suppliers', label: 'الموردون', icon: '🏾' },
   { to: '/admin/inventory-count', label: 'الجرد', icon: '📦' },
   { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: '🏷️' },
-  { to: '/admin/site', label: 'إعدادات الموقع', icon: '🎨' },
-  { to: '/admin/users', label: 'المستخدمون', icon: '🛡️' },
+  {to: '/admin/site', label: 'إعدادات الموقع', icon: '🎨'},
+  {to: '/admin/users', label: 'المستخدمون', icon: '🛡️'},
+  {to: '/admin/activities', label: 'سجل حركات النظام', icon: '📜'},
 ];
 
 function AdminLayout({ children }) {

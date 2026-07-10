@@ -4,7 +4,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 
 const CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
 const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const getProductIcon = (category = '', name = '') => {
   const cat = (category || '').toLowerCase();
@@ -191,7 +191,7 @@ function printBarcode(product) {
     <div class="barcode-wrapper">${svg}</div>
     <div class="footer">
       <span class="sku">${product.sku}</span>
-      <span class="price">${Number(product.price).toLocaleString('ar-EG')} ج.م</span>
+      <span class="price">${Number(product.price).toLocaleString('en-US')} ج.م</span>
     </div>
   </body></html>`);
   win.document.close(); win.focus();
@@ -234,7 +234,7 @@ function StockHistoryModal({ productId, onClose }) {
                   <div className="bg-white rounded-2xl p-3.5 border border-burgundy/5 shadow-sm space-y-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-bold text-burgundy">{h.changeType}</span>
-                      <span className="text-[10px] text-burgundy/40">{new Date(h.createdAt).toLocaleString('ar-EG')}</span>
+                      <span className="text-[10px] text-burgundy/40">{new Date(h.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs py-1">
                       <div>

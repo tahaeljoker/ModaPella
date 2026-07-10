@@ -51,7 +51,7 @@ router.post('/count/new', auth, requireRole(ROLES), async (req, res) => {
         });
       }
     });
-    const count = new InventoryCount({ label: label || `جرد ${new Date().toLocaleDateString('ar-EG')}`, items, createdBy: req.user.id });
+    const count = new InventoryCount({ label: label || `جرد ${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`, items, createdBy: req.user.id });
     await count.save();
     res.status(201).json(count);
   } catch (e) {

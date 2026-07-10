@@ -2,7 +2,18 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
+
+const ACT_CONFIG = {
+  sale: { label: 'مبيعات', icon: '💰', color: 'border-emerald-500 bg-emerald-50 text-emerald-800' },
+  expense: { label: 'مصروفات', icon: '💸', color: 'border-rose-500 bg-rose-50 text-rose-800' },
+  refund: { label: 'مرتجع', icon: '🔄', color: 'border-amber-500 bg-amber-50 text-amber-800' },
+  deposit: { label: 'إيداع', icon: '📥', color: 'border-blue-500 bg-blue-50 text-blue-800' },
+  safe_movement: { label: 'حركة خزينة', icon: '🏦', color: 'border-indigo-500 bg-indigo-50 text-indigo-800' },
+  stock_adjustment: { label: 'مخزون', icon: '📦', color: 'border-teal-500 bg-teal-50 text-teal-800' },
+  shift_open: { label: 'فتح وردية', icon: '🔑', color: 'border-purple-500 bg-purple-50 text-purple-800' },
+  shift_close: { label: 'إغلاق وردية', icon: '🔒', color: 'border-slate-500 bg-slate-50 text-slate-800' }
+};
 
 function StatCard({ label, value, sub, color = 'bg-white', icon }) {
   return (
@@ -37,7 +48,7 @@ function WeeklyChart({ data }) {
               <line x1={0} y1={y} x2={chartW} y2={y} stroke="#7C0A1215" strokeWidth="1" />
               {ratio > 0 && (
                 <text x={4} y={y - 3} fontSize="9" fill="#7C0A1260" textAnchor="start">
-                  {Number(maxRevenue * ratio).toLocaleString('ar-EG')}
+                  {Number(maxRevenue * ratio).toLocaleString('en-US')}
                 </text>
               )}
             </g>
@@ -105,6 +116,7 @@ function AdminOverview() {
   const [summary, setSummary] = useState({ totalRevenue: 0, completed: 0, returned: 0 });
   const [siteConfig, setSiteConfig] = useState(null);
   const [weeklyData, setWeeklyData] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -134,16 +146,18 @@ function AdminOverview() {
 
   const loadData = async () => {
     try {
-      const [overviewRes, summaryRes, configRes, weeklyRes] = await Promise.all([
+      const [overviewRes, summaryRes, configRes, weeklyRes, activitiesRes] = await Promise.all([
         api.get('/admin/overview'),
         api.get('/orders/summary'),
         api.get('/admin/site-config'),
         api.get('/orders/weekly'),
+        api.get('/cashier/activities')
       ]);
       setOverview(overviewRes.data);
       setSummary(summaryRes.data);
       setSiteConfig(configRes.data);
       setWeeklyData(weeklyRes.data);
+      setRecentActivities(activitiesRes.data.slice(0, 5));
     } catch (e) {
       console.error(e);
     } finally {
@@ -157,17 +171,6 @@ function AdminOverview() {
       setSiteConfig(res.data);
     } catch (e) {
       console.error(e);
-    }
-  };
-
-  const handleProdReset = async () => {
-    if (!window.confirm('⚠️ تحذير: هذا الإجراء سيحذف كافة الطلبات والورديات والتعاملات الحالية نهائياً على الاستضافة. هل أنت متأكد؟')) return;
-    try {
-      const res = await api.post('/admin/reset-transactions-prod');
-      alert(`✅ تم التصفير بنجاح!\nالعمليات المحذوفة: ${res.data.deletedTransactions}\nالورديات المحذوفة: ${res.data.deletedShifts}\nالفواتير المحذوفة: ${res.data.deletedOrders}`);
-      loadData();
-    } catch (e) {
-      alert(e.response?.data?.message || 'فشل تصفير قاعدة بيانات الاستضافة');
     }
   };
 
@@ -195,13 +198,6 @@ function AdminOverview() {
           <p className="mt-1 text-sm text-burgundy/60">نظرة عامة على أداء المتجر</p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleProdReset}
-            className="flex items-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-red-700"
-          >
-            🗑️ تصفير الاستضافة
-          </button>
           {siteConfig && (
             <button
               type="button"
@@ -252,7 +248,7 @@ function AdminOverview() {
         <StatCard label={dateFrom || dateTo ? 'الطلبات (الفترة)' : 'الطلبات المكتملة'} value={summary.completed} icon="✅" />
         <StatCard label={dateFrom || dateTo ? 'المرتجعات (الفترة)' : 'المرتجعات'} value={summary.returned} icon="🔄" />
         <StatCard label="المنتجات المسجلة" value={overview?.products ?? 0} icon="🛍️" />
-        <StatCard label="إجمالي القطع بالمخزن" value={overview?.totalStock ? `${overview.totalStock.toLocaleString('ar-EG')} قطعة` : '0 قطعة'} icon="📦" />
+        <StatCard label="إجمالي القطع بالمخزن" value={overview?.totalStock ? `${overview.totalStock.toLocaleString('en-US')} قطعة` : '0 قطعة'} icon="📦" />
         <StatCard
           label="تنبيهات المخزون"
           value={overview?.lowStock?.length ?? 0}
@@ -439,52 +435,63 @@ function AdminOverview() {
       </div>
 
       {/* Recent orders */}
+      {/* Recent Activities */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-xl font-semibold">أحدث الطلبات</h3>
+          <h3 className="text-xl font-semibold">أحدث حركات النظام</h3>
           <button
             type="button"
-            onClick={() => navigate('/admin/orders')}
+            onClick={() => navigate('/admin/activities')}
             className="rounded-full border border-burgundy/20 px-4 py-1.5 text-xs font-semibold text-burgundy transition hover:bg-burgundy hover:text-white"
           >
             عرض الكل ←
           </button>
         </div>
-        {overview?.recentOrders?.length > 0 ? (
-          <div className="space-y-2">
-            {overview.recentOrders.map((order) => (
-              <div
-                key={order._id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-burgundy/8 bg-burgundy/3 px-4 py-3"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{order.items?.map((i) => i.name).join('، ')}</p>
-                    <span className="rounded bg-burgundy/8 px-1.5 py-0.5 font-mono text-[10px] text-burgundy/50">
-                      #{order._id?.slice(-6).toUpperCase()}
-                    </span>
+        {recentActivities?.length > 0 ? (
+          <div className="space-y-3">
+            {recentActivities.map((act) => {
+              const conf = ACT_CONFIG[act.type] || { label: 'حركة عامة', icon: '⚙️', color: 'border-burgundy bg-burgundy/5 text-burgundy' };
+              const timeStr = new Date(act.timestamp).toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' });
+              return (
+                <div
+                  key={act.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-burgundy/8 bg-burgundy/3 px-4 py-3 hover:shadow-sm transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{conf.icon}</span>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold">{act.title}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${conf.color}`}>
+                          {conf.label}
+                        </span>
+                        {act.paymentMethod && (
+                          <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
+                            {act.paymentMethod === 'Cash' ? 'كاش' : 'انستا'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-burgundy/50">
+                        بواسطة: {act.user} • {timeStr}
+                      </p>
+                    </div>
                   </div>
-                  <p className="mt-0.5 text-xs text-burgundy/50">
-                    {new Date(order.createdAt).toLocaleString('ar-EG')} •{' '}
-                    <span className={order.type === 'Offline' ? 'text-burgundy' : 'text-emerald-700'}>
-                      {order.type === 'Offline' ? 'كاشير' : 'أونلاين'}
-                    </span>
-                  </p>
+                  <div className="text-left font-bold text-sm">
+                    {act.amount != null && (
+                      <span className={act.type === 'expense' || act.direction === 'OUT' || (act.type === 'stock_adjustment' && act.amount < 0) ? 'text-red-600' : 'text-emerald-700'}>
+                        {act.type === 'stock_adjustment'
+                          ? `${act.amount > 0 ? '+' : ''}${act.amount} قطعة`
+                          : EGP(act.amount)
+                        }
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold">{EGP(order.totalAmount)}</p>
-                  <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    order.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                    order.status === 'Returned' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {order.status === 'Completed' ? 'مكتمل' : order.status === 'Returned' ? 'مرتجع' : 'معلق'}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <p className="text-center text-sm text-burgundy/50 py-8">لا توجد طلبات بعد</p>
+          <p className="text-center text-sm text-burgundy/50 py-8">لا توجد حركات نظام بعد</p>
         )}
       </div>
     </div>
@@ -538,7 +545,7 @@ function CategoryPieChart({ breakdown }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <p className="text-[10px] text-burgundy/50 font-semibold">إجمالي المبيعات</p>
-          <p className="text-xs font-extrabold text-burgundy">{Number(total).toLocaleString('ar-EG')} ج.م</p>
+          <p className="text-xs font-extrabold text-burgundy">{Number(total).toLocaleString('en-US')} ج.م</p>
         </div>
       </div>
       
@@ -550,7 +557,7 @@ function CategoryPieChart({ breakdown }) {
               <span className="font-bold text-burgundy">{CAT_AR[slice.category] || slice.category}</span>
             </div>
             <div className="flex items-center gap-2 font-mono text-[11px] text-burgundy/60">
-              <span>{Number(slice.amount).toLocaleString('ar-EG')} ج.م</span>
+              <span>{Number(slice.amount).toLocaleString('en-US')} ج.م</span>
               <span className="bg-burgundy/10 text-burgundy px-1.5 py-0.5 rounded font-bold text-[9px] font-sans">
                 {(slice.percent * 100).toFixed(0)}%
               </span>
@@ -581,7 +588,7 @@ function EmployeeLeaderboard({ leaderboard }) {
                 <span>{rankColor}</span>
                 <span>{emp.name}</span>
               </span>
-              <span>{Number(emp.amount).toLocaleString('ar-EG')} ج.م</span>
+              <span>{Number(emp.amount).toLocaleString('en-US')} ج.م</span>
             </div>
             {/* Progress bar */}
             <div className="w-full bg-burgundy/5 h-2 rounded-full overflow-hidden">
@@ -594,7 +601,7 @@ function EmployeeLeaderboard({ leaderboard }) {
             <div className="flex flex-wrap items-center gap-2 text-[10px]">
               {emp.profit != null && (
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">
-                  📈 ربح: {Number(emp.profit).toLocaleString('ar-EG')} ج.م
+                  📈 ربح: {Number(emp.profit).toLocaleString('en-US')} ج.م
                 </span>
               )}
               {emp.orderCount != null && (

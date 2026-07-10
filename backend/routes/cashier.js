@@ -43,8 +43,23 @@ router.get('/inventory', auth, requireRole(['admin', 'cashier', 'manager']), asy
 // GET /api/cashier/orders/:id — single order detail for returns
 router.get('/orders/:id', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    const cleanId = req.params.id.trim();
+    let order = null;
+    
+    if (cleanId.length === 24 && /^[0-9a-fA-F]{24}$/.test(cleanId)) {
+      order = await Order.findById(cleanId);
+    } else if (cleanId.length === 6) {
+      order = await Order.findOne({
+        $expr: {
+          $eq: [
+            { $strcasecmp: [ { $substrCP: [ { $toString: "$_id" }, 18, 6 ] }, cleanId ] },
+            0
+          ]
+        }
+      }).sort({ createdAt: -1 });
+    }
+
+    if (!order) return res.status(404).json({ message: 'لم يُعثر على طلب بهذا الرقم أو الكود' });
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: 'Unable to load order', error: error.message });
@@ -259,6 +274,132 @@ router.post('/shift/close', auth, requireRole(['admin', 'cashier', 'manager']), 
     res.json({ shift, expectedCash: expected, variance: shift.variance, message: 'Shift closed' });
   } catch (error) {
     res.status(500).json({ message: 'Unable to close shift', error: error.message });
+  }
+});
+
+// GET /api/cashier/activities — get combined activities for timeline
+router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    let startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    let endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    if (from) {
+      startOfDay = new Date(from + 'T00:00:00');
+    }
+    if (to) {
+      endOfDay = new Date(to + 'T23:59:59');
+    }
+
+    const dateQuery = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
+
+    const StockHistory = require('../models/StockHistory');
+
+    const [orders, transactions, stockHistory, shifts] = await Promise.all([
+      Order.find(dateQuery).populate('seller', 'name').populate('employee', 'name').lean(),
+      Transaction.find(dateQuery).populate('user', 'name').lean(),
+      StockHistory.find(dateQuery).populate('performedBy', 'name').lean(),
+      Shift.find({ createdAt: { $gte: startOfDay, $lte: endOfDay } }).populate('user', 'name').lean()
+    ]);
+
+    const activities = [];
+
+    // 1. Process Orders
+    orders.forEach(order => {
+      activities.push({
+        id: `order-${order._id}`,
+        timestamp: order.createdAt,
+        type: 'sale',
+        user: order.seller?.name || order.employeeName || 'غير معروف',
+        title: `عملية بيع ${order.type === 'Offline' ? 'كاشير' : 'أونلاين'}${order.customerName ? ` (لـ ${order.customerName})` : ''}`,
+        description: order.items.map(i => `${i.name} (${i.size || '-'}/${i.color || '-'}) ×${i.quantity}`).join('، '),
+        amount: order.totalAmount,
+        paymentMethod: order.paymentMethod,
+        referenceId: order._id,
+        status: order.status,
+        notes: order.notes || ''
+      });
+    });
+
+    // 2. Process Transactions (Expenses, Deposits, Safe Transfers, Shift opens/closes, Refunds)
+    transactions.forEach(t => {
+      if (t.category === 'Sale') return; // order sale already shows this
+
+      let typeLabel = t.category;
+      if (t.category === 'Refund') typeLabel = 'مرتجع مال';
+      else if (t.category === 'Deposit') typeLabel = 'إيداع نقدي';
+      else if (t.category === 'Safe Transfer') typeLabel = 'تحويل للخزينة الرئيسية';
+      else if (t.category === 'Expense') typeLabel = 'مصروف';
+      else if (t.category === 'ShiftOpen') typeLabel = 'رصيد افتتاحي للوردية';
+      else if (t.category === 'ShiftClose') typeLabel = 'تصفية الوردية عند الإغلاق';
+      else if (t.category === 'Other') typeLabel = 'حركة خزينة أخرى';
+
+      activities.push({
+        id: `tx-${t._id}`,
+        timestamp: t.createdAt,
+        type: t.category.toLowerCase() === 'expense' ? 'expense' : t.category.toLowerCase() === 'refund' ? 'refund' : 'safe_movement',
+        user: t.user?.name || 'غير معروف',
+        title: `حركة خزينة: ${typeLabel}`,
+        description: t.description || '',
+        amount: t.amount,
+        paymentMethod: t.paymentMethod,
+        referenceId: t.referenceId || t._id,
+        direction: t.type // 'IN' or 'OUT'
+      });
+    });
+
+    // 3. Process Stock History (Filter out 'POS Sale' & 'Refund' to avoid redundancy, show only manual adjustments & counts)
+    stockHistory.forEach(sh => {
+      if (sh.changeType === 'POS Sale' || sh.changeType === 'Refund') return;
+
+      activities.push({
+        id: `stock-${sh._id}`,
+        timestamp: sh.createdAt,
+        type: 'stock_adjustment',
+        user: sh.performedBy?.name || sh.performedByName || 'غير معروف',
+        title: sh.changeType === 'Manual Adjustment' ? 'تعديل يدوي للمخزون' : 'جرد المخزون',
+        description: `تغيير كمية ${sh.productName} (${sh.size || '-'}/${sh.color || '-'}) بمقدار ${sh.quantityChanged > 0 ? '+' : ''}${sh.quantityChanged} (المخزون السابق: ${sh.previousStock} -> الجديد: ${sh.newStock})`,
+        amount: sh.quantityChanged,
+        referenceId: sh.referenceId || sh.product,
+        notes: sh.notes || ''
+      });
+    });
+
+    // 4. Process Shifts
+    shifts.forEach(shift => {
+      activities.push({
+        id: `shift-open-${shift._id}`,
+        timestamp: shift.createdAt,
+        type: 'shift_open',
+        user: shift.user?.name || 'غير معروف',
+        title: `فتح وردية جديدة`,
+        description: `تم فتح وردية بمبلغ افتتاحي ${shift.openingBalance} ج.م`,
+        amount: shift.openingBalance,
+        referenceId: shift._id
+      });
+      
+      if (shift.status === 'closed' && shift.closedAt) {
+        activities.push({
+          id: `shift-close-${shift._id}`,
+          timestamp: shift.closedAt,
+          type: 'shift_close',
+          user: shift.user?.name || 'غير معروف',
+          title: `إغلاق وردية`,
+          description: `تم إغلاق الوردية. الرصيد الفعلي: ${shift.closingBalance} ج.م (المتوقع: ${shift.expectedCash} ج.م) · الفرق: ${shift.variance >= 0 ? '+' : ''}${shift.variance} ج.م`,
+          amount: shift.closingBalance,
+          referenceId: shift._id
+        });
+      }
+    });
+
+    // Sort by timestamp descending
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to load system activities', error: error.message });
   }
 });
 

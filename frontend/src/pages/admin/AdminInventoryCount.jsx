@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
-const DATE = (d) => new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' });
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
+const DATE = (d) => new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
 
 const CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
 const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
@@ -59,7 +59,7 @@ function CountSession({ count: initialCount, onFinish }) {
             ${variance === null ? '—' : variance > 0 ? `+${variance}` : variance}
           </td>
           <td style="padding:10px 8px;font-weight:bold;color:${varianceVal === 0 ? '#1a0509' : varianceVal > 0 ? '#2563eb' : '#dc2626'}">
-            ${variance === null ? '—' : `${Number(varianceVal).toLocaleString('ar-EG')} ج.م`}
+            ${variance === null ? '—' : `${Number(varianceVal).toLocaleString('en-US')} ج.م`}
           </td>
         </tr>
       `;
@@ -80,8 +80,8 @@ function CountSession({ count: initialCount, onFinish }) {
         
         <div style="border-bottom:2px solid #7C0A12;padding-bottom:12px;margin-bottom:20px;font-size:13px;line-height:2">
           <p style="margin:4px 0"><strong>اسم جلسة الجرد:</strong> ${count.label}</p>
-          <p style="margin:4px 0"><strong>تاريخ البدء:</strong> ${new Date(count.createdAt).toLocaleString('ar-EG')}</p>
-          ${count.appliedAt ? `<p style="margin:4px 0"><strong>تاريخ التطبيق:</strong> ${new Date(count.appliedAt).toLocaleString('ar-EG')}</p>` : ''}
+          <p style="margin:4px 0"><strong>تاريخ البدء:</strong> ${new Date(count.createdAt).toLocaleString('ar-EG-u-nu-latn')}</p>
+          ${count.appliedAt ? `<p style="margin:4px 0"><strong>تاريخ التطبيق:</strong> ${new Date(count.appliedAt).toLocaleString('ar-EG-u-nu-latn')}</p>` : ''}
           <p style="margin:4px 0"><strong>حالة الجلسة:</strong> ${count.status === 'applied' ? '✅ تم التطبيق وتحديث الأرصدة' : '📝 مسودة جرد معلقة'}</p>
         </div>
 
@@ -106,7 +106,7 @@ function CountSession({ count: initialCount, onFinish }) {
           <p style="margin:4px 0">إجمالي الأصناف المجرودة: ${countedCount} / ${items.length}</p>
           <p style="margin:4px 0">إجمالي فروقات المخزون: ${totalVariance > 0 ? '+' : ''}${totalVariance} قطعة</p>
           <p style="margin:4px 0;color:${totalValLoss === 0 ? '#1a0509' : totalValLoss > 0 ? '#15803d' : '#dc2626'}">
-            القيمة المالية الإجمالية للفروقات (سعر التكلفة): ${totalValLoss > 0 ? '+' : ''}${Number(totalValLoss).toLocaleString('ar-EG')} ج.م
+            القيمة المالية الإجمالية للفروقات (سعر التكلفة): ${totalValLoss > 0 ? '+' : ''}${Number(totalValLoss).toLocaleString('en-US')} ج.م
           </p>
         </div>
 
@@ -365,7 +365,7 @@ function AdminInventoryCount() {
 
   const handleCreate = async () => {
     try {
-      const r = await api.post('/inventory/count/new', { label: label || `جرد ${new Date().toLocaleDateString('ar-EG')}` });
+      const r = await api.post('/inventory/count/new', { label: label || `جرد ${new Date().toLocaleDateString('ar-EG-u-nu-latn')}` });
       setActiveCount(r.data);
       setCreating(false);
       setLabel('');
@@ -413,7 +413,7 @@ function AdminInventoryCount() {
               type="text"
               value={label}
               onChange={e => setLabel(e.target.value)}
-              placeholder={`جرد ${new Date().toLocaleDateString('ar-EG')}`}
+              placeholder={`جرد ${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`}
               className="flex-1 rounded-xl border border-burgundy/20 bg-[#F7F0EC] px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
             />
             <button onClick={handleCreate} className="rounded-xl bg-burgundy px-5 py-2.5 text-sm font-bold text-white hover:bg-[#650018] transition">إنشاء</button>

@@ -4,7 +4,7 @@ import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const CATEGORY_LABELS = {
   Blazer: 'بليزر',
@@ -48,19 +48,19 @@ const getProductIcon = (category = '', name = '') => {
 // ─── Save Invoice as HTML ─────────────────────────────────────────────────────
 function saveInvoiceAsHTML(order) {
   const id = order._id?.toString().slice(-8).toUpperCase();
-  const date = new Date(order.createdAt).toLocaleString('ar-EG');
+  const date = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
   const itemsHTML = (order.items || []).map(item => `
     <tr>
       <td>${item.name}</td>
       <td>${item.size || '—'}</td>
       <td>${item.color || '—'}</td>
       <td style="text-align:center">${item.quantity}</td>
-      <td style="text-align:left">${Number(item.price).toLocaleString('ar-EG')} ج.م</td>
-      <td style="text-align:left;font-weight:bold">${Number(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</td>
+      <td style="text-align:left">${Number(item.price).toLocaleString('en-US')} ج.م</td>
+      <td style="text-align:left;font-weight:bold">${Number(item.price * item.quantity).toLocaleString('en-US')} ج.م</td>
     </tr>`).join('');
   const discountRow = order.discount > 0 ? `
     <tr><td colspan="5" style="text-align:right;color:#16a34a">خصم</td>
-    <td style="text-align:left;color:#16a34a">- ${Number(order.discount).toLocaleString('ar-EG')} ج.م</td></tr>` : '';
+    <td style="text-align:left;color:#16a34a">- ${Number(order.discount).toLocaleString('en-US')} ج.م</td></tr>` : '';
 
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -85,7 +85,7 @@ ${order.notes ? `<div class="sub" style="font-weight:bold;margin-top:2px;">مل�
   <thead><tr><th>المنتج</th><th>المقاس</th><th>اللون</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
   <tbody>${itemsHTML}${discountRow}</tbody>
 </table>
-<div class="total">الإجمالي الكلي: ${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م</div>
+<div class="total">الإجمالي الكلي: ${Number(order.totalAmount).toLocaleString('en-US')} ج.م</div>
 <div class="method">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش 💵' : order.paymentMethod === 'Instapay' ? 'انستا باي 📱' : 'محفظة كاش 💳'}</div>
 ${order._employeeName ? `<div class="emp">الموظف: ${order._employeeName}</div>` : ''}
 <div class="footer">
@@ -113,7 +113,7 @@ function InvoiceModal({ order, onClose }) {
     const printDiv = document.createElement('div');
     printDiv.id = 'invoice-print-root';
     const id = order._id?.toString().slice(-8).toUpperCase();
-    const date = new Date(order.createdAt).toLocaleString('ar-EG');
+    const date = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
     
     // Create the HTML for ONE receipt
     const singleReceiptHTML = `
@@ -132,16 +132,16 @@ function InvoiceModal({ order, onClose }) {
           ${(order.items || []).map(item => `
             <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:12px">
               <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
-              <span>${Number(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
+              <span>${Number(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
             </div>
           `).join('')}
         </div>
 
         <div style="font-weight:bold;font-size:12px">
-          ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${Number(order.discount).toLocaleString('ar-EG')} ج.م</span></div>` : ''}
+          ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${Number(order.discount).toLocaleString('en-US')} ج.م</span></div>` : ''}
           <div style="display:flex;justify-content:space-between;font-size:14px;margin-top:5px">
             <span>الإجمالي:</span>
-            <span>${Number(order.totalAmount).toLocaleString('ar-EG')} ج.م</span>
+            <span>${Number(order.totalAmount).toLocaleString('en-US')} ج.م</span>
           </div>
           <div style="font-size:10px;margin-top:2px;font-weight:normal">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
         </div>
@@ -203,7 +203,7 @@ function InvoiceModal({ order, onClose }) {
         <div className="p-5 space-y-4">
           <div className="flex justify-between text-xs text-burgundy/50">
             <span>التاريخ</span>
-            <span>{new Date(order.createdAt).toLocaleString('ar-EG')}</span>
+            <span>{new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
           </div>
           <div className="border-t border-dashed border-burgundy/20" />
 
@@ -1532,7 +1532,7 @@ function CashierPOS() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-bold text-sm text-burgundy">زبون: {held.note || 'بدون اسم'}</h4>
-                          <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(held.createdAt).toLocaleString('ar-EG')}</p>
+                          <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(held.createdAt).toLocaleString('ar-EG-u-nu-latn')}</p>
                         </div>
                         <span className="text-sm font-bold text-burgundy">{EGP(total)}</span>
                       </div>

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
-const DATE = (d) => new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
+const DATE = (d) => new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' });
 
 // ─── Employee Form Modal ───────────────────────────────────────────────────────
 function EmployeeModal({ employee, onClose, onSave }) {
@@ -200,7 +200,7 @@ function EmployeeStatsModal({ employee, onClose }) {
                             <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">مرتجع كامل</span>
                           )}
                         </div>
-                        <p className="text-xs text-burgundy/50 mt-0.5">{new Date(order.createdAt).toLocaleString('ar-EG')}</p>
+                        <p className="text-xs text-burgundy/50 mt-0.5">{new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}</p>
                       </div>
                       <div className="text-right">
                         <p className={`font-bold ${order.status === 'Returned' ? 'text-red-600 line-through' : 'text-burgundy'}`}>{EGP(order.totalAmount)}</p>

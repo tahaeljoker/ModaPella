@@ -163,7 +163,7 @@ function AdminUsers() {
                     {u.active === false ? '⛔ معطّل' : '✅ نشط'}
                   </span>
                   <p className="text-xs text-burgundy/50 whitespace-nowrap">
-                    {new Date(u.createdAt).toLocaleDateString('ar-EG')}
+                    {new Date(u.createdAt).toLocaleDateString('ar-EG-u-nu-latn')}
                   </p>
                   {u.role !== 'admin' ? (
                     <div className="flex items-center gap-2">

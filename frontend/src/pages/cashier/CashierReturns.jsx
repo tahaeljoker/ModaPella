@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import api from '../../services/api';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const SHORT_ID = (id) => id?.slice(-6).toUpperCase() || '------';
 
 function CashierReturns() {
@@ -34,7 +34,7 @@ function CashierReturns() {
       });
       setReturnQtys(initial);
     } catch (err) {
-      showToast(err.response?.data?.message || 'لم يُعثر على طلب بهذا الرقم', 'error');
+      showToast(err.response?.data?.message || 'لم يُعثر على طلب بهذا الرقم أو الكود', 'error');
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ function CashierReturns() {
       <div>
         <p className="text-xs uppercase tracking-[0.35em] text-burgundy/50">كاشير</p>
         <h2 className="text-2xl font-bold">المرتجعات</h2>
-        <p className="mt-1 text-sm text-burgundy/60">أدخل رقم الطلب لإجراء مرتجع جزئي أو كلي وإعادة المخزون</p>
+        <p className="mt-1 text-sm text-burgundy/60">أدخل كود الفاتورة أو رقم الطلب لإجراء مرتجع جزئي أو كلي وإعادة المخزون</p>
       </div>
 
       {/* Search form */}
@@ -90,7 +90,7 @@ function CashierReturns() {
             type="text"
             value={orderId}
             onChange={(e) => setOrderId(e.target.value)}
-            placeholder="أدخل ID الطلب الكامل..."
+            placeholder="أدخل كود الفاتورة (مثل F6E8A1) أو ID الطلب..."
             className={`${inputCls} flex-1`}
           />
           <button type="submit" disabled={loading}
@@ -98,7 +98,7 @@ function CashierReturns() {
             {loading ? '...' : 'بحث'}
           </button>
         </form>
-        <p className="mt-2 text-xs text-burgundy/40">الـ ID يظهر على الفاتورة بعد البيع</p>
+        <p className="mt-2 text-xs text-burgundy/40">الكود مكون من 6 رموز ويظهر على الفاتورة المطبوعة</p>
       </div>
 
       {/* Order details */}
@@ -123,7 +123,7 @@ function CashierReturns() {
             </div>
             <div className="flex justify-between text-sm text-burgundy/60">
               <span>التاريخ</span>
-              <span>{new Date(order.createdAt).toLocaleString('ar-EG')}</span>
+              <span>{new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
             </div>
             <div className="flex justify-between text-sm text-burgundy/60">
               <span>النوع</span>

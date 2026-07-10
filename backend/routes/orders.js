@@ -97,7 +97,7 @@ router.get('/weekly', auth, async (req, res) => {
       }, 0);
 
       days.push({
-        date: d.toLocaleDateString('ar-EG', { weekday: 'short', month: 'numeric', day: 'numeric' }),
+        date: d.toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'short', month: 'numeric', day: 'numeric' }),
         revenue,
         cashRevenue,
         instapayRevenue,
@@ -114,8 +114,23 @@ router.get('/weekly', auth, async (req, res) => {
 // GET /api/orders/:id — fetch single order
 router.get('/:id', auth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate('customer seller employee', 'name email role');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    const cleanId = req.params.id.trim();
+    let order = null;
+
+    if (cleanId.length === 24 && /^[0-9a-fA-F]{24}$/.test(cleanId)) {
+      order = await Order.findById(cleanId).populate('customer seller employee', 'name email role');
+    } else if (cleanId.length === 6) {
+      order = await Order.findOne({
+        $expr: {
+          $eq: [
+            { $strcasecmp: [ { $substrCP: [ { $toString: "$_id" }, 18, 6 ] }, cleanId ] },
+            0
+          ]
+        }
+      }).populate('customer seller employee', 'name email role').sort({ createdAt: -1 });
+    }
+
+    if (!order) return res.status(404).json({ message: 'لم يُعثر على طلب بهذا الرقم أو الكود' });
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: 'Unable to fetch order', error: error.message });

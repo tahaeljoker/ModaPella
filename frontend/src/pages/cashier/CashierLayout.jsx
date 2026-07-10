@@ -7,6 +7,7 @@ const navItems = [
   { to: '/cashier/returns', label: 'المرتجعات', icon: '🔄' },
   { to: '/cashier/today', label: 'سجل اليوم', icon: '📋' },
   { to: '/cashier/safe', label: 'الخزنة', icon: '💰' },
+  { to: '/cashier/activities', label: 'حركات اليوم', icon: '📜' },
 ];
 
 // ─── Main Layout ──────────────────────────────────────────────────────────────

@@ -4,10 +4,10 @@ import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import { exportToCSV } from '../../services/export';
 
-const EGP    = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP    = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const SHORT  = (id) => id?.slice(-6).toUpperCase() || '------';
-const TIME   = (d) => new Date(d).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-const DATE   = (d) => new Date(d).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+const TIME   = (d) => new Date(d).toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' });
+const DATE   = (d) => new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
 // ─── Order Detail Modal ────────────────────────────────────────────────────────
 function OrderDetailModal({ order, onClose }) {
@@ -29,7 +29,7 @@ function OrderDetailModal({ order, onClose }) {
           {/* Meta */}
           <div className="flex justify-between text-xs text-burgundy/50">
             <span>الوقت</span>
-            <span>{new Date(order.createdAt).toLocaleString('ar-EG')}</span>
+            <span>{new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
           </div>
           <div className="flex justify-between text-xs text-burgundy/50">
             <span>طريقة الدفع</span>
@@ -81,11 +81,11 @@ function OrderDetailModal({ order, onClose }) {
           <button
             onClick={() => {
               const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
-              const dateStr = new Date(order.createdAt).toLocaleString('ar-EG');
+              const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
               const itemsHTML = order.items.map(item => `
                 <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:10px">
                   <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
-                  <span style="white-space:nowrap">${(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
+                  <span style="white-space:nowrap">${(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
                 </div>
               `).join('');
 
@@ -112,7 +112,7 @@ function OrderDetailModal({ order, onClose }) {
                     ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
                     <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px">
                       <span>الإجمالي الفعلي:</span>
-                      <span>${order.totalAmount.toLocaleString('ar-EG')} ج.م</span>
+                      <span>${order.totalAmount.toLocaleString('en-US')} ج.م</span>
                     </div>
                   </div>
 
@@ -215,7 +215,7 @@ function CashierToday() {
       o.status === 'Completed' ? 'مكتمل' : 'مرتجع',
       o.totalAmount,
     ]);
-    exportToCSV(`مبيعات_اليوم_${new Date().toLocaleDateString('ar-EG')}`, headers, rows);
+    exportToCSV(`مبيعات_اليوم_${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`, headers, rows);
   };
 
   return (

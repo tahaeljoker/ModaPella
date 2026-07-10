@@ -16,7 +16,7 @@ const CATEGORY_LABELS = {
   Takem: 'طقم',
 };
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 // ─── Barcode generator (Code 128 B) ──────────────────────────────────────────
 const CODE128_PATTERNS = [
@@ -222,7 +222,7 @@ function AdminBarcodeLabels() {
             </div>
             <div style="display:flex;justify-content:space-between;width:95%;align-items:center;line-height:1;margin-top:1px;">
               <span style="font-size:8px;font-weight:700;font-family:monospace;color:#000;text-align:right;">${p.sku}</span>
-              <span style="font-size:8px;font-weight:900;color:#000;text-align:left;">${Number(p.price).toLocaleString('ar-EG')} ج.م</span>
+              <span style="font-size:8px;font-weight:900;color:#000;text-align:left;">${Number(p.price).toLocaleString('en-US')} ج.م</span>
             </div>
           </div>
         </div>`;

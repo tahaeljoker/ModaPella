@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
-const DATE = (d) => new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' });
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
+const DATE = (d) => new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
 
 // ─── Supplier Form Modal ───────────────────────────────────────────────────────
 function SupplierModal({ supplier, onClose, onSave }) {
@@ -133,7 +133,7 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
 
 // ─── Supplier Detail Modal ─────────────────────────────────────────────────────
 const CAT_AR_SUP = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
-const EGP_S = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP_S = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 function SupplierDetailModal({ supplierId, onClose }) {
   const [data, setData] = useState(null);
@@ -201,7 +201,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7C0A12;padding-bottom:20px;margin-bottom:30px">
           <div>
             <h1 style="color:#7C0A12;margin:0;font-size:28px">أمر توريد بضاعة</h1>
-            <p style="margin:5px 0 0;font-size:14px;color:#666">تاريخ الطلب: ${new Date().toLocaleDateString('ar-EG')}</p>
+            <p style="margin:5px 0 0;font-size:14px;color:#666">تاريخ الطلب: ${new Date().toLocaleDateString('ar-EG-u-nu-latn')}</p>
           </div>
           <div style="text-align:left">
             <h2 style="margin:0;font-size:22px;color:#333">ModaPella</h2>
@@ -270,13 +270,13 @@ function SupplierDetailModal({ supplierId, onClose }) {
         <div style="border-bottom:1px dashed #e0c9c9;padding-bottom:16px;margin-bottom:16px;font-size:13px;line-height:2">
           <p style="margin:4px 0"><strong>اسم المورد:</strong> ${supplier.name}</p>
           ${supplier.phone ? `<p style="margin:4px 0"><strong>الهاتف:</strong> ${supplier.phone}</p>` : ''}
-          <p style="margin:4px 0"><strong>تاريخ السداد:</strong> ${new Date(tx.date).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p style="margin:4px 0"><strong>تاريخ السداد:</strong> ${new Date(tx.date).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           ${tx.reference ? `<p style="margin:4px 0"><strong>رقم المرجع/الفاتورة:</strong> ${tx.reference}</p>` : ''}
         </div>
         
         <div style="text-align:center;background:#f7f0ec;padding:20px;border-radius:16px;margin-bottom:20px;border:1px solid #7C0A1208">
           <p style="margin:0;font-size:14px;color:#7C0A12;font-weight:bold">المبلغ المسدد</p>
-          <p style="margin:8px 0 0;font-size:28px;font-weight:extrabold;color:#10b981">${Number(tx.amount).toLocaleString('ar-EG')} ج.م</p>
+          <p style="margin:8px 0 0;font-size:28px;font-weight:extrabold;color:#10b981">${Number(tx.amount).toLocaleString('en-US')} ج.م</p>
         </div>
         
         ${tx.description ? `<p style="font-size:13px;color:#555;margin:8px 0;background:#fafafa;padding:10px 12px;border-radius:8px"><strong>ملاحظات:</strong> ${tx.description}</p>` : ''}
@@ -397,7 +397,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
                           )}
                         </div>
                         {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
-                        <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(tx.date).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                        <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(tx.date).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                       </div>
                       <div className="flex items-center gap-2 mr-3">
                         <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : 'text-emerald-700'}`}>

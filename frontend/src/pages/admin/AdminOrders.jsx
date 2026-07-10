@@ -5,7 +5,7 @@ import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import { exportToCSV } from '../../services/export';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const STATUS_AR = { Completed: 'مكتمل', Returned: 'مرتجع', Pending: 'معلق' };
 const STATUS_COLOR = {
@@ -123,14 +123,14 @@ function AdminOrders() {
     const headers = ['رقم الطلب', 'التاريخ', 'المنتجات', 'النوع', 'طريقة الدفع', 'الحالة', 'الإجمالي'];
     const rows = filtered.map(o => [
       o._id?.slice(-6).toUpperCase() || '',
-      new Date(o.createdAt).toLocaleString('ar-EG'),
+      new Date(o.createdAt).toLocaleString('ar-EG-u-nu-latn'),
       o.items?.map(i => `${i.name} (${i.size || '-'}/${i.color || '-'}) x${i.quantity}`).join(' + ') || '',
       o.type === 'Offline' ? 'كاشير' : 'أونلاين',
       o.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي',
       o.status === 'Completed' ? 'مكتمل' : o.status === 'Returned' ? 'مرتجع' : 'معلق',
       o.totalAmount
     ]);
-    exportToCSV(`طلبات_مودابيلا_${new Date().toLocaleDateString('ar-EG')}`, headers, rows);
+    exportToCSV(`طلبات_مودابيلا_${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`, headers, rows);
   };
 
   return (
@@ -222,7 +222,7 @@ function AdminOrders() {
                       </span>
                     </div>
                     <p className="mt-0.5 text-xs text-burgundy/50">
-                      {new Date(order.createdAt).toLocaleString('ar-EG')}
+                      {new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}
                     </p>
                   </div>
                 </div>
@@ -278,11 +278,11 @@ function AdminOrders() {
                       type="button"
                       onClick={() => {
                         const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
-                        const dateStr = new Date(order.createdAt).toLocaleString('ar-EG');
+                        const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
                         const itemsHTML = order.items.map(item => `
                           <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
                             <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
-                            <span>${(item.price * item.quantity).toLocaleString('ar-EG')} ج.م</span>
+                            <span>${(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
                           </div>
                         `).join('');
 
@@ -309,7 +309,7 @@ function AdminOrders() {
                               ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
                               <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px">
                                 <span>الإجمالي الفعلي:</span>
-                                <span>${order.totalAmount.toLocaleString('ar-EG')} ج.م</span>
+                                <span>${order.totalAmount.toLocaleString('en-US')} ج.م</span>
                               </div>
                             </div>
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
-const EGP = (n) => `${Number(n || 0).toLocaleString('ar-EG')} ج.م`;
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -160,7 +160,7 @@ function AdminCustomers() {
                           </span>
                         </td>
                         <td className="py-3 px-5 text-xs text-burgundy/50">
-                          {new Date(c.lastOrderDate).toLocaleDateString('ar-EG')}
+                          {new Date(c.lastOrderDate).toLocaleDateString('ar-EG-u-nu-latn')}
                         </td>
                       </tr>
                     );
@@ -238,7 +238,7 @@ function AdminCustomers() {
                   <div key={order.id} className="rounded-2xl border border-burgundy/10 bg-burgundy/5 p-4">
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-xs font-bold text-burgundy/50">
-                        {new Date(order.date).toLocaleString('ar-EG')}
+                        {new Date(order.date).toLocaleString('ar-EG-u-nu-latn')}
                       </span>
                       <span className="font-bold text-burgundy">{EGP(order.total)}</span>
                     </div>
