@@ -61,7 +61,7 @@ function AdminLayout({ children }) {
       const { data } = await axios.get('/api/notifications', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setNotifications(data);
+      setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
@@ -99,7 +99,7 @@ function AdminLayout({ children }) {
     navigate('/login');
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
 
   return (
     <div className="flex min-h-screen bg-[#F7F0EC]" dir="rtl">
