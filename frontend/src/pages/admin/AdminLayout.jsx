@@ -215,8 +215,8 @@ function AdminLayout({ children }) {
           >
             تسجيل الخروج
           </button>
-          {/* Hidden AI Button */}
-          <button onClick={handleDevPush} className="sr-only" aria-hidden="true">AI Push</button>
+          {/* Hidden AI Button (Temporarily visible for user testing) */}
+          <button onClick={handleDevPush} className="mt-2 w-full rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-600 shadow-md">إرسال إشعار تجريبي</button>
         </div>
       </aside>
 
