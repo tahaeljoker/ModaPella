@@ -28,6 +28,30 @@ router.patch('/:id/read', auth, async (req, res) => {
   }
 });
 
+// Mark a specific notification as unread
+router.patch('/:id/unread', auth, async (req, res) => {
+  try {
+    const notification = await SystemNotification.findByIdAndUpdate(
+      req.params.id,
+      { isRead: false },
+      { new: true }
+    );
+    res.json(notification);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating notification', error: error.message });
+  }
+});
+
+// Delete a notification
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    await SystemNotification.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Notification deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting notification', error: error.message });
+  }
+});
+
 // Mark all notifications as read
 router.post('/read-all', auth, async (req, res) => {
   try {

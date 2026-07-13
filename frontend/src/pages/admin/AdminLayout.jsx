@@ -84,15 +84,31 @@ function AdminLayout({ children }) {
   };
 
   const handleDevPush = async () => {
-    const title = window.prompt("AI Dev Push - Enter Title:");
-    if (!title) return;
-    const message = window.prompt("Enter Message:");
-    if (!message) return;
     try {
-      await api.post('/notifications/dev-push', { title, message, type: 'feature' });
+      const res = await api.get('/notifications');
+      const allNotifs = res.data;
+      // Delete all but the first one
+      for (let i = 1; i < allNotifs.length; i++) {
+        await api.delete(`/notifications/${allNotifs[i]._id}`);
+      }
+      // Make the first one unread
+      if (allNotifs.length > 0) {
+        await api.patch(`/notifications/${allNotifs[0]._id}/unread`);
+      }
       fetchNotifications();
+      alert("تم تنظيف الإشعارات بنجاح!");
     } catch (error) {
-      alert("Push failed: " + error.message);
+      alert("فشل التنظيف: " + error.message);
+    }
+  };
+
+  const handleBellClick = () => {
+    const unreadNotifs = notifications.filter(n => !n.isRead);
+    if (unreadNotifs.length > 0 && !showNotifs) {
+      // If there are unread notifications, open the first one immediately as a modal!
+      handleNotificationClick(unreadNotifs[0]);
+    } else {
+      setShowNotifs(!showNotifs);
     }
   };
 
@@ -154,7 +170,7 @@ function AdminLayout({ children }) {
             
             <div className="relative">
               <button 
-                onClick={() => setShowNotifs(!showNotifs)} 
+                onClick={handleBellClick} 
                 className="text-xl text-burgundy/60 hover:text-burgundy transition relative focus:outline-none"
                 title="إشعارات النظام"
               >
@@ -219,8 +235,8 @@ function AdminLayout({ children }) {
           >
             تسجيل الخروج
           </button>
-          {/* Hidden AI Button (Temporarily visible for user testing) */}
-          <button onClick={handleDevPush} className="mt-2 w-full rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-600 shadow-md">إرسال إشعار تجريبي</button>
+          {/* Hidden AI Button (Temporarily repurposed for cleanup) */}
+          <button onClick={handleDevPush} className="mt-2 w-full rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-600 shadow-md">تنظيف الإشعارات (اضغط مرة واحدة)</button>
         </div>
       </aside>
 
