@@ -43,7 +43,8 @@ function AdminLayout({ children }) {
   
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [firstTimeMsgOpen, setFirstTimeMsgOpen] = useState(false);
+  const [firstTimeMsgOpen, setFirstTimeMsgOpen] = useState(true);
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -67,11 +68,18 @@ function AdminLayout({ children }) {
 
   const markAsRead = async (id) => {
     try {
-      const token = localStorage.getItem('modapella_token');
       await api.patch(`/notifications/${id}/read`);
       setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
     } catch (error) {
       console.error('Error marking as read:', error);
+    }
+  };
+
+  const handleNotificationClick = (notif) => {
+    setSelectedNotification(notif);
+    setShowNotifs(false);
+    if (!notif.isRead) {
+      markAsRead(notif._id);
     }
   };
 
@@ -179,8 +187,8 @@ function AdminLayout({ children }) {
                       notifications.map(notif => (
                         <div 
                           key={notif._id} 
-                          onClick={() => !notif.isRead && markAsRead(notif._id)}
-                          className={`p-2.5 rounded-xl text-xs transition cursor-pointer ${notif.isRead ? 'bg-gray-50 opacity-70' : 'bg-burgundy/5 border border-burgundy/10'}`}
+                          onClick={() => handleNotificationClick(notif)}
+                          className={`p-2.5 rounded-xl text-xs transition cursor-pointer hover:bg-burgundy/10 ${notif.isRead ? 'bg-gray-50 opacity-70' : 'bg-burgundy/5 border border-burgundy/10'}`}
                         >
                           <div className="flex justify-between items-start mb-1">
                             <span className="font-bold text-burgundy">{notif.title}</span>
@@ -220,6 +228,32 @@ function AdminLayout({ children }) {
       <main className="mr-64 flex-1 p-8">
         {children}
       </main>
+
+      {/* Notification Modal */}
+      {selectedNotification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-burgundy p-5 text-white flex items-center gap-3">
+              <span className="text-2xl">✨</span>
+              <h3 className="font-bold text-lg">{selectedNotification.title}</h3>
+            </div>
+            <div className="p-6 text-burgundy space-y-4">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedNotification.message}</p>
+              <div className="pt-4 flex justify-between items-center border-t border-burgundy/10">
+                <span className="text-[10px] text-burgundy/40 font-mono">
+                  {new Date(selectedNotification.createdAt).toLocaleString('ar-EG-u-nu-latn')}
+                </span>
+                <button
+                  onClick={() => setSelectedNotification(null)}
+                  className="rounded-xl bg-burgundy/10 px-5 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy hover:text-white"
+                >
+                  حسنًا، فهمت
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
