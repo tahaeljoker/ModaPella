@@ -357,6 +357,11 @@ function CashierPOS() {
   const [editingPriceKey, setEditingPriceKey] = useState(null); // inline price edit
   const [toasts, setToasts] = useState([]);
 
+  // Debt fields
+  const [isDebt, setIsDebt] = useState(false);
+  const [debtPaidAmount, setDebtPaidAmount] = useState('');
+  const [matchedCustomer, setMatchedCustomer] = useState(null);
+
   // Employee
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -496,6 +501,24 @@ function CashierPOS() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    const phone = customerPhone.trim();
+    if (phone.length >= 11) {
+      api.get(`/pos/customers/lookup?phone=${phone}`)
+        .then(res => {
+          setMatchedCustomer(res.data);
+          if (!customerName.trim() && res.data.name) {
+            setCustomerName(res.data.name);
+          }
+        })
+        .catch(() => {
+          setMatchedCustomer(null);
+        });
+    } else {
+      setMatchedCustomer(null);
+    }
+  }, [customerPhone]);
 
   useEffect(() => {
     if (editOrderId) {
@@ -722,6 +745,12 @@ function CashierPOS() {
   // ── Checkout ──────────────────────────────────────────────────────────────
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+
+    if (isDebt && (!customerName.trim() || !customerPhone.trim())) {
+      showToast('⚠️ يجب إدخال اسم العميل ورقم هاتفه لتسجيل البيع الآجل (الدين)', 'error');
+      return;
+    }
+
     setSubmitting(true);
 
     const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
@@ -744,7 +773,9 @@ function CashierPOS() {
       paymentMethod,
       discount: discountAmount,
       type: 'Offline',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      isDebt,
+      amountPaid: isDebt ? Number(debtPaidAmount || 0) : totalAfterDiscount
     };
 
     // If browser is offline, skip API request and save locally
@@ -775,6 +806,8 @@ function CashierPOS() {
       setCustomerName('');
       setCustomerPhone('');
       setNotes('');
+      setIsDebt(false);
+      setDebtPaidAmount('');
       setSubmitting(false);
       return;
     }
@@ -795,6 +828,8 @@ function CashierPOS() {
       setCustomerName('');
       setCustomerPhone('');
       setNotes('');
+      setIsDebt(false);
+      setDebtPaidAmount('');
     } catch (err) {
       // If server request fails (connection refused or timeout), also save locally
       const offlineId = `OFFLINE-${Date.now()}`;
@@ -814,7 +849,7 @@ function CashierPOS() {
 
       saveOfflineSales([...offlineSales, { id: offlineId, payload: salePayload }]);
       setCompletedOrder(fakeOrder);
-      showToast('⚠️ تم حفظ الفاتورة محلياً بسبب انقطاع اتصال الخادم', 'error');
+      showToast('⚠️ تم حفظ الفاتورة محلياً بسبب انقطاع اتصال الخادر', 'error');
 
       setCart([]);
       setDiscount(0);
@@ -823,6 +858,8 @@ function CashierPOS() {
       setCustomerName('');
       setCustomerPhone('');
       setNotes('');
+      setIsDebt(false);
+      setDebtPaidAmount('');
     } finally {
       setSubmitting(false);
     }
@@ -1365,6 +1402,21 @@ function CashierPOS() {
                 </div>
               </div>
 
+              {matchedCustomer && (
+                <div className="bg-emerald-50 border border-emerald-500/20 text-emerald-900 rounded-2xl p-3.5 space-y-1 text-xs">
+                  <div className="flex justify-between font-bold">
+                    <span>👋 عميل مسجل: {matchedCustomer.name}</span>
+                    <span className="bg-emerald-100 text-emerald-800 text-[9px] px-2 py-0.5 rounded-full font-bold">عضو ولاء</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-emerald-700 font-bold mt-1.5 pt-1.5 border-t border-emerald-500/5">
+                    <span>⭐ نقاط الولاء المجمعة: {matchedCustomer.points} نقطة</span>
+                    {matchedCustomer.debt > 0 && (
+                      <span className="text-amber-700 font-extrabold">⚠️ الديون المتبقية: {EGP(matchedCustomer.debt)}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Employee & Notes Selector */}
               <div className="grid grid-cols-2 gap-2 border-t border-burgundy/10 pt-3">
                 {employees.length > 0 ? (
@@ -1418,8 +1470,59 @@ function CashierPOS() {
                 </div>
               </div>
 
+              {/* Client Debt Toggle */}
+              <div className="bg-[#FAF7F2] border border-amber-500/20 rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <span>💳</span> بيع آجل / تسجيل دين على العميل
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDebt(!isDebt);
+                      setDebtPaidAmount('');
+                    }}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isDebt ? 'bg-amber-600' : 'bg-slate-200'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isDebt ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {isDebt && (
+                  <div className="space-y-2.5 pt-1.5 border-t border-amber-500/10">
+                    <div className="flex items-center gap-2 bg-white rounded-xl border border-amber-500/20 px-3 py-2">
+                      <label className="text-xs text-amber-800 font-bold whitespace-nowrap">المبلغ المدفوع الآن</label>
+                      <input
+                        type="number"
+                        value={debtPaidAmount}
+                        onChange={e => setDebtPaidAmount(e.target.value)}
+                        placeholder="0"
+                        className="flex-1 text-xs font-bold text-amber-900 bg-transparent outline-none text-left"
+                      />
+                      <span className="text-xs text-amber-600 font-bold">ج.م</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs bg-amber-600/10 text-amber-900 px-3 py-2 rounded-xl border border-amber-600/10">
+                      <span className="font-bold">المتبقي (دين على العميل)</span>
+                      <span className="font-extrabold text-sm text-amber-700">
+                        {EGP(Math.max(0, totalAfterDiscount - Number(debtPaidAmount || 0)))}
+                      </span>
+                    </div>
+                    {(!customerName.trim() || !customerPhone.trim()) && (
+                      <p className="text-[10px] text-amber-700 font-bold leading-relaxed">
+                        ⚠️ يرجى إدخال اسم العميل ورقم هاتفه أعلاه لتسجيل الدين باسمه.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Cash paid + Change */}
-              {paymentMethod === 'Cash' && (
+              {paymentMethod === 'Cash' && !isDebt && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 bg-[#F7F0EC] rounded-xl border border-burgundy/15 px-3 py-2">
                     <label className="text-sm text-burgundy/50 whitespace-nowrap">المبلغ المدفوع</label>

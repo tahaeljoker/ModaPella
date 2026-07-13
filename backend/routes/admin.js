@@ -273,6 +273,14 @@ router.get('/customers', auth, requireRole(['admin']), async (req, res) => {
     });
 
     const customersList = Object.values(customersMap).sort((a, b) => b.totalSpent - a.totalSpent);
+    
+    const Customer = require('../models/Customer');
+    await Promise.all(customersList.map(async (c) => {
+      const dbCust = await Customer.findOne({ phone: c.phone });
+      c.points = dbCust ? dbCust.points : 0;
+      c.debt = dbCust ? dbCust.debt : 0;
+    }));
+
     res.json(customersList);
   } catch (error) {
     res.status(500).json({ message: 'Unable to load customers', error: error.message });

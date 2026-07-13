@@ -5,6 +5,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
+const Customer = require('../models/Customer');
 
 const router = express.Router();
 
@@ -334,12 +335,13 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
       else if (t.category === 'Expense') typeLabel = 'مصروف';
       else if (t.category === 'ShiftOpen') typeLabel = 'رصيد افتتاحي للوردية';
       else if (t.category === 'ShiftClose') typeLabel = 'تصفية الوردية عند الإغلاق';
+      else if (t.category === 'DebtPayment') typeLabel = 'سداد دين عميل';
       else if (t.category === 'Other') typeLabel = 'حركة خزينة أخرى';
 
       activities.push({
         id: `tx-${t._id}`,
         timestamp: t.createdAt,
-        type: t.category.toLowerCase() === 'expense' ? 'expense' : t.category.toLowerCase() === 'refund' ? 'refund' : 'safe_movement',
+        type: t.category.toLowerCase() === 'expense' ? 'expense' : t.category.toLowerCase() === 'refund' ? 'refund' : t.category.toLowerCase() === 'debtpayment' ? 'deposit' : 'safe_movement',
         user: t.user?.name || 'غير معروف',
         title: `حركة خزينة: ${typeLabel}`,
         description: t.description || '',
@@ -400,6 +402,119 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
     res.json(activities);
   } catch (error) {
     res.status(500).json({ message: 'Unable to load system activities', error: error.message });
+  }
+});
+
+// GET /api/cashier/debts — get all customers with outstanding debts
+router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+  try {
+    const orders = await Order.find({ isDebt: true, debtAmount: { $gt: 0 } }).sort({ createdAt: -1 });
+    const debtsMap = {};
+
+    orders.forEach(order => {
+      const key = order.customerPhone || order.customerName || 'unknown';
+      if (!debtsMap[key]) {
+        debtsMap[key] = {
+          name: order.customerName || 'عميل غير معروف',
+          phone: order.customerPhone || 'بدون هاتف',
+          totalDebt: 0,
+          ordersCount: 0,
+          lastActivity: order.createdAt,
+          orders: []
+        };
+      }
+
+      debtsMap[key].totalDebt += order.debtAmount;
+      debtsMap[key].ordersCount += 1;
+      debtsMap[key].orders.push({
+        _id: order._id,
+        totalAmount: order.totalAmount,
+        amountPaid: order.amountPaid,
+        debtAmount: order.debtAmount,
+        createdAt: order.createdAt
+      });
+
+      if (new Date(order.createdAt) > new Date(debtsMap[key].lastActivity)) {
+        debtsMap[key].lastActivity = order.createdAt;
+      }
+    });
+
+    res.json(Object.values(debtsMap).sort((a, b) => b.totalDebt - a.totalDebt));
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to load debts', error: error.message });
+  }
+});
+
+// POST /api/cashier/debts/pay — record a debt payment
+router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+  try {
+    const { customerPhone, customerName, amount, paymentMethod = 'Cash', notes = '' } = req.body;
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid payment amount' });
+    }
+
+    // Find all outstanding debt orders for this customer (prefer phone, fallback to name)
+    const query = { isDebt: true, debtAmount: { $gt: 0 } };
+    if (customerPhone && customerPhone !== 'بدون هاتف') {
+      query.customerPhone = customerPhone;
+    } else if (customerName) {
+      query.customerName = customerName;
+    } else {
+      return res.status(400).json({ message: 'Customer phone or name is required' });
+    }
+
+    const orders = await Order.find(query).sort({ createdAt: 1 }); // oldest first
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'No active debts found for this customer' });
+    }
+
+    let remainingPayment = Number(amount);
+    const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    const updatedOrders = [];
+
+    for (let order of orders) {
+      if (remainingPayment <= 0) break;
+
+      const debtToPay = Math.min(order.debtAmount, remainingPayment);
+      order.debtAmount -= debtToPay;
+      order.amountPaid += debtToPay;
+      remainingPayment -= debtToPay;
+
+      await order.save();
+      updatedOrders.push(order);
+
+      // Log transaction for the safe/drawer
+      const transaction = new Transaction({
+        amount: debtToPay,
+        type: 'IN',
+        category: 'DebtPayment',
+        paymentMethod,
+        description: `سداد جزء من دين الفاتورة #${order._id.toString().slice(-6).toUpperCase()} للعميل ${customerName || customerPhone}`,
+        referenceId: order._id,
+        user: req.user.id,
+        shift: openShift?._id
+      });
+      await transaction.save();
+    }
+
+    // Update Customer record debt too
+    if (customerPhone && customerPhone !== 'بدون هاتف') {
+      const dbCust = await Customer.findOne({ phone: customerPhone });
+      if (dbCust) {
+        dbCust.debt = Math.max(0, dbCust.debt - Number(amount));
+        await dbCust.save();
+      }
+    } else if (customerName) {
+      const dbCust = await Customer.findOne({ name: customerName });
+      if (dbCust) {
+        dbCust.debt = Math.max(0, dbCust.debt - Number(amount));
+        await dbCust.save();
+      }
+    }
+
+    res.json({ message: 'Payment recorded successfully', updatedOrders, change: remainingPayment });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to record payment', error: error.message });
   }
 });
 

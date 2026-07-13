@@ -13,7 +13,7 @@ const OrderItemSchema = new mongoose.Schema({
 });
 
 const OrderSchema = new mongoose.Schema({
-  customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   customerName: { type: String, default: '' },
   customerPhone: { type: String, default: '' },
   seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -27,7 +27,10 @@ const OrderSchema = new mongoose.Schema({
   paymentMethod: { type: String, enum: ['Cash', 'Instapay', 'Wallet'], default: 'Cash' },
   paymentGateway: { type: String, default: 'Instapay' },
   notes: { type: String, default: '' },
-  recovered: { type: Boolean, default: false }
+  recovered: { type: Boolean, default: false },
+  amountPaid: { type: Number, default: 0 },
+  debtAmount: { type: Number, default: 0 },
+  isDebt: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

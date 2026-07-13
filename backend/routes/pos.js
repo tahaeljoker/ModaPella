@@ -5,12 +5,26 @@ const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
 const StockHistory = require('../models/StockHistory');
+const Customer = require('../models/Customer');
 
 const router = express.Router();
 
 router.post('/sell', auth, async (req, res) => {
   try {
-    const { customerId, customerName, customerPhone, sellerId, employeeId, items, type = 'Offline', paymentMethod = 'Cash', discount = 0, notes = '' } = req.body;
+    const { 
+      customerId, 
+      customerName, 
+      customerPhone, 
+      sellerId, 
+      employeeId, 
+      items, 
+      type = 'Offline', 
+      paymentMethod = 'Cash', 
+      discount = 0, 
+      notes = '',
+      isDebt = false,
+      amountPaid = 0 
+    } = req.body;
 
     const productLookups = await Promise.all(items.map(async (item) => {
       const product = await Product.findById(item.product);
@@ -60,8 +74,33 @@ router.post('/sell', auth, async (req, res) => {
       if (empDb) employeeName = empDb.name;
     }
 
+    const finalAmountPaid = isDebt ? Math.min(totalAmount, Math.max(0, Number(amountPaid))) : totalAmount;
+    const debtAmount = isDebt ? Math.max(0, totalAmount - finalAmountPaid) : 0;
+
+    let dbCustomer = null;
+    if (customerPhone && customerPhone.trim() !== '') {
+      dbCustomer = await Customer.findOne({ phone: customerPhone.trim() });
+      if (!dbCustomer) {
+        dbCustomer = new Customer({
+          name: customerName || 'عميل غير معروف',
+          phone: customerPhone.trim(),
+          points: 0,
+          debt: 0
+        });
+      } else {
+        if (customerName && customerName.trim() !== '') {
+          dbCustomer.name = customerName.trim();
+        }
+      }
+      dbCustomer.points += Math.floor(totalAmount / 100);
+      if (isDebt) {
+        dbCustomer.debt += debtAmount;
+      }
+      await dbCustomer.save();
+    }
+
     const order = new Order({
-      customer: customerId,
+      customer: dbCustomer ? dbCustomer._id : (customerId || null),
       customerName: customerName || '',
       customerPhone: customerPhone || '',
       seller: sellerId || req.user.id,
@@ -73,7 +112,10 @@ router.post('/sell', auth, async (req, res) => {
       type,
       status: 'Completed',
       paymentMethod,
-      notes: notes || ''
+      notes: notes || '',
+      isDebt,
+      amountPaid: finalAmountPaid,
+      debtAmount: debtAmount
     });
     await order.save();
 
@@ -110,18 +152,20 @@ router.post('/sell', auth, async (req, res) => {
       req.app.locals.io?.emit('inventory:update', product);
     }));
 
-    const openShift = await Shift.findOne({ user: sellerId || req.user.id, status: 'open' });
-    const transaction = new Transaction({
-      amount: totalAmount,
-      type: 'IN',
-      category: 'Sale',
-      paymentMethod: order.paymentMethod,
-      description: `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()}`,
-      referenceId: order._id,
-      user: sellerId || req.user.id,
-      shift: openShift?._id
-    });
-    await transaction.save();
+    if (finalAmountPaid > 0) {
+      const openShift = await Shift.findOne({ user: sellerId || req.user.id, status: 'open' });
+      const transaction = new Transaction({
+        amount: finalAmountPaid,
+        type: 'IN',
+        category: 'Sale',
+        paymentMethod: order.paymentMethod,
+        description: `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()}${isDebt ? ' (دفع جزئي - آجل)' : ''}`,
+        referenceId: order._id,
+        user: sellerId || req.user.id,
+        shift: openShift?._id
+      });
+      await transaction.save();
+    }
 
     res.status(201).json({ order, message: 'Sale completed' });
   } catch (error) {
@@ -486,6 +530,19 @@ router.put('/orders/:id', auth, async (req, res) => {
     res.json({ order, message: 'Order updated successfully' });
   } catch (error) {
     res.status(400).json({ message: 'Update failed', error: error.message });
+  }
+});
+
+// GET /api/pos/customers/lookup — look up a customer by phone
+router.get('/customers/lookup', auth, async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone) return res.status(400).json({ message: 'Phone parameter is required' });
+    const customer = await Customer.findOne({ phone: phone.trim() });
+    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    res.json(customer);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to look up customer', error: error.message });
   }
 });
 

@@ -126,6 +126,7 @@ function AdminCustomers() {
                     <th className="py-4 px-5 font-semibold text-burgundy/70">العميل</th>
                     <th className="py-4 px-5 font-semibold text-burgundy/70">رقم الهاتف</th>
                     <th className="py-4 px-5 font-semibold text-burgundy/70">إجمالي المشتريات</th>
+                    <th className="py-4 px-5 font-semibold text-burgundy/70">نقاط الولاء</th>
                     <th className="py-4 px-5 font-semibold text-burgundy/70">عدد الطلبات</th>
                     <th className="py-4 px-5 font-semibold text-burgundy/70">آخر طلب</th>
                   </tr>
@@ -154,6 +155,7 @@ function AdminCustomers() {
                         </td>
                         <td className="py-3 px-5 font-mono text-xs">{c.phone}</td>
                         <td className="py-3 px-5 font-extrabold text-emerald-700">{EGP(c.totalSpent)}</td>
+                        <td className="py-3 px-5 font-extrabold text-purple-700">⭐ {c.points || 0}</td>
                         <td className="py-3 px-5">
                           <span className="rounded-lg bg-burgundy/10 px-2 py-1 font-bold text-burgundy">
                             {c.ordersCount}
@@ -220,14 +222,20 @@ function AdminCustomers() {
               </div>
               
               {/* Stats */}
-              <div className="flex border-b border-burgundy/10 bg-[#F7F0EC]">
-                <div className="flex-1 p-4 text-center border-l border-burgundy/10">
-                  <p className="text-xs text-burgundy/50 font-bold mb-1">المدفوعات</p>
-                  <p className="font-extrabold text-emerald-700">{EGP(selectedCustomer.totalSpent)}</p>
+              <div className="flex border-b border-burgundy/10 bg-[#F7F0EC] text-center">
+                <div className="flex-1 p-4 border-l border-burgundy/10">
+                  <p className="text-[10px] text-burgundy/50 font-bold mb-1">المدفوعات</p>
+                  <p className="font-extrabold text-xs text-emerald-700">{EGP(selectedCustomer.totalSpent)}</p>
                 </div>
-                <div className="flex-1 p-4 text-center">
-                  <p className="text-xs text-burgundy/50 font-bold mb-1">الطلبات</p>
-                  <p className="font-extrabold text-burgundy">{selectedCustomer.ordersCount}</p>
+                <div className="flex-1 p-4 border-l border-burgundy/10">
+                  <p className="text-[10px] text-burgundy/50 font-bold mb-1">النقاط (الولاء)</p>
+                  <p className="font-extrabold text-xs text-purple-700">⭐ {selectedCustomer.points || 0}</p>
+                </div>
+                <div className="flex-1 p-4">
+                  <p className="text-[10px] text-burgundy/50 font-bold mb-1">الديون المتبقية</p>
+                  <p className={`font-extrabold text-xs ${selectedCustomer.debt > 0 ? 'text-amber-600 font-extrabold' : 'text-burgundy/40'}`}>
+                    {selectedCustomer.debt ? EGP(selectedCustomer.debt) : 'لا يوجد'}
+                  </p>
                 </div>
               </div>
 
