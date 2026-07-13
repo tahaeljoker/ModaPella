@@ -16,6 +16,10 @@ function AdminDebts() {
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Manual Debt states
+  const [manualDebtModal, setManualDebtModal] = useState(false);
+  const [manualData, setManualData] = useState({ name: '', phone: '', amount: '', notes: '' });
+  const [submittingManual, setSubmittingManual] = useState(false);
   const loadDebts = async () => {
     setLoading(true);
     try {
@@ -65,6 +69,29 @@ function AdminDebts() {
     }
   };
 
+  const handleManualDebtSubmit = async (e) => {
+    e.preventDefault();
+    if (!manualData.phone || !manualData.amount) return;
+    setSubmittingManual(true);
+    try {
+      await api.post('/debts/manual', {
+        customerName: manualData.name,
+        customerPhone: manualData.phone,
+        amount: Number(manualData.amount),
+        notes: manualData.notes
+      });
+      setManualDebtModal(false);
+      setManualData({ name: '', phone: '', amount: '', notes: '' });
+      loadDebts();
+      alert('تم تسجيل الدين بنجاح!');
+    } catch (err) {
+      console.error('Failed to add manual debt:', err);
+      alert('فشل تسجيل الدين: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSubmittingManual(false);
+    }
+  };
+
   const filtered = debts.filter(d => {
     const searchLower = search.toLowerCase();
     return (
@@ -76,10 +103,18 @@ function AdminDebts() {
   return (
     <div className="space-y-6 text-burgundy" dir="rtl">
       {/* Header */}
-      <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">إدارة الحسابات</p>
-        <h2 className="text-2xl font-bold">💳 ديون وحسابات العملاء (البيع الآجل)</h2>
-        <p className="text-sm text-burgundy/50 mt-0.5">متابعة المبالغ المتبقية على العملاء وإجراء عمليات التحصيل والسداد</p>
+      <div className="flex flex-wrap justify-between items-start gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">إدارة الحسابات</p>
+          <h2 className="text-2xl font-bold">💳 ديون وحسابات العملاء (البيع الآجل)</h2>
+          <p className="text-sm text-burgundy/50 mt-0.5">متابعة المبالغ المتبقية على العملاء وإجراء عمليات التحصيل والسداد</p>
+        </div>
+        <button
+          onClick={() => setManualDebtModal(true)}
+          className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-5 rounded-2xl shadow-sm transition flex items-center gap-2 text-sm"
+        >
+          <span>➕</span> تسجيل دين يدوي
+        </button>
       </div>
 
       {/* Overview Cards */}
@@ -275,12 +310,17 @@ function AdminDebts() {
                     {selectedCust.orders.map((order, oIdx) => (
                       <div key={oIdx} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs space-y-1.5">
                         <div className="flex justify-between font-bold text-burgundy">
-                          <span>فاتورة #{order._id.slice(-6).toUpperCase()}</span>
+                          <span>{order.isManual ? `📝 دين مسجل يدوياً` : `فاتورة #${order._id.slice(-6).toUpperCase()}`}</span>
                           <span className="text-amber-700 font-extrabold">{EGP(order.debtAmount)}</span>
                         </div>
+                        {order.isManual && order.notes && (
+                          <div className="text-[10.5px] text-burgundy/70 bg-amber-50 p-1.5 rounded-md mb-1">
+                            {order.notes}
+                          </div>
+                        )}
                         <div className="flex justify-between text-[10px] text-burgundy/40">
                           <span>التاريخ: {new Date(order.createdAt).toLocaleDateString('ar-EG-u-nu-latn')}</span>
-                          <span>المدفوع: {EGP(order.amountPaid)} / الإجمالي: {EGP(order.totalAmount)}</span>
+                          {!order.isManual && <span>المدفوع: {EGP(order.amountPaid)} / الإجمالي: {EGP(order.totalAmount)}</span>}
                         </div>
                       </div>
                     ))}
@@ -288,6 +328,78 @@ function AdminDebts() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* Add Manual Debt Modal */}
+      {manualDebtModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-burgundy mb-2">➕ تسجيل دين يدوي</h3>
+            <p className="text-xs text-burgundy/50 mb-6">سيتم تسجيل الدين على حساب العميل دون الحاجة لإنشاء فاتورة مبيعات جديدة.</p>
+            
+            <form onSubmit={handleManualDebtSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-burgundy/60 block mb-1">رقم الهاتف (مطلوب)</label>
+                <input
+                  type="text"
+                  required
+                  value={manualData.phone}
+                  onChange={e => setManualData({ ...manualData, phone: e.target.value })}
+                  placeholder="010..."
+                  className="w-full rounded-xl border border-burgundy/20 bg-[#F7F0EC]/50 px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-burgundy/60 block mb-1">اسم العميل (اختياري)</label>
+                <input
+                  type="text"
+                  value={manualData.name}
+                  onChange={e => setManualData({ ...manualData, name: e.target.value })}
+                  placeholder="اسم العميل..."
+                  className="w-full rounded-xl border border-burgundy/20 bg-[#F7F0EC]/50 px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-burgundy/60 block mb-1">قيمة الدين (مطلوب)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={manualData.amount}
+                  onChange={e => setManualData({ ...manualData, amount: e.target.value })}
+                  placeholder="المبلغ بالجنيه..."
+                  className="w-full rounded-xl border border-burgundy/20 bg-[#F7F0EC]/50 px-4 py-2.5 text-sm font-bold text-amber-700 outline-none focus:border-amber-600"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-burgundy/60 block mb-1">البيان / الملاحظات (سبب الدين)</label>
+                <textarea
+                  rows="2"
+                  value={manualData.notes}
+                  onChange={e => setManualData({ ...manualData, notes: e.target.value })}
+                  placeholder="مثال: باقي حساب من فاتورة قديمة..."
+                  className="w-full rounded-xl border border-burgundy/20 bg-[#F7F0EC]/50 px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setManualDebtModal(false)}
+                  className="flex-1 rounded-xl border border-burgundy/20 py-3 text-sm font-bold text-burgundy hover:bg-burgundy/5 transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingManual}
+                  className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-700 py-3 text-sm font-bold text-white transition shadow-md shadow-amber-600/20"
+                >
+                  {submittingManual ? 'جاري الحفظ...' : 'تأكيد التسجيل'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

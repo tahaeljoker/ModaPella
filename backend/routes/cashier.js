@@ -431,7 +431,9 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
         totalAmount: order.totalAmount,
         amountPaid: order.amountPaid,
         debtAmount: order.debtAmount,
-        createdAt: order.createdAt
+        createdAt: order.createdAt,
+        isManual: order.items && order.items.length === 0,
+        notes: order.notes
       });
 
       if (new Date(order.createdAt) > new Date(debtsMap[key].lastActivity)) {
@@ -442,6 +444,63 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
     res.json(Object.values(debtsMap).sort((a, b) => b.totalDebt - a.totalDebt));
   } catch (error) {
     res.status(500).json({ message: 'Unable to load debts', error: error.message });
+  }
+});
+
+// POST /api/cashier/debts/manual — Add a manual debt to a customer
+router.post('/debts/manual', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+  try {
+    const { customerName, customerPhone, amount, notes = '' } = req.body;
+    if (!customerPhone || !customerPhone.trim()) {
+      return res.status(400).json({ message: 'Customer phone is required' });
+    }
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid debt amount' });
+    }
+
+    const cleanPhone = customerPhone.trim();
+    const cleanName = customerName ? customerName.trim() : 'عميل غير معروف';
+
+    let dbCustomer = await Customer.findOne({ phone: cleanPhone });
+    if (!dbCustomer) {
+      dbCustomer = new Customer({
+        name: cleanName,
+        phone: cleanPhone,
+        points: 0,
+        debt: 0
+      });
+    } else {
+      if (customerName && customerName.trim() !== '') {
+        dbCustomer.name = cleanName;
+      }
+    }
+    
+    const debtAmount = Number(amount);
+    dbCustomer.debt += debtAmount;
+    await dbCustomer.save();
+
+    // Create a pseudo-order to represent the manual debt
+    const order = new Order({
+      customer: dbCustomer._id,
+      customerName: dbCustomer.name,
+      customerPhone: dbCustomer.phone,
+      seller: req.user.id,
+      items: [], // Empty items indicates manual debt
+      totalAmount: debtAmount,
+      discount: 0,
+      type: 'Offline',
+      status: 'Completed',
+      paymentMethod: 'Cash',
+      notes: `تسجيل دين يدوي: ${notes}`,
+      isDebt: true,
+      amountPaid: 0,
+      debtAmount: debtAmount
+    });
+    await order.save();
+
+    res.status(201).json({ message: 'Manual debt added successfully', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to add manual debt', error: error.message });
   }
 });
 
