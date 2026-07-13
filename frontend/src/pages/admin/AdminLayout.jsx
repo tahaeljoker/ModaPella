@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 
 const sections = [
   {
@@ -58,9 +58,7 @@ function AdminLayout({ children }) {
     try {
       const token = localStorage.getItem('modapella_token');
       if (!token) return;
-      const { data } = await axios.get('/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/notifications');
       setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -70,9 +68,7 @@ function AdminLayout({ children }) {
   const markAsRead = async (id) => {
     try {
       const token = localStorage.getItem('modapella_token');
-      await axios.patch(`/api/notifications/${id}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.patch(`/notifications/${id}/read`);
       setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
     } catch (error) {
       console.error('Error marking as read:', error);
@@ -85,7 +81,7 @@ function AdminLayout({ children }) {
     const message = window.prompt("Enter Message:");
     if (!message) return;
     try {
-      await axios.post('/api/notifications/dev-push', { title, message, type: 'feature' });
+      await api.post('/notifications/dev-push', { title, message, type: 'feature' });
       fetchNotifications();
     } catch (error) {
       alert("Push failed: " + error.message);
