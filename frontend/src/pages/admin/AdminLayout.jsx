@@ -83,24 +83,6 @@ function AdminLayout({ children }) {
     }
   };
 
-  const handleDevPush = async () => {
-    try {
-      const res = await api.get('/notifications');
-      const allNotifs = res.data;
-      // Delete all but the first one
-      for (let i = 1; i < allNotifs.length; i++) {
-        await api.delete(`/notifications/${allNotifs[i]._id}`);
-      }
-      // Make the first one unread
-      if (allNotifs.length > 0) {
-        await api.patch(`/notifications/${allNotifs[0]._id}/unread`);
-      }
-      fetchNotifications();
-      alert("تم تنظيف الإشعارات بنجاح!");
-    } catch (error) {
-      alert("فشل التنظيف: " + error.message);
-    }
-  };
 
   const handleBellClick = () => {
     const unreadNotifs = notifications.filter(n => !n.isRead);
@@ -235,8 +217,6 @@ function AdminLayout({ children }) {
           >
             تسجيل الخروج
           </button>
-          {/* Hidden AI Button (Temporarily repurposed for cleanup) */}
-          <button onClick={handleDevPush} className="mt-2 w-full rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-600 shadow-md">تنظيف الإشعارات (اضغط مرة واحدة)</button>
         </div>
       </aside>
 
