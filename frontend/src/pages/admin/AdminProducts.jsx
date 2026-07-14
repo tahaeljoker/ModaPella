@@ -226,9 +226,9 @@ function StockHistoryModal({ product, onClose }) {
         <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
           <div>
             <h3 className="text-lg font-bold">📜 سجل حركة مخزون المنتج</h3>
-            {product?.totalReceived !== undefined && (
-              <p className="text-xs font-bold text-emerald-700 mt-1">إجمالي ما تم استلامه من البداية: {product.totalReceived} قطعة</p>
-            )}
+            <p className="text-xs font-bold text-emerald-700 mt-1">
+              إجمالي ما تم استلامه من البداية: {product?.totalReceived > 0 ? product.totalReceived : ((product?.stock || 0) + (product?.sold || 0))} قطعة
+            </p>
           </div>
           <button onClick={onClose} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
         </div>
