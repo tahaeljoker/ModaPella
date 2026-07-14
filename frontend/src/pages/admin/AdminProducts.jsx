@@ -198,11 +198,22 @@ function printBarcode(product) {
   setTimeout(() => { win.print(); win.close(); }, 500);
 }
 
-function StockHistoryModal({ productId, onClose }) {
+const ACTION_AR = {
+  'POS Sale': 'مبيعات (كاشير)',
+  'Manual Adjustment': 'تعديل يدوي',
+  'Refund': 'مرتجع',
+  'Inventory Count': 'جرد مخزون',
+  'Initial Stock': 'رصيد افتتاحي (كمية البداية)',
+  'Purchase Receive': 'استلام مشتريات'
+};
+
+function StockHistoryModal({ product, onClose }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const productId = product?._id;
 
   useEffect(() => {
+    if (!productId) return;
     api.get(`/admin/products/${productId}/stock-history`)
       .then(r => setHistory(r.data))
       .catch(console.error)
@@ -213,7 +224,12 @@ function StockHistoryModal({ productId, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-lg overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
-          <h3 className="text-lg font-bold">📜 سجل حركة مخزون المنتج</h3>
+          <div>
+            <h3 className="text-lg font-bold">📜 سجل حركة مخزون المنتج</h3>
+            {product?.totalReceived !== undefined && (
+              <p className="text-xs font-bold text-emerald-700 mt-1">إجمالي ما تم استلامه من البداية: {product.totalReceived} قطعة</p>
+            )}
+          </div>
           <button onClick={onClose} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
         </div>
         
@@ -233,7 +249,7 @@ function StockHistoryModal({ productId, onClose }) {
                   
                   <div className="bg-white rounded-2xl p-3.5 border border-burgundy/5 shadow-sm space-y-1">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-burgundy">{h.changeType}</span>
+                      <span className="text-xs font-bold text-burgundy">{ACTION_AR[h.changeType] || h.changeType}</span>
                       <span className="text-[10px] text-burgundy/40">{new Date(h.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs py-1">
@@ -618,7 +634,7 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
                     {p.sizes?.length > 0 && <p className="mt-0.5 text-xs text-burgundy/35">{p.sizes.join(' · ')}</p>}
                     <button
                       type="button"
-                      onClick={() => onShowHistory(p._id)}
+                      onClick={() => onShowHistory(p)}
                       className="mt-1 text-[10px] text-burgundy hover:underline flex items-center gap-1 font-bold"
                     >
                       📜 حركة المخزون
@@ -841,7 +857,7 @@ function AdminProducts() {
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState('catalog'); // 'catalog' | 'inventory'
   const [modal, setModal]       = useState(null);
-  const [historyProductId, setHistoryProductId] = useState(null);
+  const [historyProduct, setHistoryProduct] = useState(null);
   const [toast, setToast]       = useState('');
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
