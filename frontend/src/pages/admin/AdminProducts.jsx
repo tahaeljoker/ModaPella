@@ -946,7 +946,7 @@ function AdminProducts() {
           onAdd={() => setModal('create')}
           onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
           onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
-          onShowHistory={setHistoryProductId}
+          onShowHistory={setHistoryProduct}
         />
       ) : (
         <InventoryTab
@@ -966,10 +966,10 @@ function AdminProducts() {
       )}
 
       {/* Stock History Modal */}
-      {historyProductId && (
+      {historyProduct && (
         <StockHistoryModal
-          productId={historyProductId}
-          onClose={() => setHistoryProductId(null)}
+          product={historyProduct}
+          onClose={() => setHistoryProduct(null)}
         />
       )}
 
