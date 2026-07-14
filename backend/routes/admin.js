@@ -199,6 +199,39 @@ router.post('/products', auth, requireRole(['admin']), async (req, res) => {
     }
     const product = new Product(productData);
     await product.save();
+    
+    // Create Initial Stock History
+    if (product.variants && product.variants.length > 0) {
+      for (const v of product.variants) {
+        if (v.stock > 0) {
+          await StockHistory.create({
+            product: product._id,
+            productName: product.name,
+            size: v.size,
+            color: v.color,
+            variantKey: `${v.size}_${v.color}`,
+            changeType: 'Initial Stock',
+            quantityChanged: v.stock,
+            previousStock: 0,
+            newStock: v.stock,
+            performedBy: req.user.id,
+            performedByName: req.user.name
+          });
+        }
+      }
+    } else if (product.stock > 0) {
+      await StockHistory.create({
+        product: product._id,
+        productName: product.name,
+        changeType: 'Initial Stock',
+        quantityChanged: product.stock,
+        previousStock: 0,
+        newStock: product.stock,
+        performedBy: req.user.id,
+        performedByName: req.user.name
+      });
+    }
+
     res.status(201).json(product);
   } catch (error) {
     console.error('Failed to create product:', error);

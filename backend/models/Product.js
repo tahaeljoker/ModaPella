@@ -17,6 +17,7 @@ const ProductSchema = new mongoose.Schema({
     stock: { type: Number, default: 0, min: 0 }
   }],
   sold: { type: Number, min: 0, default: 0 },
+  totalReceived: { type: Number, min: 0, default: 0 },
   images: [{ type: String }],
   sizes: [{ type: String }],
   colors: [{ type: String }],
@@ -31,6 +32,9 @@ const ProductSchema = new mongoose.Schema({
 ProductSchema.pre('save', function (next) {
   if (this.variants && this.variants.length > 0) {
     this.stock = this.variants.reduce((sum, v) => sum + v.stock, 0);
+  }
+  if (this.isNew) {
+    this.totalReceived = this.stock;
   }
   next();
 });
