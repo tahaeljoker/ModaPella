@@ -7,7 +7,25 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const products = await Product.find({ active: true }).sort({ createdAt: -1 });
+    const { search, limit } = req.query;
+    let query = { active: true };
+    
+    if (search && search.trim() !== '') {
+      const s = search.trim();
+      query.$or = [
+        { name: { $regex: s, $options: 'i' } },
+        { sku: { $regex: s, $options: 'i' } },
+        { category: { $regex: s, $options: 'i' } },
+        { 'variants.sku': { $regex: s, $options: 'i' } } // support variant-level SKU search if any
+      ];
+    }
+
+    let mongoQuery = Product.find(query).sort({ createdAt: -1 });
+    if (limit) {
+      mongoQuery = mongoQuery.limit(Number(limit));
+    }
+    
+    const products = await mongoQuery;
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: 'Unable to fetch products', error: error.message });

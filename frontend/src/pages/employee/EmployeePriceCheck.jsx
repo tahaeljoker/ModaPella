@@ -63,10 +63,17 @@ function EmployeePriceCheck() {
   // We accumulate chars and submit when Enter pressed OR after 200ms of silence
   useEffect(() => {
     const handleGlobalKey = (e) => {
-      // Ignore if user is actively typing in our input (focus on it)
-      if (document.activeElement === inputRef.current) return;
+      // Ignore if user is typing in ANY input field, textarea or select
+      const activeEl = document.activeElement;
+      if (
+        activeEl && 
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      
       if (e.key === 'Enter') {
-        if (scanBuffer.current.length > 3) {
+        if (scanBuffer.current.length > 2) {
           const scanned = scanBuffer.current.trim();
           setQuery(scanned);
           doSearch(scanned);
@@ -79,7 +86,7 @@ function EmployeePriceCheck() {
         clearTimeout(scanTimer.current);
         scanTimer.current = setTimeout(() => {
           scanBuffer.current = '';
-        }, 200);
+        }, 150);
       }
     };
     window.addEventListener('keydown', handleGlobalKey);
