@@ -368,16 +368,16 @@ router.get('/users', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// POST /api/admin/users — create a new cashier/manager account
+// POST /api/admin/users — create a new cashier/manager/employee account
 router.post('/users', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const { name, email, password, role = 'cashier' } = req.body;
-    if (!['cashier', 'manager', 'admin'].includes(role)) {
+    const { name, email, password, role = 'cashier', phone } = req.body;
+    if (!['cashier', 'manager', 'admin', 'employee'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role' });
     }
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) return res.status(400).json({ message: 'Email already in use' });
-    const user = new User({ name, email, password, role });
+    const user = new User({ name, email, password, role, phone: phone || '' });
     await user.save();
     res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });
   } catch (error) {
