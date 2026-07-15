@@ -39,6 +39,11 @@ import CashierToday from './pages/cashier/CashierToday';
 import CashierSafe from './pages/cashier/CashierSafe';
 import CashierActivities from './pages/cashier/CashierActivities';
 
+// Employee Pages
+import EmployeeLayout from './pages/employee/EmployeeLayout';
+import EmployeePriceCheck from './pages/employee/EmployeePriceCheck';
+import EmployeeInventoryTasks from './pages/employee/EmployeeInventoryTasks';
+
 const navItem = (label, to) => (
   <NavLink
     to={to}
@@ -56,7 +61,7 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Don't show public header/footer on admin or cashier routes
-  const isDashboard = location.pathname.startsWith('/admin') || location.pathname.startsWith('/cashier');
+  const isDashboard = location.pathname.startsWith('/admin') || location.pathname.startsWith('/cashier') || location.pathname.startsWith('/employee');
 
   return (
     <div className="min-h-screen bg-[#fcf9f8] text-burgundy">
@@ -193,6 +198,10 @@ function AppContent() {
           <Route path="/cashier/today" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierToday /></CashierLayout></ProtectedRoute>} />
           <Route path="/cashier/safe" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierSafe /></CashierLayout></ProtectedRoute>} />
           <Route path="/cashier/activities" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierActivities /></CashierLayout></ProtectedRoute>} />
+
+          {/* Employee Routes */}
+          <Route path="/employee" element={<ProtectedRoute allowedRoles={['employee', 'admin']}><EmployeeLayout><EmployeePriceCheck /></EmployeeLayout></ProtectedRoute>} />
+          <Route path="/employee/tasks" element={<ProtectedRoute allowedRoles={['employee', 'admin']}><EmployeeLayout><EmployeeInventoryTasks /></EmployeeLayout></ProtectedRoute>} />
 
           {/* Legacy redirects */}
           <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />

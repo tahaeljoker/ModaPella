@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
-const ROLE_AR = { admin: 'مدير', cashier: 'كاشير', manager: 'مشرف' };
-const ROLE_COLOR = { admin: 'bg-burgundy/10 text-burgundy', cashier: 'bg-blue-100 text-blue-700', manager: 'bg-purple-100 text-purple-700' };
+const ROLE_AR = { admin: 'مدير', cashier: 'كاشير', manager: 'مشرف', employee: 'موظف جرد' };
+const ROLE_COLOR = { admin: 'bg-burgundy/10 text-burgundy', cashier: 'bg-blue-100 text-blue-700', manager: 'bg-purple-100 text-purple-700', employee: 'bg-emerald-100 text-emerald-700' };
 
-const emptyUser = { name: '', email: '', password: '', role: 'cashier' };
+const emptyUser = { name: '', email: '', password: '', role: 'cashier', phone: '' };
 
 function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -118,9 +118,24 @@ function AdminUsers() {
                 <select value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))} className={inputCls}>
                   <option value="cashier">كاشير</option>
                   <option value="manager">مشرف</option>
+                  <option value="employee">موظف جرد</option>
                   <option value="admin">مدير</option>
                 </select>
               </div>
+              {form.role === 'employee' && (
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">رقم الواتساب (للإشعارات)</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                    className={inputCls}
+                    placeholder="مثال: 01012345678"
+                    dir="ltr"
+                  />
+                  <p className="mt-1 text-[10px] text-burgundy/40">يُستخدم لإرسال رسائل الجرد عبر واتساب</p>
+                </div>
+              )}
             </div>
             <button type="submit" disabled={formLoading}
               className="rounded-full bg-burgundy px-8 py-2.5 text-sm font-bold text-white transition hover:bg-[#650018] disabled:opacity-60">

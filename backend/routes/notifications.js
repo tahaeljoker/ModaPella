@@ -7,7 +7,12 @@ const router = express.Router();
 // Get all notifications
 router.get('/', auth, async (req, res) => {
   try {
-    const notifications = await SystemNotification.find().sort({ createdAt: -1 }).limit(50);
+    const notifications = await SystemNotification.find({
+      $or: [
+        { recipient: null },
+        { recipient: req.user.id }
+      ]
+    }).sort({ createdAt: -1 }).limit(50);
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching notifications', error: error.message });

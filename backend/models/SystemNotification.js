@@ -18,6 +18,11 @@ const SystemNotificationSchema = new mongoose.Schema({
     type: String,
     enum: ['feature', 'info', 'update'],
     default: 'feature'
+  },
+  recipient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   }
 }, { timestamps: true });
 

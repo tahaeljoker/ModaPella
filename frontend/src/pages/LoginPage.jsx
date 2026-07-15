@@ -24,7 +24,7 @@ function LoginPage() {
       localStorage.setItem('modapella_token', token);
       localStorage.setItem('modapella_role', user.role);
       localStorage.setItem('modapella_user', JSON.stringify(user));
-      navigate(user.role === 'admin' ? '/admin' : '/cashier');
+      navigate(user.role === 'admin' ? '/admin' : user.role === 'employee' ? '/employee' : '/cashier');
     } catch (err) {
       setError(err.response?.data?.message || 'فشل تسجيل الدخول. تحقق من البريد وكلمة المرور.');
     } finally {

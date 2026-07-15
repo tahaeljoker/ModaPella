@@ -2,6 +2,355 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
+const TASK_STATUS = {
+  pending:   { label: 'معلق',       color: 'bg-amber-100 text-amber-700',   icon: '⏳' },
+  submitted: { label: 'تم التسليم', color: 'bg-blue-100 text-blue-700',    icon: '📤' },
+  accepted:  { label: 'مقبول',      color: 'bg-emerald-100 text-emerald-700', icon: '✅' },
+  rejected:  { label: 'مرفوض',     color: 'bg-red-100 text-red-700',       icon: '❌' },
+};
+
+// ─── WhatsApp Notification Helper ─────────────────────────────────────────────
+function buildWhatsAppLink(phone, employeeName, taskTitle, siteUrl) {
+  if (!phone) return null;
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const intlPhone = cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone;
+  const msg = encodeURIComponent(
+    `🎠 *تنبيه جرد جديد من ModaPella* 📦\n\nيا *${employeeName}*، تم تكليفك بمهمة جرد جديدة في النظام:\n📌 *المهمة:* ${taskTitle}\n🔗 *رابط التسليم:* ${siteUrl}\n\nبرجاء الدخول وتسجيل الكميات الفعلية وتسليمها للمراجعة.`
+  );
+  return `https://wa.me/${intlPhone}?text=${msg}`;
+}
+
+// ─── Admin: Inventory Tasks Panel ─────────────────────────────────────────────
+function InventoryTasksPanel() {
+  const [tasks, setTasks] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ title: '', employeeId: '', productIds: [] });
+  const [formLoading, setFormLoading] = useState(false);
+  const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState('success');
+  const [reviewTask, setReviewTask] = useState(null);
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [whatsappLink, setWhatsappLink] = useState(null);
+  const [whatsappTaskTitle, setWhatsappTaskTitle] = useState('');
+
+  const showToast = (msg, type = 'success') => {
+    setToast(msg); setToastType(type);
+    setTimeout(() => setToast(''), 4000);
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const [tasksRes, usersRes, prodsRes] = await Promise.all([
+        api.get('/inventory-tasks'),
+        api.get('/admin/users'),
+        api.get('/products?limit=500'),
+      ]);
+      setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
+      const empUsers = (usersRes.data || []).filter(u => u.role === 'employee' && u.active !== false);
+      setEmployees(empUsers);
+      const prods = Array.isArray(prodsRes.data) ? prodsRes.data : prodsRes.data?.products || [];
+      setProducts(prods);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const handleCreate = async () => {
+    if (!form.title || !form.employeeId || form.productIds.length === 0) {
+      return showToast('يرجى تحديد عنوان الموظف والمنتجات', 'error');
+    }
+    setFormLoading(true);
+    try {
+      // Build items from selected products (one row per variant)
+      const items = [];
+      form.productIds.forEach(pid => {
+        const p = products.find(x => x._id === pid);
+        if (!p) return;
+        if (p.variants && p.variants.length > 0) {
+          p.variants.forEach(v => items.push({
+            product: p._id,
+            productName: p.name,
+            sku: p.sku || '',
+            size: v.size || '',
+            color: v.color || '',
+            systemStock: v.stock,
+          }));
+        } else {
+          items.push({ product: p._id, productName: p.name, sku: p.sku || '', size: '', color: '', systemStock: p.stock });
+        }
+      });
+
+      const { data: newTask } = await api.post('/inventory-tasks', {
+        title: form.title,
+        employee: form.employeeId,
+        items,
+      });
+
+      // Build WhatsApp link for the admin to send
+      const emp = employees.find(e => e._id === form.employeeId);
+      const siteUrl = window.location.origin + '/login';
+      const waLink = emp?.phone ? buildWhatsAppLink(emp.phone, emp.name, form.title, siteUrl) : null;
+      setWhatsappLink(waLink);
+      setWhatsappTaskTitle(form.title);
+
+      setForm({ title: '', employeeId: '', productIds: [] });
+      setCreating(false);
+      showToast('✅ تم إنشاء التكليف بنجاح');
+      await loadAll();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'حدث خطأ', 'error');
+    } finally { setFormLoading(false); }
+  };
+
+  const handleReview = async (taskId, status) => {
+    try {
+      await api.put(`/inventory-tasks/${taskId}/review`, { status, adminNotes: reviewNotes });
+      setReviewTask(null);
+      setReviewNotes('');
+      showToast(status === 'accepted' ? '✅ تم قبول الجرد وإدراجه في الجرد الرئيسي' : '❌ تم رفض الجرد وإشعار الموظف');
+      await loadAll();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'حدث خطأ', 'error');
+    }
+  };
+
+  const toggleProduct = (pid) => {
+    setForm(prev => ({
+      ...prev,
+      productIds: prev.productIds.includes(pid)
+        ? prev.productIds.filter(x => x !== pid)
+        : [...prev.productIds, pid],
+    }));
+  };
+
+  const inputCls = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
+
+  return (
+    <div className="space-y-6 text-burgundy">
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-lg ${toastType === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast}</div>
+      )}
+
+      {/* WhatsApp CTA after creation */}
+      {whatsappLink && (
+        <div className="rounded-[2rem] bg-[#25D366]/10 border border-[#25D366]/30 p-5 flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex-1">
+            <p className="font-bold text-emerald-800">📤 إرسال التكليف للموظف على الواتساب</p>
+            <p className="text-sm text-emerald-700/80 mt-0.5">التكليف: "{whatsappTaskTitle}" — الرسالة جاهزة، فقط اضغط إرسال في الواتساب</p>
+          </div>
+          <div className="flex gap-3">
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#1da851] transition"
+            >
+              <span className="text-lg">💬</span> إرسال على واتساب
+            </a>
+            <button onClick={() => setWhatsappLink(null)} className="text-xs text-emerald-700/60 hover:text-emerald-800">إغلاق</button>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-burgundy/50">إسناد مهام الجرد للموظفين ومراجعة الجردات المستلمة</p>
+        </div>
+        <button
+          onClick={() => { setCreating(true); setWhatsappLink(null); }}
+          className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]"
+        >
+          + تكليف جديد
+        </button>
+      </div>
+
+      {/* Create Task Form */}
+      {creating && (
+        <div className="rounded-[2rem] border border-burgundy/15 bg-white p-6 shadow-sm space-y-4">
+          <h3 className="font-bold text-burgundy text-lg">إنشاء تكليف جرد جديد</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">عنوان التكليف *</label>
+              <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className={inputCls} placeholder="مثال: جرد فئة الفساتين" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الموظف المكلَّف *</label>
+              <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className={inputCls}>
+                <option value="">اختر موظفاً...</option>
+                {employees.map(emp => (
+                  <option key={emp._id} value={emp._id}>{emp.name} {emp.phone ? `(${emp.phone})` : ''}</option>
+                ))}
+              </select>
+              {employees.length === 0 && <p className="text-xs text-red-500 mt-1">لا يوجد حسابات موظفين. أضف حساباً بدور "موظف جرد" من صفحة المستخدمين.</p>}
+            </div>
+          </div>
+
+          {/* Product Picker */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">اختر المنتجات المطلوب جردها *</label>
+            <div className="max-h-56 overflow-y-auto rounded-2xl border border-burgundy/15 bg-[#F7F0EC] p-3 space-y-1">
+              {products.map(p => (
+                <label key={p._id} className={`flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2 transition ${form.productIds.includes(p._id) ? 'bg-burgundy text-white' : 'hover:bg-burgundy/8 text-burgundy'}`}>
+                  <input type="checkbox" checked={form.productIds.includes(p._id)} onChange={() => toggleProduct(p._id)} className="accent-white" />
+                  <span className="text-sm font-medium">{p.name}</span>
+                  {p.sku && <span className="text-xs opacity-60 font-mono">{p.sku}</span>}
+                  <span className="text-xs opacity-60 mr-auto">مخزون: {p.stock ?? (p.variants?.reduce((s, v) => s + v.stock, 0) ?? 0)}</span>
+                </label>
+              ))}
+            </div>
+            {form.productIds.length > 0 && <p className="text-xs text-burgundy/50 mt-1">{form.productIds.length} منتج مختار</p>}
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={handleCreate} disabled={formLoading} className="rounded-xl bg-burgundy px-6 py-2.5 text-sm font-bold text-white hover:bg-[#650018] transition disabled:opacity-60">
+              {formLoading ? 'جاري الإرسال...' : 'إنشاء التكليف'}
+            </button>
+            <button onClick={() => setCreating(false)} className="rounded-xl border border-burgundy/20 px-4 py-2.5 text-sm text-burgundy hover:bg-burgundy/8 transition">إلغاء</button>
+          </div>
+        </div>
+      )}
+
+      {/* Tasks List */}
+      {loading ? (
+        <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+      ) : tasks.length === 0 ? (
+        <div className="rounded-[2rem] border border-burgundy/10 bg-white py-20 text-center">
+          <p className="text-5xl mb-3">📋</p>
+          <p className="text-lg font-semibold text-burgundy/40">لا توجد تكاليف جرد بعد</p>
+          <p className="text-sm text-burgundy/30 mt-1">أنشئ تكليفاً جديداً وابدأ التنسيق مع موظفيك</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {tasks.map(task => {
+            const si = TASK_STATUS[task.status] || TASK_STATUS.pending;
+            const totalItems = task.items?.length || 0;
+            const counted = task.items?.filter(i => i.countedStock !== null).length || 0;
+            return (
+              <div key={task._id} className="rounded-[1.5rem] border border-burgundy/10 bg-white px-5 py-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-burgundy">{task.title}</p>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${si.color}`}>{si.icon} {si.label}</span>
+                    </div>
+                    <div className="flex items-center flex-wrap gap-3 mt-1 text-xs text-burgundy/50">
+                      <span>👤 {task.employee?.name}</span>
+                      <span>{DATE(task.createdAt)}</span>
+                      <span>{totalItems} صنف</span>
+                      {task.status === 'submitted' && <span className="text-blue-600 font-bold">{counted}/{totalItems} عُدّ</span>}
+                    </div>
+                    {task.status === 'rejected' && task.adminNotes && (
+                      <p className="mt-2 text-xs text-red-600 bg-red-50 rounded-xl px-3 py-1.5">{task.adminNotes}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* WhatsApp re-send */}
+                    {task.employee?.phone && ['pending', 'rejected'].includes(task.status) && (
+                      <a
+                        href={buildWhatsAppLink(task.employee.phone, task.employee.name, task.title, window.location.origin + '/login')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="إرسال تذكير على الواتساب"
+                        className="rounded-xl bg-[#25D366]/10 border border-[#25D366]/30 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-[#25D366] hover:text-white transition"
+                      >
+                        💬 واتساب
+                      </a>
+                    )}
+                    {/* Review button */}
+                    {task.status === 'submitted' && (
+                      <button
+                        onClick={() => { setReviewTask(task); setReviewNotes(''); }}
+                        className="rounded-xl bg-burgundy text-white px-4 py-2 text-xs font-bold hover:bg-[#650018] transition"
+                      >
+                        🔍 مراجعة
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-[2rem] bg-white shadow-2xl overflow-hidden">
+            <div className="bg-burgundy p-5 text-white">
+              <h3 className="font-bold text-lg">مراجعة جرد الموظف</h3>
+              <p className="text-sm opacity-70 mt-0.5">{reviewTask.title} — {reviewTask.employee?.name}</p>
+            </div>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Items comparison */}
+              <div className="space-y-2">
+                {reviewTask.items.map(item => {
+                  const variance = item.countedStock !== null ? item.countedStock - item.systemStock : null;
+                  return (
+                    <div key={item._id} className={`rounded-xl px-4 py-2.5 text-sm flex items-center justify-between gap-3 ${
+                      variance === null ? 'bg-burgundy/5' : variance === 0 ? 'bg-emerald-50' : variance > 0 ? 'bg-blue-50' : 'bg-red-50'
+                    }`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-burgundy truncate">{item.productName}</p>
+                        {(item.size || item.color) && <p className="text-xs text-burgundy/50">{item.size} {item.color}</p>}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs font-bold shrink-0">
+                        <span className="text-burgundy/50">النظام: {item.systemStock}</span>
+                        <span className="text-burgundy">الموظف: {item.countedStock ?? '—'}</span>
+                        {variance !== null && (
+                          <span className={variance === 0 ? 'text-emerald-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}>
+                            {variance > 0 ? `+${variance}` : variance}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60 uppercase tracking-wide">ملاحظات (في حالة الرفض)</label>
+                <textarea
+                  value={reviewNotes}
+                  onChange={e => setReviewNotes(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-burgundy/20 bg-[#F7F0EC] px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy resize-none"
+                  placeholder="اكتب سبب الرفض أو ملاحظاتك للموظف..."
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-burgundy/10 flex gap-3">
+              <button
+                onClick={() => handleReview(reviewTask._id, 'accepted')}
+                className="flex-1 rounded-xl bg-emerald-500 text-white py-2.5 text-sm font-bold hover:bg-emerald-600 transition"
+              >
+                ✅ قبول ودمج مع الجرد الرئيسي
+              </button>
+              <button
+                onClick={() => handleReview(reviewTask._id, 'rejected')}
+                className="flex-1 rounded-xl bg-red-500 text-white py-2.5 text-sm font-bold hover:bg-red-600 transition"
+              >
+                ❌ رفض
+              </button>
+              <button onClick={() => setReviewTask(null)} className="rounded-xl border border-burgundy/20 px-4 text-sm text-burgundy hover:bg-burgundy/8 transition">
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const DATE = (d) => new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -344,6 +693,7 @@ function CountSession({ count: initialCount, onFinish }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 function AdminInventoryCount() {
+  const [tab, setTab] = useState('counts'); // 'counts' | 'tasks'
   const [counts, setCounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCount, setActiveCount] = useState(null);
@@ -397,12 +747,32 @@ function AdminInventoryCount() {
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
           <h2 className="text-2xl font-bold">📦 الجرد</h2>
-          <p className="text-sm text-burgundy/50 mt-0.5">قارن المخزون الفعلي بالمخزون في النظام</p>
+          <p className="text-sm text-burgundy/50 mt-0.5">إدارة جرد المخزون وتكاليف الموظفين</p>
         </div>
-        <button onClick={() => setCreating(true)} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
-          + جرد جديد
-        </button>
+        {tab === 'counts' && (
+          <button onClick={() => setCreating(true)} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
+            + جرد جديد
+          </button>
+        )}
       </div>
+
+      {/* Tab Bar */}
+      <div className="flex rounded-2xl border border-burgundy/15 bg-white overflow-hidden w-fit">
+        {[{ id: 'counts', label: '📦 جردات المخزون' }, { id: 'tasks', label: '👤 تكاليف الموظفين' }].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-5 py-2.5 text-sm font-semibold transition ${
+              tab === t.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Employee Tasks Tab */}
+      {tab === 'tasks' && <InventoryTasksPanel />}
 
       {/* Create new count */}
       {creating && (
