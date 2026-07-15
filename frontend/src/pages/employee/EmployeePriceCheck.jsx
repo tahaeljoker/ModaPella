@@ -170,7 +170,9 @@ function EmployeePriceCheck() {
           {results.map(p => {
             const active   = isDiscountActive(p);
             const effPrice = getEffectivePrice(p);
-            const totalStock = p.variants?.reduce((s, v) => s + v.stock, 0) ?? p.stock ?? 0;
+            const totalStock = p.variants?.length > 0
+                  ? p.variants.reduce((s, v) => s + v.stock, 0)
+                  : (p.stock ?? 0);
             return (
               <button
                 key={p._id}

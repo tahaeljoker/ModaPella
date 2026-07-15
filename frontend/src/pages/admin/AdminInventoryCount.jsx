@@ -311,7 +311,7 @@ function InventoryTasksPanel() {
                 <p className="text-center text-xs text-burgundy/40 py-8">لا توجد منتجات تطابق البحث</p>
               ) : filteredProducts.map(p => {
                 const isSelected = form.productIds.includes(p._id);
-                const stock = p.stock ?? (p.variants?.reduce((s, v) => s + v.stock, 0) ?? 0);
+                const stock = p.variants?.length > 0 ? p.variants.reduce((s, v) => s + v.stock, 0) : (p.stock ?? 0);
                 return (
                   <label
                     key={p._id}
