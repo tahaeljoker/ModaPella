@@ -98,7 +98,7 @@ function LandingPage() {
         </div>
       </div>
 
-      <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-10 shadow-soft">
+      <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-3xl font-semibold">{siteConfig.featuredTitle}</h2>
@@ -125,7 +125,7 @@ function LandingPage() {
         </div>
       </div>
 
-      <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-10 shadow-soft wave-banner">
+      <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft wave-banner">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-3xl font-semibold">سريع الوصول</h2>

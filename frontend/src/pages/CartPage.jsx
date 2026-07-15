@@ -34,7 +34,14 @@ function CartPage() {
                     </div>
                     <div className="text-left flex-shrink-0">
                       <p className="text-[9px] text-burgundy/50 sm:block hidden">السعر للقطعة</p>
-                      <p className="text-sm sm:text-xl font-bold text-burgundy">{Number(item.price).toLocaleString('en-US')} ج.م</p>
+                      {item.isDiscountActive ? (
+                        <div className="flex flex-col items-end">
+                          <p className="text-sm sm:text-xl font-bold text-burgundy">{Number(item.price).toLocaleString('en-US')} ج.م</p>
+                          <p className="text-xs text-red-500 line-through">{Number(item.originalPrice).toLocaleString('en-US')} ج.م</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm sm:text-xl font-bold text-burgundy">{Number(item.price).toLocaleString('en-US')} ج.م</p>
+                      )}
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-burgundy/70">

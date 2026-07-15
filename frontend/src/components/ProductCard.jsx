@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
+import { isDiscountActive } from '../utils/discount';
+
 
 const fallbackImages = {
   Blouse: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
@@ -26,6 +28,11 @@ function ProductCard({ product }) {
         <LazyImage src={image} alt={product.name} className="w-full h-full transition duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-90" />
         <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-white/60 bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[11px] font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-burgundy shadow-sm">عرض التفاصيل</div>
+        {isDiscountActive(product) && (
+          <div className="absolute left-2 sm:left-4 top-9 sm:top-12 rounded-full bg-red-600 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-sm">
+            خصم {Math.round((1 - product.discountPrice / product.price) * 100)}%
+          </div>
+        )}
         <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/95 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-burgundy shadow-sm">{product.stock > 0 ? `${product.stock} متبقي` : 'غير متوفر'}</div>
       </div>
       <div className="flex flex-1 flex-col justify-between space-y-2 p-3.5 sm:p-6 text-burgundy">
@@ -33,7 +40,14 @@ function ProductCard({ product }) {
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-burgundy/60">{product.category}</p>
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 sm:gap-3">
             <h3 className="text-sm sm:text-base font-bold line-clamp-1">{product.name}</h3>
-            <span className="text-xs sm:text-sm font-extrabold text-burgundy/80 whitespace-nowrap">{EGP(product.price)}</span>
+            {isDiscountActive(product) ? (
+              <div className="flex flex-col items-end">
+                <span className="text-xs sm:text-sm font-extrabold text-burgundy whitespace-nowrap">{EGP(product.discountPrice)}</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-red-500 line-through whitespace-nowrap">{EGP(product.price)}</span>
+              </div>
+            ) : (
+              <span className="text-xs sm:text-sm font-extrabold text-burgundy/80 whitespace-nowrap">{EGP(product.price)}</span>
+            )}
           </div>
           <p className="hidden sm:block text-xs leading-6 text-burgundy/75">{product.description || 'تفاصيل أنيقة عن هذا المنتج الحديث.'}</p>
         </div>

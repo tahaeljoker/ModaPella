@@ -41,7 +41,7 @@ function CollectionsPage() {
 
   return (
     <section className="space-y-10 py-10 text-burgundy">
-      <div className="relative overflow-hidden rounded-[2.5rem] border border-burgundy/10 bg-white p-10 shadow-soft">
+      <div className="relative overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft">
         <div className="hero-blob" />
         <div className="grid gap-8 lg:grid-cols-[1.3fr_0.9fr] items-center">
           <div className="space-y-6">
@@ -74,7 +74,7 @@ function CollectionsPage() {
         </div>
       </div>
 
-      <div className="rounded-[2.5rem] border border-burgundy/10 bg-beige/10 p-8 shadow-soft">
+      <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-beige/10 p-6 sm:p-8 shadow-soft">
         <h2 className="text-2xl font-semibold text-burgundy">فلترة حسب الفئة</h2>
         <p className="mt-2 text-sm text-burgundy/70">اختاري الفئة المناسبة أو عرضي كل المنتجات المتاحة الآن.</p>
         <div className="mt-6 flex flex-wrap gap-3">
@@ -92,7 +92,7 @@ function CollectionsPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white p-10 text-center text-burgundy">جاري التحميل...</div>
+        <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 text-center text-burgundy">جاري التحميل...</div>
       ) : (
         <div className="space-y-8">
           {visibleProducts.length > 0 ? (
@@ -102,7 +102,7 @@ function CollectionsPage() {
               ))}
             </div>
           ) : (
-            <div className="rounded-[2rem] border border-burgundy/10 bg-white p-10 shadow-soft">
+            <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft">
               <p className="text-lg font-semibold text-burgundy">لا توجد منتجات في هذه الفئة حاليًا.</p>
               <p className="mt-2 text-sm text-burgundy/75">عرض بعض العينات حتى تعود المنتجات المتاحة.</p>
               <div className="mt-8 grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">

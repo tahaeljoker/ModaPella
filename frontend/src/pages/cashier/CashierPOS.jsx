@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { isDiscountActive } from '../../utils/discount';
+
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -603,12 +605,15 @@ function CashierPOS() {
 
           // Add directly to cart
           const key = `${found._id}_${autoSize}_${autoColor}`;
+          const activeDiscount = isDiscountActive(found);
           const cartItem = {
             _cartKey: key,
             product: found._id,
             name: found.name,
             category: found.category,
-            price: found.price,
+            price: activeDiscount ? found.discountPrice : found.price,
+            originalPrice: found.price,
+            isDiscountActive: activeDiscount,
             size: autoSize,
             color: autoColor,
             quantity: 1,
@@ -695,12 +700,15 @@ function CashierPOS() {
   const addToCart = () => {
     if (!selectedProduct) return;
     const key = `${selectedProduct._id}_${selectedSize}_${selectedColor}`;
+    const activeDiscount = isDiscountActive(selectedProduct);
     const cartItem = {
       _cartKey: key,
       product: selectedProduct._id,
       name: selectedProduct.name,
       category: selectedProduct.category,
-      price: selectedProduct.price,
+      price: activeDiscount ? selectedProduct.discountPrice : selectedProduct.price,
+      originalPrice: selectedProduct.price,
+      isDiscountActive: activeDiscount,
       size: selectedSize,
       color: selectedColor,
       quantity,
@@ -1711,7 +1719,15 @@ function PriceCheckModalContent({ products }) {
                   <h4 className="font-bold text-sm text-burgundy">{p.name}</h4>
                   <p className="text-[10px] text-burgundy/40 font-mono mt-0.5">{p.sku || 'بدون كود باركود'}</p>
                 </div>
-                <span className="text-sm font-bold text-burgundy">{EGP(p.price)}</span>
+                {isDiscountActive(p) ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
+                    <span className="text-xs text-red-500 line-through">{EGP(p.price)}</span>
+                    <span className="text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded font-bold mt-1">خصم {Math.round((1 - p.discountPrice / p.price) * 100)}%</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-bold text-burgundy">{EGP(p.price)}</span>
+                )}
               </div>
               
               <div className="flex justify-between text-xs text-burgundy/60 border-t border-burgundy/5 pt-2">

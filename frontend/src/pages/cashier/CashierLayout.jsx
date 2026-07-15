@@ -15,6 +15,7 @@ function CashierLayout({ children }) {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
   const role = localStorage.getItem('modapella_role');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('modapella_token');
@@ -29,12 +30,28 @@ function CashierLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-[#F7F0EC]" dir="rtl">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed right-0 top-0 z-40 flex h-full w-60 flex-col border-l border-burgundy/10 bg-white shadow-lg">
-        {/* Logo */}
-        <div className="border-b border-burgundy/10 px-6 py-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-burgundy/50">نظام الكاشير</p>
-          <h1 className="mt-1 text-xl font-bold text-burgundy">ModaPella</h1>
+      <aside className={`fixed right-0 top-0 z-40 flex h-full w-60 flex-col border-l border-burgundy/10 bg-white shadow-lg transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {/* Logo & Close Button */}
+        <div className="flex items-center justify-between border-b border-burgundy/10 px-6 py-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-burgundy/50">نظام الكاشير</p>
+            <h1 className="mt-1 text-xl font-bold text-burgundy">ModaPella</h1>
+          </div>
+          <button 
+            className="lg:hidden text-burgundy/50 hover:text-burgundy"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            ✕
+          </button>
         </div>
 
         {/* Nav */}
@@ -44,6 +61,7 @@ function CashierLayout({ children }) {
               key={item.to}
               to={item.to}
               end={item.end}
+              onClick={() => setIsSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
                   isActive
@@ -98,7 +116,20 @@ function CashierLayout({ children }) {
       </aside>
 
       {/* Main content */}
-      <main className="mr-60 flex-1 flex flex-col overflow-hidden p-6">
+      <main className="flex-1 lg:mr-60 flex flex-col overflow-hidden p-4 sm:p-6 w-full">
+        {/* Mobile Header with Hamburger */}
+        <div className="lg:hidden flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-burgundy/10">
+          <h2 className="text-lg font-bold text-burgundy">ModaPella Cashier</h2>
+          <button 
+            className="text-burgundy focus:outline-none"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <div className="w-6 h-0.5 bg-burgundy mb-1.5"></div>
+            <div className="w-6 h-0.5 bg-burgundy mb-1.5"></div>
+            <div className="w-6 h-0.5 bg-burgundy"></div>
+          </button>
+        </div>
+
         {children}
       </main>
     </div>

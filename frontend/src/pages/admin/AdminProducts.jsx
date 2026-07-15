@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { isDiscountActive } from '../../utils/discount';
+
 
 const CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
 const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
@@ -280,13 +282,23 @@ function StockHistoryModal({ product, onClose }) {
   );
 }
 
-const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', allowDiscount: true };
+const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSave }) {
-  const [form, setForm] = useState(product || emptyProduct);
+  const [form, setForm] = useState(() => {
+    if (product) {
+      return {
+        ...product,
+        discountPrice: product.discountPrice ?? '',
+        discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
+        discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().split('T')[0] : '',
+      };
+    }
+    return emptyProduct;
+  });
   const [loading, setLoading] = useState(false);
   const [isCalcOpen, setIsCalcOpen] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
@@ -332,7 +344,12 @@ function ProductModal({ product, onClose, onSave }) {
     e.preventDefault(); setLoading(true);
     try {
       const payload = {
-        ...form, price: Number(form.price), stock: totalVariantStock,
+        ...form,
+        price: Number(form.price),
+        discountPrice: form.discountPrice ? Number(form.discountPrice) : null,
+        discountStartDate: form.discountStartDate ? new Date(form.discountStartDate) : null,
+        discountEndDate: form.discountEndDate ? new Date(form.discountEndDate) : null,
+        stock: totalVariantStock,
         variants: hasVariants ? combinations.map(c => ({ size: c.size, color: c.color, stock: variantStocks[`${c.size}_${c.color}`] || 0 })) : [],
         images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
         sizes: activeSizes, colors: activeColors,
@@ -499,6 +516,49 @@ function ProductModal({ product, onClose, onSave }) {
                 </div>
               </label>
             </div>
+            
+            {form.allowDiscount !== false && (
+              <div className="sm:col-span-2 bg-burgundy/5 p-4 rounded-xl border border-burgundy/10 space-y-3">
+                <h4 className="text-sm font-bold text-burgundy">🏷️ إعدادات الخصم المؤقت (اختياري)</h4>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-burgundy/60">سعر الخصم الجديد (ج.م)</label>
+                    <input
+                      type="number"
+                      name="discountPrice"
+                      value={form.discountPrice ?? ''}
+                      onChange={handleChange}
+                      placeholder="مثال: 350"
+                      className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ بدء الخصم</label>
+                    <input
+                      type="date"
+                      name="discountStartDate"
+                      value={form.discountStartDate ?? ''}
+                      onChange={handleChange}
+                      className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ انتهاء الخصم</label>
+                    <input
+                      type="date"
+                      name="discountEndDate"
+                      value={form.discountEndDate ?? ''}
+                      onChange={handleChange}
+                      className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-burgundy/40 leading-relaxed">
+                  * لو سبت التواريخ فاضية، الخصم هيطبق فوراً وبشكل مستمر. لو حددت التواريخ، الخصم هيتوقف تلقائياً بعد انتهاء الفترة.
+                </p>
+              </div>
+            )}
           </div>
           <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الوصف</label><textarea name="description" value={form.description} onChange={handleChange} className={`${inp} min-h-[80px]`} /></div>
           <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">روابط الصور (سطر لكل رابط)</label>
@@ -609,15 +669,16 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
       ) : filtered.length === 0 ? (
         <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-4xl mb-3">📭</p><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
       ) : (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50">
-            <span>المنتج</span><span>الفئة</span><span>السعر</span><span>التكلفة والربح</span><span>المخزون</span><span>الإجراءات</span>
-          </div>
-          <div className="divide-y divide-burgundy/6">
-            {filtered.map(p => (
-              <div key={p._id} className="grid sm:grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
-                {/* Product */}
-                <div className="flex items-center gap-3 min-w-0">
+        <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-x-auto">
+          <div className="min-w-[900px]">
+            <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50">
+              <span>المنتج</span><span>الفئة</span><span>السعر</span><span>التكلفة والربح</span><span>المخزون</span><span>الإجراءات</span>
+            </div>
+            <div className="divide-y divide-burgundy/6">
+              {filtered.map(p => (
+                <div key={p._id} className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
+                  {/* Product */}
+                  <div className="flex items-center gap-3 min-w-0">
                   {p.images?.[0] ? (
                     <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
                   ) : (
@@ -641,22 +702,37 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
                     </button>
                   </div>
                 </div>
-                <span className="hidden sm:inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{CAT_AR[p.category] || p.category}</span>
-                <span className="hidden sm:block text-sm font-bold">{EGP(p.price)}</span>
+                <span className="inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{CAT_AR[p.category] || p.category}</span>
+                {isDiscountActive(p) ? (
+                  <div className="flex flex-col">
+                    <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
+                    <span className="block text-xs text-red-500 line-through">{EGP(p.price)}</span>
+                    <span className="inline-block mt-1 rounded bg-red-100 text-red-600 px-1.5 py-0.5 text-[9px] font-bold w-fit">
+                      خصم {Math.round((1 - p.discountPrice / p.price) * 100)}%
+                    </span>
+                  </div>
+                ) : (
+                  <span className="block text-sm font-bold">{EGP(p.price)}</span>
+                )}
                 
                 {/* Cost & Profit */}
-                <div className="hidden sm:flex flex-col text-xs space-y-0.5">
+                <div className="flex flex-col text-xs space-y-0.5">
                   <span className="text-burgundy/50">التكلفة: {p.costPrice ? EGP(p.costPrice) : '—'}</span>
                   {p.costPrice ? (
-                    <span className="font-bold text-emerald-600">
-                      الربح: {EGP(p.price - p.costPrice)} ({(((p.price - p.costPrice) / p.price) * 100).toFixed(0)}%)
-                    </span>
+                    (() => {
+                      const effPrice = isDiscountActive(p) ? p.discountPrice : p.price;
+                      return (
+                        <span className="font-bold text-emerald-600">
+                          الربح: {EGP(effPrice - p.costPrice)} ({(((effPrice - p.costPrice) / effPrice) * 100).toFixed(0)}%)
+                        </span>
+                      );
+                    })()
                   ) : (
                     <span className="text-amber-500 font-semibold text-[10px]">غير مسعر تكلفة</span>
                   )}
                 </div>
 
-                <span className={`hidden sm:inline-block rounded-full px-3 py-1 text-xs font-bold w-fit ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{p.stock} ق</span>
+                <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold w-fit ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{p.stock} ق</span>
                 <div className="flex gap-1.5">
                   <button onClick={() => onEdit(p)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
                   {p.sku && <button onClick={() => printBarcode(p)} className="rounded-xl border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-500 hover:text-white">🖶</button>}
@@ -664,6 +740,7 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
                 </div>
               </div>
             ))}
+          </div>
           </div>
         </div>
       )}
@@ -773,16 +850,17 @@ function InventoryTab({ products, loading, onRefresh }) {
       ) : filtered.length === 0 ? (
         <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-4xl mb-3">📭</p><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
       ) : (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-3 border-b border-burgundy/8 bg-[#F7F0EC] text-xs font-bold uppercase tracking-wide text-burgundy/50">
-            <span>المنتج</span><span>الفئة</span><span>السعر</span><span>المخزون</span><span>تعديل الكمية</span>
-          </div>
-          <div className="divide-y divide-burgundy/6">
-            {filtered.map(p => (
-              <div key={p._id}>
-                <div className="grid sm:grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-4 items-center hover:bg-[#F7F0EC]/40 transition">
-                  {/* Product */}
-                  <div className="flex items-center gap-3 min-w-0">
+        <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-x-auto">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-3 border-b border-burgundy/8 bg-[#F7F0EC] text-xs font-bold uppercase tracking-wide text-burgundy/50">
+              <span>المنتج</span><span>الفئة</span><span>السعر</span><span>المخزون</span><span>تعديل الكمية</span>
+            </div>
+            <div className="divide-y divide-burgundy/6">
+              {filtered.map(p => (
+                <div key={p._id}>
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-4 items-center hover:bg-[#F7F0EC]/40 transition">
+                    {/* Product */}
+                    <div className="flex items-center gap-3 min-w-0">
                     {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
                       : <div className="h-12 w-12 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl flex-shrink-0">👗</div>}
                     <div className="min-w-0">
@@ -792,8 +870,15 @@ function InventoryTab({ products, loading, onRefresh }) {
                       {p.allowDiscount === false && <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">🚫 غير مسموح بالخصم</span>}
                     </div>
                   </div>
-                  <span className="hidden sm:inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">{CAT_AR[p.category] || p.category}</span>
-                  <span className="hidden sm:block text-sm font-bold">{EGP(p.price)}</span>
+                  <span className="inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">{CAT_AR[p.category] || p.category}</span>
+                  {isDiscountActive(p) ? (
+                    <div className="flex flex-col">
+                      <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
+                      <span className="block text-xs text-red-500 line-through">{EGP(p.price)}</span>
+                    </div>
+                  ) : (
+                    <span className="block text-sm font-bold">{EGP(p.price)}</span>
+                  )}
                   {/* Stock */}
                   <div className="flex items-center gap-2">
                     <span className={`rounded-full px-3 py-1 text-sm font-bold ${stockBadge(p.stock)}`}>{p.stock} قطعة</span>
@@ -844,6 +929,7 @@ function InventoryTab({ products, loading, onRefresh }) {
                 )}
               </div>
             ))}
+            </div>
           </div>
         </div>
       )}

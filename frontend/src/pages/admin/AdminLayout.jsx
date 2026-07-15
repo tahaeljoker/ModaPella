@@ -45,6 +45,7 @@ function AdminLayout({ children }) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [firstTimeMsgOpen, setFirstTimeMsgOpen] = useState(true);
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -105,12 +106,28 @@ function AdminLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-[#F7F0EC]" dir="rtl">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed right-0 top-0 z-40 flex h-full w-64 flex-col border-l border-burgundy/10 bg-white shadow-lg">
-        {/* Logo */}
-        <div className="border-b border-burgundy/10 px-6 py-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-burgundy/50">لوحة إدارة</p>
-          <h1 className="mt-1 text-xl font-bold text-burgundy">ModaPella</h1>
+      <aside className={`fixed right-0 top-0 z-40 flex h-full w-64 flex-col border-l border-burgundy/10 bg-white shadow-lg transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {/* Logo & Close Button */}
+        <div className="flex items-center justify-between border-b border-burgundy/10 px-6 py-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-burgundy/50">لوحة إدارة</p>
+            <h1 className="mt-1 text-xl font-bold text-burgundy">ModaPella</h1>
+          </div>
+          <button 
+            className="lg:hidden text-burgundy/50 hover:text-burgundy"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            ✕
+          </button>
         </div>
 
         {/* Nav */}
@@ -125,6 +142,7 @@ function AdminLayout({ children }) {
                   key={item.to}
                   to={item.to}
                   end={item.end}
+                  onClick={() => setIsSidebarOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-2xl px-4 py-2 text-xs font-bold transition-all duration-200 ${
                       isActive
@@ -220,8 +238,21 @@ function AdminLayout({ children }) {
         </div>
       </aside>
 
-      {/* Main content — offset by sidebar width */}
-      <main className="mr-64 flex-1 p-8">
+      {/* Main content — offset by sidebar width on large screens */}
+      <main className="flex-1 lg:mr-64 p-4 sm:p-8 w-full min-w-0">
+        {/* Mobile Header with Hamburger */}
+        <div className="lg:hidden flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-burgundy/10">
+          <h2 className="text-lg font-bold text-burgundy">ModaPella Admin</h2>
+          <button 
+            className="text-burgundy focus:outline-none"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <div className="w-6 h-0.5 bg-burgundy mb-1.5"></div>
+            <div className="w-6 h-0.5 bg-burgundy mb-1.5"></div>
+            <div className="w-6 h-0.5 bg-burgundy"></div>
+          </button>
+        </div>
+
         {children}
       </main>
 

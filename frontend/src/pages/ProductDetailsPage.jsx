@@ -4,6 +4,8 @@ import api from '../services/api';
 import CartContext from '../context/CartContext';
 import LazyImage from '../components/LazyImage';
 import sampleProducts from '../data/sampleProducts';
+import { isDiscountActive } from '../utils/discount';
+
 
 function ProductDetailsPage() {
   const { id } = useParams();
@@ -55,8 +57,12 @@ function ProductDetailsPage() {
   const image = product.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80';
 
   const handleAddToCart = () => {
+    const activeDiscount = isDiscountActive(product);
     const cartItem = {
       ...product,
+      price: activeDiscount ? product.discountPrice : product.price,
+      originalPrice: product.price,
+      isDiscountActive: activeDiscount,
       selectedSize,
       selectedColor,
       cartId: `${product._id}_${selectedSize || 'default'}_${selectedColor || 'default'}`
@@ -81,7 +87,15 @@ function ProductDetailsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
                 <h2 className="text-xs sm:text-sm font-semibold text-burgundy">السعر</h2>
-                <p className="mt-1.5 sm:mt-3 text-lg sm:text-2xl font-bold text-burgundy">{Number(product.price).toLocaleString('en-US')} ج.م</p>
+                {isDiscountActive(product) ? (
+                  <div className="flex flex-col gap-1 mt-1.5 sm:mt-3">
+                    <p className="text-lg sm:text-2xl font-bold text-burgundy">{Number(product.discountPrice).toLocaleString('en-US')} ج.م</p>
+                    <p className="text-xs text-red-500 line-through">{Number(product.price).toLocaleString('en-US')} ج.م</p>
+                    <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold w-fit">خصم {Math.round((1 - product.discountPrice / product.price) * 100)}%</span>
+                  </div>
+                ) : (
+                  <p className="mt-1.5 sm:mt-3 text-lg sm:text-2xl font-bold text-burgundy">{Number(product.price).toLocaleString('en-US')} ج.م</p>
+                )}
               </div>
               <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
                 <h2 className="text-xs sm:text-sm font-semibold text-burgundy">المخزون المتوفر</h2>

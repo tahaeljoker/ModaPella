@@ -26,8 +26,29 @@ const ProductSchema = new mongoose.Schema({
   supplier: { type: String, default: '' },
   supplierId: { type: require('mongoose').Schema.Types.ObjectId, ref: 'Supplier', default: null },
   active: { type: Boolean, default: true },
-  allowDiscount: { type: Boolean, default: true }
-}, { timestamps: true });
+  allowDiscount: { type: Boolean, default: true },
+  discountPrice: { type: Number, default: null },
+  discountStartDate: { type: Date, default: null },
+  discountEndDate: { type: Date, default: null }
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+ProductSchema.virtual('isDiscountActive').get(function () {
+  if (this.allowDiscount === false) return false;
+  if (!this.discountPrice || this.discountPrice <= 0 || this.discountPrice >= this.price) return false;
+  const now = new Date();
+  if (this.discountStartDate && new Date(this.discountStartDate) > now) return false;
+  if (this.discountEndDate && new Date(this.discountEndDate) < now) return false;
+  return true;
+});
+
+ProductSchema.virtual('effectivePrice').get(function () {
+  return this.isDiscountActive ? this.discountPrice : this.price;
+});
+
 
 ProductSchema.pre('save', function (next) {
   if (this.variants && this.variants.length > 0) {
