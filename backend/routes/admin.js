@@ -398,6 +398,24 @@ router.patch('/users/:id/toggle', auth, requireRole(['admin']), async (req, res)
   }
 });
 
+// PATCH /api/admin/users/:id/password — reset a user's password (Admin only)
+router.patch('/users/:id/password', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'admin') return res.status(403).json({ message: 'Cannot change admin password from here' });
+    user.password = password; // will be hashed by pre-save hook
+    await user.save();
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to change password', error: error.message });
+  }
+});
+
 // DELETE /api/admin/users/:id — remove a cashier account
 router.delete('/users/:id', auth, requireRole(['admin']), async (req, res) => {
   try {
