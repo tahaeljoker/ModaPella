@@ -21,7 +21,24 @@ router.get('/', auth, requireRole(['admin', 'cashier', 'manager']), async (req, 
 router.get('/all', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const employees = await Employee.find().sort({ createdAt: -1 });
-    res.json(employees);
+    const User = require('../models/User');
+    
+    // Attach linked user account information by matching name or phone
+    const enrichedEmployees = await Promise.all(employees.map(async (emp) => {
+      const user = await User.findOne({
+        $or: [
+          { name: emp.name },
+          { phone: emp.phone && emp.phone.trim() !== '' ? emp.phone : '____non_existent____' }
+        ]
+      }).select('_id email');
+      
+      return {
+        ...emp.toObject(),
+        systemUser: user ? { _id: user._id, email: user.email } : null
+      };
+    }));
+
+    res.json(enrichedEmployees);
   } catch (e) {
     res.status(500).json({ message: 'Unable to load employees', error: e.message });
   }

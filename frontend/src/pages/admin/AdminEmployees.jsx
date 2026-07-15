@@ -58,6 +58,95 @@ function EmployeeModal({ employee, onClose, onSave }) {
   );
 }
 
+// ─── Change Password Modal (Local copy to avoid import complexity) ──────────
+function ChangePasswordModal({ user, onClose, onSuccess }) {
+  const [newPass, setNewPass] = useState('');
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (newPass.length < 6) return setErr('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+    setLoading(true); setErr('');
+    try {
+      await api.patch(`/admin/users/${user._id}/password`, { password: newPass });
+      onSuccess(`✅ تم تغيير كلمة مرور ${user.name} بنجاح`);
+      onClose();
+    } catch (err) {
+      setErr(err.response?.data?.message || 'حدث خطأ');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="bg-burgundy px-6 py-4 text-white flex items-center gap-3">
+          <span className="text-xl">🔐</span>
+          <div>
+            <p className="text-xs opacity-70 uppercase tracking-widest">تغيير كلمة المرور</p>
+            <p className="font-bold">{user.name}</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="rounded-xl bg-burgundy/5 px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] text-burgundy/40 uppercase tracking-widest">البريد الإلكتروني</p>
+              <p className="text-sm font-semibold text-burgundy font-mono">{user.email}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(user.email); }}
+              className="text-[10px] rounded-lg border border-burgundy/20 px-2 py-1 text-burgundy/60 hover:bg-burgundy hover:text-white transition"
+            >
+              نسخ
+            </button>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">كلمة المرور الجديدة *</label>
+            <div className="relative">
+              <input
+                type={show ? 'text' : 'password'}
+                value={newPass}
+                onChange={e => setNewPass(e.target.value)}
+                placeholder="أدخل كلمة المرور الجديدة..."
+                minLength={6}
+                required
+                autoFocus
+                dir="ltr"
+                className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShow(!show)}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-burgundy/40 hover:text-burgundy text-xs"
+              >
+                {show ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+
+          {err && <p className="rounded-xl bg-red-50 px-4 py-2 text-xs text-red-600">{err}</p>}
+
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading || newPass.length < 6}
+              className="flex-1 rounded-full bg-burgundy py-2.5 text-sm font-bold text-white hover:bg-[#650018] transition disabled:opacity-50"
+            >
+              {loading ? 'جاري الحفظ...' : '🔐 حفظ كلمة المرور'}
+            </button>
+            <button type="button" onClick={onClose} className="rounded-full border border-burgundy/20 px-5 py-2.5 text-sm text-burgundy hover:bg-burgundy/8 transition">
+              إلغاء
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Create System Account Modal ─────────────────────────────────────────────
 function CreateSystemAccountModal({ employee, onClose, onSuccess }) {
   const [form, setForm] = useState({
@@ -628,6 +717,7 @@ function AdminEmployees() {
   const [modal, setModal] = useState(null);
   const [statsEmp, setStatsEmp] = useState(null);
   const [createAccountEmp, setCreateAccountEmp] = useState(null);
+  const [changePwUser, setChangePwUser] = useState(null);
   const [toast, setToast] = useState('');
   const [deleteId, setDeleteId] = useState(null);
 
@@ -701,8 +791,19 @@ function AdminEmployees() {
               {employees.map(emp => (
                 <div key={emp._id} className={`grid sm:grid-cols-[1.2fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3 ${!emp.active ? 'opacity-50' : ''}`}>
                   <div>
-                    <p className="font-semibold text-sm text-burgundy">{emp.name}</p>
-                    {emp.notes && <p className="text-xs text-burgundy/40 mt-0.5">{emp.notes}</p>}
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-burgundy">{emp.name}</p>
+                      {emp.systemUser && (
+                        <span className="rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5">
+                          ✓ حساب نظام
+                        </span>
+                      )}
+                    </div>
+                    {emp.systemUser ? (
+                      <p className="text-xs text-burgundy/40 font-mono mt-0.5">{emp.systemUser.email}</p>
+                    ) : emp.notes ? (
+                      <p className="text-xs text-burgundy/40 mt-0.5">{emp.notes}</p>
+                    ) : null}
                   </div>
                   <p className="text-sm text-burgundy/60 font-mono">{emp.phone || '—'}</p>
                   <p className="text-xs text-burgundy/70 font-semibold">{emp.startDate ? DATE(emp.startDate) : 'غير مسجل'}</p>
@@ -712,13 +813,23 @@ function AdminEmployees() {
                   <div className="flex gap-1.5 flex-wrap">
                     <button onClick={() => setStatsEmp(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">📊 مبيعات</button>
                     <button onClick={() => setModal(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
-                    <button
-                      onClick={() => setCreateAccountEmp(emp)}
-                      title="إنشاء حساب دخول للنظام لهذا الموظف"
-                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-500 hover:text-white"
-                    >
-                      🔑 حساب نظام
-                    </button>
+                    {emp.systemUser ? (
+                      <button
+                        onClick={() => setChangePwUser({ _id: emp.systemUser._id, name: emp.name, email: emp.systemUser.email })}
+                        title="تغيير كلمة المرور لحساب النظام المرتبط بهذا الموظف"
+                        className="rounded-xl border border-burgundy/20 bg-burgundy/5 px-3 py-1.5 text-xs font-bold text-burgundy transition hover:bg-burgundy hover:text-white"
+                      >
+                        🔐 الباسورد
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setCreateAccountEmp(emp)}
+                        title="إنشاء حساب دخول للنظام لهذا الموظف"
+                        className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-500 hover:text-white animate-pulse"
+                      >
+                        🔑 حساب نظام
+                      </button>
+                    )}
                     <button onClick={() => handleToggle(emp)} className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${emp.active ? 'border-amber-200 text-amber-600 hover:bg-amber-500 hover:text-white' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white'}`}>
                       {emp.active ? 'تعطيل' : 'تفعيل'}
                     </button>
@@ -741,7 +852,14 @@ function AdminEmployees() {
         <CreateSystemAccountModal
           employee={createAccountEmp}
           onClose={() => setCreateAccountEmp(null)}
-          onSuccess={(msg) => { showToast(msg); setCreateAccountEmp(null); }}
+          onSuccess={(msg) => { showToast(msg); setCreateAccountEmp(null); load(); }}
+        />
+      )}
+      {changePwUser && (
+        <ChangePasswordModal
+          user={changePwUser}
+          onClose={() => setChangePwUser(null)}
+          onSuccess={(msg) => { showToast(msg); setChangePwUser(null); }}
         />
       )}
       <ConfirmModal
