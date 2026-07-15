@@ -5,7 +5,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const DATE = (d) => new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' });
 
-// ─── Employee Form Modal ───────────────────────────────────────────────────────
+// ─── Employee Form Modal ──────────────────────────────────────────────────────
 function EmployeeModal({ employee, onClose, onSave }) {
   const [form, setForm] = useState({
     name: '',
@@ -57,6 +57,143 @@ function EmployeeModal({ employee, onClose, onSave }) {
     </div>
   );
 }
+
+// ─── Create System Account Modal ─────────────────────────────────────────────
+function CreateSystemAccountModal({ employee, onClose, onSuccess }) {
+  const [form, setForm] = useState({
+    name: employee.name || '',
+    email: '',
+    password: '',
+    phone: employee.phone || '',
+    role: 'employee',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.post('/admin/users', form);
+      onSuccess((`✅ تم إنشاء حساب النظام لـ ${employee.name} بنجاح`));
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'حدث خطأ أثناء الإنشاء');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inp = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md rounded-[2rem] bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="bg-burgundy px-6 py-5 text-white">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔑</span>
+            <div>
+              <p className="text-xs opacity-70 uppercase tracking-widest">إنشاء حساب نظام</p>
+              <h3 className="font-bold text-lg mt-0.5">{employee.name}</h3>
+            </div>
+          </div>
+          <p className="text-xs opacity-60 mt-2">سيتمكن الموظف من تسجيل الدخول واستخدام شاشة الجرد والاستعلام عن الأسعار</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Pre-filled name (read-only) */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الاسم</label>
+            <input
+              value={form.name}
+              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              className={inp}
+              required
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">البريد الإلكتروني *</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              className={inp}
+              placeholder="ahmed@modapella.com"
+              required
+              autoFocus
+              dir="ltr"
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">كلمة المرور *</label>
+            <input
+              type="password"
+              value={form.password}
+              onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+              className={inp}
+              placeholder="أدخل كلمة مرور آمنة (6 أحرف على الأقل)"
+              minLength={6}
+              required
+              dir="ltr"
+            />
+          </div>
+
+          {/* Phone (pre-filled, editable) */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">
+              رقم الواتساب <span className="normal-case font-normal text-burgundy/40">(لإرسال إشعارات الجرد)</span>
+            </label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+              className={inp}
+              placeholder="01012345678"
+              dir="ltr"
+            />
+          </div>
+
+          {/* Role badge (fixed) */}
+          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5">
+            <span className="text-base">🧑‍💼</span>
+            <div>
+              <p className="text-xs text-emerald-700 font-bold">دور الحساب: موظف جرد</p>
+              <p className="text-[10px] text-emerald-600/70">سيظهر له فقط استعلام الأسعار ومهام الجرد</p>
+            </div>
+          </div>
+
+          {error && (
+            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700">{error}</p>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 rounded-full bg-burgundy py-3 text-sm font-bold text-white transition hover:bg-[#650018] disabled:opacity-60"
+            >
+              {loading ? 'جاري الإنشاء...' : '🔑 إنشاء الحساب'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-burgundy/20 px-6 py-3 text-sm font-medium text-burgundy transition hover:bg-burgundy/10"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 
 // ─── Employee Stats Modal ──────────────────────────────────────────────────────
 const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
@@ -490,6 +627,7 @@ function AdminEmployees() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [statsEmp, setStatsEmp] = useState(null);
+  const [createAccountEmp, setCreateAccountEmp] = useState(null);
   const [toast, setToast] = useState('');
   const [deleteId, setDeleteId] = useState(null);
 
@@ -574,6 +712,13 @@ function AdminEmployees() {
                   <div className="flex gap-1.5 flex-wrap">
                     <button onClick={() => setStatsEmp(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">📊 مبيعات</button>
                     <button onClick={() => setModal(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
+                    <button
+                      onClick={() => setCreateAccountEmp(emp)}
+                      title="إنشاء حساب دخول للنظام لهذا الموظف"
+                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-500 hover:text-white"
+                    >
+                      🔑 حساب نظام
+                    </button>
                     <button onClick={() => handleToggle(emp)} className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${emp.active ? 'border-amber-200 text-amber-600 hover:bg-amber-500 hover:text-white' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white'}`}>
                       {emp.active ? 'تعطيل' : 'تفعيل'}
                     </button>
@@ -592,6 +737,13 @@ function AdminEmployees() {
       {/* Modals */}
       {modal !== null && <EmployeeModal employee={modal?._id ? modal : null} onClose={() => setModal(null)} onSave={handleSave} />}
       {statsEmp && <EmployeeStatsModal employee={statsEmp} onClose={() => setStatsEmp(null)} />}
+      {createAccountEmp && (
+        <CreateSystemAccountModal
+          employee={createAccountEmp}
+          onClose={() => setCreateAccountEmp(null)}
+          onSuccess={(msg) => { showToast(msg); setCreateAccountEmp(null); }}
+        />
+      )}
       <ConfirmModal
         isOpen={!!deleteId}
         title="تأكيد الحذف"
