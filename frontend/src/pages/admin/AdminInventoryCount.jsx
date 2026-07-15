@@ -35,6 +35,10 @@ function InventoryTasksPanel() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [whatsappLink, setWhatsappLink] = useState(null);
   const [whatsappTaskTitle, setWhatsappTaskTitle] = useState('');
+  // Product picker state
+  const [productSearch, setProductSearch] = useState('');
+  const [activeCat, setActiveCat] = useState('all');
+  const [taskFilter, setTaskFilter] = useState('all');
 
   const showToast = (msg, type = 'success') => {
     setToast(msg); setToastType(type);
@@ -130,6 +134,41 @@ function InventoryTasksPanel() {
     }));
   };
 
+  // Select/deselect all visible products (after filter)
+  const selectAllVisible = (visibleIds) => {
+    const allSelected = visibleIds.every(id => form.productIds.includes(id));
+    if (allSelected) {
+      setForm(p => ({ ...p, productIds: p.productIds.filter(id => !visibleIds.includes(id)) }));
+    } else {
+      setForm(p => ({ ...p, productIds: [...new Set([...p.productIds, ...visibleIds])] }));
+    }
+  };
+
+  // Select by category shortcut
+  const selectByCategory = (cat) => {
+    const catIds = products.filter(p => p.category === cat).map(p => p._id);
+    const allSelected = catIds.every(id => form.productIds.includes(id));
+    if (allSelected) {
+      setForm(p => ({ ...p, productIds: p.productIds.filter(id => !catIds.includes(id)) }));
+    } else {
+      setForm(p => ({ ...p, productIds: [...new Set([...p.productIds, ...catIds])] }));
+    }
+  };
+
+  // Unique categories from products
+  const categories = ['all', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
+  const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم', all: 'الكل' };
+
+  // Filtered products for picker
+  const filteredProducts = products.filter(p => {
+    const matchCat = activeCat === 'all' || p.category === activeCat;
+    const q = productSearch.trim().toLowerCase();
+    const matchQ = !q || p.name.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q);
+    return matchCat && matchQ;
+  });
+  const filteredIds = filteredProducts.map(p => p._id);
+  const allVisibleSelected = filteredIds.length > 0 && filteredIds.every(id => form.productIds.includes(id));
+
   const inputCls = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
 
   return (
@@ -193,20 +232,129 @@ function InventoryTasksPanel() {
             </div>
           </div>
 
-          {/* Product Picker */}
+          {/* Smart Product Picker */}
           <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">اختر المنتجات المطلوب جردها *</label>
-            <div className="max-h-56 overflow-y-auto rounded-2xl border border-burgundy/15 bg-[#F7F0EC] p-3 space-y-1">
-              {products.map(p => (
-                <label key={p._id} className={`flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2 transition ${form.productIds.includes(p._id) ? 'bg-burgundy text-white' : 'hover:bg-burgundy/8 text-burgundy'}`}>
-                  <input type="checkbox" checked={form.productIds.includes(p._id)} onChange={() => toggleProduct(p._id)} className="accent-white" />
-                  <span className="text-sm font-medium">{p.name}</span>
-                  {p.sku && <span className="text-xs opacity-60 font-mono">{p.sku}</span>}
-                  <span className="text-xs opacity-60 mr-auto">مخزون: {p.stock ?? (p.variants?.reduce((s, v) => s + v.stock, 0) ?? 0)}</span>
-                </label>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">اختر المنتجات المطلوب جردها *</label>
+              <div className="flex gap-2 items-center">
+                <span className="text-xs text-burgundy/50">{form.productIds.length} منتج مختار</span>
+                {form.productIds.length > 0 && (
+                  <button type="button" onClick={() => setForm(p => ({ ...p, productIds: [] }))} className="text-[10px] text-red-500 hover:text-red-700 font-bold border border-red-200 rounded-lg px-2 py-0.5 hover:bg-red-50 transition">
+                    مسح الكل ✕
+                  </button>
+                )}
+              </div>
             </div>
-            {form.productIds.length > 0 && <p className="text-xs text-burgundy/50 mt-1">{form.productIds.length} منتج مختار</p>}
+
+            {/* Category Filter Tabs */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {categories.map(cat => {
+                const catProductIds = cat === 'all' ? products.map(p => p._id) : products.filter(p => p.category === cat).map(p => p._id);
+                const selectedInCat = catProductIds.filter(id => form.productIds.includes(id)).length;
+                const totalInCat = catProductIds.length;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCat(cat)}
+                    className={`relative rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                      activeCat === cat ? 'bg-burgundy text-white shadow-sm' : 'bg-[#F7F0EC] text-burgundy/70 hover:bg-burgundy/15'
+                    }`}
+                  >
+                    {CAT_AR[cat] || cat}
+                    {selectedInCat > 0 && (
+                      <span className={`mr-1 text-[10px] font-bold ${activeCat === cat ? 'text-white/80' : 'text-burgundy'}`}>
+                        ({selectedInCat}/{totalInCat})
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search + Select All bar */}
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={productSearch}
+                onChange={e => setProductSearch(e.target.value)}
+                placeholder="🔍 بحث باسم المنتج أو الكود..."
+                className="flex-1 rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
+              />
+              <button
+                type="button"
+                onClick={() => selectAllVisible(filteredIds)}
+                disabled={filteredIds.length === 0}
+                className={`rounded-xl border px-3 py-2 text-xs font-bold transition whitespace-nowrap ${
+                  allVisibleSelected
+                    ? 'border-burgundy bg-burgundy text-white'
+                    : 'border-burgundy/30 text-burgundy hover:bg-burgundy hover:text-white'
+                } disabled:opacity-40`}
+              >
+                {allVisibleSelected ? '✓ إلغاء الكل' : '☑ اختيار الكل'}
+              </button>
+              {activeCat !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => selectByCategory(activeCat)}
+                  title={`اختيار كل فئة ${CAT_AR[activeCat] || activeCat} دفعة واحدة`}
+                  className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-500 hover:text-white transition whitespace-nowrap"
+                >
+                  ✦ كل {CAT_AR[activeCat] || activeCat}
+                </button>
+              )}
+            </div>
+
+            {/* Product List */}
+            <div className="max-h-64 overflow-y-auto rounded-2xl border border-burgundy/15 bg-[#F7F0EC] p-2 space-y-0.5">
+              {filteredProducts.length === 0 ? (
+                <p className="text-center text-xs text-burgundy/40 py-8">لا توجد منتجات تطابق البحث</p>
+              ) : filteredProducts.map(p => {
+                const isSelected = form.productIds.includes(p._id);
+                const stock = p.stock ?? (p.variants?.reduce((s, v) => s + v.stock, 0) ?? 0);
+                return (
+                  <label
+                    key={p._id}
+                    className={`flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2.5 transition group ${
+                      isSelected ? 'bg-burgundy text-white shadow-sm' : 'hover:bg-burgundy/8 text-burgundy'
+                    }`}
+                  >
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleProduct(p._id)} className="accent-white shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{p.name}</p>
+                      {p.sku && <p className={`text-[10px] font-mono ${isSelected ? 'text-white/60' : 'text-burgundy/40'}`}>{p.sku}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
+                        isSelected ? 'bg-white/20 text-white' :
+                        stock === 0 ? 'bg-red-100 text-red-600' : 'bg-burgundy/8 text-burgundy'
+                      }`}>
+                        {stock} قطعة
+                      </span>
+                      {p.variants?.length > 0 && (
+                        <p className={`text-[9px] mt-0.5 ${isSelected ? 'text-white/50' : 'text-burgundy/40'}`}>{p.variants.length} متغير</p>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {form.productIds.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <p className="w-full text-xs text-burgundy/50 mb-1">المنتجات المختارة:</p>
+                {form.productIds.map(pid => {
+                  const p = products.find(x => x._id === pid);
+                  if (!p) return null;
+                  return (
+                    <span key={pid} className="inline-flex items-center gap-1.5 rounded-full bg-burgundy/10 border border-burgundy/20 px-2.5 py-1 text-xs font-semibold text-burgundy">
+                      {p.name}
+                      <button type="button" onClick={() => toggleProduct(pid)} className="text-burgundy/40 hover:text-red-600 text-xs leading-none">&times;</button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">
