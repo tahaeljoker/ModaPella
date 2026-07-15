@@ -115,7 +115,7 @@ function AdminLayout({ children }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed right-0 top-0 z-40 flex h-full w-64 flex-col border-l border-burgundy/10 bg-white shadow-lg transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <aside className={`fixed top-0 z-40 flex h-full w-64 flex-col border-l border-burgundy/10 bg-white shadow-lg transition-[right] duration-300 lg:right-0 ${isSidebarOpen ? 'right-0' : '-right-64'}`}>
         {/* Logo & Close Button */}
         <div className="flex items-center justify-between border-b border-burgundy/10 px-6 py-5">
           <div>
