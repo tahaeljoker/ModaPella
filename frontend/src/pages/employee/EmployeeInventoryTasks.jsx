@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../services/api';
+import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 
 const STATUS_LABEL = {
   pending:   { label: 'معلق',       color: 'bg-amber-100 text-amber-700',   icon: '⏳' },
@@ -31,6 +32,7 @@ function TaskSession({ task: initialTask, onBack }) {
   const [search, setSearch]     = useState('');
   const [filterStatus, setFilter] = useState('all'); // all | uncounted | counted | diff
   const [highlight, setHighlight] = useState(null);  // item._id to flash
+  const [scannerOpen, setScannerOpen] = useState(false);
   const scanRef  = useRef(null);
   const inputRefs = useRef({});
 
@@ -76,27 +78,31 @@ function TaskSession({ task: initialTask, onBack }) {
   }, [items]);
 
   // Barcode scanner: fast input auto-matches to product
+  const performMatchAndFocus = (q) => {
+    const match = items.find(i =>
+      i.sku?.toLowerCase() === q.toLowerCase() ||
+      i.productName?.toLowerCase().includes(q.toLowerCase())
+    );
+    if (match) {
+      setHighlight(match._id);
+      // scroll and focus the count input
+      setTimeout(() => {
+        inputRefs.current[match._id]?.focus();
+        inputRefs.current[match._id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => setHighlight(null), 1500);
+      }, 50);
+      // Also remove filter so item is visible
+      setFilter('all');
+      setSearch('');
+    } else {
+      alert(`لم يتم العثور على منتج بهذا الكود: "${q}"`);
+    }
+  };
+
   const handleScan = (e) => {
     if (e.key === 'Enter' && scanRef.current?.value?.trim()) {
-      const q = scanRef.current.value.trim().toLowerCase();
-      const match = items.find(i =>
-        i.sku?.toLowerCase() === q ||
-        i.productName?.toLowerCase().includes(q)
-      );
-      if (match) {
-        setHighlight(match._id);
-        // scroll and focus the count input
-        setTimeout(() => {
-          inputRefs.current[match._id]?.focus();
-          inputRefs.current[match._id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setTimeout(() => setHighlight(null), 1500);
-        }, 50);
-        // Also remove filter so item is visible
-        setFilter('all');
-        setSearch('');
-      } else {
-        alert(`لم يتم العثور على منتج بهذا الكود: "${q}"`);
-      }
+      const q = scanRef.current.value.trim();
+      performMatchAndFocus(q);
       scanRef.current.value = '';
     }
   };
@@ -209,7 +215,14 @@ function TaskSession({ task: initialTask, onBack }) {
       {/* ── Barcode Scanner ── */}
       {isEditable && (
         <div className="rounded-[2rem] border-2 border-dashed border-burgundy/20 bg-white px-5 py-4 flex items-center gap-4">
-          <div className="text-3xl">📷</div>
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            className="w-12 h-12 rounded-2xl bg-burgundy/5 border border-burgundy/20 flex items-center justify-center text-xl hover:bg-burgundy/10 transition shrink-0"
+            title="مسح الكود بكاميرا الموبايل"
+          >
+            📸
+          </button>
           <div className="flex-1">
             <p className="text-xs font-bold uppercase tracking-widest text-burgundy/40 mb-1">مسح باركود سريع</p>
             <input
@@ -330,6 +343,14 @@ function TaskSession({ task: initialTask, onBack }) {
           })}
         </div>
       </div>
+      {/* Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={(code) => {
+          performMatchAndFocus(code);
+        }}
+      />
     </div>
   );
 }

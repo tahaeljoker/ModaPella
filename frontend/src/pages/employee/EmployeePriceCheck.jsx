@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { isDiscountActive, getEffectivePrice } from '../../utils/discount';
+import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -20,6 +21,7 @@ function EmployeePriceCheck() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [history, setHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem('emp_price_history') || '[]'); } catch { return []; }
   });
@@ -121,14 +123,22 @@ function EmployeePriceCheck() {
       </div>
 
       {/* Search Box */}
-      <div className="relative flex gap-3">
+      <div className="relative flex gap-2">
+        <button
+          type="button"
+          onClick={() => setScannerOpen(true)}
+          className="rounded-2xl border border-burgundy/20 bg-white px-4 text-lg hover:bg-burgundy/5 transition"
+          title="مسح بالكاميرا"
+        >
+          📷
+        </button>
         <div className="relative flex-1">
           <input
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && query.trim() && doSearch(query.trim())}
-            placeholder="🔍 اكتب اسم المنتج أو امسح الباركود مباشرة..."
+            placeholder="🔍 اكتب الاسم أو امسح الباركود..."
             className={inputCls + ' pl-10'}
             autoComplete="off"
             spellCheck="false"
@@ -138,7 +148,7 @@ function EmployeePriceCheck() {
           )}
         </div>
         {query && (
-          <button onClick={handleClear} className="rounded-2xl bg-burgundy/10 px-4 text-sm font-semibold text-burgundy hover:bg-burgundy/20 transition">
+          <button onClick={handleClear} className="rounded-2xl bg-burgundy/10 px-4 text-xs font-bold text-burgundy hover:bg-burgundy/20 transition">
             مسح ✕
           </button>
         )}
@@ -299,6 +309,15 @@ function EmployeePriceCheck() {
           </div>
         </div>
       )}
+      {/* Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={(code) => {
+          setQuery(code);
+          doSearch(code);
+        }}
+      />
     </div>
   );
 }
