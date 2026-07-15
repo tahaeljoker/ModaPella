@@ -359,7 +359,7 @@ router.post('/customers/delete', auth, requireRole(['admin']), async (req, res) 
 // GET /api/admin/users — list all staff users
 router.get('/users', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const users = await User.find({ role: { $in: ['admin', 'cashier', 'manager'] } })
+    const users = await User.find({ role: { $in: ['admin', 'cashier', 'manager', 'employee'] } })
       .select('-password')
       .sort({ createdAt: -1 });
     res.json(users);
