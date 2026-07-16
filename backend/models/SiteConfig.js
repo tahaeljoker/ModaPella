@@ -11,7 +11,24 @@ const SiteConfigSchema = new mongoose.Schema({
   secondaryCtaLink: { type: String, default: '/collections' },
   featuredTitle: { type: String, default: 'أحدث المنتجات' },
   featuredSubtitle: { type: String, default: 'منتجاتنا المميزة الآن، مع عرض سريع لكل قطعة.' },
-  maintenanceMessage: { type: String, default: 'الموقع غير متاح حالياً، سنعود قريباً.' }
+  maintenanceMessage: { type: String, default: 'الموقع غير متاح حالياً، سنعود قريباً.' },
+  categories: {
+    type: [{ key: String, nameAr: String }],
+    default: [
+      { key: 'Blazer', nameAr: 'بليزر' },
+      { key: 'Blouse', nameAr: 'بلوزة' },
+      { key: 'Chemise', nameAr: 'شميز' },
+      { key: 'Skirt', nameAr: 'جيبة' },
+      { key: 'Dress', nameAr: 'فستان' },
+      { key: 'Pantalon', nameAr: 'بنطلون' },
+      { key: 'T-shirt', nameAr: 'تيشيرت' },
+      { key: 'Bag', nameAr: 'شنطة' },
+      { key: 'Cardigan', nameAr: 'كاردن' },
+      { key: 'Suit', nameAr: 'سوت' },
+      { key: 'Tonic', nameAr: 'تونيك' },
+      { key: 'Takem', nameAr: 'طقم' }
+    ]
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('SiteConfig', SiteConfigSchema);

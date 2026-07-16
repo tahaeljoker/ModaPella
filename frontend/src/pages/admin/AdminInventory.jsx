@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
-const CAT_AR = {
+const DEFAULT_CAT_AR = {
   Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة',
   Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت',
   Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم'
 };
-const CATS = ['الكل', ...Object.keys(CAT_AR)];
 
 function AdminInventory() {
   const [products, setProducts]     = useState([]);
+  const [catAr, setCatAr]           = useState(DEFAULT_CAT_AR);
+  const [cats, setCats]             = useState(['الكل', ...Object.keys(DEFAULT_CAT_AR)]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('الكل');
@@ -40,7 +41,28 @@ function AdminInventory() {
     }
   };
 
-  useEffect(() => { loadInventory(); }, []);
+  const loadConfig = async () => {
+    try {
+      const res = await api.get('/admin/site-config');
+      if (res.data && res.data.categories && res.data.categories.length > 0) {
+        const mapAr = {};
+        const keys = ['الكل'];
+        res.data.categories.forEach(c => {
+          mapAr[c.key] = c.nameAr;
+          keys.push(c.key);
+        });
+        setCatAr(mapAr);
+        setCats(keys);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadInventory();
+    loadConfig();
+  }, []);
 
   const startAdjusting = (p) => {
     setAdjusting(p._id);
@@ -82,7 +104,7 @@ function AdminInventory() {
     const matchSearch = !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.sku || '').toLowerCase().includes(search.toLowerCase()) ||
-      (CAT_AR[p.category] || '').includes(search);
+      (catAr[p.category] || '').includes(search);
     const matchCat = filterCat === 'الكل' || p.category === filterCat;
     const matchStock =
       filterStock === 'all' ? true :
@@ -150,9 +172,9 @@ function AdminInventory() {
       {/* Category Breakdown */}
       {products.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {Object.keys(CAT_AR)
+          {Object.keys(catAr)
             .map(cat => ({
-              name: CAT_AR[cat],
+              name: catAr[cat],
               count: products.filter(p => p.category === cat).reduce((s, p) => s + p.stock, 0)
             }))
             .filter(c => c.count > 0)
@@ -181,7 +203,7 @@ function AdminInventory() {
           onChange={e => setFilterCat(e.target.value)}
           className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none"
         >
-          {CATS.map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : CAT_AR[c] || c}</option>)}
+          {cats.map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : catAr[c] || c}</option>)}
         </select>
         <select
           value={filterSupplier}
@@ -251,7 +273,7 @@ function AdminInventory() {
 
                   {/* Category */}
                   <span className="hidden sm:inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">
-                    {CAT_AR[p.category] || p.category}
+                    {catAr[p.category] || p.category}
                   </span>
 
                   {/* Price */}

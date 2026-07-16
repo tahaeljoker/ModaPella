@@ -4,8 +4,8 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { isDiscountActive } from '../../utils/discount';
 
 
-const CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
-const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
+const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
+const DEFAULT_CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const getProductIcon = (category = '', name = '') => {
@@ -287,7 +287,7 @@ const emptyProduct = { name: '', category: 'Blouse', description: '', price: '',
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
-function ProductModal({ product, onClose, onSave }) {
+function ProductModal({ product, onClose, onSave, categories, catAr, onAddCategory }) {
   const [form, setForm] = useState(() => {
     if (product) {
       return {
@@ -366,9 +366,28 @@ function ProductModal({ product, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">اسم المنتج *</label><input name="name" value={form.name} onChange={handleChange} className={inp} required /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الفئة *</label>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex justify-between items-center">
+                <span>الفئة *</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const key = prompt('أدخل اسم الفئة بالإنجليزية (رمز فريد، مثلاً: Shoes):');
+                    if (!key) return;
+                    const nameAr = prompt('أدخل اسم الفئة بالعربية (مثلاً: أحذية):');
+                    if (!nameAr) return;
+                    const addedKey = await onAddCategory(key.trim(), nameAr.trim());
+                    if (addedKey) {
+                      setForm(p => ({ ...p, category: addedKey }));
+                    }
+                  }}
+                  className="text-[10px] text-burgundy bg-burgundy/5 px-2 py-0.5 rounded hover:bg-burgundy/10 font-bold transition"
+                >
+                  ➕ فئة جديدة
+                </button>
+              </label>
               <select name="category" value={form.category} onChange={handleChange} className={inp}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{CAT_AR[c]} ({c})</option>)}
+                {categories.map(c => <option key={c} value={c}>{(catAr[c] || c)} ({c})</option>)}
               </select>
             </div>
             <div>
@@ -609,7 +628,7 @@ function ProductModal({ product, onClose, onSave }) {
 }
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
-function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory }) {
+function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, categories, catAr }) {
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('الكل');
@@ -649,10 +668,10 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
         </select>
 
         <div className="flex flex-wrap gap-2">
-          {['All', ...CATEGORIES].map(c => (
+          {['All', ...categories].map(c => (
             <button key={c} onClick={() => setFilter(c)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${filter === c ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
-              {c === 'All' ? 'الكل' : CAT_AR[c]}
+              {c === 'All' ? 'الكل' : (catAr[c] || c)}
             </button>
           ))}
         </div>
@@ -702,7 +721,7 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
                     </button>
                   </div>
                 </div>
-                <span className="inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{CAT_AR[p.category] || p.category}</span>
+                <span className="inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{catAr[p.category] || p.category}</span>
                 {isDiscountActive(p) ? (
                   <div className="flex flex-col">
                     <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
@@ -749,7 +768,7 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory 
 }
 
 // ─── Tab: Inventory ────────────────────────────────────────────────────────────
-function InventoryTab({ products, loading, onRefresh }) {
+function InventoryTab({ products, loading, onRefresh, categories, catAr }) {
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('الكل');
   const [filterSupplier, setFilterSupplier] = useState('الكل');
@@ -788,7 +807,7 @@ function InventoryTab({ products, loading, onRefresh }) {
   const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
 
   const filtered = products.filter(p => {
-    const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase()) || (CAT_AR[p.category] || '').includes(search);
+    const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase()) || ((catAr[p.category] || p.category) || '').toLowerCase().includes(search.toLowerCase());
     const mc = filterCat === 'الكل' || p.category === filterCat;
     const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
     const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
@@ -825,7 +844,7 @@ function InventoryTab({ products, loading, onRefresh }) {
           className="flex-1 min-w-[180px] rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy" />
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
-          {['الكل', ...CATEGORIES].map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : CAT_AR[c]}</option>)}
+          {['الكل', ...categories].map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : (catAr[c] || c)}</option>)}
         </select>
         <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
           className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
@@ -870,7 +889,7 @@ function InventoryTab({ products, loading, onRefresh }) {
                       {p.allowDiscount === false && <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">🚫 غير مسموح بالخصم</span>}
                     </div>
                   </div>
-                  <span className="inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">{CAT_AR[p.category] || p.category}</span>
+                  <span className="inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">{catAr[p.category] || p.category}</span>
                   {isDiscountActive(p) ? (
                     <div className="flex flex-col">
                       <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
@@ -943,6 +962,8 @@ function AdminProducts() {
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState('catalog'); // 'catalog' | 'inventory'
   const [modal, setModal]       = useState(null);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [catAr, setCatAr]       = useState(DEFAULT_CAT_AR);
   const [historyProduct, setHistoryProduct] = useState(null);
   const [toast, setToast]       = useState('');
 
@@ -957,7 +978,55 @@ function AdminProducts() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadProducts(); }, []);
+  const fetchConfig = async () => {
+    try {
+      const res = await api.get('/admin/site-config');
+      if (res.data && res.data.categories && res.data.categories.length > 0) {
+        const cats = res.data.categories.map(c => c.key);
+        const mapAr = {};
+        res.data.categories.forEach(c => {
+          mapAr[c.key] = c.nameAr;
+        });
+        setCategories(cats);
+        setCatAr(mapAr);
+      }
+    } catch (err) {
+      console.error('Failed to load site config categories:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+    fetchConfig();
+  }, []);
+
+  const handleAddCategory = async (key, nameAr) => {
+    try {
+      const resConfig = await api.get('/admin/site-config');
+      const currentCats = resConfig.data?.categories || [];
+      if (currentCats.some(c => c.key.toLowerCase() === key.toLowerCase())) {
+        alert('هذه الفئة موجودة بالفعل!');
+        return key;
+      }
+      const newCats = [...currentCats, { key, nameAr }];
+      const res = await api.put('/admin/site-config', { categories: newCats });
+      if (res.data && res.data.categories) {
+        const cats = res.data.categories.map(c => c.key);
+        const mapAr = {};
+        res.data.categories.forEach(c => {
+          mapAr[c.key] = c.nameAr;
+        });
+        setCategories(cats);
+        setCatAr(mapAr);
+      }
+      showToast('✅ تم إضافة الفئة الجديدة');
+      return key;
+    } catch (err) {
+      console.error(err);
+      alert('فشل إضافة الفئة الجديدة');
+      return null;
+    }
+  };
 
   const handleSave = async (payload) => {
     try {
@@ -1029,6 +1098,8 @@ function AdminProducts() {
         <CatalogTab
           products={products}
           loading={loading}
+          categories={categories}
+          catAr={catAr}
           onAdd={() => setModal('create')}
           onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
           onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
@@ -1038,6 +1109,8 @@ function AdminProducts() {
         <InventoryTab
           products={products}
           loading={loading}
+          categories={categories}
+          catAr={catAr}
           onRefresh={loadProducts}
         />
       )}
@@ -1048,6 +1121,9 @@ function AdminProducts() {
           product={modal === 'create' ? null : modal}
           onClose={() => setModal(null)}
           onSave={handleSave}
+          categories={categories}
+          catAr={catAr}
+          onAddCategory={handleAddCategory}
         />
       )}
 

@@ -21,7 +21,7 @@ function buildWhatsAppLink(phone, employeeName, taskTitle, siteUrl) {
 }
 
 // ─── Admin: Inventory Tasks Panel ─────────────────────────────────────────────
-function InventoryTasksPanel() {
+function InventoryTasksPanel({ categories: parentCategories, catAr: parentCatAr }) {
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [products, setProducts] = useState([]);
@@ -157,7 +157,7 @@ function InventoryTasksPanel() {
 
   // Unique categories from products
   const categories = ['all', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
-  const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم', all: 'الكل' };
+  const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم', all: 'الكل', ...(parentCatAr || {}) };
 
   // Filtered products for picker
   const filteredProducts = products.filter(p => {
@@ -506,7 +506,9 @@ const CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon',
 const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 
 // ─── Active Count Session ──────────────────────────────────────────────────────
-function CountSession({ count: initialCount, onFinish }) {
+function CountSession({ count: initialCount, onFinish, categories, catAr }) {
+  const activeCategories = categories || ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
+  const activeCatAr = catAr || { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
   const [count, setCount] = useState(initialCount);
   const [items, setItems] = useState(initialCount.items.map(i => ({ ...i, _counted: i.countedStock ?? '' })));
   const [saving, setSaving] = useState(false);
@@ -728,12 +730,11 @@ function CountSession({ count: initialCount, onFinish }) {
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 بحث بالاسم، المقاس، اللون، الباركود..."
             className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy min-w-[200px]" />
           
-          {/* Category Filter */}
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
             className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy">
             <option value="All">كل الأصناف / الفئات</option>
-            {CATEGORIES.map(c => (
-              <option key={c} value={c}>{CAT_AR[c]}</option>
+            {activeCategories.map(c => (
+              <option key={c} value={c}>{activeCatAr[c] || c}</option>
             ))}
           </select>
 
@@ -789,7 +790,7 @@ function CountSession({ count: initialCount, onFinish }) {
                   <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-burgundy/40 mt-0.5 font-semibold">
                     <span className="bg-burgundy/5 text-burgundy px-1.5 py-0.5 rounded font-mono">{item.sku || 'بدون كود'}</span>
                     {item.supplier && <span>· 🏭 {item.supplier}</span>}
-                    <span>· {CAT_AR[item.productCategory] || item.productCategory}</span>
+                    <span>· {activeCatAr[item.productCategory] || item.productCategory}</span>
                   </div>
                 </div>
                 <p className="text-sm text-burgundy/60 font-semibold">{item.size || '—'}</p>
@@ -840,6 +841,9 @@ function CountSession({ count: initialCount, onFinish }) {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
+const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
+const DEFAULT_CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
+
 function AdminInventoryCount() {
   const [tab, setTab] = useState('counts'); // 'counts' | 'tasks'
   const [counts, setCounts] = useState([]);
@@ -849,6 +853,8 @@ function AdminInventoryCount() {
   const [label, setLabel] = useState('');
   const [toast, setToast] = useState('');
   const [deleteId, setDeleteId] = useState(null);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [catAr, setCatAr] = useState(DEFAULT_CAT_AR);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -859,7 +865,27 @@ function AdminInventoryCount() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadCounts(); }, []);
+  const fetchConfig = async () => {
+    try {
+      const res = await api.get('/admin/site-config');
+      if (res.data && res.data.categories && res.data.categories.length > 0) {
+        const cats = res.data.categories.map(c => c.key);
+        const mapAr = {};
+        res.data.categories.forEach(c => {
+          mapAr[c.key] = c.nameAr;
+        });
+        setCategories(cats);
+        setCatAr(mapAr);
+      }
+    } catch (err) {
+      console.error('Failed to load categories config:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadCounts();
+    fetchConfig();
+  }, []);
 
   const handleCreate = async () => {
     try {
@@ -883,7 +909,7 @@ function AdminInventoryCount() {
   };
 
   if (activeCount) {
-    return <CountSession count={activeCount} onFinish={() => { setActiveCount(null); loadCounts(); }} />;
+    return <CountSession count={activeCount} onFinish={() => { setActiveCount(null); loadCounts(); }} categories={categories} catAr={catAr} />;
   }
 
   return (
@@ -920,7 +946,7 @@ function AdminInventoryCount() {
       </div>
 
       {/* Employee Tasks Tab */}
-      {tab === 'tasks' && <InventoryTasksPanel />}
+      {tab === 'tasks' && <InventoryTasksPanel categories={categories} catAr={catAr} />}
 
       {/* Create new count */}
       {creating && (
