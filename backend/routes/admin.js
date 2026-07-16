@@ -9,6 +9,8 @@ const User = require('../models/User');
 const Shift = require('../models/Shift');
 const Transaction = require('../models/Transaction');
 const StockHistory = require('../models/StockHistory');
+const InventoryTask = require('../models/InventoryTask');
+const InventoryCount = require('../models/InventoryCount');
 
 const router = express.Router();
 
@@ -447,6 +449,21 @@ router.post('/reset-transactions-prod', auth, requireRole(['admin']), async (req
     });
   } catch (e) {
     res.status(500).json({ message: 'Reset failed', error: e.message });
+  }
+});
+
+// TEMPORARY: Delete all inventory tasks and counts (training data cleanup)
+router.delete('/reset-inventory-tasks', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const tasksRes = await InventoryTask.deleteMany({});
+    const countsRes = await InventoryCount.deleteMany({});
+    res.json({
+      message: 'تم حذف جميع التكاليف والجردات بنجاح',
+      deletedTasks: tasksRes.deletedCount,
+      deletedCounts: countsRes.deletedCount
+    });
+  } catch (e) {
+    res.status(500).json({ message: 'Failed', error: e.message });
   }
 });
 
