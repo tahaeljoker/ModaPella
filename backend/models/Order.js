@@ -26,6 +26,7 @@ const OrderSchema = new mongoose.Schema({
   status: { type: String, enum: ['Pending', 'Completed', 'Returned'], default: 'Pending' },
   paymentMethod: { type: String, enum: ['Cash', 'Instapay', 'Wallet'], default: 'Cash' },
   paymentGateway: { type: String, default: 'Instapay' },
+  paymentScreenshot: { type: String, default: '' },
   notes: { type: String, default: '' },
   recovered: { type: Boolean, default: false },
   amountPaid: { type: Number, default: 0 },

@@ -155,7 +155,7 @@ router.patch('/:id', auth, async (req, res) => {
 // POST /api/orders/public-checkout — Public endpoint for guest user online checkout
 router.post('/public-checkout', async (req, res) => {
   try {
-    const { customerName, customerPhone, items, paymentMethod = 'Instapay', notes = '' } = req.body;
+    const { customerName, customerPhone, items, paymentMethod = 'Instapay', notes = '', paymentScreenshot = '' } = req.body;
 
     if (!customerPhone || !items || items.length === 0) {
       return res.status(400).json({ message: 'الرجاء إدخال رقم الهاتف والمنتجات المطلوبة' });
@@ -235,6 +235,7 @@ router.post('/public-checkout', async (req, res) => {
       type: 'Online',
       status: 'Pending',
       paymentMethod,
+      paymentScreenshot,
       notes
     });
     await order.save();

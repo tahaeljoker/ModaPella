@@ -26,16 +26,40 @@ function CollectionsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [siteConfig, setSiteConfig] = useState(null);
 
   useEffect(() => {
     api.get('/products')
       .then((response) => setProducts(response.data))
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
+
+    api.get('/admin/site-config')
+      .then((response) => setSiteConfig(response.data))
+      .catch(console.error);
   }, []);
 
+  const mergedCategoryLabels = {
+    All: 'كل الفئات',
+    Blazer: 'بليزر',
+    Blouse: 'بلوزة',
+    Chemise: 'قميص',
+    Skirt: 'تنورة',
+    Dress: 'فستان',
+    Pantalon: 'بنطال',
+    'T-shirt': 'تيشيرت',
+    Portefeuille: 'محفظة',
+    ...categoryLabels
+  };
+
+  if (siteConfig?.categories) {
+    siteConfig.categories.forEach(c => {
+      mergedCategoryLabels[c.key] = c.nameAr;
+    });
+  }
+
   const rawCategories = Array.from(new Set(products.map((product) => product.category))).filter(Boolean);
-  const categories = ['All', ...rawCategories.length ? rawCategories : ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Portefeuille']];
+  const categories = ['All', ...(siteConfig?.categories?.map(c => c.key) || (rawCategories.length ? rawCategories : ['Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Portefeuille']))];
   const filteredProducts = activeCategory === 'All' ? products : products.filter((product) => product.category === activeCategory);
   const visibleProducts = products.length ? (filteredProducts.length ? filteredProducts : []) : sampleProducts;
 
@@ -85,7 +109,7 @@ function CollectionsPage() {
               onClick={() => setActiveCategory(category)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activeCategory === category ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}
             >
-              {categoryLabels[category] || category}
+              {mergedCategoryLabels[category] || category}
             </button>
           ))}
         </div>

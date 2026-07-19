@@ -544,11 +544,36 @@ function AdminSiteSettings() {
                     {isExpanded && (
                       <div className="border-t border-burgundy/8 bg-[#F7F0EC]/20 p-6 space-y-4">
                         {/* Customer Information Card */}
-                        <div className="bg-white rounded-2xl p-4 border border-burgundy/5 shadow-sm space-y-2 text-xs">
-                          <p className="font-bold text-sm text-burgundy border-b border-burgundy/5 pb-2">📋 بيانات العميل والشحن</p>
-                          <p><span className="font-semibold text-burgundy/60">الاسم:</span> {order.customerName}</p>
-                          <p><span className="font-semibold text-burgundy/60">رقم الهاتف:</span> <span className="font-mono">{order.customerPhone}</span></p>
-                          <p><span className="font-semibold text-burgundy/60">عنوان الشحن:</span> {order.notes || 'لم يتم تحديده'}</p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="bg-white rounded-2xl p-4 border border-burgundy/5 shadow-sm space-y-2 text-xs">
+                            <p className="font-bold text-sm text-burgundy border-b border-burgundy/5 pb-2">📋 بيانات العميل والشحن</p>
+                            <p><span className="font-semibold text-burgundy/60">الاسم:</span> {order.customerName}</p>
+                            <p><span className="font-semibold text-burgundy/60">رقم الهاتف:</span> <span className="font-mono">{order.customerPhone}</span></p>
+                            <p><span className="font-semibold text-burgundy/60">عنوان الشحن:</span> {order.notes || 'لم يتم تحديده'}</p>
+                          </div>
+
+                          <div className="bg-white rounded-2xl p-4 border border-burgundy/5 shadow-sm space-y-2 text-xs flex flex-col justify-between">
+                            <div>
+                              <p className="font-bold text-sm text-burgundy border-b border-burgundy/5 pb-2">🖼️ إثبات التحويل (Instapay)</p>
+                              {order.paymentScreenshot ? (
+                                <p className="text-emerald-700 font-semibold mt-1">✅ قام العميل برفع صورة إثبات الدفع</p>
+                              ) : (
+                                <p className="text-burgundy/50 mt-1">❌ لم يتم رفع صورة إثبات دفع</p>
+                              )}
+                            </div>
+                            {order.paymentScreenshot && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const win = window.open();
+                                  win.document.write(`<iframe src="${order.paymentScreenshot}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                }}
+                                className="mt-2 w-full rounded-xl bg-burgundy/5 border border-burgundy/10 text-burgundy py-1.5 text-xs font-bold transition hover:bg-burgundy/10"
+                              >
+                                🔍 عرض الصورة بالحجم الكامل
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Order Items list */}

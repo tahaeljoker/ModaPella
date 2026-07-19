@@ -10,6 +10,25 @@ function PaymentPage() {
   const [loading, setLoading] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
   const [error, setError] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState('');
+  const [screenshotPreview, setScreenshotPreview] = useState('');
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('حجم الصورة كبير جداً، يرجى اختيار صورة أصغر من 2 ميجابايت.');
+        return;
+      }
+      setScreenshotPreview(URL.createObjectURL(file));
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentScreenshot(reader.result); // Base64 string
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -36,7 +55,8 @@ function PaymentPage() {
         customerPhone: form.phone,
         items: orderItems,
         paymentMethod: 'Instapay',
-        notes: form.notes
+        notes: form.notes,
+        paymentScreenshot
       });
 
       if (res.data.success) {
@@ -136,6 +156,34 @@ function PaymentPage() {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="مثال: القاهرة، حي المعادي، شارع 9، عمارة 15، شقة 3"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-semibold text-burgundy/80 flex items-center gap-1.5">
+              🖼️ صورة إثبات التحويل (Instapay Screenshot)
+              <span className="text-[10px] font-normal text-burgundy/45">(اختياري لتسريع تأكيد الطلب)</span>
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="mt-1.5 w-full rounded-xl sm:rounded-2xl border border-beige/20 bg-beige/10 px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy file:ml-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-burgundy/10 file:text-burgundy hover:file:bg-burgundy/20 cursor-pointer"
+            />
+            {screenshotPreview && (
+              <div className="mt-3 relative w-32 h-32 rounded-xl overflow-hidden border border-burgundy/10">
+                <img src={screenshotPreview} alt="Screenshot Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScreenshotPreview('');
+                    setPaymentScreenshot('');
+                  }}
+                  className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
 
           <button

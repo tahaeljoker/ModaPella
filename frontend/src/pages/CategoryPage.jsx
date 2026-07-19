@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { cleanProductName } from '../utils/discount';
 
 function CategoryPage() {
   const { slug } = useParams();
@@ -72,10 +73,10 @@ function CategoryPage() {
             {sampleProducts.map((p) => (
               <div key={p._id} className="rounded-[1.5rem] overflow-hidden border">
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                  <img src={p.images[0]} alt={cleanProductName(p.name)} className="w-full h-full object-cover" />
                 </div>
                 <div className="p-3">
-                  <h4 className="font-semibold">{p.name}</h4>
+                  <h4 className="font-semibold">{cleanProductName(p.name)}</h4>
                   <p className="text-sm text-burgundy/70">${p.price.toFixed(2)}</p>
                 </div>
               </div>

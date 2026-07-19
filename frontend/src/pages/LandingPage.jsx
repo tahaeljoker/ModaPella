@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import LazyImage from '../components/LazyImage';
+import { cleanProductName } from '../utils/discount';
 
 const defaultSiteConfig = {
   published: true,
@@ -110,10 +111,10 @@ function LandingPage() {
           {sampleProducts.map((product) => (
             <div key={product._id} className="rounded-2xl sm:rounded-[2rem] border border-burgundy/10 bg-beige/10 overflow-hidden shadow-soft transition hover:-translate-y-1 hover:shadow-xl">
               <div className="aspect-[4/3] overflow-hidden relative">
-                <img src={product.images[0]} alt={product.name} className="absolute inset-0 h-full w-full object-cover" />
+                <img src={product.images[0]} alt={cleanProductName(product.name)} className="absolute inset-0 h-full w-full object-cover" />
               </div>
               <div className="p-3 sm:p-5">
-                <p className="text-sm sm:text-base font-bold text-burgundy line-clamp-1">{product.name}</p>
+                <p className="text-sm sm:text-base font-bold text-burgundy line-clamp-1">{cleanProductName(product.name)}</p>
                 <p className="mt-1 text-xs text-burgundy/75">{product.category}</p>
                 <div className="mt-3 flex items-center justify-between text-xs sm:text-sm text-burgundy/80">
                   <span className="font-extrabold">{Number(product.price).toLocaleString('en-US')} ج.م</span>
@@ -182,10 +183,10 @@ function LandingPage() {
           {sampleProducts.concat(sampleProducts).map((p, i) => (
             <div key={i} className="rounded-xl sm:rounded-[1.5rem] overflow-hidden border border-burgundy/10 reveal-on-scroll">
               <div className="aspect-[4/3] overflow-hidden">
-                <LazyImage src={p.images[0]} alt={p.name} className="w-full h-full" />
+                <LazyImage src={p.images[0]} alt={cleanProductName(p.name)} className="w-full h-full" />
               </div>
               <div className="p-3.5">
-                <h4 className="font-semibold text-sm sm:text-base line-clamp-1">{p.name}</h4>
+                <h4 className="font-semibold text-sm sm:text-base line-clamp-1">{cleanProductName(p.name)}</h4>
                 <p className="text-xs sm:text-sm text-burgundy/70 font-extrabold mt-1">{Number(p.price).toLocaleString('en-US')} ج.م</p>
               </div>
             </div>
