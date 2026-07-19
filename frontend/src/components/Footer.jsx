@@ -5,13 +5,13 @@ function Footer() {
   return (
     <footer className="mt-12 border-t border-burgundy/10 bg-white py-10">
       <div className="container mx-auto px-4">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <h4 className="font-semibold">ModaPella</h4>
-            <p className="mt-2 text-sm text-burgundy/70">أحدث القطع النسائية، مصممة للراحة والأناقة اليومية.</p>
+        <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
+          <div className="col-span-2 lg:col-span-1">
+            <h4 className="font-semibold text-base sm:text-lg">ModaPella</h4>
+            <p className="mt-2 text-sm text-burgundy/70 leading-relaxed">أحدث القطع النسائية، مصممة للراحة والأناقة اليومية.</p>
           </div>
           <div>
-            <h4 className="font-semibold">روابط سريعة</h4>
+            <h4 className="font-semibold text-sm sm:text-base">روابط سريعة</h4>
             <ul className="mt-2 space-y-2 text-sm text-burgundy/75">
               <li><Link to="/" className="hover:text-burgundy">الرئيسية</Link></li>
               <li><Link to="/shop" className="hover:text-burgundy">المتجر</Link></li>
@@ -19,28 +19,22 @@ function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold">تسوق الآن</h4>
+            <h4 className="font-semibold text-sm sm:text-base">تسوق الآن</h4>
             <ul className="mt-2 space-y-2 text-sm text-burgundy/75">
               <li><Link to="/shop" className="hover:text-burgundy">المتجر الكامل</Link></li>
               <li><Link to="/collections" className="hover:text-burgundy">المجموعات</Link></li>
-              <li><Link to="/cart" className="hover:text-burgundy">السلة</Link></li>
               <li><Link to="/payment" className="hover:text-burgundy">الدفع</Link></li>
             </ul>
           </div>
-          <div>
-            <h4 className="font-semibold">تواصل معنا</h4>
+          <div className="col-span-2 lg:col-span-1">
+            <h4 className="font-semibold text-sm sm:text-base">تواصل معنا</h4>
             <p className="mt-2 text-sm text-burgundy/75">info@modapella.com</p>
-            <p className="mt-1 text-sm text-burgundy/75">+966 5X XXX XXXX</p>
-            <p className="mt-3 max-w-[16rem] text-sm text-burgundy/75">اضغطي على أي منتج لرؤية صفحة التفاصيل مع المقاسات والألوان والكمية.</p>
-            <div className="mt-3 flex gap-3">
-              <div className="h-8 w-8 rounded-full bg-burgundy/10" />
-              <div className="h-8 w-8 rounded-full bg-burgundy/10" />
-              <div className="h-8 w-8 rounded-full bg-burgundy/10" />
-            </div>
+            <p className="mt-1 text-sm text-burgundy/75">01090048832</p>
+            <p className="mt-3 text-xs text-burgundy/60 leading-relaxed">تصفحي الموديلات والملابس، واطلبي أونلاين والدفع مع Instapay بكل سهولة.</p>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-burgundy/8 pt-6 text-center text-sm text-burgundy/60">
+        <div className="mt-8 border-t border-burgundy/8 pt-6 text-center text-xs sm:text-sm text-burgundy/60">
           © {new Date().getFullYear()} ModaPella — جميع الحقوق محفوظة. | تم التطوير بواسطة{' '}
           <a
             href="https://wa.me/201143632650"
@@ -49,8 +43,7 @@ function Footer() {
             className="underline hover:text-burgundy font-bold transition"
           >
             طه أنس
-          </a>{' '}
-          💻
+          </a>
         </div>
       </div>
     </footer>
