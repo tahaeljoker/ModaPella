@@ -698,13 +698,9 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory,
                 <div key={p._id} className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
                   {/* Product */}
                   <div className="flex items-center gap-3 min-w-0">
-                  {p.images?.[0] ? (
-                    <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
-                  ) : (
-                    <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl">
-                      {getProductIcon(p.category, p.name)}
-                    </div>
-                  )}
+                  <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl">
+                    {getProductIcon(p.category, p.name)}
+                  </div>
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-sm">{p.name}</p>
                     <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-burgundy/50 items-center">
