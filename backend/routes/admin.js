@@ -426,7 +426,6 @@ router.patch('/users/:id/password', auth, requireRole(['admin']), async (req, re
     }
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    if (user.role === 'admin') return res.status(403).json({ message: 'Cannot change admin password from here' });
     user.password = password; // will be hashed by pre-save hook
     await user.save();
     res.json({ message: 'Password updated successfully' });

@@ -325,7 +325,16 @@ function AdminUsers() {
                     </button>
                   </div>
                 ) : (
-                  <span className="rounded-xl bg-burgundy/5 px-3 py-1.5 text-xs text-burgundy/40 shrink-0">مدير رئيسي</span>
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setChangePwUser(u)}
+                      className="rounded-xl border border-burgundy/20 bg-burgundy/5 px-3 py-1.5 text-xs font-bold text-burgundy hover:bg-burgundy hover:text-white transition"
+                    >
+                      🔐 تغيير الباسورد
+                    </button>
+                    <span className="rounded-xl bg-burgundy/5 px-3 py-1.5 text-xs text-burgundy/40 shrink-0">مدير رئيسي</span>
+                  </div>
                 )}
               </div>
             </div>
