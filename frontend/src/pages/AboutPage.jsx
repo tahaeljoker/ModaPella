@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { Icon } from '../components/Icon';
 
 function AboutPage() {
   const [config, setConfig] = useState(null);
@@ -34,8 +35,8 @@ function AboutPage() {
           </div>
           <div className="flex-shrink-0 w-full lg:w-52">
             <div className="relative overflow-hidden rounded-[2rem] bg-burgundy/5 aspect-square flex items-center justify-center">
-              <div className="text-center p-4 space-y-2">
-                <div className="text-6xl">🏪</div>
+              <div className="text-center p-4 space-y-2 flex flex-col items-center">
+                <Icon name="store" className="w-12 h-12 text-burgundy" />
                 <p className="text-base font-bold text-burgundy">ModaPella</p>
                 <p className="text-xs text-burgundy/60">بني مزار — المنيا</p>
                 <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">● مفتوح الآن</span>
@@ -49,14 +50,18 @@ function AboutPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Location */}
         <div className="rounded-[2rem] border border-burgundy/10 bg-beige/10 p-6 sm:p-8 shadow-soft space-y-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-burgundy/10 text-2xl">📍</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-burgundy/10 text-burgundy">
+            <Icon name="location" className="w-6 h-6" />
+          </div>
           <h2 className="text-base sm:text-lg font-bold">العنوان</h2>
           <p className="text-sm text-burgundy/75 leading-7">{address}</p>
         </div>
 
         {/* Phone */}
         <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 sm:p-8 shadow-soft space-y-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-burgundy/10 text-2xl">📞</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-burgundy/10 text-burgundy">
+            <Icon name="phone" className="w-6 h-6" />
+          </div>
           <h2 className="text-base sm:text-lg font-bold">رقم الهاتف</h2>
           <p className="text-sm text-burgundy/75 font-mono">{phone}</p>
           <a
@@ -69,7 +74,9 @@ function AboutPage() {
 
         {/* WhatsApp */}
         <div className="rounded-[2rem] border border-burgundy/10 bg-emerald-50 p-6 sm:p-8 shadow-soft space-y-3 sm:col-span-2 lg:col-span-1">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl">💬</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-[#25D366]">
+            <Icon name="whatsapp" className="w-6 h-6" />
+          </div>
           <h2 className="text-base sm:text-lg font-bold">واتساب</h2>
           <p className="text-sm text-burgundy/75">كلمينا على واتساب وهنرد عليكِ بسرعة</p>
           <a
@@ -88,7 +95,7 @@ function AboutPage() {
 
       {/* CTA */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft text-center space-y-4">
-        <h2 className="text-xl sm:text-2xl font-bold">مستنياكِ في المحل 🎀</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">مستنياكِ في المحل</h2>
         <p className="text-sm text-burgundy/70 max-w-md mx-auto leading-7">
           تصفحي الكتالوج اونلاين واطلبي، أو تعالي شوفي القطع على عينك في {address}.
         </p>

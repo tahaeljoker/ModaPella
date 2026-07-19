@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { Icon } from '../../components/Icon';
 
 const navItems = [
-  { to: '/cashier', label: 'البيع', icon: '⚡', end: true },
-  { to: '/cashier/returns', label: 'المرتجعات', icon: '🔄' },
-  { to: '/cashier/today', label: 'سجل اليوم', icon: '📋' },
-  { to: '/cashier/safe', label: 'الخزنة', icon: '💰' },
-  { to: '/cashier/activities', label: 'حركات اليوم', icon: '📜' },
+  { to: '/cashier', label: 'البيع', icon: 'sale', end: true },
+  { to: '/cashier/returns', label: 'المرتجعات', icon: 'returns' },
+  { to: '/cashier/today', label: 'سجل اليوم', icon: 'today' },
+  { to: '/cashier/safe', label: 'الخزنة', icon: 'safe' },
+  { to: '/cashier/activities', label: 'حركات اليوم', icon: 'activities' },
 ];
 
 // ─── Main Layout ──────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ function CashierLayout({ children }) {
                 }`
               }
             >
-              <span className="text-lg">{item.icon}</span>
+              <Icon name={item.icon} className="w-5 h-5 opacity-80" />
               {item.label}
             </NavLink>
           ))}
@@ -84,7 +85,7 @@ function CashierLayout({ children }) {
                 onClick={handleAdminAccess}
                 className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-burgundy/50 transition hover:bg-burgundy/8 hover:text-burgundy"
               >
-                <span className="text-lg">🖥️</span>
+                <Icon name="site" className="w-5 h-5 opacity-80" />
                 لوحة الإدارة
               </button>
             </>

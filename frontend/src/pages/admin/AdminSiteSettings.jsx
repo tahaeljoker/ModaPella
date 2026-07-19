@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { Icon } from '../../components/Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -267,12 +268,15 @@ function AdminSiteSettings() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-burgundy/50">لوحة التحكم</p>
-          <h2 className="text-3xl font-bold">🌐 إدارة الموقع والمتجر</h2>
+          <h2 className="text-3xl font-bold flex items-center gap-2">
+            <Icon name="site" className="w-8 h-8 text-burgundy" /> إدارة الموقع والمتجر
+          </h2>
           <p className="mt-1 text-sm text-burgundy/60">التحكم بنشر الموقع، الأقسام، واستلام طلبات الأونلاين</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className={`rounded-full px-4 py-2 text-sm font-semibold border ${config?.published ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
-            {config?.published ? '🟢 الموقع منشور للعامة' : '🔴 وضع الصيانة مفعل'}
+          <div className={`rounded-full px-4 py-2 text-sm font-semibold border flex items-center gap-1.5 ${config?.published ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+            <span className={`h-2.5 w-2.5 rounded-full ${config?.published ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+            {config?.published ? 'الموقع منشور للعامة' : 'وضع الصيانة مفعل'}
           </div>
           <button type="button" onClick={handlePublishToggle}
             className="rounded-full border border-burgundy bg-white px-5 py-2 text-sm font-bold text-burgundy transition hover:bg-burgundy hover:text-white shadow-sm">
@@ -285,21 +289,21 @@ function AdminSiteSettings() {
       <div className="flex border-b border-burgundy/10 gap-1 overflow-x-auto pb-px">
         <button
           onClick={() => setActiveTab('appearance')}
-          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
         >
-          ⚙️ المظهر والمحتوى
+          <Icon name="site" className="w-4 h-4" /> المظهر والمحتوى
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
         >
-          📁 الفئات
+          <Icon name="inventory" className="w-4 h-4" /> الفئات
         </button>
         <button
           onClick={() => setActiveTab('orders')}
-          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition relative ${activeTab === 'orders' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition relative flex items-center gap-1.5 ${activeTab === 'orders' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
         >
-          🛒 الطلبات
+          <Icon name="orders" className="w-4 h-4" /> الطلبات
           {orders.filter(o => o.status === 'Pending').length > 0 && (
             <span className="absolute -top-1 -left-1 bg-red-500 text-white rounded-full text-[10px] w-5 h-5 flex items-center justify-center font-mono">
               {orders.filter(o => o.status === 'Pending').length}
@@ -361,14 +365,18 @@ function AdminSiteSettings() {
 
           {/* Announcement Bar */}
           <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-1 text-lg font-bold">📣 شريط الإعلان (أعلى الموقع)</h3>
+            <h3 className="mb-1 text-lg font-bold flex items-center gap-1.5">
+              <Icon name="announcement" className="w-5 h-5" /> شريط الإعلان (أعلى الموقع)
+            </h3>
             <p className="mb-4 text-xs text-burgundy/50">اتركه فارغاً لإخفائه. مثال: عرض خاص هذا الأسبوع 🌸</p>
             <input name="announcementBar" value={config.announcementBar || ''} onChange={handleChange} className={inputCls} placeholder="اكتب إعلانك هنا..." />
           </div>
 
           {/* Store Info */}
           <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold">🏪 معلومات المحل</h3>
+            <h3 className="mb-4 text-lg font-bold flex items-center gap-1.5">
+              <Icon name="store" className="w-5 h-5" /> معلومات المحل
+            </h3>
             <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-burgundy/60">عنوان المحل</label>
@@ -387,7 +395,9 @@ function AdminSiteSettings() {
 
           {/* WhatsApp Number */}
           <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold">💬 رقم الواتساب العائم للزباين</h3>
+            <h3 className="mb-4 text-lg font-bold flex items-center gap-1.5">
+              <Icon name="whatsapp" className="w-5 h-5 text-[#25D366]" /> رقم الواتساب العائم للزباين
+            </h3>
             <div>
               <label className="mb-1 block text-xs font-semibold text-burgundy/60">رقم الواتساب (مع رمز الدولة بدون + — مثل: 201090048832)</label>
               <input type="text" name="whatsappNumber" value={config.whatsappNumber || ''} onChange={handleChange} className={inputCls} dir="ltr" />
@@ -396,7 +406,9 @@ function AdminSiteSettings() {
 
           {/* Maintenance Message */}
           <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold">🔧 رسالة وضع الصيانة</h3>
+            <h3 className="mb-4 text-lg font-bold flex items-center gap-1.5">
+              <Icon name="maintenance" className="w-5 h-5" /> رسالة وضع الصيانة
+            </h3>
             <div>
               <label className="mb-1 block text-xs font-semibold text-burgundy/60">الرسالة التي تظهر للزوار عند تفعيل وضع الصيانة</label>
               <textarea name="maintenanceMessage" value={config.maintenanceMessage || ''} onChange={handleChange} className={`${inputCls} min-h-[80px]`} />
@@ -713,13 +725,13 @@ function AdminSiteSettings() {
             <>
               <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
                 {[
-                  { label: 'إجمالي الطلبات أونلاين', value: stats.total, icon: '🛒', color: 'bg-burgundy/5' },
-                  { label: 'طلبات اليوم', value: stats.todayCount, icon: '📅', color: 'bg-blue-50' },
-                  { label: 'طلبات هذا الشهر', value: stats.monthCount, icon: '📆', color: 'bg-violet-50' },
-                  { label: 'مبيعات الشهر المكتملة', value: `${Number(stats.monthRevenue).toLocaleString('en-US')} ج.م`, icon: '💰', color: 'bg-emerald-50' },
+                  { label: 'إجمالي الطلبات أونلاين', value: stats.total, icon: 'orders', color: 'bg-burgundy/5' },
+                  { label: 'طلبات اليوم', value: stats.todayCount, icon: 'today', color: 'bg-blue-50' },
+                  { label: 'طلبات هذا الشهر', value: stats.monthCount, icon: 'month', color: 'bg-violet-50' },
+                  { label: 'مبيعات الشهر المكتملة', value: `${Number(stats.monthRevenue).toLocaleString('en-US')} ج.م`, icon: 'revenue', color: 'bg-emerald-50' },
                 ].map((card) => (
                   <div key={card.label} className={`rounded-[2rem] border border-burgundy/10 ${card.color} p-5 shadow-sm flex flex-col gap-2`}>
-                    <span className="text-3xl">{card.icon}</span>
+                    <Icon name={card.icon} className="w-8 h-8 text-burgundy opacity-85" />
                     <p className="text-2xl font-extrabold text-burgundy">{card.value}</p>
                     <p className="text-xs text-burgundy/60 leading-relaxed">{card.label}</p>
                   </div>
@@ -755,8 +767,8 @@ function AdminSiteSettings() {
               </div>
 
               <div className="text-center pt-2">
-                <button onClick={loadStats} className="text-xs text-burgundy/50 hover:text-burgundy underline transition">
-                  🔄 تحديث الإحصائيات
+                <button onClick={loadStats} className="text-xs text-burgundy/50 hover:text-burgundy underline transition flex items-center gap-1 mx-auto font-bold">
+                  <Icon name="refresh" className="w-3.5 h-3.5" /> تحديث الإحصائيات
                 </button>
               </div>
             </>
@@ -768,7 +780,9 @@ function AdminSiteSettings() {
       {activeTab === 'whatsapp' && config && (
         <div className="space-y-5">
           <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-2 text-lg font-bold">💬 قالب رسالة الواتساب عند الطلب</h3>
+            <h3 className="mb-2 text-lg font-bold flex items-center gap-1.5">
+              <Icon name="whatsapp" className="w-5 h-5 text-[#25D366]" /> قالب رسالة الواتساب عند الطلب
+            </h3>
             <p className="mb-4 text-xs text-burgundy/60 leading-relaxed">
               الرسالة دي بتتبعت للعميل تلقائياً لما بتضغط على زر تواصل واتساب في طلبها.<br />
               استخدم الكلمات التالية وسيتم استبدالها تلقائياً:

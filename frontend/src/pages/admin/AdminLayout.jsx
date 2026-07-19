@@ -1,38 +1,39 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { Icon } from '../../components/Icon';
 
 const sections = [
   {
     title: 'الرئيسية والتحليلات',
     items: [
-      { to: '/admin', label: 'لوحة التحكم', icon: '📊', end: true },
-      { to: '/admin/activities', label: 'سجل حركات النظام', icon: '📜' },
+      { to: '/admin', label: 'لوحة التحكم', icon: 'dashboard', end: true },
+      { to: '/admin/activities', label: 'سجل حركات النظام', icon: 'activities' },
     ]
   },
   {
     title: 'إدارة المبيعات',
     items: [
-      { to: '/admin/orders', label: 'الطلبات والفواتير', icon: '📋' },
-      { to: '/admin/debts', label: 'ديون العملاء', icon: '💳' },
-      { to: '/admin/employees', label: 'الموظفون والعمولات', icon: '👤' },
-      { to: '/admin/customers', label: 'العملاء والولاء', icon: '👥' },
+      { to: '/admin/orders', label: 'الطلبات والفواتير', icon: 'orders' },
+      { to: '/admin/debts', label: 'ديون العملاء', icon: 'debts' },
+      { to: '/admin/employees', label: 'الموظفون والعمولات', icon: 'employee' },
+      { to: '/admin/customers', label: 'العملاء والولاء', icon: 'customers' },
     ]
   },
   {
     title: 'المخزون والمشتريات',
     items: [
-      { to: '/admin/products', label: 'المنتجات والمخزن', icon: '🛒' },
-      { to: '/admin/inventory-count', label: 'جرد المخزون', icon: '📦' },
-      { to: '/admin/suppliers', label: 'حسابات الموردين', icon: '🏭' },
-      { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: '🏷️' },
+      { to: '/admin/products', label: 'المنتجات والمخزن', icon: 'products' },
+      { to: '/admin/inventory-count', label: 'جرد المخزون', icon: 'inventory' },
+      { to: '/admin/suppliers', label: 'حسابات الموردين', icon: 'suppliers' },
+      { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: 'barcodes' },
     ]
   },
   {
     title: 'النظام والموقع',
     items: [
-      { to: '/admin/site', label: 'إعدادات الموقع', icon: '🎨' },
-      { to: '/admin/users', label: 'مستخدمو النظام', icon: '🛡️' },
+      { to: '/admin/site', label: 'إعدادات الموقع', icon: 'site' },
+      { to: '/admin/users', label: 'مستخدمو النظام', icon: 'users' },
     ]
   }
 ];
@@ -151,7 +152,7 @@ function AdminLayout({ children }) {
                     }`
                   }
                 >
-                  <span className="text-base">{item.icon}</span>
+                  <Icon name={item.icon} className="w-5 h-5 opacity-80" />
                   {item.label}
                 </NavLink>
               ))}
@@ -171,12 +172,12 @@ function AdminLayout({ children }) {
             <div className="relative">
               <button 
                 onClick={handleBellClick} 
-                className="text-xl text-burgundy/60 hover:text-burgundy transition relative focus:outline-none"
+                className="text-xl text-burgundy/60 hover:text-burgundy transition relative focus:outline-none flex items-center justify-center p-1 rounded-full hover:bg-burgundy/5"
                 title="إشعارات النظام"
               >
-                🔔
+                <Icon name="bell" className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white shadow">
                     {unreadCount}
                   </span>
                 )}
@@ -224,9 +225,9 @@ function AdminLayout({ children }) {
           <button
             type="button"
             onClick={() => navigate('/cashier')}
-            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F7F0EC] px-4 py-2 text-sm font-bold text-burgundy transition hover:bg-burgundy/10"
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F7F0EC] px-4 py-2V5 text-sm font-bold text-burgundy transition hover:bg-burgundy/10"
           >
-            <span>⚡</span> الذهاب للكاشير
+            <Icon name="sale" className="w-4 h-4" /> الذهاب للكاشير
           </button>
           <button
             type="button"
@@ -261,7 +262,7 @@ function AdminLayout({ children }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="bg-burgundy p-5 text-white flex items-center gap-3">
-              <span className="text-2xl">✨</span>
+              <Icon name="star" className="w-5 h-5 text-amber-300" />
               <h3 className="font-bold text-lg">{selectedNotification.title}</h3>
             </div>
             <div className="p-6 text-burgundy space-y-4">

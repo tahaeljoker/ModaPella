@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { Icon } from '../../components/Icon';
 
 const navItems = [
-  { to: '/employee', label: 'استعلام الأسعار', icon: '🔎', end: true },
-  { to: '/employee/tasks', label: 'مهام الجرد', icon: '📋' },
+  { to: '/employee', label: 'استعلام الأسعار', icon: 'search', end: true },
+  { to: '/employee/tasks', label: 'مهام الجرد', icon: 'orders' },
 ];
 
 function EmployeeLayout({ children }) {
@@ -85,7 +86,7 @@ function EmployeeLayout({ children }) {
                 }`
               }
             >
-              <span className="text-lg">{item.icon}</span>
+              <Icon name={item.icon} className="w-5 h-5 opacity-80" />
               {item.label}
               {/* Unread badge on tasks */}
               {item.to === '/employee/tasks' && unreadCount > 0 && (
@@ -109,8 +110,8 @@ function EmployeeLayout({ children }) {
                 <p className="text-xs text-burgundy/50">الموظف</p>
                 <p className="font-semibold text-burgundy">{user.name || 'موظف'}</p>
               </div>
-              <div className="relative">
-                <span className="text-xl">🔔</span>
+              <div className="relative flex items-center justify-center">
+                <Icon name="bell" className="w-5 h-5 text-burgundy/60" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
                     {unreadCount}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { cleanProductName } from '../utils/discount';
+import { Icon } from '../components/Icon';
 
 const defaultSiteConfig = {
   published: true,
@@ -110,9 +111,9 @@ function LandingPage() {
         </div>
         <div className="grid gap-3 sm:gap-6 grid-cols-3">
           {[
-            { num: '١', icon: '🔍', title: 'تصفحي المتجر', desc: 'اختاري القطعة والمقاس اللي بيعجبك' },
-            { num: '٢', icon: '📝', title: 'سجلي طلبك', desc: 'أكملي بياناتك وأكدي الطلب بسهولة' },
-            { num: '٣', icon: '🏪', title: 'استلمي من المحل', desc: 'تعالي بني مزار وخدي قطعتك جاهزة' },
+            { num: '١', icon: 'search', title: 'تصفحي المتجر', desc: 'اختاري القطعة والمقاس اللي بيعجبك' },
+            { num: '٢', icon: 'orders', title: 'سجلي طلبك', desc: 'أكملي بياناتك وأكدي الطلب بسهولة' },
+            { num: '٣', icon: 'store', title: 'استلمي من المحل', desc: 'تعالي بني مزار وخدي قطعتك جاهزة' },
           ].map((step) => (
             <div
               key={step.num}
@@ -121,7 +122,9 @@ function LandingPage() {
               <div className="flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-burgundy text-white text-base sm:text-xl font-extrabold mb-3 shadow">
                 {step.num}
               </div>
-              <div className="text-2xl sm:text-4xl mb-2">{step.icon}</div>
+              <div className="mb-2 text-burgundy opacity-85">
+                <Icon name={step.icon} className="w-6 h-6 sm:w-10 sm:h-10" />
+              </div>
               <h3 className="text-xs sm:text-base font-bold text-burgundy leading-tight">{step.title}</h3>
               <p className="mt-1 text-[10px] sm:text-sm text-burgundy/60 leading-relaxed hidden sm:block">{step.desc}</p>
             </div>
@@ -171,8 +174,8 @@ function LandingPage() {
           <div className="w-full lg:w-64 xl:w-72 flex-shrink-0 order-first lg:order-last">
             <div className="relative overflow-hidden rounded-2xl sm:rounded-[2rem] bg-burgundy/5 aspect-[4/3] sm:aspect-square flex items-center justify-center">
               <div className="absolute inset-0 bg-gradient-to-br from-burgundy/5 to-beige/30" />
-              <div className="relative text-center p-4 sm:p-6 space-y-2 sm:space-y-3">
-                <div className="text-5xl sm:text-7xl">🏪</div>
+              <div className="relative text-center p-4 sm:p-6 space-y-2 sm:space-y-3 flex flex-col items-center">
+                <Icon name="store" className="w-12 h-12 text-burgundy" />
                 <p className="text-base sm:text-lg font-bold text-burgundy">ModaPella</p>
                 <p className="text-xs text-burgundy/60">بني مزار — المنيا</p>
                 <div className="mt-2 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
@@ -195,14 +198,18 @@ function LandingPage() {
             </p>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-base">📍</span>
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-burgundy">
+                  <Icon name="location" className="w-4 h-4" />
+                </span>
                 <div>
                   <p className="text-xs font-bold text-burgundy">العنوان</p>
                   <p className="text-sm text-burgundy/70">شارع الإعدادية بنات، بني مزار، المنيا</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-base">📞</span>
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-burgundy">
+                  <Icon name="phone" className="w-4 h-4" />
+                </span>
                 <div>
                   <p className="text-xs font-bold text-burgundy">للتواصل</p>
                   <p className="text-sm text-burgundy/70">01090048832</p>
