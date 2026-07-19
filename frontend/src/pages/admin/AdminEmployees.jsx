@@ -155,6 +155,7 @@ function CreateSystemAccountModal({ employee, onClose, onSuccess }) {
     password: '',
     phone: employee.phone || '',
     role: 'employee',
+    employeeId: employee._id,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -292,6 +293,10 @@ function EmployeeStatsModal({ employee, onClose }) {
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [showAdjForm, setShowAdjForm] = useState(false);
+  const [adjForm, setAdjForm] = useState({ type: 'reward', amount: '', reason: '', date: '' });
+  const [adjSaving, setAdjSaving] = useState(false);
+  const [adjError, setAdjError] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -305,13 +310,42 @@ function EmployeeStatsModal({ employee, onClose }) {
   };
   useEffect(() => { load(); }, []);
 
+  const handleAddAdj = async (e) => {
+    e.preventDefault();
+    if (!adjForm.amount || Number(adjForm.amount) <= 0) return setAdjError('يرجى إدخال مبلغ صالح');
+    if (!adjForm.reason.trim()) return setAdjError('يرجى إدخال السبب');
+    setAdjSaving(true); setAdjError('');
+    try {
+      await api.post(`/employees/${employee._id}/adjustments`, {
+        ...adjForm,
+        amount: Number(adjForm.amount),
+        date: adjForm.date || undefined
+      });
+      setShowAdjForm(false);
+      setAdjForm({ type: 'reward', amount: '', reason: '', date: '' });
+      load();
+    } catch (err) {
+      setAdjError(err.response?.data?.message || 'حدث خطأ أثناء حفظ التسوية');
+    } finally { setAdjSaving(false); }
+  };
+
+  const handleRemoveAdj = async (adjId) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذه التسوية؟')) return;
+    try {
+      await api.delete(`/employees/${employee._id}/adjustments/${adjId}`);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'فشل حذف التسوية');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-burgundy text-white px-6 py-5 flex justify-between items-start">
           <div>
-            <p className="text-xs opacity-70 uppercase tracking-widest">تحليلات الأداء التفصيلية</p>
+            <p className="text-xs opacity-70 uppercase tracking-widest">تحليلات الأداء التفصيلية والمالية</p>
             <h3 className="text-xl font-bold mt-1">{employee.name}</h3>
             {employee.phone && <p className="text-xs opacity-60 mt-0.5">{employee.phone}</p>}
           </div>
@@ -410,6 +444,65 @@ function EmployeeStatsModal({ employee, onClose }) {
               )}
             </div>
 
+            {/* Adjustments Section */}
+            <div className="px-6 py-4 border-b border-burgundy/10 bg-[#F7F0EC]/30">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-bold text-burgundy">💸 الخصومات والمكافآت الاستثنائية</h4>
+                <button
+                  type="button"
+                  onClick={() => setShowAdjForm(true)}
+                  className="rounded-lg bg-burgundy text-white text-xs font-bold px-3 py-1.5 hover:bg-[#650018] transition"
+                >
+                  ➕ إضافة تسوية جديدة
+                </button>
+              </div>
+
+              {/* Adjustments Summary Cards */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-center">
+                  <p className="text-xs text-emerald-700 font-semibold">🎁 إجمالي المكافآت</p>
+                  <p className="text-base font-extrabold text-emerald-800 mt-1">{EGP(stats.totalRewards)}</p>
+                </div>
+                <div className="rounded-xl border border-red-200 bg-red-50/50 p-3 text-center">
+                  <p className="text-xs text-red-600 font-semibold">📉 إجمالي الخصومات</p>
+                  <p className="text-base font-extrabold text-red-700 mt-1">{EGP(stats.totalDiscounts)}</p>
+                </div>
+              </div>
+
+              {/* Adjustments list */}
+              {stats.adjustments?.length === 0 ? (
+                <p className="text-center text-xs text-burgundy/40 py-4">لا توجد تسويات مسجلة في هذه الفترة</p>
+              ) : (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {stats.adjustments?.map(adj => (
+                    <div key={adj._id} className={`flex items-center justify-between rounded-xl px-3 py-2 border ${adj.type === 'reward' ? 'bg-emerald-50/20 border-emerald-100' : 'bg-red-50/20 border-red-100'}`}>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${adj.type === 'reward' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            {adj.type === 'reward' ? 'مكافأة' : 'خصم'}
+                          </span>
+                          <span className="text-xs font-semibold text-burgundy">{adj.reason}</span>
+                        </div>
+                        <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(adj.date).toLocaleDateString('ar-EG-u-nu-latn')}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`font-bold text-sm ${adj.type === 'reward' ? 'text-emerald-700' : 'text-red-700'}`}>
+                          {adj.type === 'reward' ? `+${EGP(adj.amount)}` : `-${EGP(adj.amount)}`}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveAdj(adj._id)}
+                          className="text-red-400 hover:text-red-600 text-xs transition"
+                          title="حذف التسوية"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Orders list */}
             <div className="px-6 py-4">
               <h4 className="text-sm font-bold text-burgundy mb-3">📋 سجل الفواتير</h4>
@@ -448,6 +541,77 @@ function EmployeeStatsModal({ employee, onClose }) {
           <button onClick={onClose} className="w-full rounded-xl border border-burgundy/20 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">إغلاق</button>
         </div>
       </div>
+
+      {/* Add Adjustment Form Modal */}
+      {showAdjForm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowAdjForm(false)}>
+          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-burgundy mb-4">💸 إضافة تسوية مالية</h3>
+            <form onSubmit={handleAddAdj} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60">النوع</label>
+                <select
+                  value={adjForm.type}
+                  onChange={e => setAdjForm(p => ({ ...p, type: e.target.value }))}
+                  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
+                >
+                  <option value="reward">🎁 مكافأة / بونص</option>
+                  <option value="discount">📉 خصم / استقطاع</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60">المبلغ *</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={adjForm.amount}
+                  onChange={e => setAdjForm(p => ({ ...p, amount: e.target.value }))}
+                  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
+                  placeholder="مثال: 500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60">السبب / الملاحظات *</label>
+                <input
+                  type="text"
+                  required
+                  value={adjForm.reason}
+                  onChange={e => setAdjForm(p => ({ ...p, reason: e.target.value }))}
+                  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
+                  placeholder="مثال: مبيعات استثنائية / تأخير"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60">التاريخ (اختياري)</label>
+                <input
+                  type="date"
+                  value={adjForm.date}
+                  onChange={e => setAdjForm(p => ({ ...p, date: e.target.value }))}
+                  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
+                />
+              </div>
+              {adjError && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{adjError}</p>}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={adjSaving}
+                  className="flex-1 rounded-full bg-burgundy py-2.5 text-sm font-bold text-white hover:bg-[#650018] transition disabled:opacity-50"
+                >
+                  {adjSaving ? 'جاري الحفظ...' : 'حفظ'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAdjForm(false)}
+                  className="rounded-full border border-burgundy/20 px-5 py-2.5 text-sm text-burgundy hover:bg-burgundy/10 transition"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

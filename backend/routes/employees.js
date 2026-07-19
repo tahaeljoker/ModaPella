@@ -25,16 +25,26 @@ router.get('/all', auth, requireRole(ADMIN), async (req, res) => {
     
     // Attach linked user account information by matching name or phone
     const enrichedEmployees = await Promise.all(employees.map(async (emp) => {
-      const user = await User.findOne({
-        $or: [
-          { name: emp.name },
-          { phone: emp.phone && emp.phone.trim() !== '' ? emp.phone : '____non_existent____' }
-        ]
-      }).select('_id email');
+      let user = null;
+      if (emp.user) {
+        user = await User.findById(emp.user).select('_id email phone');
+      }
+      if (!user) {
+        user = await User.findOne({
+          $or: [
+            { name: emp.name },
+            { phone: emp.phone && emp.phone.trim() !== '' ? emp.phone : '____non_existent____' }
+          ]
+        }).select('_id email phone');
+        if (user && !emp.user) {
+          emp.user = user._id;
+          await emp.save();
+        }
+      }
       
       return {
         ...emp.toObject(),
-        systemUser: user ? { _id: user._id, email: user.email } : null
+        systemUser: user ? { _id: user._id, email: user.email, phone: user.phone } : null
       };
     }));
 
@@ -49,6 +59,26 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const { from, to } = req.query;
     const { Types } = require('mongoose');
+    
+    // Fetch employee for adjustments
+    const emp = await Employee.findById(req.params.id);
+    if (!emp) return res.status(404).json({ message: 'Employee not found' });
+
+    let filteredAdjustments = emp.adjustments || [];
+    if (from || to) {
+      const fromDate = from ? new Date(from) : null;
+      const toDate = to ? new Date(to + 'T23:59:59') : null;
+      filteredAdjustments = filteredAdjustments.filter(adj => {
+        const d = new Date(adj.date);
+        if (fromDate && d < fromDate) return false;
+        if (toDate && d > toDate) return false;
+        return true;
+      });
+    }
+
+    const totalRewards = filteredAdjustments.filter(a => a.type === 'reward').reduce((s, a) => s + a.amount, 0);
+    const totalDiscounts = filteredAdjustments.filter(a => a.type === 'discount').reduce((s, a) => s + a.amount, 0);
+
     const match = { employee: new Types.ObjectId(req.params.id) };
     if (from || to) {
       match.createdAt = {};
@@ -134,7 +164,10 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
       totalItemsSold,
       categoryBreakdown,
       topCategory,
-      contributionPercent: Number(contributionPercent)
+      contributionPercent: Number(contributionPercent),
+      adjustments: filteredAdjustments,
+      totalRewards,
+      totalDiscounts
     });
   } catch (e) {
     res.status(500).json({ message: 'Unable to load stats', error: e.message });
@@ -218,8 +251,41 @@ router.post('/', auth, requireRole(ADMIN), async (req, res) => {
 // PUT /api/employees/:id
 router.put('/:id', auth, requireRole(ADMIN), async (req, res) => {
   try {
-    const emp = await Employee.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { name, phone, notes, startDate } = req.body;
+    const emp = await Employee.findById(req.params.id);
     if (!emp) return res.status(404).json({ message: 'Employee not found' });
+
+    emp.name = name;
+    emp.phone = phone || '';
+    emp.notes = notes || '';
+    if (startDate) emp.startDate = startDate;
+    await emp.save();
+
+    // Sync to linked User account
+    const User = require('../models/User');
+    let user = null;
+    if (emp.user) {
+      user = await User.findById(emp.user);
+    }
+    if (!user) {
+      user = await User.findOne({
+        $or: [
+          { name: emp.name },
+          { phone: emp.phone && emp.phone.trim() !== '' ? emp.phone : '____non_existent____' }
+        ]
+      });
+      if (user && !emp.user) {
+        emp.user = user._id;
+        await emp.save();
+      }
+    }
+
+    if (user) {
+      user.name = name;
+      user.phone = phone || '';
+      await user.save();
+    }
+
     res.json(emp);
   } catch (e) {
     res.status(500).json({ message: 'Unable to update employee', error: e.message });
@@ -246,6 +312,52 @@ router.delete('/:id', auth, requireRole(ADMIN), async (req, res) => {
     res.json({ message: 'Employee deleted' });
   } catch (e) {
     res.status(500).json({ message: 'Unable to delete employee', error: e.message });
+  }
+});
+
+// POST /api/employees/:id/adjustments — add a discount or reward
+router.post('/:id/adjustments', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const { type, amount, reason, date } = req.body;
+    if (!['discount', 'reward'].includes(type)) {
+      return res.status(400).json({ message: 'نوع التسوية غير صالح (يجب أن يكون خصم أو مكافأة)' });
+    }
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'المبلغ يجب أن يكون أكبر من الصفر' });
+    }
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({ message: 'السبب مطلوب' });
+    }
+
+    const emp = await Employee.findById(req.params.id);
+    if (!emp) return res.status(404).json({ message: 'الموظف غير موجود' });
+
+    emp.adjustments.push({
+      type,
+      amount: Number(amount),
+      reason,
+      date: date ? new Date(date) : new Date()
+    });
+
+    await emp.save();
+    res.status(201).json(emp.adjustments[emp.adjustments.length - 1]);
+  } catch (e) {
+    res.status(500).json({ message: 'فشل إضافة التسوية', error: e.message });
+  }
+});
+
+// DELETE /api/employees/:id/adjustments/:adjId — remove adjustment
+router.delete('/:id/adjustments/:adjId', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const emp = await Employee.findById(req.params.id);
+    if (!emp) return res.status(404).json({ message: 'الموظف غير موجود' });
+
+    emp.adjustments = emp.adjustments.filter(a => a._id.toString() !== req.params.adjId);
+    await emp.save();
+
+    res.json({ message: 'تم حذف التسوية بنجاح' });
+  } catch (e) {
+    res.status(500).json({ message: 'فشل حذف التسوية', error: e.message });
   }
 });
 

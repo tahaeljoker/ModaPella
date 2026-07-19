@@ -373,7 +373,7 @@ router.get('/users', auth, requireRole(['admin']), async (req, res) => {
 // POST /api/admin/users — create a new cashier/manager/employee account
 router.post('/users', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const { name, email, password, role = 'cashier', phone } = req.body;
+    const { name, email, password, role = 'cashier', phone, employeeId } = req.body;
     if (!['cashier', 'manager', 'admin', 'employee'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role' });
     }
@@ -381,6 +381,23 @@ router.post('/users', auth, requireRole(['admin']), async (req, res) => {
     if (existing) return res.status(400).json({ message: 'Email already in use' });
     const user = new User({ name, email, password, role, phone: phone || '' });
     await user.save();
+
+    // Link employee to this User
+    if (role === 'employee' && employeeId) {
+      const Employee = require('../models/Employee');
+      const emp = await Employee.findById(employeeId);
+      if (emp) {
+        emp.user = user._id;
+        if (phone) {
+          emp.phone = phone;
+        } else if (emp.phone) {
+          user.phone = emp.phone;
+          await user.save();
+        }
+        await emp.save();
+      }
+    }
+
     res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });
   } catch (error) {
     res.status(500).json({ message: 'Unable to create user', error: error.message });

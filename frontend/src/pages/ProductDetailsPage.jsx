@@ -15,6 +15,8 @@ function ProductDetailsPage() {
   const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   useEffect(() => {
     api.get(`/products/${id}`)
@@ -34,6 +36,7 @@ function ProductDetailsPage() {
       setSelectedSize(product.sizes?.[0] || '');
       setSelectedColor(product.colors?.[0] || '');
       setQuantity(product.stock > 0 ? 1 : 0);
+      setActiveImageIdx(0);
     }
   }, [product]);
 
@@ -76,8 +79,73 @@ function ProductDetailsPage() {
       <div className="rounded-2xl sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-4 sm:p-10 shadow-soft">
         <Link to="/shop" className="text-sm text-burgundy/70 underline">عودة إلى المتجر</Link>
         <div className="mt-6 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="overflow-hidden rounded-xl sm:rounded-[2rem] bg-beige/10 aspect-[4/3] sm:aspect-[3/2]">
-            <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full" />
+          {/* Image Slider Container */}
+          <div className="flex flex-col gap-4">
+            {/* Main Viewport */}
+            <div className="relative overflow-hidden rounded-xl sm:rounded-[2rem] bg-beige/10 aspect-[4/3] sm:aspect-[3/2] group border border-burgundy/5 shadow-inner">
+              <div 
+                onClick={() => setIsLightboxOpen(true)}
+                className="w-full h-full cursor-zoom-in transition-all duration-300 hover:scale-[1.02]"
+              >
+                <LazyImage 
+                  src={product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80'} 
+                  alt={cleanProductName(product.name)} 
+                  className="w-full h-full object-cover" 
+                />
+              </div>
+
+              {/* Arrow controls */}
+              {product.images && product.images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveImageIdx(prev => (prev === 0 ? product.images.length - 1 : prev - 1))}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/85 border border-burgundy/10 text-burgundy shadow-md transition hover:bg-white hover:scale-105 active:scale-95 z-10"
+                    aria-label="Previous image"
+                  >
+                    ❮
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveImageIdx(prev => (prev === product.images.length - 1 ? 0 : prev + 1))}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/85 border border-burgundy/10 text-burgundy shadow-md transition hover:bg-white hover:scale-105 active:scale-95 z-10"
+                    aria-label="Next image"
+                  >
+                    ❯
+                  </button>
+                </>
+              )}
+
+              {/* Dots indicator */}
+              {product.images && product.images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 bg-black/20 px-3 py-1.5 rounded-full backdrop-blur-[2px]">
+                  {product.images.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImageIdx(idx)}
+                      className={`h-2 rounded-full transition-all duration-300 ${activeImageIdx === idx ? 'w-5 bg-white' : 'w-2 bg-white/55 hover:bg-white'}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Thumbnail row */}
+            {product.images && product.images.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto py-1 shrink-0 select-none scrollbar-thin">
+                {product.images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveImageIdx(idx)}
+                    className={`relative w-20 h-20 rounded-xl overflow-hidden bg-beige/5 border-2 transition ${activeImageIdx === idx ? 'border-burgundy scale-95 shadow-md' : 'border-transparent opacity-75 hover:opacity-100 hover:scale-95'}`}
+                  >
+                    <img src={img} alt={`thumbnail ${idx}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="space-y-5 sm:space-y-6">
             <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] sm:tracking-[0.35em] text-burgundy/60">{product.category}</p>
@@ -204,6 +272,51 @@ function ProductDetailsPage() {
           </div>
         </div>
       </div>
+      {/* Lightbox Modal */}
+      {isLightboxOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={() => setIsLightboxOpen(false)}
+            className="absolute top-6 right-6 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-all duration-200 z-50 font-bold"
+          >
+            ✕
+          </button>
+
+          {/* Large image */}
+          <div className="relative max-w-full max-h-[85vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
+            <img 
+              src={product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80'} 
+              alt={cleanProductName(product.name)} 
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl" 
+            />
+
+            {/* Arrow controls in lightbox */}
+            {product.images && product.images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIdx(prev => (prev === 0 ? product.images.length - 1 : prev - 1))}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl font-bold shadow-md transition z-50"
+                >
+                  ❮
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIdx(prev => (prev === product.images.length - 1 ? 0 : prev + 1))}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl font-bold shadow-md transition z-50"
+                >
+                  ❯
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

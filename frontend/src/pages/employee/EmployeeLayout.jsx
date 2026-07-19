@@ -16,6 +16,7 @@ function EmployeeLayout({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState(null);
+  const [showChangePw, setShowChangePw] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -151,6 +152,13 @@ function EmployeeLayout({ children }) {
 
           <button
             type="button"
+            onClick={() => setShowChangePw(true)}
+            className="w-full rounded-xl border border-burgundy/20 px-4 py-2 text-sm font-medium text-burgundy/70 transition hover:bg-burgundy hover:text-white flex items-center justify-center gap-1.5"
+          >
+            🔐 تغيير كلمة المرور
+          </button>
+          <button
+            type="button"
             onClick={handleLogout}
             className="w-full rounded-xl border border-burgundy/20 px-4 py-2 text-sm font-medium text-burgundy/70 transition hover:bg-burgundy hover:text-white"
           >
@@ -174,33 +182,149 @@ function EmployeeLayout({ children }) {
         {children}
       </main>
 
-      {/* Notification Detail Modal */}
-      {selectedNotif && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden">
-            <div className="bg-burgundy p-5 text-white flex items-center gap-3">
-              <span className="text-2xl">✨</span>
-              <h3 className="font-bold text-lg">{selectedNotif.title}</h3>
-            </div>
-            <div className="p-6 text-burgundy space-y-4">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedNotif.message}</p>
-              <div className="pt-4 flex justify-between items-center border-t border-burgundy/10">
-                <span className="text-[10px] text-burgundy/40 font-mono">
-                  {new Date(selectedNotif.createdAt).toLocaleString('ar-EG-u-nu-latn')}
-                </span>
-                <button
-                  onClick={() => setSelectedNotif(null)}
-                  className="rounded-xl bg-burgundy/10 px-5 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy hover:text-white"
-                >
-                  حسنًا، فهمت
-                </button>
+        {/* Notification Detail Modal */}
+        {selectedNotif && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden">
+              <div className="bg-burgundy p-5 text-white flex items-center gap-3">
+                <span className="text-2xl">✨</span>
+                <h3 className="font-bold text-lg">{selectedNotif.title}</h3>
+              </div>
+              <div className="p-6 text-burgundy space-y-4">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedNotif.message}</p>
+                <div className="pt-4 flex justify-between items-center border-t border-burgundy/10">
+                  <span className="text-[10px] text-burgundy/40 font-mono">
+                    {new Date(selectedNotif.createdAt).toLocaleString('ar-EG-u-nu-latn')}
+                  </span>
+                  <button
+                    onClick={() => setSelectedNotif(null)}
+                    className="rounded-xl bg-burgundy/10 px-5 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy hover:text-white"
+                  >
+                    حسنًا، فهمت
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        )}
 
-export default EmployeeLayout;
+        {/* Change Password Modal */}
+        {showChangePw && (
+          <LocalChangePasswordModal onClose={() => setShowChangePw(false)} />
+        )}
+      </div>
+    );
+  }
+
+  // ─── Local Change Password Modal ─────────────────────────────────────────────
+  function LocalChangePasswordModal({ onClose }) {
+    const [form, setForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setError(''); setSuccess('');
+      if (form.newPassword.length < 6) {
+        return setError('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+      }
+      if (form.newPassword !== form.confirmPassword) {
+        return setError('كلمتا المرور الجديدتان غير متطابقتين');
+      }
+      setLoading(true);
+      try {
+        await api.put('/auth/change-password', {
+          oldPassword: form.oldPassword,
+          newPassword: form.newPassword
+        });
+        setSuccess('✅ تم تغيير كلمة المرور بنجاح');
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } catch (err) {
+        setError(err.response?.data?.message || 'فشل تغيير كلمة المرور');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const inp = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+        <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-burgundy px-6 py-4 text-white flex items-center gap-3">
+            <span className="text-xl">🔐</span>
+            <div>
+              <p className="font-bold">تغيير كلمة المرور</p>
+              <p className="text-xs opacity-75">حساب الموظف</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-burgundy/60">كلمة المرور الحالية *</label>
+              <input
+                type="password"
+                required
+                value={form.oldPassword}
+                onChange={e => setForm(p => ({ ...p, oldPassword: e.target.value }))}
+                className={inp}
+                placeholder="••••••"
+                dir="ltr"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-burgundy/60">كلمة المرور الجديدة *</label>
+              <input
+                type="password"
+                required
+                value={form.newPassword}
+                onChange={e => setForm(p => ({ ...p, newPassword: e.target.value }))}
+                className={inp}
+                placeholder="•••••• (6 أحرف كحد أدنى)"
+                dir="ltr"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-burgundy/60">تأكيد كلمة المرور الجديدة *</label>
+              <input
+                type="password"
+                required
+                value={form.confirmPassword}
+                onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                className={inp}
+                placeholder="••••••"
+                dir="ltr"
+              />
+            </div>
+
+            {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
+            {success && <p className="text-xs text-emerald-700 bg-emerald-50 p-2 rounded-lg">{success}</p>}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 rounded-full bg-burgundy py-2.5 text-sm font-bold text-white hover:bg-[#650018] transition disabled:opacity-50"
+              >
+                {loading ? 'جاري الحفظ...' : '🔐 حفظ التغيير'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-burgundy/20 px-5 py-2.5 text-sm text-burgundy hover:bg-burgundy/10 transition"
+              >
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  export default EmployeeLayout;

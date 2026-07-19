@@ -163,7 +163,6 @@ function TaskSession({ task: initialTask, onBack }) {
           </div>
           <div className="text-left shrink-0">
             <p className="text-xs opacity-70">{countedCount}/{items.length} عُدّ</p>
-            {diffCount > 0 && <p className="text-xs text-amber-300 font-bold mt-0.5">⚠️ {diffCount} فرق</p>}
           </div>
         </div>
 
@@ -192,14 +191,6 @@ function TaskSession({ task: initialTask, onBack }) {
             >
               {saving ? 'جاري التسليم...' : `📤 تسليم الجرد (${countedCount}/${items.length})`}
             </button>
-            {uncountedCount > 0 && (
-              <button
-                onClick={handleAutoFillAll}
-                className="rounded-xl bg-white/15 hover:bg-white/25 px-4 py-2.5 text-xs font-bold text-white transition"
-              >
-                🪄 ملء الباقي كالسيستم
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -251,7 +242,6 @@ function TaskSession({ task: initialTask, onBack }) {
             { id: 'all',      label: `الكل (${items.length})` },
             { id: 'uncounted', label: `⬜ لم تُعدّ (${uncountedCount})` },
             { id: 'counted',  label: `✅ تم (${countedCount})` },
-            { id: 'diff',     label: `⚠️ فرق (${diffCount})` },
           ].map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)}
               className={`px-3 py-2 text-xs font-semibold transition ${filterStatus === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>
@@ -279,27 +269,24 @@ function TaskSession({ task: initialTask, onBack }) {
 
       {/* Items */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-        <div className="hidden sm:grid grid-cols-[2fr_0.6fr_0.6fr_0.7fr_1.2fr_auto] gap-3 bg-[#F7F0EC] px-5 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
-          <span>المنتج</span><span>المقاس</span><span>اللون</span><span>النظام</span><span>الكمية الفعلية</span><span></span>
+        <div className="hidden sm:grid grid-cols-[2fr_0.6fr_0.6fr_1.2fr_auto] gap-3 bg-[#F7F0EC] px-5 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
+          <span>المنتج</span><span>المقاس</span><span>اللون</span><span>الكمية الفعلية</span><span></span>
         </div>
         <div className="divide-y divide-burgundy/6">
           {filtered.length === 0 ? (
             <p className="py-10 text-center text-sm text-burgundy/40">لا توجد أصناف تطابق الفلتر</p>
           ) : filtered.map(item => {
-            const counted = item._counted !== '' ? Number(item._counted) : null;
-            const variance = counted !== null ? counted - item.systemStock : null;
             const isHighlit = highlight === item._id;
             const rowColor = isHighlit ? 'bg-yellow-50 ring-2 ring-yellow-400' :
-              variance === null ? '' : variance === 0 ? 'bg-emerald-50/40' : variance > 0 ? 'bg-blue-50/30' : 'bg-red-50/30';
+              item._counted !== '' ? 'bg-emerald-50/20' : '';
             return (
-              <div key={item._id} className={`grid sm:grid-cols-[2fr_0.6fr_0.6fr_0.7fr_1.2fr_auto] items-center gap-3 px-5 py-3 transition-all ${rowColor}`}>
+              <div key={item._id} className={`grid sm:grid-cols-[2fr_0.6fr_0.6fr_1.2fr_auto] items-center gap-3 px-5 py-3 transition-all ${rowColor}`}>
                 <div>
                   <p className="font-semibold text-sm">{item.productName}</p>
                   {item.sku && <p className="text-[10px] font-mono text-burgundy/40 mt-0.5 bg-burgundy/5 w-fit px-1.5 rounded">{item.sku}</p>}
                 </div>
                 <p className="text-sm text-burgundy/60">{item.size || '—'}</p>
                 <p className="text-sm text-burgundy/60">{item.color || '—'}</p>
-                <span className="rounded-full bg-burgundy/8 px-3 py-1 text-sm font-bold w-fit">{item.systemStock}</span>
                 <div className="flex items-center gap-2">
                   <input
                     ref={el => { inputRefs.current[item._id] = el; }}
@@ -312,22 +299,7 @@ function TaskSession({ task: initialTask, onBack }) {
                     placeholder="أدخل..."
                     className={`w-24 rounded-xl border border-burgundy/20 px-3 py-1.5 text-center text-sm font-bold text-burgundy outline-none focus:border-burgundy focus:ring-1 focus:ring-burgundy/30 ${!isEditable ? 'bg-burgundy/5 opacity-70 cursor-not-allowed' : 'bg-white'}`}
                   />
-                  {variance !== null && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${variance === 0 ? 'bg-emerald-100 text-emerald-700' : variance > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
-                      {variance > 0 ? `+${variance}` : variance}
-                    </span>
-                  )}
                 </div>
-                {/* Quick match-system button */}
-                {isEditable && item._counted === '' && (
-                  <button
-                    onClick={() => handleMatchSystem(item._id)}
-                    title="نفس كمية السيستم"
-                    className="rounded-lg bg-burgundy/5 border border-burgundy/15 px-2 py-1 text-[10px] font-bold text-burgundy/60 hover:bg-burgundy hover:text-white transition whitespace-nowrap"
-                  >
-                    = سيستم
-                  </button>
-                )}
                 {isEditable && item._counted !== '' && (
                   <button
                     onClick={() => handleUpdate(item._id, '')}
