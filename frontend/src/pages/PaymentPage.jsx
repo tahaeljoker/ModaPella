@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import api from '../services/api';
+import { cleanProductName } from '../utils/discount';
 
 function PaymentPage() {
   const { cart, clearCart, total } = useContext(CartContext);
@@ -152,7 +153,7 @@ function PaymentPage() {
             {cart.map((item) => (
               <div key={item.cartId} className="py-2.5 flex justify-between text-xs sm:text-sm">
                 <div>
-                  <span className="font-semibold block">{item.name}</span>
+                  <span className="font-semibold block">{cleanProductName(item.name)}</span>
                   <span className="text-[10px] text-burgundy/50">
                     {item.selectedSize ? `مقاس: ${item.selectedSize}` : ''} {item.selectedColor ? `· لون: ${item.selectedColor}` : ''} · عدد: {item.quantity}
                   </span>

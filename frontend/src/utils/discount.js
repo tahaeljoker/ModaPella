@@ -18,3 +18,8 @@ export const getEffectivePrice = (product) => {
   if (!product) return 0;
   return isDiscountActive(product) ? product.discountPrice : product.price;
 };
+
+export const cleanProductName = (name) => {
+  if (!name) return '';
+  return name.replace(/\s+#?\d+$/, '').trim();
+};

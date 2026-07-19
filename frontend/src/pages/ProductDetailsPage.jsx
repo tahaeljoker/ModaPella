@@ -4,8 +4,7 @@ import api from '../services/api';
 import CartContext from '../context/CartContext';
 import LazyImage from '../components/LazyImage';
 import sampleProducts from '../data/sampleProducts';
-import { isDiscountActive } from '../utils/discount';
-
+import { isDiscountActive, cleanProductName } from '../utils/discount';
 
 function ProductDetailsPage() {
   const { id } = useParams();
@@ -78,11 +77,11 @@ function ProductDetailsPage() {
         <Link to="/shop" className="text-sm text-burgundy/70 underline">عودة إلى المتجر</Link>
         <div className="mt-6 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="overflow-hidden rounded-xl sm:rounded-[2rem] bg-beige/10 aspect-[4/3] sm:aspect-[3/2]">
-            <LazyImage src={image} alt={product.name} className="w-full h-full" />
+            <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full" />
           </div>
           <div className="space-y-5 sm:space-y-6">
             <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] sm:tracking-[0.35em] text-burgundy/60">{product.category}</p>
-            <h1 className="text-xl sm:text-3xl font-extrabold">{product.name}</h1>
+            <h1 className="text-xl sm:text-3xl font-extrabold">{cleanProductName(product.name)}</h1>
             <p className="text-sm sm:text-base leading-6 sm:leading-8 text-burgundy/75">{product.description || 'وصف مميز للمنتج يعرض تفاصيل التصميم والجودة.'}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">

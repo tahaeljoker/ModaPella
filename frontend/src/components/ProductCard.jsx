@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
-import { isDiscountActive } from '../utils/discount';
+import { isDiscountActive, cleanProductName } from '../utils/discount';
 
 
 const fallbackImages = {
@@ -25,7 +25,7 @@ function ProductCard({ product }) {
       className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[2rem] border border-burgundy/10 bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
       <div className="relative overflow-hidden aspect-4-5 sm:aspect-[3/4]">
-        <LazyImage src={image} alt={product.name} className="w-full h-full transition duration-500 group-hover:scale-105" />
+        <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full transition duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-90" />
         <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-white/60 bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[11px] font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-burgundy shadow-sm">عرض التفاصيل</div>
         {isDiscountActive(product) && (
@@ -39,7 +39,7 @@ function ProductCard({ product }) {
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-burgundy/60">{product.category}</p>
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 sm:gap-3">
-            <h3 className="text-sm sm:text-base font-bold line-clamp-1">{product.name}</h3>
+            <h3 className="text-sm sm:text-base font-bold line-clamp-1">{cleanProductName(product.name)}</h3>
             {isDiscountActive(product) ? (
               <div className="flex flex-col items-end">
                 <span className="text-xs sm:text-sm font-extrabold text-burgundy whitespace-nowrap">{EGP(product.discountPrice)}</span>
