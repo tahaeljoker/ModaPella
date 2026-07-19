@@ -63,7 +63,7 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [prevCartLength, setPrevCartLength] = useState(cart.length);
-  const [whatsappNumber, setWhatsappNumber] = useState('201012345678');
+  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
 
   // Trigger drawer cart open when items are added
   useEffect(() => {
