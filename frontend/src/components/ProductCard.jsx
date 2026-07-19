@@ -22,18 +22,20 @@ function ProductCard({ product }) {
   return (
     <div
       onClick={() => navigate(`/product/${product._id}`)}
-      className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/5 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
+      className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/5 bg-white shadow-sm transition-all duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-md"
     >
-      <div className="relative overflow-hidden aspect-4-5 sm:aspect-[3/4]">
-        <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full transition duration-700 group-hover:scale-105" />
-        <div className="absolute inset-0 bg-gradient-to-t from-burgundy/40 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-90" />
+      <div className="relative overflow-hidden aspect-[4/3]">
+        <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full transition-transform duration-700 ease-out group-hover:scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-t from-burgundy/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-90" />
         <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-white/60 bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-medium tracking-[0.15em] text-burgundy shadow-sm">عرض التفاصيل</div>
         {isDiscountActive(product) && (
           <div className="absolute left-2 sm:left-4 top-9 sm:top-12 rounded-full bg-red-600 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-sm">
             خصم {Math.round((1 - product.discountPrice / product.price) * 100)}%
           </div>
         )}
-        <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/90 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-medium text-burgundy shadow-sm">{product.stock > 0 ? `${product.stock} متبقي` : 'غير متوفر'}</div>
+        <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/90 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-medium text-burgundy shadow-sm">
+          {product.stock > 10 ? 'متوفر' : product.stock > 0 ? 'كمية محدودة' : 'غير متوفر'}
+        </div>
       </div>
       <div className="flex flex-col justify-between p-3 sm:p-4 text-burgundy space-y-1.5">
         <div>

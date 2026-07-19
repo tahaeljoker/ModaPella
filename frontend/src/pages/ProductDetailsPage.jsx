@@ -97,8 +97,10 @@ function ProductDetailsPage() {
                 )}
               </div>
               <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
-                <h2 className="text-xs sm:text-sm font-semibold text-burgundy">المخزون المتوفر</h2>
-                <p className="mt-1.5 sm:mt-3 text-lg sm:text-2xl font-bold text-burgundy">{product.stock}</p>
+                <h2 className="text-xs sm:text-sm font-semibold text-burgundy">حالة المخزون</h2>
+                <p className="mt-1.5 sm:mt-3 text-lg sm:text-2xl font-bold text-burgundy">
+                  {product.stock > 10 ? 'متوفر' : product.stock > 0 ? 'كمية محدودة' : 'نفد من المخزن'}
+                </p>
               </div>
             </div>
             <div className="grid gap-4">

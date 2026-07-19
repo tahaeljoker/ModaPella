@@ -162,13 +162,13 @@ function LandingPage() {
         </div>
 
         {products.length > 0 ? (
-          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 stagger-container">
+          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 stagger-container">
             {products.map((product) => (
               <div className="stagger-item" key={product._id}><ProductCard product={product} /></div>
             ))}
           </div>
         ) : (
-          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
             {sampleProducts.map((p) => (
               <ProductCard key={p._id} product={p} />
             ))}

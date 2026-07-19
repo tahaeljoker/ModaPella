@@ -84,7 +84,7 @@ function CategoryPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 stagger-container">
+        <div className="grid gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 stagger-container">
           {(filteredByOptions.length ? filteredByOptions : products).map((p) => (
             <div className="stagger-item" key={p._id}><ProductCard product={p} /></div>
           ))}
