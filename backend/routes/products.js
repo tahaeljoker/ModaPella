@@ -7,8 +7,15 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const { search, limit } = req.query;
+    const { search, category, excludeId, limit } = req.query;
     let query = { active: true };
+    
+    if (category && category.trim() !== '') {
+      query.category = category.trim();
+    }
+    if (excludeId) {
+      query._id = { $ne: excludeId };
+    }
     
     if (search && search.trim() !== '') {
       const s = search.trim();

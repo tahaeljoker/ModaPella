@@ -17,6 +17,7 @@ function ProductDetailsPage() {
   const [added, setAdded] = useState(false);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [similarProducts, setSimilarProducts] = useState([]);
 
   useEffect(() => {
     api.get(`/products/${id}`)
@@ -37,6 +38,10 @@ function ProductDetailsPage() {
       setSelectedColor(product.colors?.[0] || '');
       setQuantity(product.stock > 0 ? 1 : 0);
       setActiveImageIdx(0);
+      
+      api.get(`/products?category=${product.category}&excludeId=${product._id}&limit=4`)
+        .then(res => setSimilarProducts(res.data))
+        .catch(err => console.error('Error loading similar products:', err));
     }
   }, [product]);
 
@@ -250,26 +255,30 @@ function ProductDetailsPage() {
       <div className="rounded-[2rem] border border-burgundy/10 bg-white p-8 shadow-soft">
         <h3 className="text-2xl font-semibold">منتجات مشابهة</h3>
         <div className="mt-4 grid gap-4 grid-cols-2 sm:grid-cols-4">
-          <div className="rounded-[1.25rem] overflow-hidden">
-            <div className="aspect-[4/3] overflow-hidden relative">
-              <LazyImage src="https://images.unsplash.com/photo-1520975915070-3d4fa8f300fd?auto=format&fit=crop&w=900&q=80" alt="منتج مشابه" className="absolute inset-0 h-full w-full" />
-            </div>
-          </div>
-          <div className="rounded-[1.25rem] overflow-hidden">
-            <div className="aspect-[4/3] overflow-hidden relative">
-              <LazyImage src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80" alt="sample" className="absolute inset-0 h-full w-full" />
-            </div>
-          </div>
-          <div className="rounded-[1.25rem] overflow-hidden">
-            <div className="aspect-[4/3] overflow-hidden relative">
-              <LazyImage src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80" alt="sample" className="absolute inset-0 h-full w-full" />
-            </div>
-          </div>
-          <div className="rounded-[1.25rem] overflow-hidden">
-            <div className="aspect-[4/3] overflow-hidden relative">
-              <LazyImage src="https://images.unsplash.com/photo-1521335629791-ce4aec67dd83?auto=format&fit=crop&w=900&q=80" alt="sample" className="absolute inset-0 h-full w-full" />
-            </div>
-          </div>
+          {similarProducts.length === 0 ? (
+            <p className="col-span-full py-10 text-center text-sm text-burgundy/40">لا توجد منتجات مشابهة حالياً</p>
+          ) : (
+            similarProducts.map(p => (
+              <Link 
+                key={p._id} 
+                to={`/product/${p._id}`}
+                onClick={() => window.scrollTo(0, 0)}
+                className="group block rounded-[1.25rem] overflow-hidden border border-burgundy/5 bg-[#F7F0EC]/20 p-2 transition hover:shadow-soft animate-fade-in"
+              >
+                <div className="aspect-[4/3] overflow-hidden relative rounded-xl bg-beige/5">
+                  <LazyImage 
+                    src={p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80'} 
+                    alt={cleanProductName(p.name)} 
+                    className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105" 
+                  />
+                </div>
+                <div className="mt-2 text-right px-1">
+                  <p className="text-xs font-bold text-burgundy truncate">{cleanProductName(p.name)}</p>
+                  <p className="text-xs font-extrabold text-burgundy/60 mt-0.5">{Number(p.price).toLocaleString('en-US')} ج.م</p>
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       </div>
       {/* Lightbox Modal */}
