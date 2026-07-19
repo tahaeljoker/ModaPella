@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../services/api';
 
 function Footer() {
+  const [config, setConfig] = useState(null);
+
+  useEffect(() => {
+    api.get('/admin/site-config')
+      .then(res => setConfig(res.data))
+      .catch(() => setConfig(null));
+  }, []);
+
+  const address = config?.storeAddress || 'شارع الإعدادية بنات، بني مزار، المنيا';
+  const phone = config?.storePhone || '01090048832';
+  const whatsapp = config?.whatsappNumber || '201090048832';
+
   return (
     <footer className="mt-12 border-t border-burgundy/10 bg-white py-10">
       <div className="container mx-auto px-4">
@@ -28,10 +41,10 @@ function Footer() {
           </div>
           <div className="col-span-2 lg:col-span-1">
             <h4 className="font-semibold text-sm sm:text-base">تواصل معنا</h4>
-            <p className="mt-2 text-sm text-burgundy/75">شارع الإعدادية بنات، بني مزار، المنيا</p>
-            <p className="mt-1 text-sm text-burgundy/75">01090048832</p>
+            <p className="mt-2 text-sm text-burgundy/75">{address}</p>
+            <p className="mt-1 text-sm text-burgundy/75">{phone}</p>
             <a
-              href="https://wa.me/201090048832"
+              href={`https://wa.me/${whatsapp}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:underline"

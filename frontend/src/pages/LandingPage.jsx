@@ -15,7 +15,11 @@ const defaultSiteConfig = {
   secondaryCtaLink: '/collections',
   featuredTitle: 'أحدث الموديلات',
   featuredSubtitle: 'قطع مختارة بعناية — شوفي اللي يعجبك واطلبيه على طول.',
-  maintenanceMessage: 'الموقع غير متاح حالياً، سنعود قريباً.'
+  maintenanceMessage: 'الموقع غير متاح حالياً، سنعود قريباً.',
+  whatsappNumber: '201090048832',
+  storeAddress: 'شارع الإعدادية بنات، بني مزار، المنيا',
+  storePhone: '01090048832',
+  aboutText: 'محل أزياء نسائي في قلب بني مزار، بنقدم فيه أحدث الموديلات العصرية بأسعار كويسة. تقدري تتصفحي اونلاين وتطلبي، أو تيجي المحل مباشرة وتشوفي القطع على عينك.'
 };
 
 const heroImages = [
@@ -193,8 +197,7 @@ function LandingPage() {
             </span>
             <h2 className="text-xl sm:text-3xl font-bold text-burgundy leading-snug">عن محلنا</h2>
             <p className="text-sm sm:text-base leading-7 sm:leading-8 text-burgundy/75">
-              محل أزياء نسائي في قلب بني مزار، بنقدم فيه أحدث الموديلات العصرية بأسعار كويسة.
-              تقدري تتصفحي اونلاين وتطلبي، أو تيجي المحل مباشرة وتشوفي القطع على عينك.
+              {siteConfig.aboutText}
             </p>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -203,7 +206,7 @@ function LandingPage() {
                 </span>
                 <div>
                   <p className="text-xs font-bold text-burgundy">العنوان</p>
-                  <p className="text-sm text-burgundy/70">شارع الإعدادية بنات، بني مزار، المنيا</p>
+                  <p className="text-sm text-burgundy/70">{siteConfig.storeAddress}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -212,7 +215,7 @@ function LandingPage() {
                 </span>
                 <div>
                   <p className="text-xs font-bold text-burgundy">للتواصل</p>
-                  <p className="text-sm text-burgundy/70">01090048832</p>
+                  <p className="text-sm text-burgundy/70">{siteConfig.storePhone}</p>
                 </div>
               </div>
             </div>
@@ -224,7 +227,7 @@ function LandingPage() {
                 تصفحي المنتجات
               </Link>
               <a
-                href="https://wa.me/201090048832"
+                href={`https://wa.me/${siteConfig.whatsappNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full border border-burgundy px-5 py-2.5 text-sm font-medium text-burgundy transition hover:bg-burgundy/10"
