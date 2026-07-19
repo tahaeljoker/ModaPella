@@ -9,6 +9,26 @@ function AdminCustomers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [whatsappMsg, setWhatsappMsg] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('offers');
+
+  const updateMsgTemplate = (templateType, customer) => {
+    if (!customer) return;
+    const name = customer.name || '';
+    const siteUrl = window.location.origin;
+
+    if (templateType === 'offers') {
+      setWhatsappMsg(`أهلاً بكِ يا أ/ *${name}* في ModaPella 🎠✨\n\nحبينا نبعتلك أحدث العروض والتشكيلة الجديدة المميزة جداً من الأزياء عندنا! 🌸👗\nتقدري تشوفي المنتجات الجديدة من هنا: ${siteUrl}\n\nوفي انتظار زيارتك القادمة! ❤️`);
+    } else {
+      setWhatsappMsg('');
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      updateMsgTemplate(selectedTemplate, selectedCustomer);
+    }
+  }, [selectedCustomer, selectedTemplate]);
 
   // Edit / Delete states
   const [editModal, setEditModal] = useState(null); // { oldPhone, oldName, newPhone, newName }
@@ -237,6 +257,68 @@ function AdminCustomers() {
                     {selectedCustomer.debt ? EGP(selectedCustomer.debt) : 'لا يوجد'}
                   </p>
                 </div>
+              </div>
+
+              {/* WhatsApp Marketing Section */}
+              <div className="border-b border-burgundy/10 bg-emerald-50/50 p-5 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-800">
+                  <span className="text-xl">💬</span>
+                  <div>
+                    <h4 className="font-bold text-sm">تواصل سريع عبر واتساب</h4>
+                    <p className="text-[11px] opacity-75">أرسل العروض والخصومات مباشرة للعميل</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplate('offers')}
+                    className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition ${
+                      selectedTemplate === 'offers'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    🏷️ عروض جديدة
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplate('custom')}
+                    className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition ${
+                      selectedTemplate === 'custom'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    ✍️ رسالة حرة
+                  </button>
+                </div>
+
+                <textarea
+                  value={whatsappMsg}
+                  onChange={(e) => {
+                    setWhatsappMsg(e.target.value);
+                    if (selectedTemplate !== 'custom') {
+                      setSelectedTemplate('custom');
+                    }
+                  }}
+                  placeholder="اكتب رسالتك هنا..."
+                  rows={3}
+                  className="w-full rounded-xl border border-emerald-200 bg-white p-3 text-xs text-burgundy outline-none focus:border-emerald-500"
+                />
+
+                <a
+                  href={`https://wa.me/${
+                    selectedCustomer.phone.replace(/[^0-9]/g, '').startsWith('0')
+                      ? '2' + selectedCustomer.phone.replace(/[^0-9]/g, '')
+                      : selectedCustomer.phone.replace(/[^0-9]/g, '')
+                  }?text=${encodeURIComponent(whatsappMsg)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-xs font-bold text-white transition flex items-center justify-center gap-1.5 shadow-sm text-center"
+                >
+                  🟢 إرسال عبر واتساب
+                </a>
               </div>
 
               {/* Orders History */}
