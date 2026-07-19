@@ -129,27 +129,61 @@ function LandingPage() {
         </div>
       </div>
 
-      <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft wave-banner">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-semibold">سريع الوصول</h2>
-            <p className="mt-2 text-sm text-burgundy/75">اقسم موقعك بأناقة في صفحة واحدة.</p>
+      {/* About Section */}
+      <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft" dir="rtl">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
+          {/* Text Side */}
+          <div className="flex-1 space-y-5">
+            <span className="inline-flex items-center gap-2 rounded-full bg-burgundy/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-burgundy">
+              ModaPella
+              <span className="block h-2 w-2 rounded-full bg-burgundy animate-pulse" />
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-burgundy leading-snug">عن ModaPella</h2>
+            <p className="text-sm sm:text-base leading-8 text-burgundy/75">
+              محل أزياء نسائي متخصص في أحدث الموديلات العصرية. نقدم تجربة تسوق راقية ومتكاملة، سواء تتصفحي اونلاين أو تزوري المحل مباشرةً.
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-base">📍</span>
+                <div>
+                  <p className="text-sm font-bold text-burgundy">موقع المحل</p>
+                  <p className="text-sm text-burgundy/70">المنيا — بني مزار، شارع الإعدادية بنات</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-base">📞</span>
+                <div>
+                  <p className="text-sm font-bold text-burgundy">تواصلي معنا</p>
+                  <p className="text-sm text-burgundy/70">01090048832</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-base">🛍️</span>
+                <div>
+                  <p className="text-sm font-bold text-burgundy">تسوق بسهولة</p>
+                  <p className="text-sm text-burgundy/70">تصفحي الكتالوج اونلاين واطلبي، أو تعالي زوريناا في المحل مباشرة.</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link to="/shop" className="inline-flex items-center justify-center rounded-full bg-burgundy px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#650018]">تصفح المنتجات</Link>
+              <a href="https://wa.me/201090048832" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-burgundy px-5 py-2.5 text-sm font-medium text-burgundy transition hover:bg-burgundy/10">
+                <svg className="h-4 w-4 fill-[#25D366]" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.739-1.446L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436.002 9.858-4.419 9.862-9.86.002-2.636-1.023-5.112-2.885-6.978C16.582 1.9 14.116.877 11.478.875c-5.442 0-9.866 4.42-9.87 9.861a9.814 9.814 0 001.492 5.161l-1.018 3.714 3.812-.999c1.637.893 3.167 1.362 4.155 1.362zm10.963-7.405c-.247-.124-1.462-.72-1.687-.801-.225-.082-.388-.124-.55.125-.162.247-.631.801-.773.962-.143.162-.285.182-.532.058-.247-.124-1.043-.383-1.987-1.227-.734-.654-1.229-1.462-1.373-1.711-.143-.247-.015-.38.109-.503.111-.11.247-.285.37-.428.123-.143.165-.244.247-.409.082-.165.041-.309-.021-.433-.062-.124-.55-1.326-.753-1.815-.198-.479-.399-.413-.55-.421-.143-.008-.306-.01-.47-.01-.162 0-.427.061-.65.309-.225.247-.856.837-.856 2.037s.872 2.358.995 2.524c.123.165 1.716 2.62 4.156 3.673.58.25 1.033.4 1.385.512.583.185 1.114.159 1.533.096.467-.069 1.462-.598 1.666-1.173.205-.576.205-1.071.143-1.173-.062-.102-.224-.165-.471-.289z"/></svg>
+                واتساب
+              </a>
+            </div>
           </div>
-          <div className="hidden rounded-full bg-burgundy/5 px-4 py-2 text-sm text-burgundy sm:block">حركة ناعمة وواجهة أنيقة</div>
-        </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {pageLinks.map((link) => (
-            <Link key={link.to} to={link.to} className="page-link-card rounded-[1.75rem] border border-burgundy/10 bg-burgundy/5 p-6 text-start text-burgundy transition hover:bg-burgundy/10">
-              <p className="text-lg font-semibold">{link.label}</p>
-              <p className="mt-2 text-sm text-burgundy/70">{link.description}</p>
-            </Link>
-          ))}
-        </div>
-        <div className="mt-8">
-          <div className="rounded-full bg-white/80 p-5 shadow-soft">
-            <p className="text-sm text-burgundy/75">اقترح إضافة صورة متحركة هنا: مثلاً قالب عرض سريع للبناطيل والبلوزات مع شريط حركة خفيف تحت النص.</p>
-            <div className="mt-4 rounded-full bg-burgundy/10 p-1">
-              <div className="moving-stripe"></div>
+
+          {/* Visual Side */}
+          <div className="flex-shrink-0 w-full lg:w-64 xl:w-80">
+            <div className="relative overflow-hidden rounded-[2rem] bg-burgundy/5 aspect-square flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-br from-burgundy/5 to-beige/30" />
+              <div className="relative text-center p-6 space-y-3">
+                <div className="text-6xl">🏪</div>
+                <p className="text-lg font-bold text-burgundy">ModaPella</p>
+                <p className="text-xs text-burgundy/60 leading-relaxed">بني مزار — المنيا</p>
+                <div className="mt-2 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">● مفتوح الآن</div>
+              </div>
             </div>
           </div>
         </div>
@@ -197,18 +231,38 @@ function LandingPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-[2.5rem] border border-burgundy/10 bg-burgundy/5 p-8 shadow-soft">
-          <h3 className="text-2xl font-semibold text-burgundy">تصميم فاخر</h3>
-          <p className="mt-3 text-sm leading-7 text-burgundy/75">لوحة ألوان ناعمة وتصاميم بطابع عصري.</p>
+      {/* How to Order Steps */}
+      <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft" dir="rtl">
+        <div className="text-center space-y-2 mb-8 sm:mb-10">
+          <h2 className="text-2xl sm:text-3xl font-bold text-burgundy">إزاي تطلبي بسهولة؟</h2>
+          <p className="text-sm text-burgundy/70">ثلاث خطوات بسيطة وقطعتك في إيدك</p>
         </div>
-        <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-8 shadow-soft">
-          <h3 className="text-2xl font-semibold">سهولة الاستخدام</h3>
-          <p className="mt-3 text-sm leading-7 text-burgundy/75">تنقل متجاوب وسلس بين الصفحات والأقسام.</p>
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
+          {/* Step 1 */}
+          <div className="relative flex flex-col items-center text-center rounded-[2rem] border border-burgundy/10 bg-burgundy/5 p-6 sm:p-8">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-burgundy text-white text-xl font-extrabold mb-4 shadow-lg">١</div>
+            <div className="text-4xl mb-3">🔍</div>
+            <h3 className="text-base sm:text-lg font-bold text-burgundy">تصفحي الكتالوج</h3>
+            <p className="mt-2 text-xs sm:text-sm text-burgundy/70 leading-relaxed">اختاري القطعة والمقاس واللون اللي بيعجبك من المتجر.</p>
+          </div>
+          {/* Arrow - hidden on mobile */}
+          {/* Step 2 */}
+          <div className="relative flex flex-col items-center text-center rounded-[2rem] border border-burgundy/10 bg-white p-6 sm:p-8 shadow-soft">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-burgundy text-white text-xl font-extrabold mb-4 shadow-lg">٢</div>
+            <div className="text-4xl mb-3">📝</div>
+            <h3 className="text-base sm:text-lg font-bold text-burgundy">سجلي طلبك</h3>
+            <p className="mt-2 text-xs sm:text-sm text-burgundy/70 leading-relaxed">ابعتي بياناتك وأكدي الطلب. هنتواصل معاكي على طول.</p>
+          </div>
+          {/* Step 3 */}
+          <div className="relative flex flex-col items-center text-center rounded-[2rem] border border-burgundy/10 bg-beige/20 p-6 sm:p-8">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-burgundy text-white text-xl font-extrabold mb-4 shadow-lg">٣</div>
+            <div className="text-4xl mb-3">🏪</div>
+            <h3 className="text-base sm:text-lg font-bold text-burgundy">استلمي من المحل</h3>
+            <p className="mt-2 text-xs sm:text-sm text-burgundy/70 leading-relaxed">تعالي المحل في بني مزار واستلمي قطعتك جاهزة ومجهزة.</p>
+          </div>
         </div>
-        <div className="rounded-[2.5rem] border border-burgundy/10 bg-beige/20 p-8 shadow-soft">
-          <h3 className="text-2xl font-semibold text-burgundy">دفع Instapay</h3>
-          <p className="mt-3 text-sm leading-7 text-burgundy/75">بوابة دفع واحدة آمنة ومباشرة لكل الطلبات.</p>
+        <div className="mt-8 text-center">
+          <Link to="/shop" className="inline-flex items-center justify-center rounded-full bg-burgundy px-8 py-3 text-sm font-bold text-white transition hover:bg-[#650018] shadow">ابدأي التسوق الآن</Link>
         </div>
       </div>
     </section>
