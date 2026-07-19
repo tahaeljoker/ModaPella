@@ -15,7 +15,7 @@ function Footer() {
             <ul className="mt-2 space-y-2 text-sm text-burgundy/75">
               <li><Link to="/" className="hover:text-burgundy">الرئيسية</Link></li>
               <li><Link to="/shop" className="hover:text-burgundy">المتجر</Link></li>
-              <li><Link to="/about" className="hover:text-burgundy">من نحن</Link></li>
+              <li><Link to="/about" className="hover:text-burgundy">تواصل معنا</Link></li>
             </ul>
           </div>
           <div>
@@ -28,9 +28,16 @@ function Footer() {
           </div>
           <div className="col-span-2 lg:col-span-1">
             <h4 className="font-semibold text-sm sm:text-base">تواصل معنا</h4>
-            <p className="mt-2 text-sm text-burgundy/75">info@modapella.com</p>
+            <p className="mt-2 text-sm text-burgundy/75">شارع الإعدادية بنات، بني مزار، المنيا</p>
             <p className="mt-1 text-sm text-burgundy/75">01090048832</p>
-            <p className="mt-3 text-xs text-burgundy/60 leading-relaxed">تصفحي الموديلات والملابس، واطلبي أونلاين والدفع مع Instapay بكل سهولة.</p>
+            <a
+              href="https://wa.me/201090048832"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:underline"
+            >
+              💬 واتساب
+            </a>
           </div>
         </div>
 

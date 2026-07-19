@@ -441,6 +441,62 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
                 </p>
               )}
             </div>
+
+            {/* Discount Section */}
+            <div className="sm:col-span-2">
+              <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-red-700 uppercase tracking-widest">🏷️ عرض وتخفيض سعري</p>
+                  {form.discountPrice > 0 && form.discountPrice < form.price && (
+                    <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                      خصم {Math.round((1 - form.discountPrice / form.price) * 100)}%
+                    </span>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-semibold text-red-700/80">سعر العرض (ج.م) — اتركه فارغاً لإلغاء العرض</label>
+                    <input
+                      type="number"
+                      name="discountPrice"
+                      value={form.discountPrice ?? ''}
+                      onChange={handleChange}
+                      className={`${inp} border-red-200 focus:border-red-400`}
+                      min="0"
+                      placeholder="مثال: 120"
+                    />
+                    {form.discountPrice > 0 && form.price > 0 && Number(form.discountPrice) < Number(form.price) && (
+                      <p className="mt-1 text-[10px] text-red-600 font-bold">
+                        وفري {EGP(Number(form.price) - Number(form.discountPrice))} عن السعر الأصلي
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-semibold text-red-700/80">بداية العرض (اختياري)</label>
+                    <input
+                      type="datetime-local"
+                      name="discountStartDate"
+                      value={form.discountStartDate ? form.discountStartDate.slice(0, 16) : ''}
+                      onChange={handleChange}
+                      className={`${inp} border-red-200 focus:border-red-400 text-xs`}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-semibold text-red-700/80">نهاية العرض (اختياري)</label>
+                    <input
+                      type="datetime-local"
+                      name="discountEndDate"
+                      value={form.discountEndDate ? form.discountEndDate.slice(0, 16) : ''}
+                      onChange={handleChange}
+                      className={`${inp} border-red-200 focus:border-red-400 text-xs`}
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-red-700/60">
+                  لو سعر العرض فارغ أو كبير من سعر البيع، مش هيظهر أي خصم على الموقع.
+                </p>
+              </div>
+            </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المخزون الكلي *</label>
               <input type="number" name="stock" value={hasVariants ? totalVariantStock : form.stock} onChange={handleChange}

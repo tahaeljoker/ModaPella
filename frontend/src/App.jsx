@@ -126,8 +126,7 @@ function AppContent() {
                   </span>
                 )}
               </button>
-              {navItem('من نحن', '/about')}
-              {navItem('اتصل بنا', '/contact')}
+              {navItem('تواصل معنا', '/about')}
             </nav>
           </div>
 
@@ -174,16 +173,7 @@ function AppContent() {
                   `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
                 }
               >
-                من نحن
-              </NavLink>
-              <NavLink
-                to="/contact"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={({ isActive }) =>
-                  `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
-                }
-              >
-                اتصل بنا
+                تواصل معنا
               </NavLink>
             </nav>
           )}
