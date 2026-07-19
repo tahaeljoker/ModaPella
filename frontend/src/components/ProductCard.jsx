@@ -35,10 +35,10 @@ function ProductCard({ product }) {
         )}
         <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/90 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-medium text-burgundy shadow-sm">{product.stock > 0 ? `${product.stock} متبقي` : 'غير متوفر'}</div>
       </div>
-      <div className="flex flex-col justify-between p-3.5 sm:p-5 text-burgundy space-y-2">
+      <div className="flex flex-col justify-between p-3 sm:p-4 text-burgundy space-y-1.5">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-burgundy/50">{product.category}</p>
-          <h3 className="text-sm font-semibold mt-1 text-burgundy/90 line-clamp-1">{cleanProductName(product.name)}</h3>
+          <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.2em] text-burgundy/50">{product.category}</p>
+          <h3 className="text-xs sm:text-sm font-semibold mt-0.5 text-burgundy/90 line-clamp-1">{cleanProductName(product.name)}</h3>
         </div>
         <div className="flex items-baseline gap-2 pt-1 border-t border-burgundy/5">
           {isDiscountActive(product) ? (
