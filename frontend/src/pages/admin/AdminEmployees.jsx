@@ -345,7 +345,7 @@ function EmployeeStatsModal({ employee, onClose }) {
         {/* Header */}
         <div className="bg-burgundy text-white px-6 py-5 flex justify-between items-start">
           <div>
-            <p className="text-xs opacity-70 uppercase tracking-widest">تحليلات الأداء التفصيلية والمالية</p>
+            <p className="text-xs opacity-70 uppercase tracking-widest">تحليلات المبيعات، العمولات، المكافآت والخصومات المالية للموظف</p>
             <h3 className="text-xl font-bold mt-1">{employee.name}</h3>
             {employee.phone && <p className="text-xs opacity-60 mt-0.5">{employee.phone}</p>}
           </div>
@@ -976,6 +976,13 @@ function AdminEmployees() {
                   </span>
                   <div className="flex gap-1.5 flex-wrap">
                     <button onClick={() => setStatsEmp(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">📊 مبيعات</button>
+                    <button 
+                      onClick={() => setStatsEmp(emp)} 
+                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-600 hover:text-white"
+                      title="تسجيل وإدارة المكافآت والخصومات المالية للموظف"
+                    >
+                      💸 مكافأة / خصم
+                    </button>
                     <button onClick={() => setModal(emp)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
                     {emp.systemUser ? (
                       <button

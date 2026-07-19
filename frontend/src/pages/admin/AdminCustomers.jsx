@@ -11,6 +11,8 @@ function AdminCustomers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [whatsappMsg, setWhatsappMsg] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('offers');
+  const [selectedPhones, setSelectedPhones] = useState([]);
+  const [campaignActiveIdx, setCampaignActiveIdx] = useState(-1);
 
   const updateMsgTemplate = (templateType, customer) => {
     if (!customer) return;
@@ -143,6 +145,22 @@ function AdminCustomers() {
               <table className="w-full text-right text-sm">
                 <thead>
                   <tr className="border-b border-burgundy/8 bg-burgundy/5">
+                    <th className="py-4 px-5 text-burgundy/70 w-12 text-center">
+                      <input 
+                        type="checkbox" 
+                        checked={filtered.length > 0 && filtered.every(c => selectedPhones.includes(c.phone))}
+                        onChange={() => {
+                          const allFilteredPhones = filtered.map(c => c.phone);
+                          const isAllSelected = allFilteredPhones.every(p => selectedPhones.includes(p));
+                          if (isAllSelected) {
+                            setSelectedPhones(prev => prev.filter(p => !allFilteredPhones.includes(p)));
+                          } else {
+                            setSelectedPhones(prev => [...new Set([...prev, ...allFilteredPhones])]);
+                          }
+                        }}
+                        className="rounded border-burgundy/30 text-burgundy focus:ring-burgundy h-4 w-4 cursor-pointer"
+                      />
+                    </th>
                     <th className="py-4 px-5 font-semibold text-burgundy/70">العميل</th>
                     <th className="py-4 px-5 font-semibold text-burgundy/70">رقم الهاتف</th>
                     <th className="py-4 px-5 font-semibold text-burgundy/70">إجمالي المشتريات</th>
@@ -158,12 +176,25 @@ function AdminCustomers() {
                     return (
                       <tr
                         key={c.phone + c.name}
-                        onClick={() => setSelectedCustomer({ ...c, rankBadge: badge })}
                         className={`border-b border-burgundy/5 last:border-0 cursor-pointer transition ${
                           selectedCustomer?.phone === c.phone ? 'bg-burgundy/5' : 'hover:bg-burgundy/3'
                         }`}
                       >
-                        <td className="py-3 px-5 font-bold text-burgundy">
+                        <td className="py-3 px-5 w-12 text-center" onClick={e => e.stopPropagation()}>
+                          <input 
+                            type="checkbox"
+                            checked={selectedPhones.includes(c.phone)}
+                            onChange={() => {
+                              setSelectedPhones(prev => 
+                                prev.includes(c.phone) 
+                                  ? prev.filter(p => p !== c.phone) 
+                                  : [...prev, c.phone]
+                              );
+                            }}
+                            className="rounded border-burgundy/30 text-burgundy focus:ring-burgundy h-4 w-4 cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-3 px-5 font-bold text-burgundy" onClick={() => { setSelectedCustomer({ ...c, rankBadge: badge }); setSelectedPhones([]); setCampaignActiveIdx(-1); }}>
                           <div className="flex items-center gap-2">
                             <span>{c.name}</span>
                             {badge && (
@@ -195,7 +226,151 @@ function AdminCustomers() {
 
         {/* Customer Details Panel */}
         <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden sticky top-6">
-          {selectedCustomer ? (
+          {selectedPhones.length > 0 ? (
+            <div className="flex flex-col h-[calc(100vh-140px)]">
+              {/* Bulk Campaign Header */}
+              <div className="bg-emerald-700 p-6 text-white text-right">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-bold">📢 حملة تسويقية جماعية</h3>
+                    <p className="text-xs opacity-85 mt-1">تم تحديد {selectedPhones.length} عميل</p>
+                  </div>
+                  <button
+                    onClick={() => { setSelectedPhones([]); setCampaignActiveIdx(-1); }}
+                    className="rounded-xl bg-white/20 hover:bg-white/30 px-3 py-1.5 text-xs font-bold transition"
+                  >
+                    إلغاء التحديد
+                  </button>
+                </div>
+              </div>
+
+              {/* Campaign Creator / Sender */}
+              <div className="p-5 space-y-4 flex-1 overflow-y-auto text-right">
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-800">
+                    <span className="text-xl">💬</span>
+                    <div>
+                      <h4 className="font-bold text-sm">إرسال جماعي عبر واتساب</h4>
+                      <p className="text-[11px] opacity-75">سيتم فتح محادثات واتساب لكل عميل بالتتابع لتأكيد الإرسال</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTemplate('offers');
+                        setWhatsappMsg(`أهلاً بكِ في ModaPella 🎠✨\n\nحبينا نبعتلك أحدث العروض والتشكيلة الجديدة المميزة جداً من الأزياء عندنا! 🌸👗\nتقدري تشوفي المنتجات الجديدة من هنا: ${window.location.origin}\n\nوفي انتظار زيارتك القادمة! ❤️`);
+                      }}
+                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition ${
+                        selectedTemplate === 'offers'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                      }`}
+                    >
+                      🏷️ عروض جديدة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTemplate('custom');
+                        setWhatsappMsg('');
+                      }}
+                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition ${
+                        selectedTemplate === 'custom'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                      }`}
+                    >
+                      ✍️ رسالة حرة
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={whatsappMsg}
+                    onChange={(e) => {
+                      setWhatsappMsg(e.target.value);
+                      if (selectedTemplate !== 'custom') setSelectedTemplate('custom');
+                    }}
+                    placeholder="اكتب رسالتك للحملة..."
+                    rows={5}
+                    className="w-full rounded-xl border border-emerald-200 bg-white p-3 text-xs text-burgundy outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Campaign Runner Controls */}
+                {campaignActiveIdx === -1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!whatsappMsg.trim()) return alert('الرجاء كتابة رسالة الحملة أولاً');
+                      setCampaignActiveIdx(0);
+                      const phone = selectedPhones[0];
+                      const clean = phone.replace(/[^0-9]/g, '');
+                      const intl = clean.startsWith('0') ? '2' + clean : clean;
+                      window.open(`https://wa.me/${intl}?text=${encodeURIComponent(whatsappMsg)}`, '_blank');
+                    }}
+                    className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 text-sm font-bold text-white transition flex items-center justify-center gap-1.5 shadow"
+                  >
+                    🟢 بدء إرسال الحملة (فتح أول عميل)
+                  </button>
+                ) : (
+                  <div className="rounded-2xl border border-burgundy/10 bg-burgundy/5 p-4 space-y-3 text-right">
+                    <p className="text-xs font-bold text-burgundy/70">
+                      📈 حالة الحملة: العميل {campaignActiveIdx + 1} من {selectedPhones.length}
+                    </p>
+                    <div className="w-full bg-burgundy/10 rounded-full h-2">
+                      <div 
+                        className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${((campaignActiveIdx + 1) / selectedPhones.length) * 100}%` }}
+                      />
+                    </div>
+
+                    {campaignActiveIdx < selectedPhones.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextIdx = campaignActiveIdx + 1;
+                          setCampaignActiveIdx(nextIdx);
+                          const phone = selectedPhones[nextIdx];
+                          const clean = phone.replace(/[^0-9]/g, '');
+                          const intl = clean.startsWith('0') ? '2' + clean : clean;
+                          window.open(`https://wa.me/${intl}?text=${encodeURIComponent(whatsappMsg)}`, '_blank');
+                        }}
+                        className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 text-sm font-bold text-white transition flex items-center justify-center gap-1.5"
+                      >
+                        أرسل للعميل التالي ➔
+                      </button>
+                    ) : (
+                      <div className="space-y-2 text-center">
+                        <p className="text-xs text-emerald-700 font-bold">🎉 اكتمل إرسال جميع الرسائل بنجاح!</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCampaignActiveIdx(-1);
+                            setSelectedPhones([]);
+                          }}
+                          className="w-full rounded-xl bg-burgundy text-white py-2 text-xs font-bold transition hover:bg-[#650018]"
+                        >
+                          إنهاء وإلغاء التحديد
+                        </button>
+                      </div>
+                    )}
+
+                    {campaignActiveIdx < selectedPhones.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setCampaignActiveIdx(-1)}
+                        className="w-full rounded-xl border border-burgundy/20 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy/10"
+                      >
+                        إيقاف الحملة
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : selectedCustomer ? (
             <div className="flex flex-col h-[calc(100vh-140px)]">
               {/* Header */}
               <div className="bg-burgundy p-6 text-white">
