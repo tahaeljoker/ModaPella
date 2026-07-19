@@ -41,7 +41,10 @@ function LandingPage() {
 
   useEffect(() => {
     api.get('/products')
-      .then((response) => setProducts(response.data.slice(0, 8)))
+      .then((response) => {
+        const active = (response.data || []).filter(p => (p.stock ?? 0) > 0);
+        setProducts(active.slice(0, 8));
+      })
       .catch(() => setProducts([]));
 
     api.get('/admin/site-config')

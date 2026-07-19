@@ -20,7 +20,7 @@ function CategoryPage() {
     const decoded = decodeURIComponent(slug);
     api.get('/products')
       .then((res) => {
-        const filtered = res.data.filter((p) => p.category === decoded);
+        const filtered = (res.data || []).filter((p) => p.category === decoded && (p.stock ?? 0) > 0);
         setProducts(filtered);
       })
       .catch(() => setProducts([]))

@@ -30,7 +30,10 @@ function CollectionsPage() {
 
   useEffect(() => {
     api.get('/products')
-      .then((response) => setProducts(response.data))
+      .then((response) => {
+        const active = (response.data || []).filter(p => (p.stock ?? 0) > 0);
+        setProducts(active);
+      })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
 
