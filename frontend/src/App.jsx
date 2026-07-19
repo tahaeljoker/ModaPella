@@ -44,6 +44,7 @@ import CashierActivities from './pages/cashier/CashierActivities';
 import EmployeeLayout from './pages/employee/EmployeeLayout';
 import EmployeePriceCheck from './pages/employee/EmployeePriceCheck';
 import EmployeeInventoryTasks from './pages/employee/EmployeeInventoryTasks';
+import EmployeeFinances from './pages/employee/EmployeeFinances';
 
 const navItem = (label, to) => (
   <NavLink
@@ -218,6 +219,7 @@ function AppContent() {
           {/* Employee Routes */}
           <Route path="/employee" element={<ProtectedRoute allowedRoles={['employee', 'admin']}><EmployeeLayout><EmployeePriceCheck /></EmployeeLayout></ProtectedRoute>} />
           <Route path="/employee/tasks" element={<ProtectedRoute allowedRoles={['employee', 'admin']}><EmployeeLayout><EmployeeInventoryTasks /></EmployeeLayout></ProtectedRoute>} />
+          <Route path="/employee/finances" element={<ProtectedRoute allowedRoles={['employee', 'admin']}><EmployeeLayout><EmployeeFinances /></EmployeeLayout></ProtectedRoute>} />
 
           {/* Legacy redirects */}
           <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />

@@ -6,6 +6,7 @@ import { Icon } from '../../components/Icon';
 const navItems = [
   { to: '/employee', label: 'استعلام الأسعار', icon: 'search', end: true },
   { to: '/employee/tasks', label: 'مهام الجرد', icon: 'orders' },
+  { to: '/employee/finances', label: 'المكافآت والخصومات', icon: 'sale' },
 ];
 
 function EmployeeLayout({ children }) {

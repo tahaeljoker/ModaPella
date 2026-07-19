@@ -54,6 +54,53 @@ router.get('/all', auth, requireRole(ADMIN), async (req, res) => {
   }
 });
 
+// GET /api/employees/me/adjustments — fetch adjustments for the logged-in employee user
+router.get('/me/adjustments', auth, async (req, res) => {
+  try {
+    const emp = await Employee.findOne({ user: req.user.id });
+    if (!emp) {
+      const User = require('../models/User');
+      const currentUser = await User.findById(req.user.id);
+      if (!currentUser) return res.status(404).json({ message: 'User not found' });
+      
+      const fallbackEmp = await Employee.findOne({
+        $or: [
+          { name: currentUser.name },
+          { phone: currentUser.phone && currentUser.phone.trim() !== '' ? currentUser.phone : '___none___' }
+        ]
+      });
+      
+      if (!fallbackEmp) {
+        return res.json({ adjustments: [], totalRewards: 0, totalDiscounts: 0, netBalance: 0 });
+      }
+      
+      fallbackEmp.user = currentUser._id;
+      await fallbackEmp.save();
+      
+      const totalRewards = (fallbackEmp.adjustments || []).filter(a => a.type === 'reward').reduce((acc, curr) => acc + curr.amount, 0);
+      const totalDiscounts = (fallbackEmp.adjustments || []).filter(a => a.type === 'discount').reduce((acc, curr) => acc + curr.amount, 0);
+      return res.json({
+        adjustments: fallbackEmp.adjustments || [],
+        totalRewards,
+        totalDiscounts,
+        netBalance: totalRewards - totalDiscounts
+      });
+    }
+
+    const totalRewards = (emp.adjustments || []).filter(a => a.type === 'reward').reduce((acc, curr) => acc + curr.amount, 0);
+    const totalDiscounts = (emp.adjustments || []).filter(a => a.type === 'discount').reduce((acc, curr) => acc + curr.amount, 0);
+    
+    res.json({
+      adjustments: emp.adjustments || [],
+      totalRewards,
+      totalDiscounts,
+      netBalance: totalRewards - totalDiscounts
+    });
+  } catch (e) {
+    res.status(500).json({ message: 'Unable to load adjustments', error: e.message });
+  }
+});
+
 // GET /api/employees/:id/stats — sales stats for one employee
 router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
   try {
