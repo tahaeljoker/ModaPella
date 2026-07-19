@@ -365,10 +365,10 @@ router.get('/users', auth, requireRole(['admin']), async (req, res) => {
       .select('-password')
       .sort({ createdAt: -1 });
     
-    // Self-healing: Resolve and sync phone number from linked Employee if user.phone is missing
+    // Self-healing: Resolve and sync phone number from linked Employee if user.phone is missing or incorrect
     const Employee = require('../models/Employee');
     const enrichedUsers = await Promise.all(users.map(async (u) => {
-      if (u.role === 'employee' && (!u.phone || u.phone.trim() === '')) {
+      if (u.role === 'employee') {
         let emp = await Employee.findOne({ user: u._id });
         if (!emp) {
           emp = await Employee.findOne({ name: u.name });
@@ -377,7 +377,7 @@ router.get('/users', auth, requireRole(['admin']), async (req, res) => {
             await emp.save();
           }
         }
-        if (emp && emp.phone) {
+        if (emp && emp.phone && u.phone !== emp.phone) {
           u.phone = emp.phone;
           await u.save();
         }
