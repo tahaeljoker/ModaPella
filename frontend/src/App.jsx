@@ -74,6 +74,9 @@ function AppContent() {
   }, [cart.length]);
 
   useEffect(() => {
+    console.log("%cDeveloped by Taha Anas 💻", "color: #7c0a12; font-size: 16px; font-weight: bold;");
+    console.log("%cWhatsApp: +201143632650", "color: #25D366; font-size: 12px; font-weight: bold;");
+
     api.get('/admin/site-config')
       .then(res => {
         if (res.data && res.data.whatsappNumber) {

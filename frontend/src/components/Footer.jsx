@@ -40,7 +40,18 @@ function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-burgundy/8 pt-6 text-center text-sm text-burgundy/60">© {new Date().getFullYear()} ModaPella — جميع الحقوق محفوطة.</div>
+        <div className="mt-8 border-t border-burgundy/8 pt-6 text-center text-sm text-burgundy/60">
+          © {new Date().getFullYear()} ModaPella — جميع الحقوق محفوظة. | تم التطوير بواسطة{' '}
+          <a
+            href="https://wa.me/201143632650"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-burgundy font-bold transition"
+          >
+            طه أنس
+          </a>{' '}
+          💻
+        </div>
       </div>
     </footer>
   );
