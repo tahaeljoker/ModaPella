@@ -364,7 +364,28 @@ router.get('/users', auth, requireRole(['admin']), async (req, res) => {
     const users = await User.find({ role: { $in: ['admin', 'cashier', 'manager', 'employee'] } })
       .select('-password')
       .sort({ createdAt: -1 });
-    res.json(users);
+    
+    // Self-healing: Resolve and sync phone number from linked Employee if user.phone is missing
+    const Employee = require('../models/Employee');
+    const enrichedUsers = await Promise.all(users.map(async (u) => {
+      if (u.role === 'employee' && (!u.phone || u.phone.trim() === '')) {
+        let emp = await Employee.findOne({ user: u._id });
+        if (!emp) {
+          emp = await Employee.findOne({ name: u.name });
+          if (emp && !emp.user) {
+            emp.user = u._id;
+            await emp.save();
+          }
+        }
+        if (emp && emp.phone) {
+          u.phone = emp.phone;
+          await u.save();
+        }
+      }
+      return u;
+    }));
+
+    res.json(enrichedUsers);
   } catch (error) {
     res.status(500).json({ message: 'Unable to load users', error: error.message });
   }
