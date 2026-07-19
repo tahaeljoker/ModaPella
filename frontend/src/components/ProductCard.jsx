@@ -22,39 +22,33 @@ function ProductCard({ product }) {
   return (
     <div
       onClick={() => navigate(`/product/${product._id}`)}
-      className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[2rem] border border-burgundy/10 bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+      className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/5 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
     >
       <div className="relative overflow-hidden aspect-4-5 sm:aspect-[3/4]">
-        <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full transition duration-500 group-hover:scale-105" />
-        <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-90" />
-        <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-white/60 bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[11px] font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-burgundy shadow-sm">عرض التفاصيل</div>
+        <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full transition duration-700 group-hover:scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-t from-burgundy/40 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-90" />
+        <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-white/60 bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-medium tracking-[0.15em] text-burgundy shadow-sm">عرض التفاصيل</div>
         {isDiscountActive(product) && (
           <div className="absolute left-2 sm:left-4 top-9 sm:top-12 rounded-full bg-red-600 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-sm">
             خصم {Math.round((1 - product.discountPrice / product.price) * 100)}%
           </div>
         )}
-        <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/95 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-burgundy shadow-sm">{product.stock > 0 ? `${product.stock} متبقي` : 'غير متوفر'}</div>
+        <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/90 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-medium text-burgundy shadow-sm">{product.stock > 0 ? `${product.stock} متبقي` : 'غير متوفر'}</div>
       </div>
-      <div className="flex flex-1 flex-col justify-between space-y-2 p-3.5 sm:p-6 text-burgundy">
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-burgundy/60">{product.category}</p>
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 sm:gap-3">
-            <h3 className="text-sm sm:text-base font-bold line-clamp-1">{cleanProductName(product.name)}</h3>
-            {isDiscountActive(product) ? (
-              <div className="flex flex-col items-end">
-                <span className="text-xs sm:text-sm font-extrabold text-burgundy whitespace-nowrap">{EGP(product.discountPrice)}</span>
-                <span className="text-[10px] sm:text-xs font-semibold text-red-500 line-through whitespace-nowrap">{EGP(product.price)}</span>
-              </div>
-            ) : (
-              <span className="text-xs sm:text-sm font-extrabold text-burgundy/80 whitespace-nowrap">{EGP(product.price)}</span>
-            )}
-          </div>
-          <p className="hidden sm:block text-xs leading-6 text-burgundy/75">{product.description || 'تفاصيل أنيقة عن هذا المنتج الحديث.'}</p>
+      <div className="flex flex-col justify-between p-3.5 sm:p-5 text-burgundy space-y-2">
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-burgundy/50">{product.category}</p>
+          <h3 className="text-sm font-semibold mt-1 text-burgundy/90 line-clamp-1">{cleanProductName(product.name)}</h3>
         </div>
-        <div className="hidden sm:flex flex-wrap gap-2">
-          {product.sizes?.slice(0, 3).map((size) => (
-            <span key={size} className="rounded-full border border-burgundy/20 bg-beige/20 px-3 py-1 text-xs text-burgundy">{size}</span>
-          ))}
+        <div className="flex items-baseline gap-2 pt-1 border-t border-burgundy/5">
+          {isDiscountActive(product) ? (
+            <>
+              <span className="text-sm font-bold text-burgundy">{EGP(product.discountPrice)}</span>
+              <span className="text-[10px] text-red-500 line-through">{EGP(product.price)}</span>
+            </>
+          ) : (
+            <span className="text-sm font-bold text-burgundy">{EGP(product.price)}</span>
+          )}
         </div>
       </div>
     </div>

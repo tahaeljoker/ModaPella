@@ -10,7 +10,7 @@
 
 html, body, #root {
   min-height: 100%;
-  background: linear-gradient(180deg, #ffffff 0%, #f7f0ec 100%);
+  background-color: #FAF7F2;
 }
 
 body {
