@@ -15,7 +15,8 @@ function AdminSiteSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
-  const [activeTab, setActiveTab] = useState('appearance'); // 'appearance' | 'categories' | 'orders'
+  const [activeTab, setActiveTab] = useState('appearance'); // 'appearance' | 'categories' | 'orders' | 'stats' | 'whatsapp'
+  const [stats, setStats] = useState(null);
 
   // Categories management state
   const [newCatKey, setNewCatKey] = useState('');
@@ -48,7 +49,6 @@ function AdminSiteSettings() {
     try {
       setOrdersLoading(true);
       const res = await api.get('/orders');
-      // Filter for online orders
       const online = res.data.filter(o => o.type === 'Online');
       setOrders(online);
     } catch (err) {
@@ -59,14 +59,32 @@ function AdminSiteSettings() {
     }
   };
 
+  const loadStats = async () => {
+    try {
+      const res = await api.get('/orders');
+      const online = (res.data || []).filter(o => o.type === 'Online');
+      const today = new Date(); today.setHours(0,0,0,0);
+      const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const todayOrders = online.filter(o => new Date(o.createdAt) >= today);
+      const monthOrders = online.filter(o => new Date(o.createdAt) >= thisMonth);
+      const completed = online.filter(o => o.status === 'Completed');
+      const pending = online.filter(o => o.status === 'Pending');
+      const monthRevenue = monthOrders.filter(o => o.status === 'Completed').reduce((s, o) => s + (o.totalAmount || 0), 0);
+      // Most ordered product
+      const productCounts = {};
+      online.forEach(o => (o.items || []).forEach(item => { productCounts[item.name] = (productCounts[item.name] || 0) + item.quantity; }));
+      const topProduct = Object.entries(productCounts).sort((a,b) => b[1]-a[1])[0];
+      setStats({ total: online.length, todayCount: todayOrders.length, monthCount: monthOrders.length, completed: completed.length, pending: pending.length, monthRevenue, topProduct });
+    } catch (err) { console.error(err); }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'orders') {
-      loadOnlineOrders();
-    }
+    if (activeTab === 'orders') loadOnlineOrders();
+    if (activeTab === 'stats') loadStats();
   }, [activeTab]);
 
   const handleChange = (e) => {
@@ -264,24 +282,24 @@ function AdminSiteSettings() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-burgundy/10 gap-2 overflow-x-auto pb-px">
+      <div className="flex border-b border-burgundy/10 gap-1 overflow-x-auto pb-px">
         <button
           onClick={() => setActiveTab('appearance')}
-          className={`px-5 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
         >
-          ⚙️ محتوى ومظهر الموقع
+          ⚙️ المظهر والمحتوى
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`px-5 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
         >
-          📁 فئات وأقسام المتجر
+          📁 الفئات
         </button>
         <button
           onClick={() => setActiveTab('orders')}
-          className={`px-5 py-3 text-sm font-bold border-b-2 transition relative ${activeTab === 'orders' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+          className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition relative ${activeTab === 'orders' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
         >
-          🛒 طلبات المتجر الأونلاين
+          🛒 الطلبات
           {orders.filter(o => o.status === 'Pending').length > 0 && (
             <span className="absolute -top-1 -left-1 bg-red-500 text-white rounded-full text-[10px] w-5 h-5 flex items-center justify-center font-mono">
               {orders.filter(o => o.status === 'Pending').length}
@@ -341,27 +359,53 @@ function AdminSiteSettings() {
             </div>
           </div>
 
-          {/* Maintenance Message */}
+          {/* Announcement Bar */}
           <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold">رسالة الصيانة وتوقيف الموقع</h3>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-burgundy/60">الرسالة التي ستظهر للمشترين عند تفعيل وضع الصيانة</label>
-              <textarea name="maintenanceMessage" value={config.maintenanceMessage || ''} onChange={handleChange} className={`${inputCls} min-h-[80px]`} />
+            <h3 className="mb-1 text-lg font-bold">📣 شريط الإعلان (أعلى الموقع)</h3>
+            <p className="mb-4 text-xs text-burgundy/50">اتركه فارغاً لإخفائه. مثال: عرض خاص هذا الأسبوع 🌸</p>
+            <input name="announcementBar" value={config.announcementBar || ''} onChange={handleChange} className={inputCls} placeholder="اكتب إعلانك هنا..." />
+          </div>
+
+          {/* Store Info */}
+          <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-bold">🏪 معلومات المحل</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60">عنوان المحل</label>
+                <input name="storeAddress" value={config.storeAddress || ''} onChange={handleChange} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60">رقم هاتف المحل</label>
+                <input name="storePhone" value={config.storePhone || ''} onChange={handleChange} className={inputCls} dir="ltr" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-burgundy/60">نص "عن المحل" في الصفحة الرئيسية</label>
+                <textarea name="aboutText" value={config.aboutText || ''} onChange={handleChange} className={`${inputCls} min-h-[80px]`} />
+              </div>
             </div>
           </div>
 
-          {/* WhatsApp Settings */}
+          {/* WhatsApp Number */}
           <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold">💬 رقم الواتساب لخدمة العملاء</h3>
+            <h3 className="mb-4 text-lg font-bold">💬 رقم الواتساب العائم للزباين</h3>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-burgundy/60">رقم الواتساب الخاص بالمتجر (شاملاً رمز الدولة بدون أصفار أو علامة +، مثل: 201012345678)</label>
-              <input type="text" name="whatsappNumber" value={config.whatsappNumber || ''} onChange={handleChange} className={inputCls} />
+              <label className="mb-1 block text-xs font-semibold text-burgundy/60">رقم الواتساب (مع رمز الدولة بدون + — مثل: 201090048832)</label>
+              <input type="text" name="whatsappNumber" value={config.whatsappNumber || ''} onChange={handleChange} className={inputCls} dir="ltr" />
+            </div>
+          </div>
+
+          {/* Maintenance Message */}
+          <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-bold">🔧 رسالة وضع الصيانة</h3>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-burgundy/60">الرسالة التي تظهر للزوار عند تفعيل وضع الصيانة</label>
+              <textarea name="maintenanceMessage" value={config.maintenanceMessage || ''} onChange={handleChange} className={`${inputCls} min-h-[80px]`} />
             </div>
           </div>
 
           <button type="submit" disabled={saving}
             className="w-full rounded-full bg-burgundy py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#650018] disabled:opacity-60">
-            {saving ? 'جاري الحفظ...' : 'حفظ جميع التعديلات والمظهر'}
+            {saving ? 'جاري الحفظ...' : 'حفظ جميع الإعدادات'}
           </button>
         </form>
       )}
@@ -513,13 +557,13 @@ function AdminSiteSettings() {
               {filteredOrders.map((order) => {
                 const isExpanded = expandedOrder === order._id;
                 const shortId = order._id?.toString().slice(-6).toUpperCase();
-                const waLink = `https://wa.me/${
-                  (order.customerPhone || '').replace(/[^0-9]/g, '').startsWith('0')
-                    ? '2' + (order.customerPhone || '').replace(/[^0-9]/g, '')
-                    : (order.customerPhone || '').replace(/[^0-9]/g, '')
-                }?text=${encodeURIComponent(
-                  `أهلاً بكِ يا أ/ *${order.customerName || 'عميلتنا'}* في ModaPella 🎠✨\n\nتم تسجيل طلبكِ رقم *#${shortId}* بنجاح بقيمة *${order.totalAmount} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لعنوان الدفع الخاص بنا لتأكيد الطلب وشحنه فوراً! 🌸`
-                )}`;
+                const waTemplate = (config?.whatsappMessageTemplate || 'أهلاً بكِ يا أ/ *{{name}}* في ModaPella 🎠✨\n\nتم تسجيل طلبكِ رقم *#{{id}}* بنجاح بقيمة *{{amount}} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لتأكيد الطلب! 🌸')
+                  .replace('{{name}}', order.customerName || 'عميلتنا')
+                  .replace('{{id}}', shortId)
+                  .replace('{{amount}}', order.totalAmount);
+                const rawPhone = (order.customerPhone || '').replace(/[^0-9]/g, '');
+                const waPhone = rawPhone.startsWith('0') ? '2' + rawPhone : rawPhone;
+                const waLink = `https://wa.me/${waPhone}?text=${encodeURIComponent(waTemplate)}`;
 
                 return (
                   <div key={order._id} className="rounded-2xl border border-burgundy/10 bg-white shadow-sm overflow-hidden transition-all duration-300">
@@ -655,6 +699,113 @@ function AdminSiteSettings() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ━━━━━━ Stats Tab ━━━━━━ */}
+      {activeTab === 'stats' && (
+        <div className="space-y-5">
+          {!stats ? (
+            <div className="flex h-40 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                {[
+                  { label: 'إجمالي الطلبات أونلاين', value: stats.total, icon: '🛒', color: 'bg-burgundy/5' },
+                  { label: 'طلبات اليوم', value: stats.todayCount, icon: '📅', color: 'bg-blue-50' },
+                  { label: 'طلبات هذا الشهر', value: stats.monthCount, icon: '📆', color: 'bg-violet-50' },
+                  { label: 'مبيعات الشهر المكتملة', value: `${Number(stats.monthRevenue).toLocaleString('en-US')} ج.م`, icon: '💰', color: 'bg-emerald-50' },
+                ].map((card) => (
+                  <div key={card.label} className={`rounded-[2rem] border border-burgundy/10 ${card.color} p-5 shadow-sm flex flex-col gap-2`}>
+                    <span className="text-3xl">{card.icon}</span>
+                    <p className="text-2xl font-extrabold text-burgundy">{card.value}</p>
+                    <p className="text-xs text-burgundy/60 leading-relaxed">{card.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-[2rem] border border-burgundy/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs text-burgundy/50 mb-1">طلبات معلقة بانتظار التأكيد</p>
+                  <p className="text-3xl font-extrabold text-amber-600">{stats.pending}</p>
+                  <div className="mt-2 h-2 rounded-full bg-amber-100 overflow-hidden">
+                    <div className="h-full bg-amber-400 rounded-full" style={{ width: stats.total ? `${(stats.pending/stats.total)*100}%` : '0%' }} />
+                  </div>
+                </div>
+                <div className="rounded-[2rem] border border-burgundy/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs text-burgundy/50 mb-1">طلبات مكتملة ومسلّمة</p>
+                  <p className="text-3xl font-extrabold text-emerald-600">{stats.completed}</p>
+                  <div className="mt-2 h-2 rounded-full bg-emerald-100 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: stats.total ? `${(stats.completed/stats.total)*100}%` : '0%' }} />
+                  </div>
+                </div>
+                <div className="rounded-[2rem] border border-burgundy/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs text-burgundy/50 mb-2">أكثر منتج مطلوب</p>
+                  {stats.topProduct ? (
+                    <>
+                      <p className="font-bold text-burgundy text-sm leading-snug">{stats.topProduct[0]}</p>
+                      <p className="text-xs text-burgundy/50 mt-1">تم طلبه {stats.topProduct[1]} مرة</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-burgundy/40">لا توجد بيانات بعد</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center pt-2">
+                <button onClick={loadStats} className="text-xs text-burgundy/50 hover:text-burgundy underline transition">
+                  🔄 تحديث الإحصائيات
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ━━━━━━ WhatsApp Template Tab ━━━━━━ */}
+      {activeTab === 'whatsapp' && config && (
+        <div className="space-y-5">
+          <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+            <h3 className="mb-2 text-lg font-bold">💬 قالب رسالة الواتساب عند الطلب</h3>
+            <p className="mb-4 text-xs text-burgundy/60 leading-relaxed">
+              الرسالة دي بتتبعت للعميل تلقائياً لما بتضغط على زر تواصل واتساب في طلبها.<br />
+              استخدم الكلمات التالية وسيتم استبدالها تلقائياً:
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {['{{name}}', '{{id}}', '{{amount}}'].map(tag => (
+                <span key={tag} className="rounded-full bg-burgundy/10 px-3 py-1 text-xs font-mono font-bold text-burgundy cursor-pointer hover:bg-burgundy/20"
+                  onClick={() => setConfig(p => ({ ...p, whatsappMessageTemplate: (p.whatsappMessageTemplate || '') + tag }))}>
+                  {tag}
+                </span>
+              ))}
+              <span className="text-xs text-burgundy/40 self-center">← اضغط لإضافة المتغير للرسالة</span>
+            </div>
+            <textarea
+              name="whatsappMessageTemplate"
+              value={config.whatsappMessageTemplate || ''}
+              onChange={handleChange}
+              className={`${inputCls} min-h-[160px] font-mono text-xs leading-relaxed`}
+              dir="rtl"
+            />
+            <div className="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-xs">
+              <p className="font-bold text-emerald-800 mb-1">معاينة الرسالة:</p>
+              <p className="text-emerald-700 whitespace-pre-line leading-relaxed">
+                {(config.whatsappMessageTemplate || '')
+                  .replace('{{name}}', 'فاطمة محمد')
+                  .replace('{{id}}', 'ABC123')
+                  .replace('{{amount}}', '350')}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full rounded-full bg-burgundy py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#650018] disabled:opacity-60"
+          >
+            {saving ? 'جاري الحفظ...' : '💾 حفظ قالب الرسالة'}
+          </button>
         </div>
       )}
     </div>

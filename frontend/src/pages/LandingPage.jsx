@@ -54,6 +54,13 @@ function LandingPage() {
   return (
     <section className="space-y-8 py-6 sm:py-10 text-burgundy" dir="rtl">
 
+      {/* شريط الإعلان */}
+      {siteConfig.announcementBar && (
+        <div className="rounded-2xl bg-burgundy text-white text-center py-2.5 px-4 text-xs sm:text-sm font-semibold tracking-wide shadow">
+          {siteConfig.announcementBar}
+        </div>
+      )}
+
       {/* ━━━━━━━━━━━━ HERO ━━━━━━━━━━━━ */}
       <div className="relative overflow-hidden rounded-[2rem] border border-burgundy/10 bg-white shadow-soft">
         {/* صورة الخلفية */}
