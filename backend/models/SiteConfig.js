@@ -12,6 +12,7 @@ const SiteConfigSchema = new mongoose.Schema({
   featuredTitle: { type: String, default: 'أحدث المنتجات' },
   featuredSubtitle: { type: String, default: 'منتجاتنا المميزة الآن، مع عرض سريع لكل قطعة.' },
   maintenanceMessage: { type: String, default: 'الموقع غير متاح حالياً، سنعود قريباً.' },
+  whatsappNumber: { type: String, default: '201012345678' },
   categories: {
     type: [{ key: String, nameAr: String }],
     default: [

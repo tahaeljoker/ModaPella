@@ -350,6 +350,15 @@ function AdminSiteSettings() {
             </div>
           </div>
 
+          {/* WhatsApp Settings */}
+          <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-bold">💬 رقم الواتساب لخدمة العملاء</h3>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-burgundy/60">رقم الواتساب الخاص بالمتجر (شاملاً رمز الدولة بدون أصفار أو علامة +، مثل: 201012345678)</label>
+              <input type="text" name="whatsappNumber" value={config.whatsappNumber || ''} onChange={handleChange} className={inputCls} />
+            </div>
+          </div>
+
           <button type="submit" disabled={saving}
             className="w-full rounded-full bg-burgundy py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#650018] disabled:opacity-60">
             {saving ? 'جاري الحفظ...' : 'حفظ جميع التعديلات والمظهر'}
