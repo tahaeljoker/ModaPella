@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { Icon } from '../../components/Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -251,7 +252,7 @@ function AdminOverview() {
             className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold border border-burgundy/25 bg-white text-burgundy shadow-sm transition hover:bg-burgundy/5"
             title={showSensitive ? 'إخفاء الأرقام المالية الحساسة' : 'عرض الأرقام المالية الحساسة'}
           >
-            <span className="text-base">{showSensitive ? '👁️' : '🙈'}</span>
+            <Icon name={showSensitive ? 'eyeOff' : 'eye'} className="w-4 h-4" />
             <span>{showSensitive ? 'إخفاء الأرقام' : 'عرض الأرقام'}</span>
           </button>
           {siteConfig && (
