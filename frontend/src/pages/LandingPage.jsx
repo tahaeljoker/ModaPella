@@ -70,15 +70,20 @@ function LandingPage() {
       <div className="relative overflow-hidden rounded-[2rem] border border-burgundy/10 bg-white shadow-soft">
         {/* صورة الخلفية */}
         <div className="relative aspect-[16/9] sm:aspect-[12/5] max-h-[60vh] overflow-hidden">
-          {/* صورة الخلفية كـ background-image للتحكم في الاقتصاص */}
-          <div
+          {/* صورة الخلفية مثبتة من اليمين لإخفاء المساحة البيضاء الأيسر */}
+          <img
+            src={heroImages[0]}
+            alt="ModaPella"
             style={{
-              backgroundImage: `url('${heroImages[0]}')`,
-              backgroundSize: '150% auto',
-              backgroundPosition: '100% 50%',
-              backgroundRepeat: 'no-repeat',
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              height: '100%',
+              width: 'auto',
+              minWidth: '100%',
+              objectFit: 'cover',
+              objectPosition: 'right center',
             }}
-            className="absolute inset-0 w-full h-full"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-burgundy/30 to-transparent" />
 
