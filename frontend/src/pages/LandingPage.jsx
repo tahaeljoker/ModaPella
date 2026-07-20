@@ -82,7 +82,7 @@ function LandingPage() {
               width: '100%',
               objectFit: 'cover',
               objectPosition: 'right center',
-              transform: 'scale(1.25)',
+              transform: 'scale(1.15)',
               transformOrigin: 'right center',
             }}
           />
