@@ -73,7 +73,7 @@ function LandingPage() {
           <img
             src={heroImages[0]}
             alt="ModaPella"
-            className="absolute inset-y-0 right-0 h-full w-[125%] max-w-none object-cover"
+            className="absolute inset-y-0 right-0 h-full w-[130%] max-w-none object-cover object-right"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-burgundy/30 to-transparent" />
 
