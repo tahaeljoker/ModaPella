@@ -74,8 +74,8 @@ function LandingPage() {
           <div
             style={{
               backgroundImage: `url('${heroImages[0]}')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'right center',
+              backgroundSize: '150% auto',
+              backgroundPosition: '100% 50%',
               backgroundRepeat: 'no-repeat',
             }}
             className="absolute inset-0 w-full h-full"
