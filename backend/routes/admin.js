@@ -51,9 +51,11 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     // Aggregate expenses by category
     const expenseMap = {};
+    let totalExpenses = 0;
     outTransactions.forEach(t => {
       const cat = t.category || 'أخرى';
       expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
+      totalExpenses += t.amount;
     });
     const expenseBreakdown = Object.entries(expenseMap).map(([category, amount]) => ({
       category,
@@ -134,6 +136,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       totalSales,
       netProfit,
       totalDiscounts,
+      totalExpenses,
       expenseBreakdown,
       published: siteConfig.published,
       lowStock,

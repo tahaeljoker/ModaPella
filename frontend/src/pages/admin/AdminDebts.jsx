@@ -48,7 +48,7 @@ function AdminDebts() {
     if (!selectedCust || !payAmount || Number(payAmount) <= 0) return;
     setSubmitting(true);
     try {
-      const res = await api.post('/debts/pay', {
+      const res = await api.post('/cashier/debts/pay', {
         customerPhone: selectedCust.phone,
         customerName: selectedCust.name,
         amount: Number(payAmount),
@@ -74,7 +74,7 @@ function AdminDebts() {
     if (!manualData.phone || !manualData.amount) return;
     setSubmittingManual(true);
     try {
-      await api.post('/debts/manual', {
+      await api.post('/cashier/debts/manual', {
         customerName: manualData.name,
         customerPhone: manualData.phone,
         amount: Number(manualData.amount),

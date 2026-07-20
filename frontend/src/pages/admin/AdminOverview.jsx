@@ -15,9 +15,14 @@ const ACT_CONFIG = {
   shift_close: { label: 'إغلاق وردية', icon: '🔒', color: 'border-slate-500 bg-slate-50 text-slate-800' }
 };
 
-function StatCard({ label, value, sub, color = 'bg-white', icon }) {
+function StatCard({ label, value, sub, color = 'bg-white', icon, onClick }) {
   return (
-    <div className={`rounded-[1.75rem] border border-burgundy/10 ${color} p-6 shadow-sm`}>
+    <div
+      onClick={onClick}
+      className={`rounded-[1.75rem] border border-burgundy/10 ${color} p-6 shadow-sm transition-all duration-300 ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-burgundy/20' : ''
+      }`}
+    >
       {icon && <div className="mb-3 text-2xl">{icon}</div>}
       <p className="text-sm font-medium text-burgundy/60">{label}</p>
       <p className="mt-2 text-3xl font-bold text-burgundy">{value}</p>
@@ -125,6 +130,48 @@ function AdminOverview() {
   const [dateTo, setDateTo]     = useState('');
   const [filterLoading, setFilterLoading] = useState(false);
 
+  // Sensitive data visibility states
+  const [showSensitive, setShowSensitive] = useState(() => {
+    return localStorage.getItem('showSensitiveData') === 'true';
+  });
+  const [revealedCards, setRevealedCards] = useState({});
+
+  useEffect(() => {
+    localStorage.setItem('showSensitiveData', showSensitive ? 'true' : 'false');
+  }, [showSensitive]);
+
+  const toggleCardReveal = (cardKey) => {
+    if (!showSensitive) {
+      setRevealedCards(prev => ({
+        ...prev,
+        [cardKey]: !prev[cardKey]
+      }));
+    }
+  };
+
+  const handleToggleSensitive = () => {
+    setShowSensitive(prev => {
+      const newVal = !prev;
+      if (!newVal) {
+        setRevealedCards({});
+      }
+      return newVal;
+    });
+  };
+
+  const formatSensitive = (cardKey, valStr) => {
+    const isRevealed = showSensitive || revealedCards[cardKey];
+    return (
+      <span
+        className={`inline-block transition-all duration-300 ${
+          !isRevealed ? 'blur-md select-none' : ''
+        }`}
+      >
+        {valStr}
+      </span>
+    );
+  };
+
   const loadFiltered = async (from = '', to = '') => {
     setFilterLoading(true);
     try {
@@ -198,6 +245,15 @@ function AdminOverview() {
           <p className="mt-1 text-sm text-burgundy/60">نظرة عامة على أداء المتجر</p>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleToggleSensitive}
+            className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold border border-burgundy/25 bg-white text-burgundy shadow-sm transition hover:bg-burgundy/5"
+            title={showSensitive ? 'إخفاء الأرقام المالية الحساسة' : 'عرض الأرقام المالية الحساسة'}
+          >
+            <span className="text-base">{showSensitive ? '👁️' : '🙈'}</span>
+            <span>{showSensitive ? 'إخفاء الأرقام' : 'عرض الأرقام'}</span>
+          </button>
           {siteConfig && (
             <button
               type="button"
@@ -214,32 +270,50 @@ function AdminOverview() {
       </div>
 
       {/* Today highlight */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-[1.75rem] bg-burgundy p-6 text-white shadow-lg shadow-burgundy/20">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div
+          onClick={() => toggleCardReveal('todayRevenue')}
+          className={`rounded-[1.75rem] bg-burgundy p-6 text-white shadow-lg shadow-burgundy/20 select-none transition-all duration-300 ${
+            !showSensitive && !revealedCards['todayRevenue'] ? 'cursor-pointer hover:shadow-xl hover:opacity-95' : ''
+          }`}
+        >
           <p className="text-xs font-semibold uppercase tracking-widest opacity-70">مبيعات اليوم</p>
-          <p className="mt-3 text-3xl font-bold">{EGP(todayRevenue)}</p>
+          <p className="mt-3 text-3xl font-bold">
+            {formatSensitive('todayRevenue', EGP(todayRevenue))}
+          </p>
           <p className="mt-2 text-sm opacity-70">{todayOrders} طلب اليوم</p>
         </div>
         <StatCard
           label={dateFrom || dateTo ? `إيرادات الفترة المحددة` : 'الإيرادات الكلية'}
-          value={EGP(summary.totalRevenue)}
+          value={formatSensitive('totalRevenue', EGP(summary.totalRevenue))}
           icon="💰"
           color="bg-white"
           sub={dateFrom || dateTo ? `${dateFrom || '...'} → ${dateTo || '...'}` : undefined}
+          onClick={() => toggleCardReveal('totalRevenue')}
         />
         <StatCard 
           label="صافي الأرباح الكلية" 
-          value={EGP(overview?.netProfit ?? 0)} 
+          value={formatSensitive('netProfit', EGP(overview?.netProfit ?? 0))} 
           icon="📈" 
           color="bg-emerald-50/60" 
           sub="هامش الربح بعد خصم التكلفة والخصومات"
+          onClick={() => toggleCardReveal('netProfit')}
+        />
+        <StatCard 
+          label="إجمالي المصروفات الكلية" 
+          value={formatSensitive('totalExpenses', EGP(overview?.totalExpenses ?? 0))} 
+          icon="💸" 
+          color="bg-rose-50/40" 
+          sub="إجمالي المصاريف والمبالغ الخارجة من الخزينة"
+          onClick={() => toggleCardReveal('totalExpenses')}
         />
         <StatCard 
           label="إجمالي الخصومات" 
-          value={EGP(overview?.totalDiscounts ?? 0)} 
+          value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))} 
           icon="🏷️" 
           color="bg-red-50/40" 
           sub="إجمالي الخصومات الممنوحة للفواتير"
+          onClick={() => toggleCardReveal('totalDiscounts')}
         />
       </div>
 
@@ -261,7 +335,12 @@ function AdminOverview() {
       {/* Chart & Expense Breakdown Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Weekly Chart */}
-        <div className="lg:col-span-2 rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => toggleCardReveal('chart')}
+          className={`lg:col-span-2 rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm flex flex-col justify-between select-none transition-all duration-300 ${
+            !showSensitive && !revealedCards['chart'] ? 'cursor-pointer hover:shadow-md' : ''
+          }`}
+        >
           <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-bold">📊 تحليلات المبيعات</h3>
@@ -269,7 +348,7 @@ function AdminOverview() {
             </div>
             
             {/* Date Filters */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2" onClick={e => e.stopPropagation()}>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-burgundy/60">من:</span>
                 <input
@@ -308,7 +387,7 @@ function AdminOverview() {
             </div>
 
             <span className="rounded-full bg-burgundy/8 px-3 py-1 text-xs font-semibold text-burgundy">
-              إجمالي الفترة: {EGP(weekTotal)}
+              إجمالي الفترة: {formatSensitive('chart', EGP(weekTotal))}
             </span>
           </div>
 
@@ -318,38 +397,47 @@ function AdminOverview() {
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-burgundy/20 border-t-burgundy" />
               </div>
             )}
-            <WeeklyChart data={weeklyData} />
+            <div className={!showSensitive && !revealedCards['chart'] ? 'blur-md select-none pointer-events-none' : ''}>
+              <WeeklyChart data={weeklyData} />
+            </div>
           </div>
         </div>
 
         {/* Expense Breakdown */}
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-semibold mb-5">💸 تحليل المصروفات</h3>
-          {overview?.expenseBreakdown?.length > 0 ? (
-            <div className="space-y-4">
-              {overview.expenseBreakdown.map((exp, idx) => {
-                const totalExpenses = overview.expenseBreakdown.reduce((sum, e) => sum + e.amount, 0);
-                const percent = totalExpenses > 0 ? ((exp.amount / totalExpenses) * 100).toFixed(0) : 0;
-                return (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-semibold">{exp.category === 'Refund' ? 'مرتجعات' : exp.category}</span>
-                      <span className="text-burgundy/80 font-bold">{EGP(exp.amount)} ({percent}%)</span>
+        <div 
+          onClick={() => toggleCardReveal('expensesBreakdown')}
+          className={`rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm flex flex-col justify-between select-none transition-all duration-300 ${
+            !showSensitive && !revealedCards['expensesBreakdown'] ? 'cursor-pointer hover:shadow-md' : ''
+          }`}
+        >
+          <div>
+            <h3 className="text-xl font-semibold mb-5">💸 تحليل المصروفات</h3>
+            {overview?.expenseBreakdown?.length > 0 ? (
+              <div className="space-y-4">
+                {overview.expenseBreakdown.map((exp, idx) => {
+                  const totalExpenses = overview.expenseBreakdown.reduce((sum, e) => sum + e.amount, 0);
+                  const percent = totalExpenses > 0 ? ((exp.amount / totalExpenses) * 100).toFixed(0) : 0;
+                  return (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-semibold">{exp.category === 'Refund' ? 'مرتجعات' : exp.category}</span>
+                        <span className="text-burgundy/80 font-bold">{formatSensitive('expensesBreakdown', `${EGP(exp.amount)} (${percent}%)`)}</span>
+                      </div>
+                      <div className="w-full bg-burgundy/5 rounded-full h-2">
+                        <div className="bg-burgundy h-2 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-burgundy/5 rounded-full h-2">
-                      <div className="bg-burgundy h-2 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-              <div className="border-t border-burgundy/10 pt-4 mt-2 flex justify-between font-bold text-sm">
-                <span>إجمالي المصروفات</span>
-                <span className="text-burgundy">{EGP(overview.expenseBreakdown.reduce((sum, e) => sum + e.amount, 0))}</span>
+                  );
+                })}
+                <div className="border-t border-burgundy/10 pt-4 mt-2 flex justify-between font-bold text-sm">
+                  <span>إجمالي المصروفات</span>
+                  <span className="text-burgundy">{formatSensitive('expensesBreakdown', EGP(overview.expenseBreakdown.reduce((sum, e) => sum + e.amount, 0)))}</span>
+                </div>
               </div>
-            </div>
-          ) : (
-            <p className="text-center text-sm text-burgundy/50 py-12">لا توجد مصروفات مسجلة</p>
-          )}
+            ) : (
+              <p className="text-center text-sm text-burgundy/50 py-12">لا توجد مصروفات مسجلة</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -420,28 +508,43 @@ function AdminOverview() {
       {/* Category Sales & Employee Performance */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Category breakdown */}
-        <div className="lg:col-span-2 rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+        <div 
+          onClick={() => toggleCardReveal('categorySales')}
+          className={`lg:col-span-2 rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm select-none transition-all duration-300 ${
+            !showSensitive && !revealedCards['categorySales'] ? 'cursor-pointer hover:shadow-md' : ''
+          }`}
+        >
           <h3 className="text-lg font-bold text-burgundy mb-1">👚 مبيعات الأصناف والفئات</h3>
           <p className="text-xs text-burgundy/50 mb-5">توزيع حجم المبيعات الإجمالي على تصنيفات المنتجات المختلفة</p>
-          <CategoryPieChart breakdown={overview?.categoryBreakdown} />
+          <CategoryPieChart breakdown={overview?.categoryBreakdown} showValues={showSensitive || revealedCards['categorySales']} />
         </div>
 
         {/* Employee Performance Leaderboard */}
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+        <div 
+          onClick={() => toggleCardReveal('employeeSales')}
+          className={`rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm select-none transition-all duration-300 ${
+            !showSensitive && !revealedCards['employeeSales'] ? 'cursor-pointer hover:shadow-md' : ''
+          }`}
+        >
           <h3 className="text-lg font-bold text-burgundy mb-1">🏆 متصدر المبيعات (الموظفين)</h3>
           <p className="text-xs text-burgundy/50 mb-5">ترتيب الموظفين حسب قيمة المبيعات التي حققوها</p>
-          <EmployeeLeaderboard leaderboard={overview?.employeeLeaderboard} />
+          <EmployeeLeaderboard leaderboard={overview?.employeeLeaderboard} showValues={showSensitive || revealedCards['employeeSales']} />
         </div>
       </div>
 
       {/* Recent orders */}
       {/* Recent Activities */}
-      <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+      <div 
+        onClick={() => toggleCardReveal('recentActivities')}
+        className={`rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm select-none transition-all duration-300 ${
+          !showSensitive && !revealedCards['recentActivities'] ? 'cursor-pointer hover:shadow-md' : ''
+        }`}
+      >
         <div className="mb-5 flex items-center justify-between">
           <h3 className="text-xl font-semibold">أحدث حركات النظام</h3>
           <button
             type="button"
-            onClick={() => navigate('/admin/activities')}
+            onClick={(e) => { e.stopPropagation(); navigate('/admin/activities'); }}
             className="rounded-full border border-burgundy/20 px-4 py-1.5 text-xs font-semibold text-burgundy transition hover:bg-burgundy hover:text-white"
           >
             عرض الكل ←
@@ -452,6 +555,7 @@ function AdminOverview() {
             {recentActivities.map((act) => {
               const conf = ACT_CONFIG[act.type] || { label: 'حركة عامة', icon: '⚙️', color: 'border-burgundy bg-burgundy/5 text-burgundy' };
               const timeStr = new Date(act.timestamp).toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' });
+              const isAmountRevealed = showSensitive || revealedCards['recentActivities'];
               return (
                 <div
                   key={act.id}
@@ -476,7 +580,7 @@ function AdminOverview() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-left font-bold text-sm">
+                  <div className={`text-left font-bold text-sm transition-all duration-300 ${!isAmountRevealed ? 'blur-md select-none' : ''}`}>
                     {act.amount != null && (
                       <span className={act.type === 'expense' || act.direction === 'OUT' || (act.type === 'stock_adjustment' && act.amount < 0) ? 'text-red-600' : 'text-emerald-700'}>
                         {act.type === 'stock_adjustment'
@@ -500,7 +604,7 @@ function AdminOverview() {
 
 const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 
-function CategoryPieChart({ breakdown }) {
+function CategoryPieChart({ breakdown, showValues = true }) {
   if (!breakdown || breakdown.length === 0) {
     return <div className="text-center text-xs text-burgundy/40 py-8">لا توجد بيانات مبيعات تصنيفات بعد</div>;
   }
@@ -537,7 +641,7 @@ function CategoryPieChart({ breakdown }) {
   return (
     <div className="flex flex-col md:flex-row items-center gap-6" dir="rtl">
       <div className="relative w-40 h-40 flex-shrink-0 mx-auto md:mx-0">
-        <svg viewBox="-1 -1 2 2" className="w-full h-full -rotate-90">
+        <svg viewBox="-1 -1 2 2" className={`w-full h-full -rotate-90 transition-all duration-300 ${!showValues ? 'blur-md select-none' : ''}`}>
           {slices.map((slice, idx) => (
             <path key={idx} d={slice.pathData} fill={slice.color} />
           ))}
@@ -545,7 +649,9 @@ function CategoryPieChart({ breakdown }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <p className="text-[10px] text-burgundy/50 font-semibold">إجمالي المبيعات</p>
-          <p className="text-xs font-extrabold text-burgundy">{Number(total).toLocaleString('en-US')} ج.م</p>
+          <p className={`text-xs font-extrabold text-burgundy transition-all duration-300 ${!showValues ? 'blur-md select-none' : ''}`}>
+            {Number(total).toLocaleString('en-US')} ج.م
+          </p>
         </div>
       </div>
       
@@ -556,7 +662,7 @@ function CategoryPieChart({ breakdown }) {
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: slice.color }} />
               <span className="font-bold text-burgundy">{CAT_AR[slice.category] || slice.category}</span>
             </div>
-            <div className="flex items-center gap-2 font-mono text-[11px] text-burgundy/60">
+            <div className={`flex items-center gap-2 font-mono text-[11px] text-burgundy/60 transition-all duration-300 ${!showValues ? 'blur-sm select-none' : ''}`}>
               <span>{Number(slice.amount).toLocaleString('en-US')} ج.م</span>
               <span className="bg-burgundy/10 text-burgundy px-1.5 py-0.5 rounded font-bold text-[9px] font-sans">
                 {(slice.percent * 100).toFixed(0)}%
@@ -569,7 +675,7 @@ function CategoryPieChart({ breakdown }) {
   );
 }
 
-function EmployeeLeaderboard({ leaderboard }) {
+function EmployeeLeaderboard({ leaderboard, showValues = true }) {
   if (!leaderboard || leaderboard.length === 0) {
     return <div className="text-center text-xs text-burgundy/40 py-8">لا توجد بيانات موظفين بعد</div>;
   }
@@ -588,7 +694,9 @@ function EmployeeLeaderboard({ leaderboard }) {
                 <span>{rankColor}</span>
                 <span>{emp.name}</span>
               </span>
-              <span>{Number(emp.amount).toLocaleString('en-US')} ج.م</span>
+              <span className={`transition-all duration-300 ${!showValues ? 'blur-md select-none' : ''}`}>
+                {Number(emp.amount).toLocaleString('en-US')} ج.م
+              </span>
             </div>
             {/* Progress bar */}
             <div className="w-full bg-burgundy/5 h-2 rounded-full overflow-hidden">
@@ -598,7 +706,7 @@ function EmployeeLeaderboard({ leaderboard }) {
               />
             </div>
             {/* Sub-stats row */}
-            <div className="flex flex-wrap items-center gap-2 text-[10px]">
+            <div className={`flex flex-wrap items-center gap-2 text-[10px] transition-all duration-300 ${!showValues ? 'blur-sm select-none' : ''}`}>
               {emp.profit != null && (
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">
                   📈 ربح: {Number(emp.profit).toLocaleString('en-US')} ج.م
