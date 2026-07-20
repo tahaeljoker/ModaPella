@@ -67,65 +67,53 @@ function LandingPage() {
       )}
 
       {/* ━━━━━━━━━━━━ HERO ━━━━━━━━━━━━ */}
-      <div className="relative overflow-hidden rounded-[2rem] shadow-soft" style={{ background: 'linear-gradient(135deg, #5c0915 0%, #3d0009 55%, #1a0003 100%)', minHeight: '240px' }}>
-        {/* Decorative blob */}
-        <div className="hero-blob" />
-        {/* Decorative circle accent */}
-        <div className="absolute bottom-[-60px] left-[-60px] w-52 h-52 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
+      <div className="relative overflow-hidden rounded-[2rem] border border-burgundy/10 bg-white shadow-soft">
+        {/* صورة الخلفية */}
+        <div className="relative aspect-[16/9] sm:aspect-[12/5] max-h-[60vh] overflow-hidden">
+          {/* صورة الخلفية مثبتة من اليمين لإخفاء المساحة البيضاء الأيسر */}
+          <img
+            src={heroImages[0]}
+            alt="ModaPella"
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              height: '100%',
+              width: 'auto',
+              minWidth: '100%',
+              objectFit: 'cover',
+              objectPosition: 'right center',
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-burgundy/30 to-transparent" />
 
-        <div className="relative z-10 flex flex-row min-h-[240px] sm:min-h-[420px]">
-
-          {/* ── Text column → appears on RIGHT in RTL (first child) ── */}
-          <div className="flex flex-col justify-center p-6 sm:p-12 text-white w-full sm:w-[52%]">
-            <span className="mb-3 sm:mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white backdrop-blur-sm border border-white/10">
+          {/* النص فوق الصورة */}
+          <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-10">
+            <span className="mb-3 inline-flex w-fit items-center gap-2 rounded-full bg-white/20 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white backdrop-blur-sm">
               ModaPella
               <span className="block h-2 w-2 rounded-full bg-white animate-pulse" />
             </span>
-            <h1 className="text-2xl sm:text-5xl font-extrabold leading-tight tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-bold text-white leading-snug max-w-lg">
               {siteConfig.heroTitle}
             </h1>
-            <p className="mt-2 sm:mt-4 text-sm sm:text-base text-white/75 max-w-sm leading-7">
+            <p className="mt-2 sm:mt-3 text-sm sm:text-base text-white/80 max-w-md leading-7">
               {siteConfig.heroSubtitle}
             </p>
-            <div className="mt-5 sm:mt-8 flex flex-wrap gap-3">
+            <div className="mt-4 sm:mt-6 flex flex-wrap gap-3">
               <Link
                 to={siteConfig.heroCtaLink || '/shop'}
-                className="rounded-full bg-white px-5 sm:px-8 py-2.5 sm:py-3.5 text-sm font-bold text-[#3d0009] transition hover:bg-beige shadow-md hover:shadow-lg hover:-translate-y-0.5 duration-200"
+                className="rounded-full bg-white px-5 sm:px-7 py-2.5 sm:py-3 text-sm font-bold text-burgundy transition hover:bg-beige shadow"
               >
                 {siteConfig.heroCtaLabel}
               </Link>
               <Link
                 to={siteConfig.secondaryCtaLink || '/collections'}
-                className="rounded-full border border-white/40 px-5 sm:px-8 py-2.5 sm:py-3.5 text-sm font-medium text-white transition hover:bg-white/10 hover:-translate-y-0.5 duration-200"
+                className="rounded-full border border-white/60 px-5 sm:px-7 py-2.5 sm:py-3 text-sm font-medium text-white transition hover:bg-white/10"
               >
                 {siteConfig.secondaryCtaLabel}
               </Link>
             </div>
           </div>
-
-          {/* ── Image column → appears on LEFT in RTL (second child), hidden on mobile ── */}
-          <div className="hidden sm:block relative w-[48%] overflow-hidden">
-            {/* Image anchored to the right of this column — white space overflows left and is clipped */}
-            <img
-              src={heroImages[0]}
-              alt="ModaPella fashion"
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                height: '100%',
-                width: 'auto',
-                minWidth: '130%',
-              }}
-            />
-            {/* Smooth blend on right edge (towards text column) */}
-            <div className="absolute inset-y-0 right-0 w-28" style={{ background: 'linear-gradient(to left, #3d0009 0%, transparent 100%)' }} />
-            {/* Smooth blend on top */}
-            <div className="absolute inset-x-0 top-0 h-16" style={{ background: 'linear-gradient(to bottom, #3d0009 0%, transparent 100%)' }} />
-            {/* Smooth blend on bottom */}
-            <div className="absolute inset-x-0 bottom-0 h-16" style={{ background: 'linear-gradient(to top, #1a0003 0%, transparent 100%)' }} />
-          </div>
-
         </div>
       </div>
 
