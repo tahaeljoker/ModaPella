@@ -79,10 +79,11 @@ function LandingPage() {
               top: 0,
               right: 0,
               height: '100%',
-              width: 'auto',
-              minWidth: '100%',
+              width: '100%',
               objectFit: 'cover',
               objectPosition: 'right center',
+              transform: 'scale(1.25)',
+              transformOrigin: 'right center',
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-burgundy/30 to-transparent" />
