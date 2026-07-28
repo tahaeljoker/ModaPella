@@ -19,7 +19,13 @@ const formatPhone = (phone) => {
 
 const sendWhatsAppOTP = async (phone, otpCode) => {
   const targetPhone = formatPhone(phone || process.env.ADMIN_WHATSAPP_NUMBER);
-  const message = `🔑 رمز التحقق الخاص بدخول لوحة تحكم ModaPella هو: *${otpCode}*\n\nهذا الرمز صالح لمدة 5 دقائق. لا تشاركه مع أحد.`;
+  const message = `🔑 *رمز التحقق لدخول لوحة التحكم — ModaPella*
+
+رمز الدخول الخاص بك هو:
+👉 *${otpCode}*
+
+⏰ الرمز صالح لمدة 5 دقائق.
+🔒 لا تشارك هذا الرمز مع أي شخص لأمان حسابك.`;
 
   console.log('\n========================================');
   console.log(`📱 [WhatsApp OTP Service]`);
