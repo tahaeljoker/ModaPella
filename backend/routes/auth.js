@@ -46,10 +46,16 @@ router.post('/login', async (req, res) => {
 
     // Check if user is Admin -> Requires WhatsApp OTP Verification
     if (user.role === 'admin') {
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      user.loginOtp = otpCode;
-      user.loginOtpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
-      await user.save();
+      let otpCode;
+      // If user has an active unexpired OTP (valid for 10 min), reuse it so delayed or multiple click WhatsApp messages don't mismatch!
+      if (user.loginOtp && user.loginOtpExpires && new Date(user.loginOtpExpires) > new Date()) {
+        otpCode = user.loginOtp;
+      } else {
+        otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.loginOtp = otpCode;
+        user.loginOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes validity
+        await user.save();
+      }
 
       // Send OTP via WhatsApp
       const rawPhone = user.whatsappPhone || user.phone || process.env.ADMIN_WHATSAPP_NUMBER || '201112556672';
