@@ -34,8 +34,14 @@ const seedDefaultUsers = async () => {
       User.findOne({ email: cashierEmail.toLowerCase() })
     ]);
 
+    const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER || '';
+
     if (!adminUser) {
-      await new User({ name: 'System Admin', email: adminEmail, password: adminPassword, role: 'admin' }).save();
+      await new User({ name: 'System Admin', email: adminEmail, password: adminPassword, role: 'admin', phone: adminPhone, whatsappPhone: adminPhone }).save();
+    } else if (adminPhone && !adminUser.whatsappPhone) {
+      adminUser.whatsappPhone = adminPhone;
+      adminUser.phone = adminUser.phone || adminPhone;
+      await adminUser.save();
     }
 
     if (!cashierUser) {
