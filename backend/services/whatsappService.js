@@ -29,49 +29,54 @@ const sendWhatsAppOTP = async (phone, otpCode) => {
   const apiUrl = process.env.WHATSAPP_API_URL;
   const instanceId = process.env.WHATSAPP_INSTANCE_ID;
   const apiToken = process.env.WHATSAPP_API_TOKEN;
+  const callmebotApiKey = process.env.CALLMEBOT_API_KEY;
 
-  if (!apiUrl && (!instanceId || !apiToken)) {
+  if (!apiUrl && (!instanceId || !apiToken) && !callmebotApiKey) {
     console.log('ℹ️ [WhatsApp Service] No WhatsApp API credentials configured in .env. OTP printed to console log above.');
     return { success: true, mode: 'console' };
   }
 
   try {
-    // If using Green-API: https://api.green-api.com/waInstance{idInstance}/sendMessage/{token}
-    // If using UltraMsg: https://api.ultramsg.com/{instanceId}/messages/chat
-    // If custom API_URL is provided, we send a standard POST payload
     let endpoint = apiUrl;
-    let payload = {
-      chatId: `${targetPhone}@c.us`,
-      phone: targetPhone,
-      message: message,
-      body: message,
-      to: targetPhone
-    };
+    let method = 'POST';
+    let payload = null;
     let headers = { 'Content-Type': 'application/json' };
 
-    if (instanceId && apiToken && !apiUrl) {
-      // Default Green-API structure
+    if (callmebotApiKey || (apiUrl && apiUrl.includes('callmebot.com'))) {
+      // CallMeBot Free API (GET request)
+      const key = callmebotApiKey || apiToken;
+      const encodedMsg = encodeURIComponent(message);
+      endpoint = `https://api.callmebot.com/whatsapp.php?phone=+${targetPhone}&text=${encodedMsg}&apikey=${key}`;
+      method = 'GET';
+      headers = {};
+    } else if (instanceId && apiToken && !apiUrl) {
+      // Green-API structure
       endpoint = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${apiToken}`;
-      payload = {
+      payload = JSON.stringify({
         chatId: `${targetPhone}@c.us`,
         message: message
-      };
-    } else if (apiToken) {
-      headers['Authorization'] = `Bearer ${apiToken}`;
+      });
+    } else {
+      // Generic POST API
+      payload = JSON.stringify({
+        chatId: `${targetPhone}@c.us`,
+        phone: targetPhone,
+        message: message,
+        body: message,
+        to: targetPhone
+      });
+      if (apiToken) headers['Authorization'] = `Bearer ${apiToken}`;
     }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(payload)
-    });
+    const fetchOpts = { method, headers };
+    if (payload) fetchOpts.body = payload;
 
-    const data = await response.json();
-    console.log('✅ [WhatsApp Service] Message sent via API response:', data);
-    return { success: true, mode: 'api', data };
+    const response = await fetch(endpoint, fetchOpts);
+    const textData = await response.text();
+    console.log('✅ [WhatsApp Service] Gateway response:', textData);
+    return { success: true, mode: 'api', data: textData };
   } catch (error) {
     console.error('⚠️ [WhatsApp Service Error] Failed to reach WhatsApp API gateway:', error.message);
-    // Don't throw error to crash login, OTP is still logged in console
     return { success: true, mode: 'console_fallback', error: error.message };
   }
 };
