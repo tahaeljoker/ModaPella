@@ -6,7 +6,7 @@ const User = require('../models/User');
 dotenv.config();
 const router = express.Router();
 
-const { sendWhatsAppOTP } = require('../services/whatsappService');
+const { sendWhatsAppOTP, formatPhone } = require('../services/whatsappService');
 
 const generateToken = (user) => {
   return jwt.sign({ user: { id: user.id, role: user.role, email: user.email } }, process.env.JWT_SECRET || 'modapella-secret', {
@@ -42,26 +42,6 @@ router.post('/login', async (req, res) => {
     }
     if (user.active === false) {
       return res.status(403).json({ message: 'هذا الحساب معطّل. تواصل مع المدير.' });
-    }
-
-    // Check if user is Admin -> Requires WhatsApp OTP Verification
-    if (user.role === 'admin') {
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      user.loginOtp = otpCode;
-      user.loginOtpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
-      await user.save();
-
-      // Send OTP via WhatsApp
-      const targetPhone = user.whatsappPhone || user.phone || process.env.ADMIN_WHATSAPP_NUMBER;
-      await sendWhatsAppOTP(targetPhone, otpCode);
-
-      const maskedPhone = targetPhone ? `***${targetPhone.slice(-4)}` : 'الواتساب الخاصة بك';
-
-      return res.json({
-        requireOtp: true,
-        message: `تم إرسال رمز التحقق (OTP) إلى ${maskedPhone}`,
-        email: user.email
-      });
     }
 
     res.json({ token: generateToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } });
@@ -121,10 +101,14 @@ router.post('/resend-otp', async (req, res) => {
     user.loginOtpExpires = new Date(Date.now() + 5 * 60 * 1000);
     await user.save();
 
-    const targetPhone = user.whatsappPhone || user.phone || process.env.ADMIN_WHATSAPP_NUMBER;
-    await sendWhatsAppOTP(targetPhone, otpCode);
+    const rawPhone = user.whatsappPhone || user.phone || process.env.ADMIN_WHATSAPP_NUMBER || '201112556672';
+    const formattedPhone = formatPhone(rawPhone);
+    await sendWhatsAppOTP(rawPhone, otpCode);
 
-    res.json({ message: 'تم إرسال رمز جديد إلى الواتساب بنجاح' });
+    const messageText = `🔑 رمز التحقق الخاص بدخول لوحة تحكم ModaPella هو: *${otpCode}*`;
+    const whatsappLink = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`;
+
+    res.json({ message: 'تم إرسال/تحديث رمز جديد للواتساب بنجاح', whatsappLink });
   } catch (error) {
     res.status(500).json({ message: 'فشل إعادة إرسال الرمز', error: error.message });
   }

@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * WhatsApp Gateway Service for ModaPella Admin OTP Verification
  * Supports HTTP WhatsApp Gateways (Green-API, UltraMsg, CallMeBot, Twilio, Custom Webhooks)
@@ -46,12 +48,14 @@ const sendWhatsAppOTP = async (phone, otpCode) => {
       // CallMeBot Free API (GET request)
       const key = callmebotApiKey || apiToken;
       const encodedMsg = encodeURIComponent(message);
-      endpoint = `https://api.callmebot.com/whatsapp.php?phone=+${targetPhone}&text=${encodedMsg}&apikey=${key}`;
+      const encodedPhone = encodeURIComponent('+' + targetPhone);
+      endpoint = `https://api.callmebot.com/whatsapp.php?phone=${encodedPhone}&text=${encodedMsg}&apikey=${key}`;
       method = 'GET';
       headers = {};
-    } else if (instanceId && apiToken && !apiUrl) {
-      // Green-API structure
-      endpoint = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${apiToken}`;
+    } else if (instanceId && apiToken) {
+      // Green-API structure (supports custom instance hosts like https://7107.api.greenapi.com)
+      const baseUrl = (apiUrl && !apiUrl.includes('callmebot')) ? apiUrl.replace(/\/$/, '') : 'https://api.green-api.com';
+      endpoint = `${baseUrl}/waInstance${instanceId}/sendMessage/${apiToken}`;
       payload = JSON.stringify({
         chatId: `${targetPhone}@c.us`,
         message: message
