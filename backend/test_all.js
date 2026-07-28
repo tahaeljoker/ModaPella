@@ -91,14 +91,26 @@ async function runTests() {
   const dotenv = require('dotenv');
   dotenv.config();
 
-  await test('POST /api/auth/login — Admin login', async () => {
+  await test('POST /api/auth/login — Admin login (WhatsApp OTP 2FA)', async () => {
     const r = await request('POST', '/api/auth/login', { email: 'admin@modapella.com', password: 'Admin123!' });
     assert(r.status === 200, `HTTP ${r.status} — ${JSON.stringify(r.body)}`);
-    assert(r.body.token, 'No token returned for admin login');
-    assert(r.body.user?.role === 'admin', `Role=${r.body.user?.role}`);
+    assert(r.body.requireOtp === true, 'Expected requireOtp to be true for admin');
 
-    adminToken = r.body.token;
-    return { role: r.body.user.role };
+    // Connect to DB temporarily to get the generated OTP for testing
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/modapella');
+    }
+    const adminUser = await User.findOne({ email: 'admin@modapella.com' });
+    assert(adminUser && adminUser.loginOtp, 'OTP not generated in DB');
+
+    // Verify OTP
+    const verifyRes = await request('POST', '/api/auth/verify-otp', { email: 'admin@modapella.com', otp: adminUser.loginOtp });
+    assert(verifyRes.status === 200, `OTP Verify HTTP ${verifyRes.status} — ${JSON.stringify(verifyRes.body)}`);
+    assert(verifyRes.body.token, 'No token returned after OTP verification');
+    assert(verifyRes.body.user?.role === 'admin', `Role=${verifyRes.body.user?.role}`);
+
+    adminToken = verifyRes.body.token;
+    return { role: verifyRes.body.user.role, otpVerified: true };
   });
 
   await test('POST /api/auth/login — Cashier login', async () => {

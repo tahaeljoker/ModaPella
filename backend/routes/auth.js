@@ -44,6 +44,26 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ message: 'هذا الحساب معطّل. تواصل مع المدير.' });
     }
 
+    // Check if user is Admin -> Requires WhatsApp OTP Verification
+    if (user.role === 'admin') {
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      user.loginOtp = otpCode;
+      user.loginOtpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
+      await user.save();
+
+      // Send OTP via WhatsApp
+      const rawPhone = user.whatsappPhone || user.phone || process.env.ADMIN_WHATSAPP_NUMBER || '201112556672';
+      await sendWhatsAppOTP(rawPhone, otpCode);
+
+      const maskedPhone = rawPhone ? `***${rawPhone.slice(-4)}` : 'الواتساب الخاص بك';
+
+      return res.json({
+        requireOtp: true,
+        message: `تم إرسال رمز التحقق (OTP) إلى ${maskedPhone} عبر الواتساب`,
+        email: user.email
+      });
+    }
+
     res.json({ token: generateToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (error) {
     res.status(500).json({ message: 'فشل تسجيل الدخول', error: error.message });
