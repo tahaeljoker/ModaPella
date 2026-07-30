@@ -157,13 +157,6 @@ async function calculateMonthlyData(year, month) {
       supplierPurchases: daySupplierPurchases
     });
   }
-      profit: dayProfit,
-      count: dayOrders.length,
-      cashRevenue: dayCash,
-      instapayRevenue: dayInstapay,
-      expenses: dayExpenses
-    });
-  }
 
   // Best Selling Products
   const productSalesMap = {};
