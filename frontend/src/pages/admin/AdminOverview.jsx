@@ -293,28 +293,28 @@ function AdminOverview() {
           onClick={() => toggleCardReveal('totalRevenue')}
         />
         <StatCard 
-          label="صافي الأرباح الكلية" 
+          label="صافي ربح النشاط" 
           value={formatSensitive('netProfit', EGP(overview?.netProfit ?? 0))} 
           icon="📈" 
           color="bg-emerald-50/60" 
-          sub="هامش الربح بعد خصم التكلفة والخصومات"
+          sub="أرباح البضاعة المباعة ➖ مصاريف التشغيل"
           onClick={() => toggleCardReveal('netProfit')}
         />
         <StatCard 
-          label="إجمالي المصروفات الكلية" 
-          value={formatSensitive('totalExpenses', EGP(overview?.totalExpenses ?? 0))} 
+          label="مصروفات التشغيل" 
+          value={formatSensitive('operatingExpenses', EGP(overview?.operatingExpenses ?? (overview?.totalExpenses - (overview?.supplierPurchases || 0))))} 
           icon="💸" 
           color="bg-rose-50/40" 
-          sub="إجمالي المصاريف والمبالغ الخارجة من الخزينة"
-          onClick={() => toggleCardReveal('totalExpenses')}
+          sub="إيجار، كهرباء، أجور، نثريات وشحن"
+          onClick={() => toggleCardReveal('operatingExpenses')}
         />
         <StatCard 
-          label="إجمالي الخصومات" 
-          value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))} 
-          icon="🏷️" 
-          color="bg-red-50/40" 
-          sub="إجمالي الخصومات الممنوحة للفواتير"
-          onClick={() => toggleCardReveal('totalDiscounts')}
+          label="مشتريات بضائع وموردين" 
+          value={formatSensitive('supplierPurchases', EGP(overview?.supplierPurchases ?? 0))} 
+          icon="📦" 
+          color="bg-amber-50/50" 
+          sub="مبالغ شراء وتغذية مخزون البضائع"
+          onClick={() => toggleCardReveal('supplierPurchases')}
         />
       </div>
 
@@ -350,6 +350,13 @@ function AdminOverview() {
             
             {/* Date Filters */}
             <div className="flex flex-wrap items-center gap-2" onClick={e => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/reports')}
+                className="rounded-xl border border-burgundy/30 bg-burgundy/5 px-3 py-1 text-xs font-bold text-burgundy shadow-sm hover:bg-burgundy hover:text-white transition-all"
+              >
+                📅 التقارير الشهرية والأرشيف
+              </button>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-burgundy/60">من:</span>
                 <input
@@ -375,6 +382,20 @@ function AdminOverview() {
                 className="rounded-xl bg-burgundy px-3.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-[#650018] disabled:opacity-50"
               >
                 {filterLoading ? '...' : '🔍 تصفية'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                  const today = now.toISOString().split('T')[0];
+                  setDateFrom(first);
+                  setDateTo(today);
+                  loadFiltered(first, today);
+                }}
+                className="rounded-xl border border-emerald-500/30 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
+              >
+                ⚡ الشهر الجاري
               </button>
               {(dateFrom || dateTo) && (
                 <button

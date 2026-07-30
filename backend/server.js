@@ -17,8 +17,10 @@ const supplierRoutes = require('./routes/suppliers');
 const inventoryRoutes = require('./routes/inventory');
 const notificationRoutes = require('./routes/notifications');
 const inventoryTaskRoutes = require('./routes/inventoryTasks');
+const reportRoutes = require('./routes/reports');
 const User = require('./models/User');
 const { attachInventorySync } = require('./services/inventorySync');
+const { checkAndAutoClosePreviousMonths } = require('./services/monthlyReportService');
 
 dotenv.config();
 
@@ -54,7 +56,12 @@ const seedDefaultUsers = async () => {
   }
 };
 
-connectDB().then(seedDefaultUsers);
+connectDB().then(() => {
+  seedDefaultUsers();
+  checkAndAutoClosePreviousMonths();
+  // Periodically check every 6 hours for month roll-over
+  setInterval(checkAndAutoClosePreviousMonths, 6 * 60 * 60 * 1000);
+});
 
 const app = express();
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,https://moda-pella.vercel.app').split(',').map((origin) => origin.trim()).filter(Boolean);
@@ -90,6 +97,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/inventory-tasks', inventoryTaskRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.get('/api/status', (req, res) => {
   res.json({ service: 'Moda Pella POS & E-commerce API', status: 'ok' });

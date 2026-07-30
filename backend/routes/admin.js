@@ -38,8 +38,43 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     const totalSales = allOrders.reduce((sum, order) => sum + order.totalAmount, 0);
     const lowStock = products.filter((item) => item.stock <= 5);
 
-    // Net profit: sum(sellPrice - costPrice) * qty for each sold item
-    const netProfit = allOrders.reduce((sum, order) => {
+    const isSupplierTx = (t) => {
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat.includes('مورد') ||
+        cat.includes('بضاعة') ||
+        desc.includes('مورد') ||
+        desc.includes('بضاعة') ||
+        Boolean(t.referenceId)
+      );
+    };
+
+    // Aggregate expenses by category, separate operating vs supplier stock purchases
+    const expenseMap = {};
+    let totalExpenses = 0;
+    let operatingExpenses = 0;
+    let supplierPurchases = 0;
+
+    outTransactions.forEach(t => {
+      const cat = t.category || 'أخرى';
+      expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
+      totalExpenses += t.amount;
+
+      if (isSupplierTx(t)) {
+        supplierPurchases += t.amount;
+      } else {
+        operatingExpenses += t.amount;
+      }
+    });
+
+    const expenseBreakdown = Object.entries(expenseMap).map(([category, amount]) => ({
+      category,
+      amount
+    }));
+
+    // Gross profit from sales (sell price - cost price - discount)
+    const grossProfit = allOrders.reduce((sum, order) => {
       const orderProfit = order.items.reduce((s, item) => {
         const profit = (item.price - (item.costPrice || 0)) * item.quantity;
         return s + profit;
@@ -47,20 +82,10 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       return sum + orderProfit - (order.discount || 0);
     }, 0);
 
-    const totalDiscounts = allOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
+    // Net Operating Profit = Gross Sales Profit - Operating Expenses (Rent, Utilities, Wages, etc.)
+    const netProfit = grossProfit - operatingExpenses;
 
-    // Aggregate expenses by category
-    const expenseMap = {};
-    let totalExpenses = 0;
-    outTransactions.forEach(t => {
-      const cat = t.category || 'أخرى';
-      expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
-      totalExpenses += t.amount;
-    });
-    const expenseBreakdown = Object.entries(expenseMap).map(([category, amount]) => ({
-      category,
-      amount
-    }));
+    const totalDiscounts = allOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
 
     // Calculate best selling products
     const productSales = {};
@@ -137,6 +162,8 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       netProfit,
       totalDiscounts,
       totalExpenses,
+      operatingExpenses,
+      supplierPurchases,
       expenseBreakdown,
       published: siteConfig.published,
       lowStock,

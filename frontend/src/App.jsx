@@ -31,6 +31,7 @@ import AdminSuppliers from './pages/admin/AdminSuppliers';
 import AdminInventoryCount from './pages/admin/AdminInventoryCount';
 import AdminActivities from './pages/admin/AdminActivities';
 import AdminDebts from './pages/admin/AdminDebts';
+import AdminMonthlyReports from './pages/admin/AdminMonthlyReports';
 
 // Cashier Pages
 import CashierLayout from './pages/cashier/CashierLayout';
@@ -208,6 +209,7 @@ function AppContent() {
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUsers /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/activities" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminActivities /></AdminLayout></ProtectedRoute>} />
           <Route path="/admin/debts" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminDebts /></AdminLayout></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminMonthlyReports /></AdminLayout></ProtectedRoute>} />
 
           {/* Cashier Routes */}
           <Route path="/cashier" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />

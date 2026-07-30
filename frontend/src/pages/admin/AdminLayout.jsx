@@ -8,6 +8,7 @@ const sections = [
     title: 'الرئيسية والتحليلات',
     items: [
       { to: '/admin', label: 'لوحة التحكم', icon: 'dashboard', end: true },
+      { to: '/admin/reports', label: 'التقارير الشهرية والأرشيف', icon: 'reports' },
       { to: '/admin/activities', label: 'سجل حركات النظام', icon: 'activities' },
     ]
   },
