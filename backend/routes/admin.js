@@ -24,22 +24,57 @@ const getSiteConfig = async () => {
 
 router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const [products, orders, siteConfig, outTransactions] = await Promise.all([
+    const { period = 'current', from, to } = req.query;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    let startDate, endDate;
+
+    if (from && to) {
+      startDate = new Date(from);
+      endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'previous') {
+      let prevYear = currentYear;
+      let prevMonth = currentMonth - 1;
+      if (prevMonth < 1) { prevMonth = 12; prevYear -= 1; }
+      startDate = new Date(prevYear, prevMonth - 1, 1, 0, 0, 0, 0);
+      endDate = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
+    } else if (period === 'all') {
+      startDate = new Date(2000, 0, 1);
+      endDate = new Date(2099, 11, 31);
+    } else {
+      // Default: Current Active Month (Auto-resets to 0 on day 1 of every month!)
+      startDate = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0, 0);
+      endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+    }
+
+    const [products, recentOrders, siteConfig, outTransactions, supplierTxs, periodOrders] = await Promise.all([
       Product.find({ active: true }),
       Order.find().sort({ createdAt: -1 }).limit(10),
       getSiteConfig(),
-      Transaction.find({ type: 'OUT' })
+      Transaction.find({ createdAt: { $gte: startDate, $lte: endDate } }),
+      SupplierTransaction.find({ date: { $gte: startDate, $lte: endDate } }),
+      Order.find({
+        createdAt: { $gte: startDate, $lte: endDate },
+        status: 'Completed'
+      }).populate('employee')
     ]);
-
-    const allOrders = await Order.find({ status: 'Completed' }).populate('employee');
 
     const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
     const totalValue = products.reduce((sum, item) => sum + item.stock * item.price, 0);
-    const totalSales = allOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalSales = periodOrders.reduce((sum, order) => sum + order.totalAmount, 0);
     const lowStock = products.filter((item) => item.stock <= 5);
+
+    const isInternalMovement = (t) => {
+      const cat = (t.category || '').toLowerCase();
+      return cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
+    };
 
     const isSupplierTx = (t) => {
       if (t.type !== 'OUT') return false;
+      if (isInternalMovement(t)) return false;
       const cat = (t.category || '').toLowerCase();
       const desc = (t.description || '').toLowerCase();
       if (cat === 'refund' || cat.includes('مرتجع') || cat === 'sale' || cat === 'debtpayment') return false;
@@ -53,49 +88,52 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       );
     };
 
-    // Aggregate expenses by category, separate operating vs supplier stock purchases
-    const expenseMap = {};
-    let totalExpenses = 0;
     let operatingExpenses = 0;
     let supplierPurchases = 0;
+    const expenseMap = {};
 
     outTransactions.forEach(t => {
-      const cat = t.category || 'أخرى';
-      expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
-      totalExpenses += t.amount;
-
-      if (isSupplierTx(t)) {
-        supplierPurchases += t.amount;
-      } else {
+      if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
+        const cat = t.category || 'أخرى';
+        expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
         operatingExpenses += t.amount;
       }
     });
 
-    const expenseBreakdown = Object.entries(expenseMap).map(([category, amount]) => ({
-      category,
-      amount
-    }));
+    supplierTxs.forEach(st => {
+      if (st.type === 'payment' || st.type === 'purchase' || st.type === 'cash_purchase') {
+        supplierPurchases += st.amount;
+      }
+    });
 
-    // Gross profit from sales (sell price - cost price - discount)
-    const grossProfit = allOrders.reduce((sum, order) => {
-      const orderProfit = order.items.reduce((s, item) => {
-        const profit = (item.price - (item.costPrice || 0)) * item.quantity;
-        return s + profit;
+    outTransactions.forEach(t => {
+      if (isSupplierTx(t)) {
+        const isAlreadyInSupplierTx = t.referenceId && supplierTxs.some(st => st._id.toString() === t.referenceId.toString());
+        if (!isAlreadyInSupplierTx) {
+          supplierPurchases += t.amount;
+        }
+      }
+    });
+
+    const grossProfit = periodOrders.reduce((sum, order) => {
+      const orderCost = order.items.reduce((s, item) => {
+        const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+        return s + (item.costPrice || 0) * netQty;
       }, 0);
-      return sum + orderProfit - (order.discount || 0);
+      return sum + (order.totalAmount - orderCost);
     }, 0);
 
-    // Net Operating Profit = Gross Sales Profit - Operating Expenses (Rent, Utilities, Wages, etc.)
     const netProfit = grossProfit - operatingExpenses;
-
-    const totalDiscounts = allOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
+    const totalDiscounts = periodOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
 
     // Calculate best selling products
     const productSales = {};
-    allOrders.forEach(o => {
+    periodOrders.forEach(o => {
       o.items.forEach(i => {
-        const key = i.name;
-        productSales[key] = (productSales[key] || 0) + i.quantity;
+        const netQty = Math.max(0, i.quantity - (i.returnedQuantity || 0));
+        if (netQty > 0) {
+          productSales[i.name] = (productSales[i.name] || 0) + netQty;
+        }
       });
     });
 
@@ -106,14 +144,15 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     // Calculate category breakdown
     const categorySales = {};
-    allOrders.forEach(o => {
+    periodOrders.forEach(o => {
       o.items.forEach(i => {
-        const qty = i.quantity - (i.returnedQuantity || 0);
-        if (qty > 0) {
-          categorySales[i.category] = (categorySales[i.category] || 0) + (qty * i.price);
+        const netQty = Math.max(0, i.quantity - (i.returnedQuantity || 0));
+        if (netQty > 0 && i.category) {
+          categorySales[i.category] = (categorySales[i.category] || 0) + (netQty * i.price);
         }
       });
     });
+
     const categoryBreakdown = Object.entries(categorySales).map(([category, amount]) => ({
       category,
       amount
@@ -121,7 +160,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     // Calculate employee leaderboard
     const employeeData = {};
-    allOrders.forEach(o => {
+    periodOrders.forEach(o => {
       const name = o.employeeName || (o.employee && o.employee.name);
       if (name) {
         if (!employeeData[name]) {
@@ -130,10 +169,11 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         const emp = employeeData[name];
         emp.amount += o.totalAmount;
         emp.orderCount += 1;
-        const orderProfit = o.items.reduce((s, item) => {
-          return s + ((item.price - (item.costPrice || 0)) * item.quantity);
+        const orderCost = o.items.reduce((s, item) => {
+          const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+          return s + (item.costPrice || 0) * netQty;
         }, 0);
-        emp.profit += orderProfit - (o.discount || 0);
+        emp.profit += (o.totalAmount - orderCost);
         o.items.forEach(item => {
           const qty = item.quantity - (item.returnedQuantity || 0);
           if (qty > 0) {
@@ -143,6 +183,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         });
       }
     });
+
     const employeeLeaderboard = Object.entries(employeeData)
       .map(([name, data]) => {
         const topCatEntry = Object.entries(data.categories).sort((a, b) => b[1] - a[1])[0];
@@ -158,25 +199,27 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       .sort((a, b) => b.amount - a.amount);
 
     res.json({
+      period,
       products: products.length,
       totalStock,
       totalValue,
       totalSales,
       netProfit,
-      totalDiscounts,
-      totalExpenses,
       operatingExpenses,
       supplierPurchases,
-      expenseBreakdown,
-      published: siteConfig.published,
-      lowStock,
+      totalExpenses: operatingExpenses + supplierPurchases,
+      totalDiscounts,
+      totalOrders: periodOrders.length,
+      recentOrders,
+      lowStockProducts: lowStock.map((p) => ({ id: p._id, name: p.name, stock: p.stock, category: p.category })),
+      expenseBreakdown: Object.entries(expenseMap).map(([category, amount]) => ({ category, amount })),
       bestSellers,
       categoryBreakdown,
       employeeLeaderboard,
-      recentOrders: orders
+      siteConfig
     });
   } catch (error) {
-    res.status(500).json({ message: 'Unable to load admin overview', error: error.message });
+    res.status(500).json({ message: 'Unable to load dashboard overview', error: error.message });
   }
 });
 

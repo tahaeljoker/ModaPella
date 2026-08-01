@@ -124,6 +124,7 @@ function AdminOverview() {
   const [weeklyData, setWeeklyData] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('current');
   const navigate = useNavigate();
 
   // Date range filters
@@ -173,29 +174,11 @@ function AdminOverview() {
     );
   };
 
-  const loadFiltered = async (from = '', to = '') => {
-    setFilterLoading(true);
+  const loadData = async (selectedPeriod = period) => {
     try {
-      const params = new URLSearchParams();
-      if (from) params.append('from', from);
-      if (to)   params.append('to', to);
-      const [summaryRes, weeklyRes] = await Promise.all([
-        api.get(`/orders/summary?${params}`),
-        api.get(`/orders/weekly?${params}`),
-      ]);
-      setSummary(summaryRes.data);
-      setWeeklyData(weeklyRes.data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFilterLoading(false);
-    }
-  };
-
-  const loadData = async () => {
-    try {
+      setLoading(true);
       const [overviewRes, summaryRes, configRes, weeklyRes, activitiesRes] = await Promise.all([
-        api.get('/admin/overview'),
+        api.get(`/admin/overview?period=${selectedPeriod}`),
         api.get('/orders/summary'),
         api.get('/admin/site-config'),
         api.get('/orders/weekly'),
@@ -213,6 +196,11 @@ function AdminOverview() {
     }
   };
 
+  const handlePeriodChange = (newPeriod) => {
+    setPeriod(newPeriod);
+    loadData(newPeriod);
+  };
+
   const handlePublishToggle = async () => {
     try {
       const res = await api.put('/admin/site-config', { published: !siteConfig.published });
@@ -222,9 +210,9 @@ function AdminOverview() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData('current'); }, []);
 
-  if (loading) {
+  if (loading && !overview) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
@@ -234,7 +222,6 @@ function AdminOverview() {
 
   const todayRevenue = weeklyData[weeklyData.length - 1]?.revenue || 0;
   const todayOrders = weeklyData[weeklyData.length - 1]?.count || 0;
-  const weekTotal = weeklyData.reduce((s, d) => s + d.revenue, 0);
 
   return (
     <div className="space-y-8 text-burgundy">
@@ -243,13 +230,44 @@ function AdminOverview() {
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-burgundy/50">لوحة التحكم</p>
           <h2 className="mt-1 text-3xl font-bold">مرحباً بك في ModaPella</h2>
-          <p className="mt-1 text-sm text-burgundy/60">نظرة عامة على أداء المتجر</p>
+          <p className="mt-1 text-sm text-burgundy/60">نظرة عامة على أداء المتجر ({overview?.monthName || 'الشهر الجاري'})</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Period Selector */}
+          <div className="flex items-center gap-1 rounded-2xl border border-burgundy/15 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handlePeriodChange('current')}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                period === 'current' ? 'bg-burgundy text-white shadow-sm' : 'text-burgundy/70 hover:bg-burgundy/5'
+              }`}
+            >
+              ⚡ الشهر الجاري
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePeriodChange('previous')}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                period === 'previous' ? 'bg-burgundy text-white shadow-sm' : 'text-burgundy/70 hover:bg-burgundy/5'
+              }`}
+            >
+              📅 الشهر السابق
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePeriodChange('all')}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                period === 'all' ? 'bg-burgundy text-white shadow-sm' : 'text-burgundy/70 hover:bg-burgundy/5'
+              }`}
+            >
+              🌐 كل الأوقات
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleToggleSensitive}
-            className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold border border-burgundy/25 bg-white text-burgundy shadow-sm transition hover:bg-burgundy/5"
+            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold border border-burgundy/25 bg-white text-burgundy shadow-sm transition hover:bg-burgundy/5"
             title={showSensitive ? 'إخفاء الأرقام المالية الحساسة' : 'عرض الأرقام المالية الحساسة'}
           >
             <Icon name={showSensitive ? 'eyeOff' : 'eye'} className="w-4 h-4" />
@@ -259,7 +277,7 @@ function AdminOverview() {
             <button
               type="button"
               onClick={handlePublishToggle}
-              className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 ${
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90 ${
                 siteConfig.published ? 'bg-emerald-600' : 'bg-slate-500'
               }`}
             >
@@ -285,12 +303,12 @@ function AdminOverview() {
           <p className="mt-2 text-sm opacity-70">{todayOrders} طلب اليوم</p>
         </div>
         <StatCard
-          label={dateFrom || dateTo ? `إيرادات الفترة المحددة` : 'الإيرادات الكلية'}
-          value={formatSensitive('totalRevenue', EGP(summary.totalRevenue))}
+          label={period === 'current' ? 'مبيعات الشهر الجاري' : period === 'previous' ? 'مبيعات الشهر السابق' : 'إجمالي المبيعات (كل الأوقات)'}
+          value={formatSensitive('totalSales', EGP(overview?.totalSales ?? 0))}
           icon="💰"
           color="bg-white"
-          sub={dateFrom || dateTo ? `${dateFrom || '...'} → ${dateTo || '...'}` : undefined}
-          onClick={() => toggleCardReveal('totalRevenue')}
+          sub={`${overview?.totalOrders || 0} طلب مكتمل`}
+          onClick={() => toggleCardReveal('totalSales')}
         />
         <StatCard 
           label="صافي ربح النشاط" 
