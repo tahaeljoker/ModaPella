@@ -11,6 +11,12 @@ const Transaction = require('../models/Transaction');
 const StockHistory = require('../models/StockHistory');
 const InventoryTask = require('../models/InventoryTask');
 const InventoryCount = require('../models/InventoryCount');
+const SupplierTransaction = require('../models/SupplierTransaction');
+
+const ARABIC_MONTHS = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+];
 
 const router = express.Router();
 
@@ -200,6 +206,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     res.json({
       period,
+      monthName: `${ARABIC_MONTHS[currentMonth - 1]} ${currentYear}`,
       products: products.length,
       totalStock,
       totalValue,

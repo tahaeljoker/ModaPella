@@ -222,6 +222,7 @@ function AdminOverview() {
 
   const todayRevenue = weeklyData[weeklyData.length - 1]?.revenue || 0;
   const todayOrders = weeklyData[weeklyData.length - 1]?.count || 0;
+  const weekTotal = weeklyData.reduce((s, d) => s + d.revenue, 0);
 
   return (
     <div className="space-y-8 text-burgundy">
