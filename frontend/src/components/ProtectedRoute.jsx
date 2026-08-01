@@ -58,7 +58,8 @@ function ProtectedRoute({ children, allowedRoles = ['admin', 'cashier', 'manager
 
   if (!token) return <Navigate to="/login" replace />;
 
-  if (allowedRoles.length && !allowedRoles.includes(role)) {
+  // Developer role has full access to all protected routes
+  if (allowedRoles.length && role !== 'developer' && !allowedRoles.includes(role)) {
     // Show a clear "Access Denied" screen instead of silent redirect
     return <AccessDenied />;
   }

@@ -76,8 +76,8 @@ function CashierLayout({ children }) {
             </NavLink>
           ))}
 
-          {/* Admin link — only for admin role, requires password */}
-          {role === 'admin' && (
+          {/* Admin link — for admin and developer roles */}
+          {(role === 'admin' || role === 'developer') && (
             <>
               <div className="mx-2 my-3 border-t border-burgundy/10" />
               <button
@@ -99,11 +99,11 @@ function CashierLayout({ children }) {
             <p className="mt-0.5 text-sm font-semibold text-burgundy">{user.name || 'كاشير'}</p>
             <p className="text-xs text-burgundy/60">{user.email || ''}</p>
             <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-              role === 'admin' ? 'bg-burgundy/15 text-burgundy' :
+              (role === 'admin' || role === 'developer') ? 'bg-burgundy/15 text-burgundy' :
               role === 'manager' ? 'bg-purple-100 text-purple-700' :
               'bg-blue-100 text-blue-700'
             }`}>
-              {role === 'admin' ? '👑 مدير' : role === 'manager' ? '🔑 مشرف' : '🧾 كاشير'}
+              {role === 'developer' ? '💻 مطور' : role === 'admin' ? '👑 مدير' : role === 'manager' ? '🔑 مشرف' : '🧾 كاشير'}
             </span>
           </div>
           <button
