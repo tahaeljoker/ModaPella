@@ -39,14 +39,17 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     const lowStock = products.filter((item) => item.stock <= 5);
 
     const isSupplierTx = (t) => {
+      if (t.type !== 'OUT') return false;
       const cat = (t.category || '').toLowerCase();
       const desc = (t.description || '').toLowerCase();
+      if (cat === 'refund' || cat.includes('مرتجع') || cat === 'sale' || cat === 'debtpayment') return false;
       return (
+        cat === 'supplierpayment' ||
+        cat === 'supplierpurchase' ||
         cat.includes('مورد') ||
         cat.includes('بضاعة') ||
         desc.includes('مورد') ||
-        desc.includes('بضاعة') ||
-        Boolean(t.referenceId)
+        desc.includes('بضاعة')
       );
     };
 

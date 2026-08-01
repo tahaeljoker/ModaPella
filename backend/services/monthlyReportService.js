@@ -1,12 +1,50 @@
 const Order = require('../models/Order');
 const Transaction = require('../models/Transaction');
+const SupplierTransaction = require('../models/SupplierTransaction');
 const MonthlyReport = require('../models/MonthlyReport');
 const SystemNotification = require('../models/SystemNotification');
+require('../models/Employee');
 
 const ARABIC_MONTHS = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
 ];
+
+/**
+ * Helper to identify internal non-expense shift movements
+ */
+const isInternalMovement = (t) => {
+  const cat = (t.category || '').toLowerCase();
+  return cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
+};
+
+/**
+ * Helper to identify customer refund transactions
+ */
+const isRefundTx = (t) => {
+  if (t.type !== 'OUT') return false;
+  const cat = (t.category || '').toLowerCase();
+  return cat === 'refund' || cat.includes('مرتجع');
+};
+
+/**
+ * Helper to identify supplier payment or stock purchase transactions
+ */
+const isSupplierTx = (t) => {
+  if (t.type !== 'OUT') return false;
+  if (isInternalMovement(t)) return false;
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  if (cat === 'refund' || cat.includes('مرتجع') || cat === 'sale' || cat === 'debtpayment') return false;
+  return (
+    cat === 'supplierpayment' ||
+    cat === 'supplierpurchase' ||
+    cat.includes('مورد') ||
+    cat.includes('بضاعة') ||
+    desc.includes('مورد') ||
+    desc.includes('بضاعة')
+  );
+};
 
 /**
  * Calculates all metrics for a given year and month (1-indexed).
@@ -22,87 +60,121 @@ async function calculateMonthlyData(year, month) {
   const yearMonth = `${numYear}-${String(numMonth).padStart(2, '0')}`;
   const monthName = `${ARABIC_MONTHS[numMonth - 1]} ${numYear}`;
 
-  // Fetch orders and expense transactions within date range
-  const [orders, transactions] = await Promise.all([
+  // Fetch orders, transactions, and supplier transactions within date range
+  const [orders, transactions, supplierTxs] = await Promise.all([
     Order.find({
       createdAt: { $gte: startDate, $lte: endDate },
       status: 'Completed'
     }).populate('employee'),
     Transaction.find({
-      createdAt: { $gte: startDate, $lte: endDate },
-      type: 'OUT'
+      createdAt: { $gte: startDate, $lte: endDate }
+    }),
+    SupplierTransaction.find({
+      date: { $gte: startDate, $lte: endDate }
     })
   ]);
 
-  // Overall totals
+  // Overall totals from completed orders
   let totalSales = 0;
   let totalDiscounts = 0;
-  let cashRevenue = 0;
-  let instapayRevenue = 0;
   let grossProfit = 0;
+  let salesCashCollected = 0;
+  let salesInstapayCollected = 0;
 
   orders.forEach(o => {
     totalSales += o.totalAmount;
     totalDiscounts += (o.discount || 0);
 
+    // Cash vs Instapay collected at order creation
+    const paidAmount = o.isDebt ? (o.amountPaid || 0) : o.totalAmount;
     if (o.paymentMethod === 'Cash') {
-      cashRevenue += o.totalAmount;
+      salesCashCollected += paidAmount;
     } else {
-      instapayRevenue += o.totalAmount;
+      salesInstapayCollected += paidAmount;
     }
 
+    // Cost of goods sold for net non-returned quantities
     const orderCost = o.items.reduce((sum, item) => {
-      const qty = item.quantity - (item.returnedQuantity || 0);
-      return sum + (item.costPrice || 0) * Math.max(0, qty);
+      const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+      return sum + (item.costPrice || 0) * netQty;
     }, 0);
 
-    const orderProfit = (o.totalAmount - orderCost) - (o.discount || 0);
+    // Gross profit = Sales Revenue (already after discount) - COGS
+    const orderProfit = o.totalAmount - orderCost;
     grossProfit += orderProfit;
   });
 
-  // Helper helper to distinguish supplier/inventory payments vs operational expenses
-  const isSupplierTx = (t) => {
-    const cat = (t.category || '').toLowerCase();
-    const desc = (t.description || '').toLowerCase();
-    return (
-      cat.includes('مورد') ||
-      cat.includes('بضاعة') ||
-      desc.includes('مورد') ||
-      desc.includes('بضاعة') ||
-      Boolean(t.referenceId)
-    );
-  };
-
-  // Expense breakdown & total
-  const expenseMap = {};
-  let totalExpenses = 0;
+  // Process Safe Transactions
+  let debtPaymentsCash = 0;
+  let debtPaymentsInstapay = 0;
+  let refundsCash = 0;
+  let refundsInstapay = 0;
   let operatingExpenses = 0;
-  let supplierPurchases = 0;
+
+  const expenseMap = {};
 
   transactions.forEach(t => {
-    const cat = t.category || 'أخرى';
-    expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
-    totalExpenses += t.amount;
-
-    if (isSupplierTx(t)) {
-      supplierPurchases += t.amount;
-    } else {
+    if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
+      if (t.paymentMethod === 'Cash') {
+        debtPaymentsCash += t.amount;
+      } else {
+        debtPaymentsInstapay += t.amount;
+      }
+    } else if (isRefundTx(t)) {
+      if (t.paymentMethod === 'Cash') {
+        refundsCash += t.amount;
+      } else {
+        refundsInstapay += t.amount;
+      }
+    } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
+      // Operating expense
+      const cat = t.category || 'أخرى';
+      expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
       operatingExpenses += t.amount;
     }
   });
+
+  // Calculate Supplier Purchases & Payments
+  let supplierPurchases = 0;
+
+  supplierTxs.forEach(st => {
+    if (st.type === 'payment' || st.type === 'purchase' || st.type === 'cash_purchase') {
+      supplierPurchases += st.amount;
+    }
+  });
+
+  // If there are safe transactions for supplier payments not tracked in SupplierTransaction
+  transactions.forEach(t => {
+    if (isSupplierTx(t)) {
+      const isAlreadyInSupplierTx = t.referenceId && supplierTxs.some(st => st._id.toString() === t.referenceId.toString());
+      if (!isAlreadyInSupplierTx) {
+        supplierPurchases += t.amount;
+      }
+    }
+  });
+
+  if (supplierPurchases > 0) {
+    expenseMap['مشتريات وبضائع موردين'] = supplierPurchases;
+  }
+
+  const totalExpenses = operatingExpenses + supplierPurchases;
 
   const expenseBreakdown = Object.entries(expenseMap).map(([category, amount]) => ({
     category,
     amount
   }));
 
-  // Net Operating Profit = Gross Profit from sales - Operating Expenses (Rent, Utilities, Wages, etc.)
+  // Net Cash Revenue
+  const cashRevenue = salesCashCollected + debtPaymentsCash - refundsCash;
+  const instapayRevenue = salesInstapayCollected + debtPaymentsInstapay - refundsInstapay;
+
+  // Net Operating Profit = Gross Profit - Operating Expenses
   const netProfit = grossProfit - operatingExpenses;
 
-  // Net Cash Flow = Total Money Received - Total Outgoing (Operating + Supplier Investments)
+  // Net Cash Flow = (Cash Collected + Instapay Collected) - Total Outflows
   const netCashFlow = (cashRevenue + instapayRevenue) - (operatingExpenses + supplierPurchases);
 
-  // Daily breakdown
+  // Daily Breakdown
   const dailyData = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const dStart = new Date(numYear, numMonth - 1, d, 0, 0, 0, 0);
@@ -118,26 +190,65 @@ async function calculateMonthlyData(year, month) {
       return time >= dStart.getTime() && time <= dEnd.getTime();
     });
 
-    const dayRevenue = dayOrders.reduce((s, o) => s + o.totalAmount, 0);
-    const dayCash = dayOrders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
-    const dayInstapay = dayOrders.filter(o => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.totalAmount, 0);
+    const daySupplierTxs = supplierTxs.filter(st => {
+      const time = new Date(st.date || st.createdAt).getTime();
+      return time >= dStart.getTime() && time <= dEnd.getTime();
+    });
 
+    const dayRevenue = dayOrders.reduce((s, o) => s + o.totalAmount, 0);
+
+    let daySalesCash = 0;
+    let daySalesInstapay = 0;
+    dayOrders.forEach(o => {
+      const paid = o.isDebt ? (o.amountPaid || 0) : o.totalAmount;
+      if (o.paymentMethod === 'Cash') daySalesCash += paid;
+      else daySalesInstapay += paid;
+    });
+
+    let dayDebtCash = 0;
+    let dayDebtInstapay = 0;
+    let dayRefundCash = 0;
+    let dayRefundInstapay = 0;
     let dayOpExpenses = 0;
-    let daySupplierPurchases = 0;
 
     dayTransactions.forEach(t => {
-      if (isSupplierTx(t)) {
-        daySupplierPurchases += t.amount;
-      } else {
+      if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
+        if (t.paymentMethod === 'Cash') dayDebtCash += t.amount;
+        else dayDebtInstapay += t.amount;
+      } else if (isRefundTx(t)) {
+        if (t.paymentMethod === 'Cash') dayRefundCash += t.amount;
+        else dayRefundInstapay += t.amount;
+      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
         dayOpExpenses += t.amount;
       }
     });
 
+    let daySupplierPurchases = 0;
+    daySupplierTxs.forEach(st => {
+      if (st.type === 'payment' || st.type === 'purchase' || st.type === 'cash_purchase') {
+        daySupplierPurchases += st.amount;
+      }
+    });
+
+    dayTransactions.forEach(t => {
+      if (isSupplierTx(t)) {
+        const isAlreadyInSupplierTx = t.referenceId && daySupplierTxs.some(st => st._id.toString() === t.referenceId.toString());
+        if (!isAlreadyInSupplierTx) {
+          daySupplierPurchases += t.amount;
+        }
+      }
+    });
+
+    const dayCash = daySalesCash + dayDebtCash - dayRefundCash;
+    const dayInstapay = daySalesInstapay + dayDebtInstapay - dayRefundInstapay;
     const dayExpenses = dayOpExpenses + daySupplierPurchases;
 
     const dayGrossProfit = dayOrders.reduce((sum, o) => {
-      const orderCost = o.items.reduce((cSum, item) => cSum + (item.costPrice || 0) * item.quantity, 0);
-      return sum + (o.totalAmount - orderCost) - (o.discount || 0);
+      const orderCost = o.items.reduce((cSum, item) => {
+        const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+        return cSum + (item.costPrice || 0) * netQty;
+      }, 0);
+      return sum + (o.totalAmount - orderCost);
     }, 0);
 
     const dayProfit = dayGrossProfit - dayOpExpenses;
@@ -201,8 +312,11 @@ async function calculateMonthlyData(year, month) {
       const emp = empMap[name];
       emp.amount += o.totalAmount;
       emp.orderCount += 1;
-      const orderCost = o.items.reduce((s, item) => s + (item.costPrice || 0) * item.quantity, 0);
-      emp.profit += (o.totalAmount - orderCost) - (o.discount || 0);
+      const orderCost = o.items.reduce((s, item) => {
+        const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+        return s + (item.costPrice || 0) * netQty;
+      }, 0);
+      emp.profit += (o.totalAmount - orderCost);
       o.items.forEach(i => {
         const qty = i.quantity - (i.returnedQuantity || 0);
         if (qty > 0) emp.itemsSold += qty;
@@ -217,6 +331,57 @@ async function calculateMonthlyData(year, month) {
     orderCount: data.orderCount,
     itemsSold: data.itemsSold
   })).sort((a, b) => b.amount - a.amount);
+
+  // Detailed Financial Audit & Explanations ("دي جت ازاي")
+  const totalCogs = orders.reduce((sum, o) => {
+    return sum + o.items.reduce((s, item) => {
+      const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+      return s + (item.costPrice || 0) * netQty;
+    }, 0);
+  }, 0);
+
+  const operatingExpensesList = transactions
+    .filter(t => t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t))
+    .map(t => ({
+      id: t._id,
+      category: t.category || 'أخرى',
+      amount: t.amount,
+      description: t.description || '',
+      date: t.createdAt
+    }));
+
+  const supplierPaymentsList = supplierTxs.map(st => ({
+    id: st._id,
+    type: st.type,
+    amount: st.amount,
+    description: st.description || '',
+    paymentSource: st.paymentSource || 'PersonalPocket',
+    date: st.date || st.createdAt
+  }));
+
+  const auditDetails = {
+    totalCogs,
+    grossProfit,
+    operatingExpensesTotal: operatingExpenses,
+    supplierPurchasesTotal: supplierPurchases,
+    debtPaymentsCash,
+    debtPaymentsInstapay,
+    refundsCash,
+    refundsInstapay,
+    salesCashCollected,
+    salesInstapayCollected,
+    operatingExpensesList,
+    supplierPaymentsList,
+    explanations: {
+      totalSales: `إجمالي المبيعات = مجموع صافي الفواتير المكتملة بعد الخصم المباشر (عدد ${orders.length} فاتورة بقيمة إجمالية ${totalSales.toLocaleString()} ج.م).`,
+      cogs: `تكلفة البضاعة المباعة (COGS) = مجموع تكلفة شراء الأجناس المباعة بأسعار الجملة/الشراء (إجمالي ${totalCogs.toLocaleString()} ج.م).`,
+      grossProfit: `مجمل الربح التجاري = المبيعات الصافية (${totalSales.toLocaleString()} ج.م) ➖ تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م. (دون خصم التخفيض مرتين).`,
+      operatingExpenses: `مصاريف التشغيل = إجمالي المصاريف الإدارية والعمومية (عدد ${operatingExpensesList.length} حركة بقيمة ${operatingExpenses.toLocaleString()} ج.م) مع استبعاد الموردين والورديات.`,
+      supplierPurchases: `مشتريات بضائع الموردين = إجمالي مبالغ البضائع وسداد الموردين (عدد ${supplierPaymentsList.length} حركة بقيمة ${supplierPurchases.toLocaleString()} ج.م) من الخزنة أو من خارجها.`,
+      netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) ➖ مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م.`,
+      netCashFlow: `صافي حركة الخزنة = (السيولة المباشرة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) ➖ (المصروفات ${operatingExpenses.toLocaleString()} ج.م + الموردين ${supplierPurchases.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
+    }
+  };
 
   return {
     year: numYear,
@@ -237,7 +402,8 @@ async function calculateMonthlyData(year, month) {
     expenseBreakdown,
     categoryBreakdown,
     bestSellers,
-    employeePerformance
+    employeePerformance,
+    auditDetails
   };
 }
 

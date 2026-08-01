@@ -30,10 +30,13 @@ const seedDefaultUsers = async () => {
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
     const cashierEmail = process.env.CASHIER_EMAIL || 'cashier@modapella.com';
     const cashierPassword = process.env.CASHIER_PASSWORD || 'Cashier123!';
+    const devEmail = process.env.DEV_EMAIL || 'dev@modapella.com';
+    const devPassword = process.env.DEV_PASSWORD || 'Dev123!';
 
-    const [adminUser, cashierUser] = await Promise.all([
+    const [adminUser, cashierUser, devUser] = await Promise.all([
       User.findOne({ email: adminEmail.toLowerCase() }),
-      User.findOne({ email: cashierEmail.toLowerCase() })
+      User.findOne({ email: cashierEmail.toLowerCase() }),
+      User.findOne({ email: devEmail.toLowerCase() })
     ]);
 
     const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER || '';
@@ -48,6 +51,14 @@ const seedDefaultUsers = async () => {
 
     if (!cashierUser) {
       await new User({ name: 'Store Cashier', email: cashierEmail, password: cashierPassword, role: 'cashier' }).save();
+    }
+
+    if (!devUser) {
+      await new User({ name: 'Developer (حساب المطور)', email: devEmail, password: devPassword, role: 'developer' }).save();
+      console.log(`Developer account ready: ${devEmail}`);
+    } else if (devUser.role !== 'developer') {
+      devUser.role = 'developer';
+      await devUser.save();
     }
 
     console.log('Default users ready');

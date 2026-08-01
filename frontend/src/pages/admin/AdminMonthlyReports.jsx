@@ -83,6 +83,7 @@ export default function AdminMonthlyReports() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState('');
+  const [showFullAudit, setShowFullAudit] = useState(false);
 
   // Fetch list of available months
   useEffect(() => {
@@ -186,6 +187,19 @@ export default function AdminMonthlyReports() {
             </select>
           </div>
 
+          {/* Detailed Audit Button */}
+          <button
+            type="button"
+            onClick={() => setShowFullAudit(!showFullAudit)}
+            className={`flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-bold shadow-sm transition-all ${
+              showFullAudit
+                ? 'border-burgundy bg-burgundy text-cream'
+                : 'border-burgundy/20 bg-white text-burgundy hover:bg-burgundy/5'
+            }`}
+          >
+            📋 {showFullAudit ? 'إخفاء تفاصيل الحسابات' : 'عرض التقرير الشهري الكامل والتفصيلي'}
+          </button>
+
           {/* Regenerate Button */}
           <button
             type="button"
@@ -245,6 +259,114 @@ export default function AdminMonthlyReports() {
               {report.isClosed ? '🔒 تقرير مؤرشف' : '⚡ شهر نشط جاري'}
             </span>
           </div>
+
+          {/* Full Audit Detailed Section (دي جت ازاي وكدا) */}
+          {showFullAudit && (
+            <div className="rounded-[1.75rem] border-2 border-burgundy/30 bg-[#FFFDFB] p-6 shadow-md space-y-6 animate-fadeIn print:block">
+              <div className="flex items-center justify-between border-b border-burgundy/15 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🔍</span>
+                  <h3 className="text-xl font-bold text-burgundy">التدقيق المالي والتقرير التفصيلي الكامل (كيف تم حساب كل رقم)</h3>
+                </div>
+                <span className="rounded-full bg-burgundy/10 px-3 py-1 text-xs font-bold text-burgundy">دليل التدقيق المحاسبي</span>
+              </div>
+
+              {/* Explanations Grid */}
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* 1. Total Sales */}
+                <div className="rounded-2xl border border-burgundy/10 bg-white p-4 space-y-2">
+                  <h4 className="font-bold text-sm text-burgundy flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-burgundy" /> 1. إجمالي المبيعات (Total Sales)
+                  </h4>
+                  <p className="text-xs text-burgundy/80 leading-relaxed font-medium">
+                    {report.auditDetails?.explanations?.totalSales || `إجمالي المبيعات هو مجموع صافي الفواتير المكتملة (${report.totalOrders} فاتورة) بقيمة ${EGP(report.totalSales)}.`}
+                  </p>
+                  <div className="text-[11px] text-burgundy/60 bg-burgundy/5 p-2 rounded-xl">
+                    المبيعات كاش: {EGP(report.cashRevenue)} | مبيعات إنستاباي: {EGP(report.instapayRevenue)} | خصومات ممنوحة: {EGP(report.totalDiscounts)}
+                  </div>
+                </div>
+
+                {/* 2. Gross Profit & COGS */}
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-50/40 p-4 space-y-2">
+                  <h4 className="font-bold text-sm text-emerald-800 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600" /> 2. مجمل الربح وتكلفة البضاعة (COGS)
+                  </h4>
+                  <p className="text-xs text-emerald-900 leading-relaxed font-medium">
+                    {report.auditDetails?.explanations?.grossProfit || `مجمل الربح = المبيعات الصافية ➖ تكلفة شراء البضاعة المباعة.`}
+                  </p>
+                  <div className="text-[11px] text-emerald-800 bg-emerald-100/60 p-2 rounded-xl">
+                    تكلفة البضاعة المباعة (COGS): {EGP(report.auditDetails?.totalCogs || 0)} | مجمل الربح الصافي: {EGP(report.auditDetails?.grossProfit || (report.totalSales - (report.auditDetails?.totalCogs || 0)))}
+                  </div>
+                </div>
+
+                {/* 3. Operating Expenses */}
+                <div className="rounded-2xl border border-rose-500/20 bg-rose-50/40 p-4 space-y-2">
+                  <h4 className="font-bold text-sm text-rose-800 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-rose-600" /> 3. مصروفات التشغيل (Operating Expenses)
+                  </h4>
+                  <p className="text-xs text-rose-900 leading-relaxed font-medium">
+                    {report.auditDetails?.explanations?.operatingExpenses || `مجموع المصاريف العمومية والإدارية كالإيجار والكهرباء والأجور فقط دون مشتريات الموردين أو حركات التصفية.`}
+                  </p>
+                  <div className="text-[11px] text-rose-800 bg-rose-100/60 p-2 rounded-xl">
+                    إجمالي المصروفات التشغيلية: {EGP(report.operatingExpenses)}
+                  </div>
+                </div>
+
+                {/* 4. Supplier Purchases */}
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-50/40 p-4 space-y-2">
+                  <h4 className="font-bold text-sm text-amber-900 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-amber-600" /> 4. مشتريات الموردين (Supplier Stock)
+                  </h4>
+                  <p className="text-xs text-amber-950 leading-relaxed font-medium">
+                    {report.auditDetails?.explanations?.supplierPurchases || `إجمالي المبالغ المدفوعة لشراء مخزون سواء من الخزنة أو من خارجها.`}
+                  </p>
+                  <div className="text-[11px] text-amber-900 bg-amber-100/60 p-2 rounded-xl">
+                    إجمالي المشتريات والموردين: {EGP(report.supplierPurchases)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Formula Formula Summary Card */}
+              <div className="rounded-2xl bg-burgundy/5 p-4 border border-burgundy/10 space-y-2">
+                <h4 className="font-bold text-sm text-burgundy">📌 معادلة التفليد وصافي أرباح الشهر:</h4>
+                <p className="text-xs text-burgundy/80">
+                  <span className="font-bold">صافي الربح النهائي = </span> مجمل الربح التجاري ➖ مصروفات التشغيل
+                </p>
+                <p className="text-xs text-burgundy/80">
+                  <span className="font-bold">صافي السيولة النقدية = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون) ➖ (مصاريف التشغيل + الموردين)
+                </p>
+              </div>
+
+              {/* Itemized Operating Expense List */}
+              {report.auditDetails?.operatingExpensesList && report.auditDetails.operatingExpensesList.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-bold text-sm text-burgundy">📜 كشف حساب مصاريف التشغيل المفصل لهذا الشهر:</h4>
+                  <div className="max-h-60 overflow-y-auto rounded-2xl border border-burgundy/10 bg-white">
+                    <table className="w-full text-right text-xs">
+                      <thead className="bg-[#F7F0EC]/60 font-bold sticky top-0">
+                        <tr className="border-b border-burgundy/10">
+                          <th className="py-2.5 px-3">التاريخ</th>
+                          <th className="py-2.5 px-3">فئة المصروف</th>
+                          <th className="py-2.5 px-3">الوصف</th>
+                          <th className="py-2.5 px-3">المبلغ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-burgundy/5">
+                        {report.auditDetails.operatingExpensesList.map((exp, idx) => (
+                          <tr key={idx} className="hover:bg-burgundy/[0.02]">
+                            <td className="py-2 px-3 text-burgundy/60">{new Date(exp.date).toLocaleDateString('ar-EG')}</td>
+                            <td className="py-2 px-3 font-semibold text-rose-800">{exp.category}</td>
+                            <td className="py-2 px-3 text-burgundy/70">{exp.description || '—'}</td>
+                            <td className="py-2 px-3 font-bold text-rose-700">{EGP(exp.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Metric Cards Grid */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
