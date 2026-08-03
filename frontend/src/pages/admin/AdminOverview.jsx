@@ -290,7 +290,7 @@ function AdminOverview() {
       </div>
 
       {/* Today highlight */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div
           onClick={() => toggleCardReveal('todayRevenue')}
           className={`rounded-[1.75rem] bg-burgundy p-6 text-white shadow-lg shadow-burgundy/20 select-none transition-all duration-300 ${
@@ -310,6 +310,14 @@ function AdminOverview() {
           color="bg-white"
           sub={`${overview?.totalOrders || 0} طلب مكتمل`}
           onClick={() => toggleCardReveal('totalSales')}
+        />
+        <StatCard 
+          label="إجمالي الخصومات" 
+          value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))} 
+          icon="🏷️" 
+          color="bg-amber-50/40" 
+          sub="خصومات وتخفيضات الفواتير"
+          onClick={() => toggleCardReveal('totalDiscounts')}
         />
         <StatCard 
           label="صافي ربح النشاط" 

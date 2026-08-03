@@ -272,7 +272,7 @@ export default function AdminMonthlyReports() {
               </div>
 
               {/* Explanations Grid */}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {/* 1. Total Sales */}
                 <div className="rounded-2xl border border-burgundy/10 bg-white p-4 space-y-2">
                   <h4 className="font-bold text-sm text-burgundy flex items-center gap-2">
@@ -282,14 +282,27 @@ export default function AdminMonthlyReports() {
                     {report.auditDetails?.explanations?.totalSales || `إجمالي المبيعات هو مجموع صافي الفواتير المكتملة (${report.totalOrders} فاتورة) بقيمة ${EGP(report.totalSales)}.`}
                   </p>
                   <div className="text-[11px] text-burgundy/60 bg-burgundy/5 p-2 rounded-xl">
-                    المبيعات كاش: {EGP(report.cashRevenue)} | مبيعات إنستاباي: {EGP(report.instapayRevenue)} | خصومات ممنوحة: {EGP(report.totalDiscounts)}
+                    المبيعات كاش: {EGP(report.cashRevenue)} | مبيعات إنستاباي: {EGP(report.instapayRevenue)}
                   </div>
                 </div>
 
-                {/* 2. Gross Profit & COGS */}
+                {/* 2. Total Discounts */}
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-50/40 p-4 space-y-2">
+                  <h4 className="font-bold text-sm text-amber-900 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-amber-600" /> 2. إجمالي الخصومات (Discounts)
+                  </h4>
+                  <p className="text-xs text-amber-950 leading-relaxed font-medium">
+                    {report.auditDetails?.explanations?.totalDiscounts || `إجمالي الخصومات الممنوحة = مجموع التخفيضات المباشرة في الفواتير بقيمة ${EGP(report.totalDiscounts)}.`}
+                  </p>
+                  <div className="text-[11px] text-amber-900 bg-amber-100/60 p-2 rounded-xl">
+                    قبل الخصم: {EGP((report.totalSales || 0) + (report.totalDiscounts || 0))} | الخصومات: -{EGP(report.totalDiscounts)} | صافي المبيعات: {EGP(report.totalSales)}
+                  </div>
+                </div>
+
+                {/* 3. Gross Profit & COGS */}
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-50/40 p-4 space-y-2">
                   <h4 className="font-bold text-sm text-emerald-800 flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-emerald-600" /> 2. مجمل الربح وتكلفة البضاعة (COGS)
+                    <span className="h-2 w-2 rounded-full bg-emerald-600" /> 3. مجمل الربح وتكلفة البضاعة (COGS)
                   </h4>
                   <p className="text-xs text-emerald-900 leading-relaxed font-medium">
                     {report.auditDetails?.explanations?.grossProfit || `مجمل الربح = المبيعات الصافية ➖ تكلفة شراء البضاعة المباعة.`}
@@ -299,10 +312,10 @@ export default function AdminMonthlyReports() {
                   </div>
                 </div>
 
-                {/* 3. Operating Expenses */}
+                {/* 4. Operating Expenses */}
                 <div className="rounded-2xl border border-rose-500/20 bg-rose-50/40 p-4 space-y-2">
                   <h4 className="font-bold text-sm text-rose-800 flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-rose-600" /> 3. مصروفات التشغيل (Operating Expenses)
+                    <span className="h-2 w-2 rounded-full bg-rose-600" /> 4. مصروفات التشغيل (Operating Expenses)
                   </h4>
                   <p className="text-xs text-rose-900 leading-relaxed font-medium">
                     {report.auditDetails?.explanations?.operatingExpenses || `مجموع المصاريف العمومية والإدارية كالإيجار والكهرباء والأجور فقط دون مشتريات الموردين أو حركات التصفية.`}
@@ -312,10 +325,10 @@ export default function AdminMonthlyReports() {
                   </div>
                 </div>
 
-                {/* 4. Supplier Purchases */}
+                {/* 5. Supplier Purchases */}
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-50/40 p-4 space-y-2">
                   <h4 className="font-bold text-sm text-amber-900 flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-amber-600" /> 4. مشتريات الموردين (Supplier Stock)
+                    <span className="h-2 w-2 rounded-full bg-amber-600" /> 5. مشتريات الموردين (Supplier Stock)
                   </h4>
                   <p className="text-xs text-amber-950 leading-relaxed font-medium">
                     {report.auditDetails?.explanations?.supplierPurchases || `إجمالي المبالغ المدفوعة لشراء مخزون سواء من الخزنة أو من خارجها.`}
@@ -326,14 +339,20 @@ export default function AdminMonthlyReports() {
                 </div>
               </div>
 
-              {/* Formula Formula Summary Card */}
+              {/* Formula Summary Card */}
               <div className="rounded-2xl bg-burgundy/5 p-4 border border-burgundy/10 space-y-2">
-                <h4 className="font-bold text-sm text-burgundy">📌 معادلة التفليد وصافي أرباح الشهر:</h4>
+                <h4 className="font-bold text-sm text-burgundy">📌 القواعد والقيود المحاسبية المعتمدة للتقفيل الشهري:</h4>
                 <p className="text-xs text-burgundy/80">
-                  <span className="font-bold">صافي الربح النهائي = </span> مجمل الربح التجاري ➖ مصروفات التشغيل
+                  <span className="font-bold">1. صافي المبيعات = </span> إجمالي قيم المبيعات قبل الخصم ➖ إجمالي الخصومات الممنوحة ({EGP(report.totalDiscounts)})
                 </p>
                 <p className="text-xs text-burgundy/80">
-                  <span className="font-bold">صافي السيولة النقدية = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون) ➖ (مصاريف التشغيل + الموردين)
+                  <span className="font-bold">2. مجمل الربح التجاري = </span> صافي المبيعات ➖ تكلفة شراء البضاعة المباعة (COGS) <span className="text-burgundy/60 font-semibold">(عدم خصم التخفيض مرتين)</span>
+                </p>
+                <p className="text-xs text-burgundy/80">
+                  <span className="font-bold">3. صافي الربح النهائي = </span> مجمل الربح التجاري ➖ مصروفات التشغيل
+                </p>
+                <p className="text-xs text-burgundy/80">
+                  <span className="font-bold">4. صافي السيولة النقدية = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون) ➖ (مصاريف التشغيل + الموردين)
                 </p>
               </div>
 
@@ -369,7 +388,7 @@ export default function AdminMonthlyReports() {
           )}
 
           {/* Metric Cards Grid */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {/* Total Sales */}
             <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between text-burgundy/60 text-xs font-medium">
@@ -381,6 +400,18 @@ export default function AdminMonthlyReports() {
                 <span>كاش: {EGP(report.cashRevenue)}</span>
                 <span>إنستاباي: {EGP(report.instapayRevenue)}</span>
               </div>
+            </div>
+
+            {/* Total Discounts Card */}
+            <div className="rounded-[1.5rem] border border-amber-500/20 bg-amber-50/50 p-5 shadow-sm">
+              <div className="flex items-center justify-between text-amber-900 text-xs font-medium">
+                <span>إجمالي الخصومات</span>
+                <span>🏷️</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-amber-800">{EGP(report.totalDiscounts)}</p>
+              <p className="mt-2 text-[11px] text-amber-900/70">
+                خصومات الفواتير (قبل صافي المبيعات)
+              </p>
             </div>
 
             {/* Net Operating Profit */}
@@ -455,6 +486,7 @@ export default function AdminMonthlyReports() {
                   <tr className="border-b border-burgundy/10 bg-[#F7F0EC]/50 text-xs font-bold text-burgundy/70">
                     <th className="py-3 px-4">اليوم والتاريخ</th>
                     <th className="py-3 px-4">إجمالي الإيراد</th>
+                    <th className="py-3 px-4">الخصومات</th>
                     <th className="py-3 px-4">صافي الربح</th>
                     <th className="py-3 px-4">المصروفات</th>
                     <th className="py-3 px-4">نقدية (كاش)</th>
@@ -470,6 +502,9 @@ export default function AdminMonthlyReports() {
                       </td>
                       <td className="py-2.5 px-4 font-bold text-burgundy">
                         {day.revenue > 0 ? EGP(day.revenue) : '—'}
+                      </td>
+                      <td className="py-2.5 px-4 font-semibold text-amber-800">
+                        {day.discounts > 0 ? EGP(day.discounts) : '—'}
                       </td>
                       <td className={`py-2.5 px-4 font-bold ${day.profit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                         {day.revenue > 0 || day.expenses > 0 ? EGP(day.profit) : '—'}
@@ -493,6 +528,7 @@ export default function AdminMonthlyReports() {
                   <tr className="border-t-2 border-burgundy/20 bg-burgundy/5 font-bold text-burgundy">
                     <td className="py-3 px-4">الإجمالي الشهري</td>
                     <td className="py-3 px-4">{EGP(report.totalSales)}</td>
+                    <td className="py-3 px-4 text-amber-800">{EGP(report.totalDiscounts)}</td>
                     <td className="py-3 px-4 text-emerald-700">{EGP(report.netProfit)}</td>
                     <td className="py-3 px-4 text-rose-700">{EGP(report.totalExpenses)}</td>
                     <td className="py-3 px-4">{EGP(report.cashRevenue)}</td>
