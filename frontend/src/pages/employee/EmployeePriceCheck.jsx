@@ -76,15 +76,31 @@ function EmployeePriceCheck() {
       
       if (e.key === 'Enter') {
         if (scanBuffer.current.length > 2) {
-          const scanned = scanBuffer.current.trim();
+          const scanned = scanBuffer.current.trim().toUpperCase();
           setQuery(scanned);
           doSearch(scanned);
           inputRef.current?.focus();
         }
         scanBuffer.current = '';
         clearTimeout(scanTimer.current);
-      } else if (e.key.length === 1) {
-        scanBuffer.current += e.key;
+        return;
+      }
+
+      let char = '';
+      if (e.code.startsWith('Key')) {
+        char = e.code.slice(3);
+      } else if (e.code.startsWith('Digit')) {
+        char = e.code.slice(5);
+      } else if (e.code.startsWith('Numpad') && e.code.length === 7) {
+        char = e.code.slice(6);
+      } else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+        char = '-';
+      } else if (e.key.length === 1 && !/[\u0600-\u06FF]/.test(e.key)) {
+        char = e.key;
+      }
+
+      if (char) {
+        scanBuffer.current += char;
         clearTimeout(scanTimer.current);
         scanTimer.current = setTimeout(() => {
           scanBuffer.current = '';

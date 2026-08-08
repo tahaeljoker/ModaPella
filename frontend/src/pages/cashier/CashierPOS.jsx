@@ -572,7 +572,7 @@ function CashierPOS() {
       if (e.target.tagName === 'INPUT' && e.target !== searchRef.current) return;
       if (e.key === 'Enter' && buffer.length > 3) {
         const sku = buffer.trim().toUpperCase();
-        const found = products.find(p => p.sku === sku);
+        const found = products.find(p => p.sku && p.sku.trim().toUpperCase() === sku);
         if (found) {
           // Pick first available variant (size + color) automatically
           let autoSize = '';
@@ -647,9 +647,11 @@ function CashierPOS() {
         char = e.code.slice(3); // e.g. 'KeyP' -> 'P'
       } else if (e.code.startsWith('Digit')) {
         char = e.code.slice(5); // e.g. 'Digit1' -> '1'
-      } else if (e.code === 'Minus') {
+      } else if (e.code.startsWith('Numpad') && e.code.length === 7) {
+        char = e.code.slice(6); // e.g. 'Numpad1' -> '1'
+      } else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
         char = '-';
-      } else if (e.key.length === 1) {
+      } else if (e.key.length === 1 && !/[\u0600-\u06FF]/.test(e.key)) {
         char = e.key;
       }
 

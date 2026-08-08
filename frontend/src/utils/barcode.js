@@ -1,4 +1,4 @@
-﻿export const CODE128_PATTERNS = [
+export const CODE128_PATTERNS = [
   "11011001100", "11001101100", "11001100110", "10010011000", "10010001100",
   "10001001100", "10011001000", "10011000100", "10001100100", "11001001000",
   "11001000100", "11000100100", "10110011100", "10011011100", "10011001110",
@@ -23,7 +23,9 @@
   "11010011100", "1100011101011"
 ];
 
-export function generateBarcode128(text) {
+export function generateBarcode128(text, quietZone = 10) {
+  if (!text || typeof text !== 'string') return null;
+
   const startCode = 104; // Start B
   const stopCode = 106;
 
@@ -47,11 +49,10 @@ export function generateBarcode128(text) {
   
   let binaryString = sequence.map(v => CODE128_PATTERNS[v]).join("");
 
-  // convert to simple array of {x, width} to render as SVG/divs
   const bars = [];
   let currentW = 0;
   let isBlack = true;
-  let x = 0;
+  let x = quietZone;
 
   for (let i = 0; i < binaryString.length; i++) {
     if ((binaryString[i] === "1") === isBlack) {
@@ -69,11 +70,13 @@ export function generateBarcode128(text) {
     bars.push({ x, width: currentW });
   }
 
-  return { bars, totalW: x + currentW };
+  const totalW = x + currentW + quietZone;
+
+  return { bars, totalW };
 }
 
-export function renderBarcodeSVG(text, height = 40) {
-  const svg = generateBarcode128(text);
+export function renderBarcodeSVG(text, height = 40, quietZone = 10) {
+  const svg = generateBarcode128(text, quietZone);
   if (!svg) return "";
   const barsHTML = svg.bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="${height}" fill="#000" style="shape-rendering: crispEdges;" />`).join("");
   return `

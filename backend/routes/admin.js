@@ -264,22 +264,32 @@ router.put('/site-config', auth, requireRole(['admin']), async (req, res) => {
 });
 
 const generateSku = async (category) => {
-  // Remove hyphens from category before building prefix (e.g. T-shirt → TSH)
-  const sanitized = category.replace(/-/g, '');
-  const prefix = sanitized.substring(0, 3).toUpperCase();
-  const lastProduct = await Product.findOne({ sku: new RegExp(`^${prefix}-`) }).sort({ sku: -1 });
-  if (lastProduct && lastProduct.sku) {
-    const parts = lastProduct.sku.split('-');
-    const num = parseInt(parts[parts.length - 1]);
-    return `${prefix}-${isNaN(num) ? 1001 : num + 1}`;
+  const catStr = (category || 'GEN').toString();
+  const sanitized = catStr.replace(/[^a-zA-Z0-9]/g, '');
+  const prefix = (sanitized.substring(0, 3) || 'PRD').toUpperCase();
+
+  const products = await Product.find({ sku: new RegExp(`^${prefix}-`, 'i') }, { sku: 1 }).lean();
+  let maxNum = 1000;
+
+  for (const p of products) {
+    if (p.sku) {
+      const parts = p.sku.split('-');
+      const num = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
   }
-  return `${prefix}-1001`;
+
+  return `${prefix}-${maxNum + 1}`;
 };
 
 router.post('/products', auth, requireRole(['admin']), async (req, res) => {
   try {
     const productData = req.body;
-    if (!productData.sku) {
+    if (productData.sku && typeof productData.sku === 'string' && productData.sku.trim()) {
+      productData.sku = productData.sku.trim().toUpperCase();
+    } else {
       productData.sku = await generateSku(productData.category);
     }
     const product = new Product(productData);
@@ -326,6 +336,9 @@ router.post('/products', auth, requireRole(['admin']), async (req, res) => {
 
 router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
   try {
+    if (req.body.sku && typeof req.body.sku === 'string') {
+      req.body.sku = req.body.sku.trim().toUpperCase();
+    }
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!product) return res.status(404).json({ message: 'Product not found' });
     req.app.locals.io?.emit('inventory:update', product);
