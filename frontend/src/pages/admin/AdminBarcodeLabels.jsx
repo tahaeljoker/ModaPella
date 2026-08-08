@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
-import { generateBarcode128 } from '../../utils/barcode';
+import { renderBarcodeDataUrl } from '../../utils/barcode';
 
 const CATEGORY_LABELS = {
   Blazer: 'بليزر',
@@ -21,7 +21,7 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 // ── Label Component (1.57in × 1.18in thermal label style) ───────────────────────
 function BarcodeLabel({ product, qty }) {
-  const svg = generateBarcode128(product.sku, 12);
+  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 50, margin: 10 });
   return (
     <div
       className="barcode-label"
@@ -46,30 +46,21 @@ function BarcodeLabel({ product, qty }) {
       }}
     >
       <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: '8px', fontWeight: '900', color: '#000' }}>ModaPella</div>
-        <div style={{ fontSize: '7.5px', color: '#000', marginTop: '0.5px', maxWidth: '100%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: '7.5px', fontWeight: '900', color: '#000' }}>ModaPella</div>
+        <div style={{ fontSize: '7px', color: '#000', marginTop: '0.5px', maxWidth: '95%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {product.name}
         </div>
       </div>
 
-      {svg ? (
-        <div style={{ width: '96%', height: '14mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0.5mm 0' }}>
-          <svg
-            viewBox={`0 0 ${svg.totalW} 60`}
-            style={{ width: '100%', height: '100%' }}
-            preserveAspectRatio="none"
-          >
-            <rect width="100%" height="100%" fill="#fff" />
-            {svg.bars.map((b, i) => (
-              <rect key={i} x={b.x} y={0} width={b.width} height={60} fill="#000" style={{ shapeRendering: 'crispEdges' }} />
-            ))}
-          </svg>
+      {dataUrl ? (
+        <div style={{ width: '90%', height: '12mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '1px 0' }}>
+          <img src={dataUrl} alt={product.sku} style={{ maxWidth: '100%', height: '12mm', objectFit: 'contain', imageRendering: 'pixelated' }} />
         </div>
       ) : (
         <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', lineHeight: '1', marginTop: '1px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '95%', alignItems: 'center', lineHeight: '1', marginTop: '1px' }}>
         <span style={{ fontSize: '8px', fontWeight: '700', fontFamily: 'monospace', color: '#000' }}>
           {product.sku}
         </span>
@@ -121,12 +112,9 @@ function AdminBarcodeLabels() {
     const labelsHTML = selectedProducts.flatMap(p => {
       const qty = quantities[p._id] || 1;
       return Array.from({ length: qty }, () => {
-        const svg = generateBarcode128(p.sku, 12);
-        const svgContent = svg
-          ? `<svg viewBox="0 0 ${svg.totalW} 60" style="width:100%;height:100%;">
-              <rect width="100%" height="100%" fill="#fff" />
-              ${svg.bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000" style="shape-rendering:crispEdges"/>`).join('')}
-             </svg>`
+        const dataUrl = renderBarcodeDataUrl(p.sku, { width: 2, height: 50, margin: 10 });
+        const barcodeContent = dataUrl
+          ? `<img src="${dataUrl}" alt="${p.sku}" style="max-width:100%;height:11mm;object-fit:contain;image-rendering:pixelated;" />`
           : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
         return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:30mm;overflow:hidden;box-sizing:border-box;">
@@ -136,13 +124,13 @@ function AdminBarcodeLabels() {
               <div style="font-size:7px;color:#000;margin-top:0.5px;max-width:95%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;">${p.name}</div>
             </div>
             <div style="width:100%;display:flex;justify-content:center;align-items:center;margin:1px 0;">
-              <div style="width:85%;height:10mm;display:flex;justify-content:center;align-items:center;">
-                ${svgContent}
+              <div style="width:90%;height:11mm;display:flex;justify-content:center;align-items:center;">
+                ${barcodeContent}
               </div>
             </div>
             <div style="display:flex;justify-content:space-between;width:95%;align-items:center;line-height:1;margin-top:1px;">
               <span style="font-size:8px;font-weight:700;font-family:monospace;color:#000;text-align:right;">${p.sku}</span>
-              <span style="font-size:8px;font-weight:900;color:#000;text-align:left;">${Number(p.price).toLocaleString('en-US')} ج.م</span>
+              <span style="font-size:8.5px;font-weight:900;color:#000;text-align:left;">${Number(p.price).toLocaleString('en-US')} ج.م</span>
             </div>
           </div>
         </div>`;

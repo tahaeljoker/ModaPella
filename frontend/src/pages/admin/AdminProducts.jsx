@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import { isDiscountActive } from '../../utils/discount';
-import { generateBarcode128 } from '../../utils/barcode';
+import { renderBarcodeDataUrl } from '../../utils/barcode';
 
 
 const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
@@ -35,11 +35,8 @@ const getProductIcon = (category = '', name = '') => {
 
 function printBarcode(product) {
   if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
-  const svgData = generateBarcode128(product.sku, 12);
-  if (!svgData) return alert('تعذر إنشاء باركود لهذا الكود');
-  const { bars, totalW } = svgData;
-  const svgBars = bars.map(b => `<rect x="${b.x}" y="0" width="${b.width}" height="60" fill="#000" style="shape-rendering:crispEdges"/>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} 60" style="width:100%;height:100%;"><rect width="100%" height="100%" fill="#fff" />${svgBars}</svg>`;
+  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 60, margin: 10 });
+  if (!dataUrl) return alert('تعذر إنشاء باركود لهذا الكود');
   const win = window.open('', '_blank', 'width=400,height=300');
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
   <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
@@ -59,7 +56,7 @@ function printBarcode(product) {
     direction: rtl;
   }
   .brand {
-    font-size: 7px;
+    font-size: 7.5px;
     font-weight: 900;
     color: #000;
     line-height: 1;
@@ -68,9 +65,9 @@ function printBarcode(product) {
     width: 100%;
   }
   .name {
-    font-size: 6px;
+    font-size: 7px;
     color: #000;
-    max-width: 90%;
+    max-width: 95%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -80,12 +77,18 @@ function printBarcode(product) {
     width: 100%;
   }
   .barcode-wrapper {
-    width: 80%;
-    height: 11mm;
+    width: 90%;
+    height: 12mm;
     display: flex;
     justify-content: center;
     align-items: center;
     margin: 0 auto;
+  }
+  .barcode-wrapper img {
+    max-width: 100%;
+    height: 12mm;
+    object-fit: contain;
+    image-rendering: pixelated;
   }
   .footer {
     display: flex;
@@ -93,17 +96,17 @@ function printBarcode(product) {
     width: 95%;
     align-items: center;
     line-height: 1;
-    margin-top: 1px;
+    margin-top: 2px;
   }
   .sku {
     font-family: monospace;
-    font-size: 7.5px;
+    font-size: 8px;
     font-weight: 700;
     color: #000;
     text-align: right;
   }
   .price {
-    font-size: 8px;
+    font-size: 8.5px;
     font-weight: 900;
     color: #000;
     text-align: left;
@@ -115,7 +118,7 @@ function printBarcode(product) {
   <body>
     <div class="brand">ModaPella</div>
     <div class="name">${product.name}</div>
-    <div class="barcode-wrapper">${svg}</div>
+    <div class="barcode-wrapper"><img src="${dataUrl}" alt="${product.sku}" /></div>
     <div class="footer">
       <span class="sku">${product.sku}</span>
       <span class="price">${Number(product.price).toLocaleString('en-US')} ج.م</span>
