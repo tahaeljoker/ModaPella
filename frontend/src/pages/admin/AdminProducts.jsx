@@ -731,7 +731,14 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory,
                   )}
                 </div>
 
-                <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold w-fit ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{p.stock} ق</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي كمية البداية الاستلام">
+                    🔷 {p.totalReceived > 0 ? p.totalReceived : ((p.stock || 0) + (p.sold || 0))} بداية
+                  </span>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`} title="المخزون الفعلي المتاح حالياً">
+                    🟢 {p.stock} متبقي
+                  </span>
+                </div>
                 <div className="flex gap-1.5">
                   <button onClick={() => onEdit(p)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
                   {p.sku && <button onClick={() => printBarcode(p)} className="rounded-xl border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-500 hover:text-white">🖶</button>}
@@ -879,8 +886,13 @@ function InventoryTab({ products, loading, onRefresh, categories, catAr }) {
                     <span className="block text-sm font-bold">{EGP(p.price)}</span>
                   )}
                   {/* Stock */}
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-3 py-1 text-sm font-bold ${stockBadge(p.stock)}`}>{p.stock} قطعة</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي كمية البداية الاستلام">
+                      🔷 {p.totalReceived > 0 ? p.totalReceived : ((p.stock || 0) + (p.sold || 0))} بداية
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${stockBadge(p.stock)}`} title="المخزون الفعلي المتاح حالياً">
+                      🟢 {p.stock} متبقي
+                    </span>
                     {p.variants?.length > 0 && (
                       <button onClick={() => setExpanded(expanded === p._id ? null : p._id)} className="text-xs text-burgundy/40 hover:text-burgundy transition">
                         {expanded === p._id ? '▲' : '▼'}
