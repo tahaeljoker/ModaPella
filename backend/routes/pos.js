@@ -317,6 +317,232 @@ router.post('/recover', auth, async (req, res) => {
   }
 });
 
+// POST /api/pos/exchange — Process a direct exchange (Return + New Sale in one seamless transaction)
+router.post('/exchange', auth, async (req, res) => {
+  try {
+    const { originalOrderId, returnItems, newItems, discount = 0, paymentMethod = 'Cash', reason = '', notes = '', employeeId } = req.body;
+
+    const originalOrder = await Order.findById(originalOrderId);
+    if (!originalOrder) return res.status(404).json({ message: 'الفاتورة الأصلية غير موجودة' });
+    if (originalOrder.recovered) return res.status(400).json({ message: 'الفاتورة تم استردادها بالكامل مسبقاً' });
+
+    if (!returnItems || returnItems.length === 0) {
+      return res.status(400).json({ message: 'يجب اختيار صنف واحد على الأقل لإرجاعه في الاستبدال' });
+    }
+    if (!newItems || newItems.length === 0) {
+      return res.status(400).json({ message: 'يجب اختيار صنف جديد واحد على الأقل للشراء في الاستبدال' });
+    }
+
+    // 1. Validate and process returned items
+    const itemsToReturn = [];
+    for (const ri of returnItems) {
+      const item = originalOrder.items.id(ri.itemId);
+      if (!item) return res.status(400).json({ message: `صنف الفاتورة #${ri.itemId} غير موجود` });
+      const remainingQty = item.quantity - (item.returnedQuantity || 0);
+      if (ri.quantity > remainingQty) {
+        return res.status(400).json({ message: `الكمية المرتجعة للـ ${item.name} أكبر من المتاحة (${remainingQty})` });
+      }
+      item.returnedQuantity = (item.returnedQuantity || 0) + ri.quantity;
+      itemsToReturn.push({
+        product: item.product,
+        name: item.name,
+        size: item.size,
+        color: item.color,
+        quantity: ri.quantity,
+        price: item.price
+      });
+    }
+
+    const fullyRecovered = originalOrder.items.every(item => (item.returnedQuantity || 0) === item.quantity);
+    if (fullyRecovered) {
+      originalOrder.status = 'Returned';
+      originalOrder.recovered = true;
+    }
+    await originalOrder.save();
+
+    // 2. Restock returned items
+    await Promise.all(itemsToReturn.map(async (item) => {
+      const product = await Product.findById(item.product);
+      if (!product) return;
+      let prevStock = 0;
+      let variant = null;
+      if (product.variants && product.variants.length > 0) {
+        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
+        if (variant) {
+          prevStock = variant.stock;
+          variant.stock += item.quantity;
+        }
+      } else {
+        prevStock = product.stock;
+        product.stock += item.quantity;
+      }
+      if (product.variants && product.variants.length > 0) {
+        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      }
+      product.sold = Math.max(0, product.sold - item.quantity);
+      await product.save();
+
+      const history = new StockHistory({
+        product: product._id,
+        productName: product.name,
+        size: item.size || '',
+        color: item.color || '',
+        variantKey: variant ? `${item.size}_${item.color}` : '',
+        changeType: 'Refund',
+        quantityChanged: item.quantity,
+        previousStock: prevStock,
+        newStock: variant ? variant.stock : product.stock,
+        performedBy: req.user.id,
+        referenceId: originalOrder._id,
+        notes: `مرتجع استبدال فاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'استبدال'}`
+      });
+      await history.save();
+      req.app.locals.io?.emit('inventory:update', product);
+    }));
+
+    // 3. Validate and process new sale items stock
+    const productLookups = await Promise.all(newItems.map(async (item) => {
+      const product = await Product.findById(item.product);
+      if (!product) throw new Error(`المنتج غير موجود: ${item.name || item.product}`);
+      let availableStock = product.stock ?? 0;
+      let variant = null;
+      if (product.variants && product.variants.length > 0) {
+        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
+        if (variant) availableStock = variant.stock ?? 0;
+      }
+      if ((availableStock || 0) < Number(item.quantity || 0)) {
+        throw new Error(`الكمية غير متوفرة للمنتج ${product.name}`);
+      }
+      return { item, product, variant, costPrice: product.costPrice || 0 };
+    }));
+
+    // Deduct stock for new items
+    await Promise.all(productLookups.map(async ({ item, product, variant }) => {
+      const prevStock = variant ? variant.stock : product.stock;
+      if (variant) {
+        variant.stock = Math.max(0, variant.stock - item.quantity);
+      } else {
+        product.stock = Math.max(0, product.stock - item.quantity);
+      }
+      if (product.variants && product.variants.length > 0) {
+        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      }
+      product.sold += item.quantity;
+      await product.save();
+
+      const history = new StockHistory({
+        product: product._id,
+        productName: product.name,
+        size: item.size || '',
+        color: item.color || '',
+        variantKey: variant ? `${item.size}_${item.color}` : '',
+        changeType: 'POS Sale',
+        quantityChanged: -item.quantity,
+        previousStock: prevStock,
+        newStock: variant ? variant.stock : product.stock,
+        performedBy: req.user.id,
+        notes: `مبيعات استبدال فاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()}`
+      });
+      await history.save();
+      req.app.locals.io?.emit('inventory:update', product);
+    }));
+
+    // 4. Calculate accounting totals
+    const originalOrderTotal = originalOrder.totalAmount + originalOrder.discount;
+    let returnCreditValue = 0;
+    if (originalOrderTotal > 0) {
+      const returnedValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+      const proportion = returnedValue / originalOrderTotal;
+      returnCreditValue = Math.round((originalOrder.totalAmount * proportion) * 100) / 100;
+    }
+
+    const rawNewTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const newTotalAmount = Math.max(0, rawNewTotal - Number(discount));
+
+    const netDifference = newTotalAmount - returnCreditValue; // > 0 means customer pays, < 0 means store refunds
+
+    let employeeName = '';
+    if (employeeId) {
+      const Employee = require('../models/Employee');
+      const empDb = await Employee.findById(employeeId);
+      if (empDb) employeeName = empDb.name;
+    }
+
+    // Save the new Order
+    const newOrderItems = productLookups.map(({ item, variant, costPrice }) => ({
+      product: item.product,
+      name: item.name,
+      category: item.category,
+      quantity: item.quantity,
+      price: item.price,
+      size: item.size || '',
+      color: item.color || '',
+      costPrice,
+      variantId: variant?._id || null
+    }));
+
+    const newOrder = new Order({
+      customerName: originalOrder.customerName || '',
+      customerPhone: originalOrder.customerPhone || '',
+      seller: req.user.id,
+      employee: employeeId || null,
+      employeeName: employeeName,
+      items: newOrderItems,
+      totalAmount: newTotalAmount,
+      discount: Number(discount),
+      type: 'Offline',
+      status: 'Completed',
+      paymentMethod,
+      notes: `استبدال مباشر عن الفاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()} ${notes ? `(${notes})` : ''}`
+    });
+    await newOrder.save();
+
+    // 5. Handle Transaction accounting entry
+    const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    const origCode = originalOrder._id.toString().slice(-6).toUpperCase();
+
+    if (netDifference > 0) {
+      // Customer paid net difference (Cash IN)
+      const transaction = new Transaction({
+        amount: netDifference,
+        type: 'IN',
+        category: 'Sale',
+        paymentMethod,
+        description: `فرق استبدال موجب (تحصيل) عن الفاتورة #${origCode} ➔ فاتورة جديدة #${newOrder._id.toString().slice(-6).toUpperCase()}`,
+        referenceId: newOrder._id,
+        user: req.user.id,
+        shift: openShift?._id
+      });
+      await transaction.save();
+    } else if (netDifference < 0) {
+      // Store refunded net difference (Cash OUT)
+      const refundAmt = Math.abs(netDifference);
+      const transaction = new Transaction({
+        amount: refundAmt,
+        type: 'OUT',
+        category: 'Refund',
+        paymentMethod,
+        description: `فرق استبدال سالب (استرداد) عن الفاتورة #${origCode} ➔ فاتورة جديدة #${newOrder._id.toString().slice(-6).toUpperCase()}`,
+        referenceId: newOrder._id,
+        user: req.user.id,
+        shift: openShift?._id
+      });
+      await transaction.save();
+    }
+
+    res.json({
+      newOrder,
+      returnCreditValue,
+      newTotalAmount,
+      netDifference,
+      message: 'تم إتمام عملية الاستبدال بنجاح'
+    });
+  } catch (error) {
+    console.error('Exchange failed:', error);
+    res.status(400).json({ message: 'فشلت عملية الاستبدال', error: error.message });
+  }
+});
+
 router.patch('/storage/:productId', auth, async (req, res) => {
   try {
     const { adjustment, size, color } = req.body;
