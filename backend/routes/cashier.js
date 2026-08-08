@@ -99,11 +99,19 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     let instapayTotal = 0;
     let expenses = 0;
 
+    // Categories that are NOT operating expenses (internal movements, sales, refunds, etc.)
+    const isNonExpenseCategory = (cat) => {
+      const c = (cat || '').toLowerCase();
+      return c === 'shiftopen' || c === 'shiftclose' || c === 'sale' ||
+             c === 'safe transfer' || c === 'safetransfer' || c === 'transfer' ||
+             c === 'refund' || c.includes('مرتجع') || c === 'deposit' || c === 'debtpayment';
+    };
+
     transactions.forEach(t => {
       if (t.paymentMethod === 'Cash') {
         if (t.type === 'IN') cashDrawer += t.amount;
         if (t.type === 'OUT') cashDrawer -= t.amount;
-        if (t.type === 'OUT' && t.category === 'Expense') expenses += t.amount;
+        if (t.type === 'OUT' && !isNonExpenseCategory(t.category)) expenses += t.amount;
       } else if (t.paymentMethod === 'Instapay' || t.paymentMethod === 'Wallet') {
         if (t.type === 'IN') instapayTotal += t.amount;
         if (t.type === 'OUT') instapayTotal -= t.amount;
@@ -118,7 +126,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
       .filter(order => order.paymentMethod === 'Instapay' || order.paymentMethod === 'Wallet')
       .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
 
-    const netCashInSafe = cashSales - expenses;
+    const netCashInSafe = cashDrawer;
 
     res.json({
       transactions,

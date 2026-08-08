@@ -94,12 +94,18 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       );
     };
 
+    const isRefundTx = (t) => {
+      if (t.type !== 'OUT') return false;
+      const cat = (t.category || '').toLowerCase();
+      return cat === 'refund' || cat.includes('مرتجع');
+    };
+
     let operatingExpenses = 0;
     let supplierPurchases = 0;
     const expenseMap = {};
 
     outTransactions.forEach(t => {
-      if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
+      if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isRefundTx(t)) {
         const cat = t.category || 'أخرى';
         expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
         operatingExpenses += t.amount;
@@ -263,6 +269,11 @@ router.put('/site-config', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
+const sanitizeSku = (str) => {
+  if (!str || typeof str !== 'string') return '';
+  return str.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+};
+
 const generateSku = async (category) => {
   const catStr = (category || 'GEN').toString();
   const sanitized = catStr.replace(/[^a-zA-Z0-9]/g, '');
@@ -287,8 +298,9 @@ const generateSku = async (category) => {
 router.post('/products', auth, requireRole(['admin']), async (req, res) => {
   try {
     const productData = req.body;
-    if (productData.sku && typeof productData.sku === 'string' && productData.sku.trim()) {
-      productData.sku = productData.sku.trim().toUpperCase();
+    const cleanedSku = sanitizeSku(productData.sku);
+    if (cleanedSku) {
+      productData.sku = cleanedSku;
     } else {
       productData.sku = await generateSku(productData.category);
     }
@@ -336,11 +348,23 @@ router.post('/products', auth, requireRole(['admin']), async (req, res) => {
 
 router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
   try {
-    if (req.body.sku && typeof req.body.sku === 'string') {
-      req.body.sku = req.body.sku.trim().toUpperCase();
+    const existingProduct = await Product.findById(req.params.id);
+    if (!existingProduct) return res.status(404).json({ message: 'Product not found' });
+
+    const cleanedInputSku = sanitizeSku(req.body.sku);
+
+    if (cleanedInputSku) {
+      req.body.sku = cleanedInputSku;
+    } else if (existingProduct.sku && sanitizeSku(existingProduct.sku)) {
+      // Retain existing valid SKU
+      req.body.sku = existingProduct.sku;
+    } else {
+      // If product has no valid SKU in DB, generate one now
+      const category = req.body.category || existingProduct.category;
+      req.body.sku = await generateSku(category);
     }
+
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!product) return res.status(404).json({ message: 'Product not found' });
     req.app.locals.io?.emit('inventory:update', product);
     res.json(product);
   } catch (error) {

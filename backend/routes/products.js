@@ -5,6 +5,33 @@ const StockHistory = require('../models/StockHistory');
 
 const router = express.Router();
 
+const ensureMissingSkus = async (products) => {
+  for (const p of products) {
+    const isClean = p.sku && typeof p.sku === 'string' && /^[a-zA-Z0-9_-]+$/.test(p.sku.trim());
+    if (!isClean) {
+      try {
+        const catStr = (p.category || 'GEN').toString();
+        const sanitized = catStr.replace(/[^a-zA-Z0-9]/g, '');
+        const prefix = (sanitized.substring(0, 3) || 'PRD').toUpperCase();
+        
+        const existingWithPrefix = await Product.find({ sku: new RegExp(`^${prefix}-`, 'i') }, { sku: 1 }).lean();
+        let maxNum = 1000;
+        for (const item of existingWithPrefix) {
+          if (item.sku) {
+            const parts = item.sku.split('-');
+            const num = parseInt(parts[parts.length - 1], 10);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+          }
+        }
+        p.sku = `${prefix}-${maxNum + 1}`;
+        await p.save();
+      } catch (err) {
+        console.error('Auto SKU generation error for product:', p._id, err.message);
+      }
+    }
+  }
+};
+
 router.get('/', async (req, res) => {
   try {
     const { search, category, excludeId, limit } = req.query;
@@ -33,6 +60,7 @@ router.get('/', async (req, res) => {
     }
     
     const products = await mongoQuery;
+    await ensureMissingSkus(products);
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: 'Unable to fetch products', error: error.message });
