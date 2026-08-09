@@ -490,7 +490,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
                 value={form.sku || ''}
                 onChange={handleChange}
                 className={`${inp} font-mono tracking-widest uppercase`}
-                placeholder="مثال: DR-KATAN-01"
+                placeholder="مثال: 1019"
                 maxLength={30}
               />
               {form.sku && (
@@ -500,7 +500,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
               )}
               {!form.sku && (
                 <p className="mt-1 text-[10px] text-burgundy/40">
-                  ⚙️ سيتولد الكود تلقائياً من النظام (مثال: DRE-1001)
+                  ⚙️ سيتولد الكود رقمياً تلقائياً من النظام (مثال: 1019)
                 </p>
               )}
             </div>

@@ -274,25 +274,21 @@ const sanitizeSku = (str) => {
   return str.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
 };
 
-const generateSku = async (category) => {
-  const catStr = (category || 'GEN').toString();
-  const sanitized = catStr.replace(/[^a-zA-Z0-9]/g, '');
-  const prefix = (sanitized.substring(0, 3) || 'PRD').toUpperCase();
-
-  const products = await Product.find({ sku: new RegExp(`^${prefix}-`, 'i') }, { sku: 1 }).lean();
+const generateSku = async () => {
+  const products = await Product.find({}, { sku: 1 }).lean();
   let maxNum = 1000;
 
   for (const p of products) {
     if (p.sku) {
-      const parts = p.sku.split('-');
-      const num = parseInt(parts[parts.length - 1], 10);
+      const digits = p.sku.replace(/[^0-9]/g, '');
+      const num = parseInt(digits, 10);
       if (!isNaN(num) && num > maxNum) {
         maxNum = num;
       }
     }
   }
 
-  return `${prefix}-${maxNum + 1}`;
+  return (maxNum + 1).toString();
 };
 
 router.post('/products', auth, requireRole(['admin']), async (req, res) => {
@@ -302,7 +298,7 @@ router.post('/products', auth, requireRole(['admin']), async (req, res) => {
     if (cleanedSku) {
       productData.sku = cleanedSku;
     } else {
-      productData.sku = await generateSku(productData.category);
+      productData.sku = await generateSku();
     }
     const product = new Product(productData);
     await product.save();
@@ -360,8 +356,7 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
       req.body.sku = existingProduct.sku;
     } else {
       // If product has no valid SKU in DB, generate one now
-      const category = req.body.category || existingProduct.category;
-      req.body.sku = await generateSku(category);
+      req.body.sku = await generateSku();
     }
 
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
