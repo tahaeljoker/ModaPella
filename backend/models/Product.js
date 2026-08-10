@@ -22,6 +22,7 @@ const ProductSchema = new mongoose.Schema({
   colors: [{ type: String }],
   type: { type: String, default: '' },
   sku: { type: String, unique: true, sparse: true },
+  oldSku: { type: String, default: '' },
   supplier: { type: String, default: '' },
   supplierId: { type: require('mongoose').Schema.Types.ObjectId, ref: 'Supplier', default: null },
   active: { type: Boolean, default: true },

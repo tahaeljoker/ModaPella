@@ -572,7 +572,15 @@ function CashierPOS() {
       if (e.target.tagName === 'INPUT' && e.target !== searchRef.current) return;
       if (e.key === 'Enter' && buffer.length > 3) {
         const sku = buffer.trim().toUpperCase();
-        const found = products.find(p => p.sku && p.sku.trim().toUpperCase() === sku);
+        const found = products.find(p => {
+          if (!p.sku && !p.oldSku) return false;
+          const pSku = (p.sku || '').trim().toUpperCase();
+          const pOldSku = (p.oldSku || '').trim().toUpperCase();
+          if (pSku === sku || (pOldSku && pOldSku === sku)) return true;
+          const scannedDigits = sku.replace(/[^0-9]/g, '');
+          const pDigits = pSku.replace(/[^0-9]/g, '');
+          return Boolean(scannedDigits && pDigits && scannedDigits === pDigits);
+        });
         if (found) {
           // Pick first available variant (size + color) automatically
           let autoSize = '';
@@ -670,6 +678,7 @@ function CashierPOS() {
     ? products.filter(p =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         (p.sku && p.sku.toLowerCase().includes(search.toLowerCase())) ||
+        (p.oldSku && p.oldSku.toLowerCase().includes(search.toLowerCase())) ||
         (CATEGORY_LABELS[p.category] || '').includes(search)
       )
     : [];

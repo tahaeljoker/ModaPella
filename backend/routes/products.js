@@ -47,8 +47,9 @@ router.get('/', async (req, res) => {
       query.$or = [
         { name: { $regex: s, $options: 'i' } },
         { sku: { $regex: s, $options: 'i' } },
+        { oldSku: { $regex: s, $options: 'i' } },
         { category: { $regex: s, $options: 'i' } },
-        { 'variants.sku': { $regex: s, $options: 'i' } } // support variant-level SKU search if any
+        { 'variants.sku': { $regex: s, $options: 'i' } }
       ];
     }
 
