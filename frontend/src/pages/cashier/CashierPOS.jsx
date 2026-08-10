@@ -567,107 +567,116 @@ function CashierPOS() {
   useEffect(() => {
     let buffer = '';
     let timer = null;
-    const handleKey = (e) => {
-      // Ignore keypresses inside inputs (except search)
-      if (e.target.tagName === 'INPUT' && e.target !== searchRef.current) return;
-      if (e.key === 'Enter' && buffer.length > 3) {
-        const sku = buffer.trim().toUpperCase();
-        const found = products.find(p => {
-          if (!p.sku && !p.oldSku) return false;
-          const pSku = (p.sku || '').trim().toUpperCase();
-          const pOldSku = (p.oldSku || '').trim().toUpperCase();
-          if (pSku === sku || (pOldSku && pOldSku === sku)) return true;
-          const scannedDigits = sku.replace(/[^0-9]/g, '');
-          const pDigits = pSku.replace(/[^0-9]/g, '');
-          return Boolean(scannedDigits && pDigits && scannedDigits === pDigits);
-        });
-        if (found) {
-          // Pick first available variant (size + color) automatically
-          let autoSize = '';
-          let autoColor = '';
-          let autoStock = 0;
 
-          if (found.variants && found.variants.length > 0) {
-            // Find first variant with stock > 0
-            const availableVariant = found.variants.find(v => v.stock > 0);
-            if (availableVariant) {
-              autoSize = availableVariant.size;
-              autoColor = availableVariant.color;
-              autoStock = availableVariant.stock;
+    const normalizeDigits = (str) => {
+      if (!str) return '';
+      const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+      let res = String(str);
+      for (let i = 0; i < 10; i++) {
+        res = res.replaceAll(arabicDigits[i], String(i));
+      }
+      return res;
+    };
+
+    const handleKey = (e) => {
+      // Ignore keypresses inside inputs except search field
+      if (e.target.tagName === 'INPUT' && e.target !== searchRef.current) return;
+
+      if (e.key === 'Enter') {
+        if (buffer.length >= 3) {
+          const rawSku = buffer.trim();
+          const sku = normalizeDigits(rawSku).toUpperCase();
+          const scannedDigits = sku.replace(/[^0-9]/g, '');
+
+          const found = products.find(p => {
+            const pSku = normalizeDigits(p.sku || '').trim().toUpperCase();
+            const pOldSku = normalizeDigits(p.oldSku || '').trim().toUpperCase();
+            const pIdDigits = p._id ? (parseInt(p._id.toString().slice(-6), 16) % 89999 + 10000).toString() : '';
+
+            if (pSku === sku || (pOldSku && pOldSku === sku) || (pIdDigits && pIdDigits === sku)) return true;
+
+            const pDigits = pSku.replace(/[^0-9]/g, '');
+            const pOldDigits = pOldSku.replace(/[^0-9]/g, '');
+
+            if (scannedDigits && pDigits && scannedDigits === pDigits) return true;
+            if (scannedDigits && pOldDigits && scannedDigits === pOldDigits) return true;
+            if (scannedDigits && pIdDigits && scannedDigits === pIdDigits) return true;
+
+            return false;
+          });
+
+          if (found) {
+            let autoSize = '';
+            let autoColor = '';
+            let autoStock = 0;
+
+            if (found.variants && found.variants.length > 0) {
+              const availableVariant = found.variants.find(v => v.stock > 0);
+              if (availableVariant) {
+                autoSize = availableVariant.size;
+                autoColor = availableVariant.color;
+                autoStock = availableVariant.stock;
+              } else {
+                showToast(`${found.name} — نفد المخزون!`, 'error');
+                buffer = '';
+                return;
+              }
             } else {
+              autoSize = found.sizes?.[0] || '';
+              autoColor = found.colors?.[0] || '';
+              autoStock = found.stock || 0;
+            }
+
+            if (autoStock <= 0) {
               showToast(`${found.name} — نفد المخزون!`, 'error');
               buffer = '';
               return;
             }
-          } else {
-            autoSize = found.sizes?.[0] || '';
-            autoColor = found.colors?.[0] || '';
-            autoStock = found.stock || 0;
-          }
 
-          if (autoStock <= 0) {
-            showToast(`${found.name} — نفد المخزون!`, 'error');
-            buffer = '';
-            return;
-          }
+            // Add directly to cart
+            const key = `${found._id}_${autoSize}_${autoColor}`;
+            const activeDiscount = isDiscountActive(found);
+            const cartItem = {
+              _cartKey: key,
+              product: found._id,
+              name: found.name,
+              category: found.category,
+              price: activeDiscount ? found.discountPrice : found.price,
+              originalPrice: found.price,
+              isDiscountActive: activeDiscount,
+              size: autoSize,
+              color: autoColor,
+              quantity: 1,
+              maxStock: autoStock,
+              image: found.images?.[0] || '',
+            };
 
-          // Add directly to cart
-          const key = `${found._id}_${autoSize}_${autoColor}`;
-          const activeDiscount = isDiscountActive(found);
-          const cartItem = {
-            _cartKey: key,
-            product: found._id,
-            name: found.name,
-            category: found.category,
-            price: activeDiscount ? found.discountPrice : found.price,
-            originalPrice: found.price,
-            isDiscountActive: activeDiscount,
-            size: autoSize,
-            color: autoColor,
-            quantity: 1,
-            maxStock: autoStock,
-            image: found.images?.[0] || '',
-          };
-          setCart(prev => {
-            const exists = prev.find(i => i._cartKey === key);
-            if (exists) {
-              if (exists.quantity >= exists.maxStock) {
-                showToast(`${found.name} — وصلت للحد الأقصى المتاح (${exists.maxStock})`, 'error');
-                return prev;
+            setCart(prev => {
+              const idx = prev.findIndex(item => item._cartKey === key);
+              if (idx > -1) {
+                const updated = [...prev];
+                const newQty = updated[idx].quantity + 1;
+                if (newQty > autoStock) {
+                  showToast(`الكمية المتاحة فقط ${autoStock} قطعة`, 'error');
+                  return prev;
+                }
+                updated[idx] = { ...updated[idx], quantity: newQty };
+                return updated;
               }
-              showToast(`${found.name} — تمت الإضافة ✓ (${exists.quantity + 1} قطعة)`, 'success');
-              return prev.map(i => i._cartKey === key ? { ...i, quantity: i.quantity + 1 } : i);
-            }
-            showToast(`${found.name}${autoSize ? ` | ${autoSize}` : ''}${autoColor ? ` | ${autoColor}` : ''} — أُضيف للفاتورة ✓`, 'success');
-            return [...prev, cartItem];
-          });
-          setSearch('');
-        } else {
-          showToast(`الكود "${sku}" غير موجود في المخزون`, 'error');
-        }
-        buffer = '';
-        return;
-      }
-      
-      // Reconstruct scanned characters from physical key codes (layout-independent)
-      let char = '';
-      if (e.code.startsWith('Key')) {
-        char = e.code.slice(3); // e.g. 'KeyP' -> 'P'
-      } else if (e.code.startsWith('Digit')) {
-        char = e.code.slice(5); // e.g. 'Digit1' -> '1'
-      } else if (e.code.startsWith('Numpad') && e.code.length === 7) {
-        char = e.code.slice(6); // e.g. 'Numpad1' -> '1'
-      } else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
-        char = '-';
-      } else if (e.key.length === 1 && !/[\u0600-\u06FF]/.test(e.key)) {
-        char = e.key;
-      }
+              return [...prev, cartItem];
+            });
 
-      if (char) {
-        buffer += char;
+            showToast(`✅ تم مسح الكود [${sku}] — إضافة "${found.name}"`, 'success');
+          } else {
+            showToast(`⚠️ تم مسح الكود [${sku}] ولكن لم يتم العثور على منتج يطابقه`, 'error');
+          }
+          buffer = '';
+        }
+      } else if (e.key.length === 1) {
+        buffer += e.key;
+        clearTimeout(timer);
+        timer = setTimeout(() => { buffer = ''; }, 500);
       }
-      clearTimeout(timer);
-      timer = setTimeout(() => { buffer = ''; }, 300);
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
