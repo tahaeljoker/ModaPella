@@ -8,8 +8,10 @@ export const isDiscountActive = (product) => {
   if (product.discountStartDate && new Date(product.discountStartDate) > now) {
     return false;
   }
-  if (product.discountEndDate && new Date(product.discountEndDate) < now) {
-    return false;
+  if (product.discountEndDate) {
+    const end = new Date(product.discountEndDate);
+    end.setHours(23, 59, 59, 999);
+    if (end < now) return false;
   }
   return true;
 };

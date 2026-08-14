@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import { renderBarcodeDataUrl } from '../../utils/barcode';
+import { isDiscountActive } from '../../utils/discount';
 
 const CATEGORY_LABELS = {
   Blazer: 'بليزر',
@@ -21,7 +22,8 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 // ── Label Component (1.57in × 1.18in thermal label style) ───────────────────────
 function BarcodeLabel({ product, qty }) {
-  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 50, margin: 10 });
+  const effPrice = isDiscountActive(product) ? product.discountPrice : product.price;
+  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
   return (
     <div
       className="barcode-label"
@@ -30,7 +32,7 @@ function BarcodeLabel({ product, qty }) {
         height: '1.18in',
         border: '1px solid #ddd',
         borderRadius: '3px',
-        padding: '1mm 2mm',
+        padding: '1mm 1.5mm',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -53,8 +55,8 @@ function BarcodeLabel({ product, qty }) {
       </div>
 
       {dataUrl ? (
-        <div style={{ width: '90%', height: '12mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '1px 0' }}>
-          <img src={dataUrl} alt={product.sku} style={{ maxWidth: '100%', height: '12mm', objectFit: 'contain', imageRendering: 'pixelated' }} />
+        <div style={{ width: '96%', height: '13mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '1px 0', overflow: 'visible' }}>
+          <img src={dataUrl} alt={product.sku} style={{ maxWidth: '96%', height: '13mm', objectFit: 'contain', imageRendering: 'pixelated', display: 'block', margin: '0 auto' }} />
         </div>
       ) : (
         <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
@@ -65,7 +67,7 @@ function BarcodeLabel({ product, qty }) {
           {product.sku}
         </span>
         <span style={{ fontSize: '8.5px', fontWeight: '900', color: '#000' }}>
-          {EGP(product.price)}
+          {EGP(effPrice)}
         </span>
       </div>
     </div>
@@ -96,11 +98,54 @@ function AdminBarcodeLabels() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.sku || '').toLowerCase().includes(search.toLowerCase()) ||
-    (CATEGORY_LABELS[p.category] || '').includes(search)
-  );
+  const arabicKeyboardMap = {
+    'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+    'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+    'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+    'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+  };
+
+  const translateArabicKeyboard = (str) => {
+    if (!str) return '';
+    let res = '';
+    for (let char of str) {
+      if (arabicKeyboardMap[char]) {
+        res += arabicKeyboardMap[char];
+      } else {
+        res += char;
+      }
+    }
+    return res;
+  };
+
+  const normalizeDigits = (str) => {
+    if (!str) return '';
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    let res = String(str);
+    for (let i = 0; i < 10; i++) {
+      res = res.replaceAll(arabicDigits[i], String(i));
+    }
+    return res;
+  };
+
+  const translatedSearch = translateArabicKeyboard(search);
+  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
+
+  const filtered = products.filter(p => {
+    const pName = (p.name || '').toLowerCase();
+    const pSku = (p.sku || '').toLowerCase();
+    const pOldSku = (p.oldSku || '').toLowerCase();
+    const pCat = (CATEGORY_LABELS[p.category] || p.category || '').toLowerCase();
+
+    return pName.includes(search.toLowerCase()) ||
+           pName.includes(normalizedSearch) ||
+           pSku.includes(search.toLowerCase()) ||
+           pSku.includes(normalizedSearch) ||
+           pOldSku.includes(search.toLowerCase()) ||
+           pOldSku.includes(normalizedSearch) ||
+           pCat.includes(search.toLowerCase()) ||
+           pCat.includes(normalizedSearch);
+  });
 
   const selectedProducts = products.filter(p => selected[p._id]);
 
@@ -112,25 +157,25 @@ function AdminBarcodeLabels() {
     const labelsHTML = selectedProducts.flatMap(p => {
       const qty = quantities[p._id] || 1;
       return Array.from({ length: qty }, () => {
-        const dataUrl = renderBarcodeDataUrl(p.sku, { width: 2, height: 50, margin: 10 });
+        const dataUrl = renderBarcodeDataUrl(p.sku, { width: 2, height: 45, margin: 5 });
         const barcodeContent = dataUrl
-          ? `<img src="${dataUrl}" alt="${p.sku}" style="max-width:100%;height:11mm;object-fit:contain;image-rendering:pixelated;" />`
+          ? `<img src="${dataUrl}" alt="${p.sku}" style="max-width:96%;height:13mm;object-fit:contain;image-rendering:pixelated;display:block;margin:0 auto;" />`
           : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
         return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:30mm;overflow:hidden;box-sizing:border-box;">
-          <div class="print-label-page" style="width:40mm;height:30mm;padding:1mm 2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
+          <div class="print-label-page" style="width:40mm;height:30mm;padding:1mm 1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
             <div style="width:100%;text-align:center;line-height:1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
               <div style="font-size:7.5px;font-weight:900;color:#000;">ModaPella</div>
               <div style="font-size:7px;color:#000;margin-top:0.5px;max-width:95%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;">${p.name}</div>
             </div>
-            <div style="width:100%;display:flex;justify-content:center;align-items:center;margin:1px 0;">
-              <div style="width:90%;height:11mm;display:flex;justify-content:center;align-items:center;">
+            <div style="width:100%;display:flex;justify-content:center;align-items:center;margin:1px 0;overflow:visible;">
+              <div style="width:96%;height:13mm;display:flex;justify-content:center;align-items:center;">
                 ${barcodeContent}
               </div>
             </div>
             <div style="display:flex;justify-content:space-between;width:95%;align-items:center;line-height:1;margin-top:1px;">
               <span style="font-size:8px;font-weight:700;font-family:monospace;color:#000;text-align:right;">${p.sku}</span>
-              <span style="font-size:8.5px;font-weight:900;color:#000;text-align:left;">${Number(p.price).toLocaleString('en-US')} ج.م</span>
+              <span style="font-size:8.5px;font-weight:900;color:#000;text-align:left;">${Number(isDiscountActive(p) ? p.discountPrice : p.price).toLocaleString('en-US')} ج.م</span>
             </div>
           </div>
         </div>`;

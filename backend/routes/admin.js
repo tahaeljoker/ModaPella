@@ -282,7 +282,7 @@ const generateSku = async () => {
     if (p.sku) {
       const digits = p.sku.replace(/[^0-9]/g, '');
       const num = parseInt(digits, 10);
-      if (!isNaN(num) && num > maxNum) {
+      if (!isNaN(num) && num > maxNum && num <= 99999) {
         maxNum = num;
       }
     }
@@ -351,12 +351,16 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
 
     if (cleanedInputSku) {
       req.body.sku = cleanedInputSku;
-    } else if (existingProduct.sku && sanitizeSku(existingProduct.sku)) {
-      // Retain existing valid SKU
-      req.body.sku = existingProduct.sku;
+    } else if (existingProduct.sku && existingProduct.sku.trim()) {
+      // Retain existing SKU unconditionally
+      req.body.sku = existingProduct.sku.trim();
     } else {
-      // If product has no valid SKU in DB, generate one now
+      // If product has no SKU at all in DB, generate one now
       req.body.sku = await generateSku();
+    }
+
+    if (existingProduct.sku && existingProduct.sku !== req.body.sku && !req.body.oldSku) {
+      req.body.oldSku = existingProduct.sku;
     }
 
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });

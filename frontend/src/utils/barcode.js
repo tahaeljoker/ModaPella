@@ -16,9 +16,10 @@ export function renderBarcodeDataUrl(text, options = {}) {
     if (!sanitized) return '';
 
     const canvas = document.createElement('canvas');
+    const defaultWidth = sanitized.length <= 6 ? 2.5 : 2;
     JsBarcode(canvas, sanitized, {
       format: 'CODE128',
-      width: options.width || 2,
+      width: options.width || defaultWidth,
       height: options.height || 55,
       margin: options.margin !== undefined ? options.margin : 10,
       displayValue: false,

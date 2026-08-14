@@ -15,6 +15,36 @@ function useDebounce(value, delay) {
   return debounced;
 }
 
+const arabicKeyboardMap = {
+  'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+  'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+  'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+  'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+};
+
+const translateArabicKeyboard = (str) => {
+  if (!str) return '';
+  let res = '';
+  for (let char of str) {
+    if (arabicKeyboardMap[char]) {
+      res += arabicKeyboardMap[char];
+    } else {
+      res += char;
+    }
+  }
+  return res;
+};
+
+const normalizeDigits = (str) => {
+  if (!str) return '';
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  let res = String(str);
+  for (let i = 0; i < 10; i++) {
+    res = res.replaceAll(arabicDigits[i], String(i));
+  }
+  return res;
+};
+
 function EmployeePriceCheck() {
   const [query, setQuery]     = useState('');
   const [results, setResults] = useState([]);
@@ -34,6 +64,43 @@ function EmployeePriceCheck() {
 
   const debouncedQuery = useDebounce(query, 400);
 
+  const handleSelectProduct = (p) => {
+    setSelected(p);
+    // Save to history (last 5)
+    const newHistory = [{ _id: p._id, name: p.name, sku: p.sku }, ...history.filter(h => h._id !== p._id)].slice(0, 5);
+    setHistory(newHistory);
+    localStorage.setItem('emp_price_history', JSON.stringify(newHistory));
+  };
+
+  const doSearch = useCallback(async (q) => {
+    setLoading(true);
+    setSearched(true);
+    setSelected(null);
+    try {
+      const translated = translateArabicKeyboard(q);
+      const normalized = normalizeDigits(translated).trim();
+
+      let list = [];
+      try {
+        const { data } = await api.get(`/products/lookup-barcode?code=${encodeURIComponent(normalized)}`);
+        if (data && data._id) {
+          list = [data];
+        }
+      } catch {
+        // Fallback to standard search
+        const { data } = await api.get(`/products?search=${encodeURIComponent(normalized)}&limit=20`);
+        list = Array.isArray(data) ? data : data.products || [];
+      }
+
+      setResults(list);
+      if (list.length === 1) handleSelectProduct(list[0]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Live search as user types (debounced)
   useEffect(() => {
     if (debouncedQuery.trim().length >= 2) {
@@ -42,82 +109,39 @@ function EmployeePriceCheck() {
       setResults([]);
       setSearched(false);
     }
-  }, [debouncedQuery]);
+  }, [debouncedQuery, doSearch]);
 
-  const doSearch = useCallback(async (q) => {
-    setLoading(true);
-    setSearched(true);
-    setSelected(null);
-    try {
-      const { data } = await api.get(`/products?search=${encodeURIComponent(q)}&limit=20`);
-      const list = Array.isArray(data) ? data : data.products || [];
-      setResults(list);
-      // If exactly one result, auto-select it
-      if (list.length === 1) setSelected(list[0]);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Barcode scanner detection: barcodes come in very fast (<50ms per char)
-  // We accumulate chars and submit when Enter pressed OR after 200ms of silence
+  // Barcode scanner detection
   useEffect(() => {
     const handleGlobalKey = (e) => {
-      // Ignore if user is typing in ANY input field, textarea or select
       const activeEl = document.activeElement;
-      if (
-        activeEl && 
-        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')
-      ) {
+      if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
         return;
       }
       
       if (e.key === 'Enter') {
-        if (scanBuffer.current.length > 2) {
-          const scanned = scanBuffer.current.trim().toUpperCase();
-          setQuery(scanned);
-          doSearch(scanned);
-          inputRef.current?.focus();
+        const val = scanBuffer.current.trim() || inputRef.current?.value?.trim();
+        if (val && val.length >= 2) {
+          setQuery(val);
+          doSearch(val);
         }
         scanBuffer.current = '';
         clearTimeout(scanTimer.current);
         return;
       }
 
-      let char = '';
-      if (e.code.startsWith('Key')) {
-        char = e.code.slice(3);
-      } else if (e.code.startsWith('Digit')) {
-        char = e.code.slice(5);
-      } else if (e.code.startsWith('Numpad') && e.code.length === 7) {
-        char = e.code.slice(6);
-      } else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
-        char = '-';
-      } else if (e.key.length === 1 && !/[\u0600-\u06FF]/.test(e.key)) {
-        char = e.key;
-      }
-
-      if (char) {
-        scanBuffer.current += char;
+      if (e.key && e.key.length === 1) {
+        scanBuffer.current += e.key;
         clearTimeout(scanTimer.current);
         scanTimer.current = setTimeout(() => {
           scanBuffer.current = '';
-        }, 150);
+        }, 300);
       }
     };
     window.addEventListener('keydown', handleGlobalKey);
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [doSearch]);
 
-  const handleSelectProduct = (p) => {
-    setSelected(p);
-    // Save to history (last 5)
-    const newHistory = [{ _id: p._id, name: p.name, sku: p.sku }, ...history.filter(h => h._id !== p._id)].slice(0, 5);
-    setHistory(newHistory);
-    localStorage.setItem('emp_price_history', JSON.stringify(newHistory));
-  };
 
   const handleClear = () => {
     setQuery('');

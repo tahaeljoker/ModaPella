@@ -35,7 +35,7 @@ const getProductIcon = (category = '', name = '') => {
 
 function printBarcode(product) {
   if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
-  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 60, margin: 10 });
+  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
   if (!dataUrl) return alert('تعذر إنشاء باركود لهذا الكود');
   const win = window.open('', '_blank', 'width=400,height=300');
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
@@ -51,7 +51,7 @@ function printBarcode(product) {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1mm 2mm;
+    padding: 1mm 1.5mm;
     overflow: hidden;
     direction: rtl;
   }
@@ -121,7 +121,7 @@ function printBarcode(product) {
     <div class="barcode-wrapper"><img src="${dataUrl}" alt="${product.sku}" /></div>
     <div class="footer">
       <span class="sku">${product.sku}</span>
-      <span class="price">${Number(product.price).toLocaleString('en-US')} ج.م</span>
+      <span class="price">${Number(isDiscountActive(product) ? product.discountPrice : product.price).toLocaleString('en-US')} ج.م</span>
     </div>
   </body></html>`);
   win.document.close(); win.focus();
@@ -618,12 +618,53 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory,
   const [filterSupplier, setFilterSupplier] = useState('الكل');
   const [filterSize, setFilterSize] = useState('الكل');
 
+const arabicKeyboardMap = {
+  'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+  'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+  'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+  'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+};
+
+const translateArabicKeyboard = (str) => {
+  if (!str) return '';
+  let res = '';
+  for (let char of str) {
+    if (arabicKeyboardMap[char]) {
+      res += arabicKeyboardMap[char];
+    } else {
+      res += char;
+    }
+  }
+  return res;
+};
+
+const normalizeDigits = (str) => {
+  if (!str) return '';
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  let res = String(str);
+  for (let i = 0; i < 10; i++) {
+    res = res.replaceAll(arabicDigits[i], String(i));
+  }
+  return res;
+};
+
   const suppliersList = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
   const sizesList = Array.from(new Set(products.flatMap(p => p.sizes || []).filter(Boolean))).sort();
 
+  const translatedSearch = translateArabicKeyboard(search);
+  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
+
   const filtered = products.filter(p => {
     const mc = filter === 'All' || p.category === filter;
-    const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase());
+    const pName = (p.name || '').toLowerCase();
+    const pSku = (p.sku || '').toLowerCase();
+    const pOldSku = (p.oldSku || '').toLowerCase();
+
+    const ms = !search ||
+      pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
+      pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
+      pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch);
+
     const mSup = filterSupplier === 'الكل' || p.supplier === filterSupplier;
     const mSz = filterSize === 'الكل' || p.sizes?.includes(filterSize) || p.variants?.some(v => v.size === filterSize);
     return mc && ms && mSup && mSz;
@@ -794,7 +835,17 @@ function InventoryTab({ products, loading, onRefresh, categories, catAr }) {
   const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
 
   const filtered = products.filter(p => {
-    const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase()) || ((catAr[p.category] || p.category) || '').toLowerCase().includes(search.toLowerCase());
+    const pName = (p.name || '').toLowerCase();
+    const pSku = (p.sku || '').toLowerCase();
+    const pOldSku = (p.oldSku || '').toLowerCase();
+    const pCat = ((catAr[p.category] || p.category) || '').toLowerCase();
+
+    const ms = !search ||
+      pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
+      pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
+      pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch) ||
+      pCat.includes(search.toLowerCase()) || pCat.includes(normalizedSearch);
+
     const mc = filterCat === 'الكل' || p.category === filterCat;
     const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
     const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);

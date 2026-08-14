@@ -195,11 +195,52 @@ function CashierReturns() {
     }
   };
 
+  const arabicKeyboardMap = {
+    'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+    'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+    'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+    'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+  };
+
+  const translateArabicKeyboard = (str) => {
+    if (!str) return '';
+    let res = '';
+    for (let char of str) {
+      if (arabicKeyboardMap[char]) {
+        res += arabicKeyboardMap[char];
+      } else {
+        res += char;
+      }
+    }
+    return res;
+  };
+
+  const normalizeDigits = (str) => {
+    if (!str) return '';
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    let res = String(str);
+    for (let i = 0; i < 10; i++) {
+      res = res.replaceAll(arabicDigits[i], String(i));
+    }
+    return res;
+  };
+
+  const translatedSearch = translateArabicKeyboard(productSearch);
+  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
+
   const filteredProducts = productSearch.trim()
-    ? products.filter(p =>
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()))
-      )
+    ? products.filter(p => {
+        const pName = p.name.toLowerCase();
+        const pSku = (p.sku || '').toLowerCase();
+        const pOldSku = (p.oldSku || '').toLowerCase();
+
+        return pName.includes(productSearch.toLowerCase()) ||
+               pName.includes(normalizedSearch) ||
+               pSku.includes(productSearch.toLowerCase()) ||
+               pSku.includes(normalizedSearch) ||
+               pOldSku.includes(productSearch.toLowerCase()) ||
+               pOldSku.includes(normalizedSearch);
+      })
     : [];
 
   const inputCls = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-3 text-sm text-burgundy outline-none transition focus:border-burgundy';

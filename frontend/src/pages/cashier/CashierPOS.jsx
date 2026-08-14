@@ -442,6 +442,42 @@ function CashierPOS() {
   });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
+  const [unlinkedBarcode, setUnlinkedBarcode] = useState(null);
+  const [unlinkedSearch, setUnlinkedSearch] = useState('');
+
+  const handleLinkUnlinkedBarcode = async (p) => {
+    if (!unlinkedBarcode || !p) return;
+    try {
+      await api.post('/products/link-barcode', { code: unlinkedBarcode, productId: p._id });
+      p.oldSku = unlinkedBarcode;
+
+      let autoSize = p.sizes?.[0] || p.variants?.[0]?.size || '';
+      let autoColor = p.colors?.[0] || p.variants?.[0]?.color || '';
+      let autoStock = p.stock || 99;
+      const key = `${p._id}_${autoSize}_${autoColor}`;
+      const activeDiscount = isDiscountActive(p);
+      const cartItem = {
+        _cartKey: key,
+        product: p._id,
+        name: p.name,
+        category: p.category,
+        price: activeDiscount ? p.discountPrice : p.price,
+        originalPrice: p.price,
+        isDiscountActive: activeDiscount,
+        size: autoSize,
+        color: autoColor,
+        quantity: 1,
+        maxStock: autoStock,
+        image: p.images?.[0] || '',
+      };
+      setCart(prev => [...prev, cartItem]);
+      showToast(`✅ تم ربط الباركود [${unlinkedBarcode}] بـ "${p.name}" بنجاح!`, 'success');
+      setUnlinkedBarcode(null);
+      setUnlinkedSearch('');
+    } catch {
+      showToast('❌ فشل ربط الباركود بالمنتج', 'error');
+    }
+  };
 
   const saveOfflineSales = (salesList) => {
     setOfflineSales(salesList);
@@ -668,7 +704,59 @@ function CashierPOS() {
 
             showToast(`✅ تم مسح الكود [${sku}] — إضافة "${found.name}"`, 'success');
           } else {
-            showToast(`⚠️ تم مسح الكود [${sku}] ولكن لم يتم العثور على منتج يطابقه`, 'error');
+            // Server fallback lookup for archived/legacy products
+            api.get(`/products/lookup-barcode?code=${encodeURIComponent(sku)}`)
+              .then(res => {
+                const serverProduct = res.data;
+                if (serverProduct && serverProduct._id) {
+                  setProducts(prev => {
+                    if (!prev.some(p => p._id === serverProduct._id)) {
+                      return [serverProduct, ...prev];
+                    }
+                    return prev;
+                  });
+
+                  let autoSize = serverProduct.sizes?.[0] || serverProduct.variants?.[0]?.size || '';
+                  let autoColor = serverProduct.colors?.[0] || serverProduct.variants?.[0]?.color || '';
+                  let autoStock = serverProduct.stock || 99;
+
+                  const key = `${serverProduct._id}_${autoSize}_${autoColor}`;
+                  const activeDiscount = isDiscountActive(serverProduct);
+                  const cartItem = {
+                    _cartKey: key,
+                    product: serverProduct._id,
+                    name: serverProduct.name,
+                    category: serverProduct.category,
+                    price: activeDiscount ? serverProduct.discountPrice : serverProduct.price,
+                    originalPrice: serverProduct.price,
+                    isDiscountActive: activeDiscount,
+                    size: autoSize,
+                    color: autoColor,
+                    quantity: 1,
+                    maxStock: autoStock,
+                    image: serverProduct.images?.[0] || '',
+                  };
+
+                  setCart(prev => {
+                    const idx = prev.findIndex(item => item._cartKey === key);
+                    if (idx > -1) {
+                      const updated = [...prev];
+                      updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + 1 };
+                      return updated;
+                    }
+                    return [...prev, cartItem];
+                  });
+
+                  showToast(`✅ تم مسح الكود [${sku}] — إضافة "${serverProduct.name}"`, 'success');
+                } else {
+                  setUnlinkedBarcode(sku);
+                  showToast(`⚠️ تم مسح الكود [${sku}] — اضغط الخيار بالأسفل لربطه بمنتج`, 'error');
+                }
+              })
+              .catch(() => {
+                setUnlinkedBarcode(sku);
+                showToast(`⚠️ تم مسح الكود [${sku}] — اضغط الخيار بالأسفل لربطه بمنتج`, 'error');
+              });
           }
           buffer = '';
         }
@@ -1698,6 +1786,52 @@ function CashierPOS() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Unlinked Barcode Modal */}
+      {unlinkedBarcode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setUnlinkedBarcode(null)}>
+          <div className="w-full max-w-lg overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy text-right" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
+              <h3 className="text-lg font-bold">🔗 ربط الباركود المطبوع بالمنتج</h3>
+              <button onClick={() => setUnlinkedBarcode(null)} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-4 border border-burgundy/10 mb-4 space-y-1">
+              <p className="text-xs text-burgundy/60">الباركود المنسوخ من المسدس:</p>
+              <p className="text-lg font-bold font-mono text-burgundy">{unlinkedBarcode}</p>
+              <p className="text-[11px] text-burgundy/40">اختر المنتج من القائمة لربط هذا الباركود به فوراً في الداتابيز وإضافته للسلة:</p>
+            </div>
+
+            <input
+              type="text"
+              value={unlinkedSearch}
+              onChange={e => setUnlinkedSearch(e.target.value)}
+              placeholder="ابحث باسم المنتج أو الفئة لربطه..."
+              autoFocus
+              className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy mb-3"
+            />
+
+            <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+              {products
+                .filter(p => !unlinkedSearch || p.name.toLowerCase().includes(unlinkedSearch.toLowerCase()) || (p.category || '').toLowerCase().includes(unlinkedSearch.toLowerCase()) || (p.sku || '').toLowerCase().includes(unlinkedSearch.toLowerCase()))
+                .slice(0, 10)
+                .map(p => (
+                  <div
+                    key={p._id}
+                    onClick={() => handleLinkUnlinkedBarcode(p)}
+                    className="bg-white rounded-xl p-3 border border-burgundy/5 hover:border-burgundy/30 shadow-sm flex items-center justify-between cursor-pointer transition hover:bg-burgundy/5"
+                  >
+                    <div>
+                      <h4 className="font-bold text-sm text-burgundy">{p.name}</h4>
+                      <p className="text-[10px] text-burgundy/40 font-mono">SKU الحالي: {p.sku || 'بدون'} | OldSKU: {p.oldSku || '—'}</p>
+                    </div>
+                    <button type="button" className="text-xs font-bold text-white bg-burgundy px-3 py-1.5 rounded-lg">🔗 ربط وإضافة</button>
+                  </div>
+                ))}
+            </div>
           </div>
         </div>
       )}

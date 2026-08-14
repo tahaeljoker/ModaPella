@@ -100,11 +100,50 @@ function AdminInventory() {
   // ── Filters ────────────────────────────────────────────────────────────────
   const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
 
+  const arabicKeyboardMap = {
+    'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+    'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+    'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+    'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+  };
+
+  const translateArabicKeyboard = (str) => {
+    if (!str) return '';
+    let res = '';
+    for (let char of str) {
+      if (arabicKeyboardMap[char]) {
+        res += arabicKeyboardMap[char];
+      } else {
+        res += char;
+      }
+    }
+    return res;
+  };
+
+  const normalizeDigits = (str) => {
+    if (!str) return '';
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    let res = String(str);
+    for (let i = 0; i < 10; i++) {
+      res = res.replaceAll(arabicDigits[i], String(i));
+    }
+    return res;
+  };
+
+  const translatedSearch = translateArabicKeyboard(search);
+  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
+
   const filtered = products.filter(p => {
+    const pName = (p.name || '').toLowerCase();
+    const pSku = (p.sku || '').toLowerCase();
+    const pOldSku = (p.oldSku || '').toLowerCase();
+    const pCat = (catAr[p.category] || p.category || '').toLowerCase();
+
     const matchSearch = !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.sku || '').toLowerCase().includes(search.toLowerCase()) ||
-      (catAr[p.category] || '').includes(search);
+      pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
+      pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
+      pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch) ||
+      pCat.includes(search.toLowerCase()) || pCat.includes(normalizedSearch);
     const matchCat = filterCat === 'الكل' || p.category === filterCat;
     const matchStock =
       filterStock === 'all' ? true :

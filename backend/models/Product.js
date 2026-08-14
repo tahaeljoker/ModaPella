@@ -41,7 +41,11 @@ ProductSchema.virtual('isDiscountActive').get(function () {
   if (!this.discountPrice || this.discountPrice <= 0 || this.discountPrice >= this.price) return false;
   const now = new Date();
   if (this.discountStartDate && new Date(this.discountStartDate) > now) return false;
-  if (this.discountEndDate && new Date(this.discountEndDate) < now) return false;
+  if (this.discountEndDate) {
+    const end = new Date(this.discountEndDate);
+    end.setHours(23, 59, 59, 999);
+    if (end < now) return false;
+  }
   return true;
 });
 

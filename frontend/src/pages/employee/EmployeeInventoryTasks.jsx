@@ -77,12 +77,59 @@ function TaskSession({ task: initialTask, onBack }) {
     }
   }, [items]);
 
+const arabicKeyboardMap = {
+  'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+  'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+  'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+  'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+};
+
+const translateArabicKeyboard = (str) => {
+  if (!str) return '';
+  let res = '';
+  for (let char of str) {
+    if (arabicKeyboardMap[char]) {
+      res += arabicKeyboardMap[char];
+    } else {
+      res += char;
+    }
+  }
+  return res;
+};
+
+const normalizeDigits = (str) => {
+  if (!str) return '';
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  let res = String(str);
+  for (let i = 0; i < 10; i++) {
+    res = res.replaceAll(arabicDigits[i], String(i));
+  }
+  return res;
+};
+
   // Barcode scanner: fast input auto-matches to product
   const performMatchAndFocus = (q) => {
-    const match = items.find(i =>
-      i.sku?.toLowerCase() === q.toLowerCase() ||
-      i.productName?.toLowerCase().includes(q.toLowerCase())
-    );
+    const translated = translateArabicKeyboard(q);
+    const normalized = normalizeDigits(translated).trim().toUpperCase();
+    const cleanQ = normalized.replace(/[^a-zA-Z0-9]/g, '');
+
+    const match = items.find(i => {
+      const iSku = normalizeDigits(i.sku || '').trim().toUpperCase();
+      const iOldSku = normalizeDigits(i.oldSku || '').trim().toUpperCase();
+      const iName = (i.productName || '').toLowerCase();
+
+      if (iSku && iSku === normalized) return true;
+      if (iOldSku && iOldSku === normalized) return true;
+      if (iName.includes(q.toLowerCase()) || iName.includes(normalized.toLowerCase())) return true;
+
+      const iSkuClean = iSku.replace(/[^a-zA-Z0-9]/g, '');
+      const iOldSkuClean = iOldSku.replace(/[^a-zA-Z0-9]/g, '');
+      if (cleanQ && iSkuClean && cleanQ === iSkuClean) return true;
+      if (cleanQ && iOldSkuClean && cleanQ === iOldSkuClean) return true;
+
+      return false;
+    });
+
     if (match) {
       setHighlight(match._id);
       // scroll and focus the count input

@@ -160,10 +160,52 @@ function InventoryTasksPanel({ categories: parentCategories, catAr: parentCatAr 
   const CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم', all: 'الكل', ...(parentCatAr || {}) };
 
   // Filtered products for picker
+  const arabicKeyboardMap = {
+    'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+    'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+    'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+    'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+  };
+
+  const translateArabicKeyboard = (str) => {
+    if (!str) return '';
+    let res = '';
+    for (let char of str) {
+      if (arabicKeyboardMap[char]) {
+        res += arabicKeyboardMap[char];
+      } else {
+        res += char;
+      }
+    }
+    return res;
+  };
+
+  const normalizeDigits = (str) => {
+    if (!str) return '';
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    let res = String(str);
+    for (let i = 0; i < 10; i++) {
+      res = res.replaceAll(arabicDigits[i], String(i));
+    }
+    return res;
+  };
+
+  const translatedQ = translateArabicKeyboard(productSearch);
+  const normalizedQ = normalizeDigits(translatedQ).trim().toLowerCase();
+
   const filteredProducts = products.filter(p => {
     const matchCat = activeCat === 'all' || p.category === activeCat;
     const q = productSearch.trim().toLowerCase();
-    const matchQ = !q || p.name.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q);
+
+    const pName = (p.name || '').toLowerCase();
+    const pSku = (p.sku || '').toLowerCase();
+    const pOldSku = (p.oldSku || '').toLowerCase();
+
+    const matchQ = !q ||
+      pName.includes(q) || pName.includes(normalizedQ) ||
+      pSku.includes(q) || pSku.includes(normalizedQ) ||
+      pOldSku.includes(q) || pOldSku.includes(normalizedQ);
+
     return matchCat && matchQ;
   });
   const filteredIds = filteredProducts.map(p => p._id);
