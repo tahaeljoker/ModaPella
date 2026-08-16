@@ -291,12 +291,15 @@ router.post('/recover', auth, async (req, res) => {
     }));
 
     // Calculate refund amount proportionally
+    // For debt orders, we can only refund what was actually collected (amountPaid),
+    // not the full totalAmount which may include uncollected debt.
+    const effectivePaidForRefund = order.isDebt ? (order.amountPaid || 0) : order.totalAmount;
     const originalOrderTotal = order.totalAmount + order.discount;
     let refundAmount = 0;
     if (originalOrderTotal > 0) {
       const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
       const refundProportion = returnedItemsValue / originalOrderTotal;
-      refundAmount = Math.round((order.totalAmount * refundProportion) * 100) / 100;
+      refundAmount = Math.round((effectivePaidForRefund * refundProportion) * 100) / 100;
     }
 
     // Log the refund transaction
@@ -448,12 +451,15 @@ router.post('/exchange', auth, async (req, res) => {
     }));
 
     // 4. Calculate accounting totals
+    // For debt orders, the credit we can apply is limited to what was actually paid,
+    // not the full totalAmount which may include uncollected debt.
+    const effectivePaidForExchange = originalOrder.isDebt ? (originalOrder.amountPaid || 0) : originalOrder.totalAmount;
     const originalOrderTotal = originalOrder.totalAmount + originalOrder.discount;
     let returnCreditValue = 0;
     if (originalOrderTotal > 0) {
       const returnedValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
       const proportion = returnedValue / originalOrderTotal;
-      returnCreditValue = Math.round((originalOrder.totalAmount * proportion) * 100) / 100;
+      returnCreditValue = Math.round((effectivePaidForExchange * proportion) * 100) / 100;
     }
 
     const rawNewTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -731,21 +737,27 @@ router.put('/orders/:id', auth, async (req, res) => {
     }));
 
     // 3. Update Transaction
-    const transaction = await Transaction.findOne({ referenceId: order._id });
+    // For debt orders, the transaction should reflect what was actually collected (amountPaid),
+    // not the full totalAmount which may include uncollected debt.
+    const isDebtOrder = req.body.isDebt ?? order.isDebt ?? false;
+    const finalAmountPaidEdit = isDebtOrder
+      ? Math.min(totalAmount, Math.max(0, Number(req.body.amountPaid ?? order.amountPaid ?? 0)))
+      : totalAmount;
+    const transaction = await Transaction.findOne({ referenceId: order._id, category: 'Sale' });
     if (transaction) {
-      transaction.amount = totalAmount;
+      transaction.amount = finalAmountPaidEdit;
       transaction.paymentMethod = paymentMethod;
-      transaction.description = `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()} (معدل)`;
+      transaction.description = `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()} (معدل)${isDebtOrder ? ' (آجل)' : ''}`;
       await transaction.save();
-    } else {
+    } else if (finalAmountPaidEdit > 0) {
       // If missing for some reason, create it
       const openShift = await Shift.findOne({ user: order.seller || req.user.id, status: 'open' });
       const newTransaction = new Transaction({
-        amount: totalAmount,
+        amount: finalAmountPaidEdit,
         type: 'IN',
         category: 'Sale',
         paymentMethod: order.paymentMethod,
-        description: `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()} (تم التعديل)`,
+        description: `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()} (تم التعديل)${isDebtOrder ? ' (آجل)' : ''}`,
         referenceId: order._id,
         user: order.seller || req.user.id,
         shift: openShift?._id

@@ -174,7 +174,7 @@ router.post('/safe/close-shift', auth, requireRole(['admin', 'cashier', 'manager
       const transaction = new Transaction({
         amount: Number(amount),
         type: 'OUT',
-        category: 'Other',
+        category: 'ShiftClose', // Fixed: was 'Other' which caused this to appear as an operating expense in reports
         paymentMethod: 'Cash',
         description: 'تقفيل وردية - تصفية الدرج',
         user: req.user.id

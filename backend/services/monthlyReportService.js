@@ -99,8 +99,11 @@ async function calculateMonthlyData(year, month) {
       return sum + (item.costPrice || 0) * netQty;
     }, 0);
 
-    // Gross profit = Sales Revenue (already after discount) - COGS
-    const orderProfit = o.totalAmount - orderCost;
+    // Gross profit = Revenue actually collected - COGS
+    // For debt orders we use amountPaid (collected) not totalAmount (billed)
+    // to avoid overstating profit with uncollected receivables.
+    const effectiveRevenue = o.isDebt ? (o.amountPaid || 0) : o.totalAmount;
+    const orderProfit = effectiveRevenue - orderCost;
     grossProfit += orderProfit;
   });
 
@@ -135,10 +138,13 @@ async function calculateMonthlyData(year, month) {
   });
 
   // Calculate Supplier Purchases & Payments
+  // Only count 'purchase' type to avoid double-counting:
+  // cash_purchase creates both a 'purchase' AND a 'payment' record,
+  // so summing both types would double the amount.
   let supplierPurchases = 0;
 
   supplierTxs.forEach(st => {
-    if (st.type === 'payment' || st.type === 'purchase' || st.type === 'cash_purchase') {
+    if (st.type === 'purchase') {
       supplierPurchases += st.amount;
     }
   });
@@ -343,7 +349,7 @@ async function calculateMonthlyData(year, month) {
   }, 0);
 
   const operatingExpensesList = transactions
-    .filter(t => t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t))
+    .filter(t => t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isRefundTx(t))
     .map(t => ({
       id: t._id,
       category: t.category || 'أخرى',
