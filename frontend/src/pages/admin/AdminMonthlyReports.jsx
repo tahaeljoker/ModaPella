@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
+import InfoPopover from '../../components/InfoPopover';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -395,7 +396,25 @@ export default function AdminMonthlyReports() {
                 <span>إجمالي المبيعات</span>
                 <span>💰</span>
               </div>
-              <p className="mt-2 text-2xl font-bold text-burgundy">{EGP(report.totalSales)}</p>
+              <p className="mt-2 text-2xl font-bold text-burgundy flex items-center gap-1">
+                {EGP(report.totalSales)}
+                <InfoPopover
+                  title="إجمالي المبيعات"
+                  formula="مجموع صافي قيمة الفواتير المكتملة بعد الخصم"
+                  rows={[
+                    { label: 'عدد الفواتير المكتملة', value: `${report.totalOrders} فاتورة` },
+                    { label: 'إجمالي الفواتير قبل الخصم', value: EGP((report.totalSales || 0) + (report.totalDiscounts || 0)) },
+                    { label: 'الخصومات الممنوحة', value: `-${EGP(report.totalDiscounts || 0)}`, negative: true },
+                    { separator: true },
+                    { label: '= إجمالي المبيعات الصافية', value: EGP(report.totalSales), highlight: true },
+                  ]}
+                  rows2={[
+                    { label: 'كاش: ', value: EGP(report.cashRevenue) },
+                    { label: 'إنستاباي: ', value: EGP(report.instapayRevenue) },
+                  ]}
+                  note="الفواتير الآجلة تُسجَّل بقيمتها الكاملة هنا بغض النظر عن المدفوع منها"
+                />
+              </p>
               <div className="mt-2 flex justify-between text-[11px] text-burgundy/60">
                 <span>كاش: {EGP(report.cashRevenue)}</span>
                 <span>إنستاباي: {EGP(report.instapayRevenue)}</span>
@@ -408,7 +427,20 @@ export default function AdminMonthlyReports() {
                 <span>إجمالي الخصومات</span>
                 <span>🏷️</span>
               </div>
-              <p className="mt-2 text-2xl font-bold text-amber-800">{EGP(report.totalDiscounts)}</p>
+              <p className="mt-2 text-2xl font-bold text-amber-800 flex items-center gap-1">
+                {EGP(report.totalDiscounts)}
+                <InfoPopover
+                  title="إجمالي الخصومات"
+                  formula="مجموع التخفيضات المباشرة المُطبَّقة على فواتير الشهر"
+                  rows={[
+                    { label: 'المبيعات قبل الخصم', value: EGP((report.totalSales || 0) + (report.totalDiscounts || 0)) },
+                    { label: 'مجموع الخصومات الممنوحة', value: `-${EGP(report.totalDiscounts || 0)}`, negative: true },
+                    { separator: true },
+                    { label: '= صافي المبيعات', value: EGP(report.totalSales), highlight: true },
+                  ]}
+                  note="الخصم يُطرح مباشرة عند إنشاء الفاتورة — لا يُخصم مرتين"
+                />
+              </p>
               <p className="mt-2 text-[11px] text-amber-900/70">
                 خصومات الفواتير (قبل صافي المبيعات)
               </p>
@@ -420,7 +452,23 @@ export default function AdminMonthlyReports() {
                 <span>صافي ربح النشاط</span>
                 <span>📈</span>
               </div>
-              <p className="mt-2 text-2xl font-bold text-emerald-700">{EGP(report.netProfit)}</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-700 flex items-center gap-1">
+                {EGP(report.netProfit)}
+                <InfoPopover
+                  title="صافي ربح النشاط"
+                  formula="مجمل الربح ➖ مصاريف التشغيل"
+                  rows={[
+                    { label: 'الإيراد المحصَّل (بعد الخصم)', value: EGP(report.totalSales) },
+                    { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(report.auditDetails?.totalCogs || 0)}`, negative: true },
+                    { label: 'مجمل الربح التجاري', value: EGP(report.auditDetails?.grossProfit || 0) },
+                    { separator: true },
+                    { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
+                    { separator: true },
+                    { label: '= صافي ربح النشاط', value: EGP(report.netProfit), highlight: true },
+                  ]}
+                  note="الفواتير الآجلة تُحسَب بالمبلغ المحصَّل فعلاً (amountPaid) وليس المبلغ الكامل — يمنع تضخيم الأرباح بديون غير محصَّلة"
+                />
+              </p>
               <p className="mt-2 text-[11px] text-emerald-800/70">
                 أرباح البضاعة المباعة ➖ مصاريف التشغيل
               </p>
@@ -432,8 +480,20 @@ export default function AdminMonthlyReports() {
                 <span>مصروفات التشغيل</span>
                 <span>💸</span>
               </div>
-              <p className="mt-2 text-2xl font-bold text-rose-700">
+              <p className="mt-2 text-2xl font-bold text-rose-700 flex items-center gap-1">
                 {EGP(report.operatingExpenses ?? (report.totalExpenses - (report.supplierPurchases || 0)))}
+                <InfoPopover
+                  title="مصروفات التشغيل"
+                  formula="OUT transactions — بدون موردين، بدون مرتجعات، بدون تصفية وردية"
+                  rows={[
+                    { label: 'إجمالي المصاريف التشغيلية', value: EGP(report.operatingExpenses || 0) },
+                    { label: 'عدد حركات المصروفات', value: `${report.auditDetails?.operatingExpensesList?.length || 0} حركة` },
+                    { label: 'مشتريات الموردين (خارج الحساب)', value: EGP(report.supplierPurchases || 0) },
+                    { label: 'مرتجعات عملاء (خارج)', value: '—' },
+                    { label: 'تصفية ورديات (خارج)', value: '—' },
+                  ]}
+                  note="مصاريف التشغيل = فقط الحركات التشغيلية الفعلية — مستبعد منها الموردين والمرتجعات وحركات الخزنة الداخلية"
+                />
               </p>
               <p className="mt-2 text-[11px] text-rose-800/70">
                 إيجار، كهرباء، أجور، نثريات وشحن
@@ -446,8 +506,17 @@ export default function AdminMonthlyReports() {
                 <span>مشتريات بضائع وموردين</span>
                 <span>📦</span>
               </div>
-              <p className="mt-2 text-2xl font-bold text-amber-800">
+              <p className="mt-2 text-2xl font-bold text-amber-800 flex items-center gap-1">
                 {EGP(report.supplierPurchases ?? 0)}
+                <InfoPopover
+                  title="مشتريات الموردين"
+                  formula="SupplierTransactions من نوع 'purchase' فقط"
+                  rows={[
+                    { label: 'إجمالي مشتريات البضائع للشهر', value: EGP(report.supplierPurchases || 0) },
+                    { label: 'عدد سجلات الشراء', value: `${report.auditDetails?.supplierPaymentsList?.length || 0} سجل` },
+                  ]}
+                  note="الشراء النقدي الفوري (cash_purchase) يُحسَب مرة واحدة فقط من سجل الشراء، لتفادي التضاعف"
+                />
               </p>
               <p className="mt-2 text-[11px] text-amber-900/70">
                 مبالغ مدفوعة لشراء مخزون وبضائع
@@ -460,8 +529,24 @@ export default function AdminMonthlyReports() {
                 <span>صافي حركة السيولة الخزينة</span>
                 <span>🏦</span>
               </div>
-              <p className="mt-2 text-2xl font-bold text-blue-800">
+              <p className="mt-2 text-2xl font-bold text-blue-800 flex items-center gap-1">
                 {EGP(report.netCashFlow ?? (report.totalSales - report.totalExpenses))}
+                <InfoPopover
+                  title="صافي حركة السيولة الخزينة"
+                  formula="(الكاش + إنستاباي + تحصيلات ديون) ➖ (مصاريف + موردين)"
+                  rows={[
+                    { label: 'إيراد كاش صافي', value: EGP(report.cashRevenue) },
+                    { label: 'إيراد إنستاباي صافي', value: EGP(report.instapayRevenue) },
+                    { label: 'تحصيلات ديون كاش', value: EGP(report.auditDetails?.debtPaymentsCash || 0) },
+                    { label: 'تحصيلات ديون إنستاباي', value: EGP(report.auditDetails?.debtPaymentsInstapay || 0) },
+                    { separator: true },
+                    { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
+                    { label: 'مشتريات الموردين', value: `-${EGP(report.supplierPurchases || 0)}`, negative: true },
+                    { separator: true },
+                    { label: '= صافي حركة الخزينة', value: EGP(report.netCashFlow ?? 0), highlight: true },
+                  ]}
+                  note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويختلف عن صافي الربح لأنه يشمل مشتريات الموردين ومخصوم منه المرتجعات"
+                />
               </p>
               <p className="mt-2 text-[11px] text-blue-900/70">
                 إجمالي الداخل كاش ➖ إجمالي الخارج

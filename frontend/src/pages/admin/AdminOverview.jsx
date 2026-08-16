@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
+import InfoPopover from '../../components/InfoPopover';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -16,7 +17,7 @@ const ACT_CONFIG = {
   shift_close: { label: 'إغلاق وردية', icon: '🔒', color: 'border-slate-500 bg-slate-50 text-slate-800' }
 };
 
-function StatCard({ label, value, sub, color = 'bg-white', icon, onClick }) {
+function StatCard({ label, value, sub, color = 'bg-white', icon, onClick, popover }) {
   return (
     <div
       onClick={onClick}
@@ -26,7 +27,10 @@ function StatCard({ label, value, sub, color = 'bg-white', icon, onClick }) {
     >
       {icon && <div className="mb-3 text-2xl">{icon}</div>}
       <p className="text-sm font-medium text-burgundy/60">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-burgundy">{value}</p>
+      <p className="mt-2 text-3xl font-bold text-burgundy flex items-center gap-1">
+        {value}
+        {popover && <span onClick={e => e.stopPropagation()}>{popover}</span>}
+      </p>
       {sub && <p className="mt-1 text-xs text-burgundy/50">{sub}</p>}
     </div>
   );
@@ -310,38 +314,105 @@ function AdminOverview() {
           color="bg-white"
           sub={`${overview?.totalOrders || 0} طلب مكتمل`}
           onClick={() => toggleCardReveal('totalSales')}
+          popover={
+            <InfoPopover
+              title="إجمالي المبيعات"
+              formula="مجموع صافي قيمة كل الفواتير المكتملة بعد الخصم"
+              rows={[
+                { label: 'إجمالي قيمة الفواتير قبل الخصم', value: EGP((overview?.totalSales ?? 0) + (overview?.totalDiscounts ?? 0)) },
+                { label: 'الخصومات الممنوحة', value: `-${EGP(overview?.totalDiscounts ?? 0)}`, negative: true },
+                { separator: true },
+                { label: '= إجمالي المبيعات الصافية', value: EGP(overview?.totalSales ?? 0), highlight: true },
+              ]}
+              note="الفواتير الآجلة تُسجَّل بقيمتها الكاملة هنا بغض النظر عن المدفوع منها"
+            />
+          }
         />
-        <StatCard 
-          label="إجمالي الخصومات" 
-          value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))} 
-          icon="🏷️" 
-          color="bg-amber-50/40" 
+        <StatCard
+          label="إجمالي الخصومات"
+          value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))}
+          icon="🏷️"
+          color="bg-amber-50/40"
           sub="خصومات وتخفيضات الفواتير"
           onClick={() => toggleCardReveal('totalDiscounts')}
+          popover={
+            <InfoPopover
+              title="إجمالي الخصومات"
+              formula="مجموع التخفيضات المباشرة المُطبَّقة على الفواتير"
+              rows={[
+                { label: 'المبيعات قبل الخصم', value: EGP((overview?.totalSales ?? 0) + (overview?.totalDiscounts ?? 0)) },
+                { label: 'مجموع الخصومات الممنوحة', value: `-${EGP(overview?.totalDiscounts ?? 0)}`, negative: true },
+                { separator: true },
+                { label: '= صافي المبيعات بعد الخصم', value: EGP(overview?.totalSales ?? 0), highlight: true },
+              ]}
+              note="الخصم يُطرح مباشرة من المبيعات في وقت إنشاء الفاتورة"
+            />
+          }
         />
-        <StatCard 
-          label="صافي ربح النشاط" 
-          value={formatSensitive('netProfit', EGP(overview?.netProfit ?? 0))} 
-          icon="📈" 
-          color="bg-emerald-50/60" 
+        <StatCard
+          label="صافي ربح النشاط"
+          value={formatSensitive('netProfit', EGP(overview?.netProfit ?? 0))}
+          icon="📈"
+          color="bg-emerald-50/60"
           sub="أرباح البضاعة المباعة ➖ مصاريف التشغيل"
           onClick={() => toggleCardReveal('netProfit')}
+          popover={
+            <InfoPopover
+              title="صافي ربح النشاط"
+              formula="مجمل الربح ➖ مصاريف التشغيل"
+              rows={[
+                { label: 'إجمالي الإيراد المحصَّل', value: EGP(overview?.totalSales ?? 0) },
+                { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP((overview?.totalSales ?? 0) - (overview?.netProfit ?? 0) - (overview?.operatingExpenses ?? 0))}`, negative: true },
+                { label: 'مجمل الربح التجاري', value: EGP((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0)) },
+                { separator: true },
+                { label: 'مصاريف التشغيل', value: `-${EGP(overview?.operatingExpenses ?? 0)}`, negative: true },
+                { separator: true },
+                { label: '= صافي ربح النشاط', value: EGP(overview?.netProfit ?? 0), highlight: true },
+              ]}
+              note="الفواتير الآجلة تُحسَب في الربح بالمبلغ المحصَّل فعلاً (amountPaid) وليس المبلغ الكامل — يمنع تضخيم الأرباح بديون غير محصَّلة"
+            />
+          }
         />
-        <StatCard 
-          label="مصروفات التشغيل" 
-          value={formatSensitive('operatingExpenses', EGP(overview?.operatingExpenses ?? (overview?.totalExpenses - (overview?.supplierPurchases || 0))))} 
-          icon="💸" 
-          color="bg-rose-50/40" 
+        <StatCard
+          label="مصروفات التشغيل"
+          value={formatSensitive('operatingExpenses', EGP(overview?.operatingExpenses ?? (overview?.totalExpenses - (overview?.supplierPurchases || 0))))}
+          icon="💸"
+          color="bg-rose-50/40"
           sub="إيجار، كهرباء، أجور، نثريات وشحن"
           onClick={() => toggleCardReveal('operatingExpenses')}
+          popover={
+            <InfoPopover
+              title="مصروفات التشغيل"
+              formula="OUT transactions — بدون موردين، بدون مرتجعات، بدون تصفية وردية"
+              rows={[
+                { label: 'إجمالي المصاريف التشغيلية', value: EGP(overview?.operatingExpenses ?? 0) },
+                { label: 'مشتريات الموردين (خارج الحساب)', value: EGP(overview?.supplierPurchases ?? 0) },
+                { label: 'مرتجعات العملاء (خارج الحساب)', value: '—' },
+                { label: 'تصفية الورديات (خارج الحساب)', value: '—' },
+              ]}
+              note="مصاريف التشغيل = فقط الحركات التشغيلية الفعلية مثل الإيجار والكهرباء والأجور — مستبعد منها الموردين والمرتجعات وحركات الخزنة الداخلية"
+            />
+          }
         />
-        <StatCard 
-          label="مشتريات بضائع وموردين" 
-          value={formatSensitive('supplierPurchases', EGP(overview?.supplierPurchases ?? 0))} 
-          icon="📦" 
-          color="bg-amber-50/50" 
+        <StatCard
+          label="مشتريات بضائع وموردين"
+          value={formatSensitive('supplierPurchases', EGP(overview?.supplierPurchases ?? 0))}
+          icon="📦"
+          color="bg-amber-50/50"
           sub="مبالغ شراء وتغذية مخزون البضائع"
           onClick={() => toggleCardReveal('supplierPurchases')}
+          popover={
+            <InfoPopover
+              title="مشتريات الموردين"
+              formula="SupplierTransactions من نوع 'purchase' فقط"
+              rows={[
+                { label: 'إجمالي مشتريات البضائع', value: EGP(overview?.supplierPurchases ?? 0) },
+                { label: 'من الخزنة (StoreSafe)', value: '—' },
+                { label: 'من الجيب الخاص (PersonalPocket)', value: '—' },
+              ]}
+              note="الشراء النقدي الفوري (cash_purchase) يُحسَب مرة واحدة فقط من سجل الشراء، لتفادي التضاعف الناتج عن سجل الدفع الموازي"
+            />
+          }
         />
       </div>
 
