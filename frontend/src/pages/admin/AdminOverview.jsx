@@ -399,18 +399,20 @@ function AdminOverview() {
           value={formatSensitive('supplierPurchases', EGP(overview?.supplierPurchases ?? 0))}
           icon="📦"
           color="bg-amber-50/50"
-          sub="مبالغ شراء وتغذية مخزون البضائع"
+          sub="تتحول لأصول بضاعة ➖ لا تُخصم من الأرباح الصافية"
           onClick={() => toggleCardReveal('supplierPurchases')}
           popover={
             <InfoPopover
-              title="مشتريات الموردين"
-              formula="SupplierTransactions من نوع 'purchase' فقط"
+              title="مشتريات بضائع وموردين"
+              formula="المبالغ المسدودة لشراء وتغذية مخزون البضائع"
               rows={[
-                { label: 'إجمالي مشتريات البضائع', value: EGP(overview?.supplierPurchases ?? 0) },
-                { label: 'من الخزنة (StoreSafe)', value: '—' },
-                { label: 'من الجيب الخاص (PersonalPocket)', value: '—' },
+                { label: 'إجمالي المسدد للموردين هذا الشهر', value: EGP(overview?.supplierPurchases ?? 0), highlight: true },
+                { label: 'تأثيرها على صافي أرباح النشاط', value: '0 ج.م (لا تُخصم كـ مصروفات)', highlight: false },
+                { label: 'تأثيرها على مخزون المحل', value: `+${EGP(overview?.supplierPurchases ?? 0)} (زيادة أصول بضاعة)`, highlight: true },
+                { separator: true },
+                { label: 'تأثيرها على سيولة الخزنة (الكاش)', value: `-${EGP(overview?.supplierPurchases ?? 0)} (خروج سيولة من الدرج)`, negative: true },
               ]}
-              note="الشراء النقدي الفوري (cash_purchase) يُحسَب مرة واحدة فقط من سجل الشراء، لتفادي التضاعف الناتج عن سجل الدفع الموازي"
+              note="مشتريات البضائع لا تُخصم من أرباح النشاط كـ مصروفات لأن الفلوس اتحولت لبضاعة ملكك على الرفوف. تكلفة كل قطعة بتُخصم تدريجياً (COGS) فقط لما تتباع ف فواتير البيع."
             />
           }
         />
