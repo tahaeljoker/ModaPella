@@ -947,7 +947,14 @@ function CashierPOS() {
       setIsDebt(false);
       setDebtPaidAmount('');
     } catch (err) {
-      // If server request fails (connection refused or timeout), also save locally
+      // If editing an existing order, show a proper error — don't save as offline
+      if (editOrderId) {
+        const errMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'فشل تعديل الفاتورة';
+        showToast(`❌ ${errMsg}`, 'error');
+        return;
+      }
+
+      // If new sale fails (connection refused or timeout), save locally
       const offlineId = `OFFLINE-${Date.now()}`;
       const emp = employees.find(e => e._id === selectedEmployee);
       

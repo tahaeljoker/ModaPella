@@ -213,6 +213,7 @@ function AppContent() {
 
           {/* Cashier Routes */}
           <Route path="/cashier" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />
+          <Route path="/cashier/pos" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />
           <Route path="/cashier/returns" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierReturns /></CashierLayout></ProtectedRoute>} />
           <Route path="/cashier/today" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierToday /></CashierLayout></ProtectedRoute>} />
           <Route path="/cashier/safe" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierSafe /></CashierLayout></ProtectedRoute>} />

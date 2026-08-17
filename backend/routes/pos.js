@@ -650,8 +650,23 @@ router.put('/orders/:id', auth, async (req, res) => {
 
     // 2. Validate and Deduct New Items Stock
     const productLookups = await Promise.all(items.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) throw new Error(`Product ${item.name || item.product} not found`);
+      // Skip stock validation if product ID is empty (shouldn't happen normally)
+      if (!item.product || item.product === '') {
+        return { item, product: null, variant: null, costPrice: item.costPrice || 0, skipStock: true };
+      }
+
+      let product = null;
+      try {
+        product = await Product.findById(item.product);
+      } catch (e) {
+        // Invalid ObjectId — treat as deleted product
+        product = null;
+      }
+
+      // If product was deleted, allow editing without stock check
+      if (!product) {
+        return { item, product: null, variant: null, costPrice: item.costPrice || 0, skipStock: true };
+      }
 
       let availableStock = product.stock ?? 0;
       let variant = null;
@@ -665,7 +680,7 @@ router.put('/orders/:id', auth, async (req, res) => {
       }
 
       const costPrice = product ? (product.costPrice || 0) : 0;
-      return { item, product, variant, costPrice };
+      return { item, product, variant, costPrice, skipStock: false };
     }));
 
     const orderItems = productLookups.map(({ item, product, variant, costPrice }) => ({
@@ -705,7 +720,10 @@ router.put('/orders/:id', auth, async (req, res) => {
     await order.save();
 
     // Deduct stock for new items
-    await Promise.all(productLookups.map(async ({ item, product, variant }) => {
+    await Promise.all(productLookups.map(async ({ item, product, variant, skipStock }) => {
+      // Skip stock operations for deleted/missing products
+      if (skipStock || !product) return;
+
       const prevStock = variant ? variant.stock : product.stock;
       if (variant) {
         variant.stock = Math.max(0, variant.stock - item.quantity);
