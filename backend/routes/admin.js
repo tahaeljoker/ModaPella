@@ -69,8 +69,8 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     ]);
 
     const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
-    const totalValue = products.reduce((sum, item) => sum + item.stock * item.price, 0);
-    const totalSales = periodOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalValue = Math.round(products.reduce((sum, item) => sum + item.stock * item.price, 0));
+    const totalSales = Math.round(periodOrders.reduce((sum, order) => sum + order.totalAmount, 0));
     const lowStock = products.filter((item) => item.stock <= 5);
 
     const isInternalMovement = (t) => {
@@ -127,16 +127,26 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       }
     });
 
-    const grossProfit = periodOrders.reduce((sum, order) => {
+    let cogs = 0;
+    let grossProfit = 0;
+
+    periodOrders.forEach(order => {
       const orderCost = order.items.reduce((s, item) => {
         const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
         return s + (item.costPrice || 0) * netQty;
       }, 0);
-      return sum + (order.totalAmount - orderCost);
-    }, 0);
 
-    const netProfit = grossProfit - operatingExpenses;
-    const totalDiscounts = periodOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
+      cogs += orderCost;
+      const effectiveRevenue = order.isDebt ? (order.amountPaid || 0) : order.totalAmount;
+      grossProfit += (effectiveRevenue - orderCost);
+    });
+
+    cogs = Math.round(cogs);
+    grossProfit = Math.round(grossProfit);
+    operatingExpenses = Math.round(operatingExpenses);
+    supplierPurchases = Math.round(supplierPurchases);
+    const netProfit = Math.round(grossProfit - operatingExpenses);
+    const totalDiscounts = Math.round(periodOrders.reduce((sum, o) => sum + (o.discount || 0), 0));
 
     // Calculate best selling products
     const productSales = {};
@@ -217,6 +227,8 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       totalStock,
       totalValue,
       totalSales,
+      grossProfit,
+      cogs,
       netProfit,
       operatingExpenses,
       supplierPurchases,

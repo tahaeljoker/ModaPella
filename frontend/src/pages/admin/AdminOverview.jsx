@@ -362,8 +362,8 @@ function AdminOverview() {
               formula="مجمل الربح ➖ مصاريف التشغيل"
               rows={[
                 { label: 'إجمالي الإيراد المحصَّل', value: EGP(overview?.totalSales ?? 0) },
-                { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP((overview?.totalSales ?? 0) - (overview?.netProfit ?? 0) - (overview?.operatingExpenses ?? 0))}`, negative: true },
-                { label: 'مجمل الربح التجاري', value: EGP((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0)) },
+                { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(overview?.cogs ?? Math.max(0, (overview?.totalSales ?? 0) - (overview?.grossProfit ?? 0)))}`, negative: true },
+                { label: 'مجمل الربح التجاري', value: EGP(overview?.grossProfit ?? ((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0))) },
                 { separator: true },
                 { label: 'مصاريف التشغيل', value: `-${EGP(overview?.operatingExpenses ?? 0)}`, negative: true },
                 { separator: true },
