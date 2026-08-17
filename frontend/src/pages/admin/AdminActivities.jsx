@@ -70,22 +70,77 @@ function AdminActivities() {
     return matchType && matchSearch;
   });
 
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditData, setAuditData] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [editingTx, setEditingTx] = useState(null);
+  const [newCatInput, setNewCatInput] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 4000);
+  };
+
+  const handleRunSmartAudit = async () => {
+    setAuditLoading(true);
+    setIsAuditModalOpen(true);
+    try {
+      const params = new URLSearchParams();
+      if (from) params.append('from', from);
+      if (to) params.append('to', to);
+      const res = await api.get(`/cashier/safe/smart-audit?${params.toString()}`);
+      setAuditData(res.data);
+    } catch (err) {
+      console.error('Audit failed:', err);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const handleFixCategory = async (txId, category) => {
+    try {
+      await api.put(`/cashier/safe/transaction/${txId}/category`, { category });
+      showToast('✅ تم تعديل فئة الحركة بنجاح وحماية صافي الأرباح!');
+      loadActivities();
+      if (isAuditModalOpen) handleRunSmartAudit();
+      setEditingTx(null);
+    } catch {
+      showToast('❌ فشل تعديل فئة الحركة');
+    }
+  };
+
   return (
     <div className="space-y-6 text-burgundy" dir="rtl">
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="fixed top-5 left-5 z-50 rounded-2xl bg-burgundy px-5 py-3 text-white font-bold shadow-2xl animate-bounce">
+          {toastMsg}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">سجلات النظام</p>
-          <h2 className="text-2xl font-bold">📜 سجل حركات النظام اليومية</h2>
-          <p className="text-sm text-burgundy/50 mt-0.5">مراقبة تفصيلية لعمليات البيع، المصروفات، الخزينة والمخزون</p>
+          <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">سجلات النظام والتدقيق</p>
+          <h2 className="text-2xl font-bold">📜 سجل حركات النظام والتدقيق المحاسبي</h2>
+          <p className="text-sm text-burgundy/50 mt-0.5">مراقبة تفصيلية للعمليات وفحص ذكي لمنع الأخطاء في صافي الربح</p>
         </div>
-        <button
-          onClick={handleExport}
-          disabled={filtered.length === 0}
-          className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018] disabled:opacity-40"
-        >
-          📥 تصدير كملف CSV
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleRunSmartAudit}
+            className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-extrabold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 flex items-center gap-1.5"
+          >
+            🔎 التدقيق المحاسبي الذكي
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+            className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018] disabled:opacity-40"
+          >
+            📥 تصدير كملف CSV
+          </button>
+        </div>
       </div>
 
       {/* Date Filters & Search */}
@@ -214,9 +269,9 @@ function AdminActivities() {
                     </p>
                   )}
 
-                  {/* Transaction amount or note */}
-                  {(act.amount != null || act.notes) && (
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-burgundy/5 text-xs">
+                  {/* Transaction amount, note, and edit category button */}
+                  {(act.amount != null || act.notes || act.txId) && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-burgundy/5 text-xs">
                       {act.amount != null && (
                         <div className="flex items-center gap-1">
                           <span className="text-burgundy/50">القيمة/المبلغ:</span>
@@ -232,6 +287,24 @@ function AdminActivities() {
                           </span>
                         </div>
                       )}
+
+                      {act.txId && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-burgundy/40 font-mono bg-burgundy/5 px-2 py-0.5 rounded">الفئة: {act.category || 'أخرى'}</span>
+                          <button
+                            onClick={() => {
+                              const targetCat = prompt('أدخل الفئة الجديدة لهذه الحركة (مثال: مسحوبات شخصية، دفع للمورد، كهرباء ومياه، صيانة):', act.category || 'مسحوبات شخصية');
+                              if (targetCat && targetCat.trim()) {
+                                handleFixCategory(act.txId, targetCat.trim());
+                              }
+                            }}
+                            className="text-[11px] font-bold text-burgundy bg-burgundy/5 hover:bg-burgundy/10 px-2.5 py-1 rounded-lg transition border border-burgundy/10"
+                          >
+                            ✏️ تعديل الفئة
+                          </button>
+                        </div>
+                      )}
+
                       {act.notes && (
                         <p className="text-[10px] text-burgundy/50 italic">
                           ملاحظات: {act.notes}
@@ -243,6 +316,91 @@ function AdminActivities() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Smart Audit Modal */}
+      {isAuditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsAuditModalOpen(false)}>
+          <div className="w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy text-right" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <span>🔎 نتيجة التدقيق المحاسبي الذكي للخزنة</span>
+                </h3>
+                <p className="text-xs text-burgundy/50 mt-0.5">فحص تلقائي لكافة الحركات والتنبيه على الأخطاء التي تؤثر على صافي الربح</p>
+              </div>
+              <button onClick={() => setIsAuditModalOpen(false)} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
+            </div>
+
+            {auditLoading ? (
+              <div className="py-12 text-center space-y-3">
+                <div className="inline-block animate-spin text-2xl">🔄</div>
+                <p className="text-sm font-bold text-burgundy/60">جاري فحص حركات الخزنة والمصروفات بالذكاء الاصطناعي والمحاسبي...</p>
+              </div>
+            ) : auditData ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 bg-white p-4 rounded-2xl border border-burgundy/10">
+                  <div className="bg-emerald-50 rounded-xl p-3 text-right">
+                    <p className="text-[11px] font-bold text-emerald-800">الحركات المفحوصة:</p>
+                    <p className="text-xl font-extrabold text-emerald-900">{auditData.totalAnalyzed} حركة</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-xl p-3 text-right">
+                    <p className="text-[11px] font-bold text-amber-800">الأخطاء والملاحظات المكتشفة:</p>
+                    <p className="text-xl font-extrabold text-amber-900">{auditData.warningsCount} حركة</p>
+                  </div>
+                </div>
+
+                {auditData.potentialProfitGain > 0 && (
+                  <div className="bg-emerald-600 text-white rounded-2xl p-4 shadow-md flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold opacity-90">الربح الصافي الإضافي المتوقع بعد تصحيح الأخطاء:</p>
+                      <p className="text-2xl font-extrabold">+ {EGP(auditData.potentialProfitGain)}</p>
+                    </div>
+                    <span className="text-2xl">📈</span>
+                  </div>
+                )}
+
+                {auditData.warnings.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-8 text-center space-y-2 border border-burgundy/10">
+                    <span className="text-3xl">✅</span>
+                    <h4 className="font-bold text-emerald-700 text-base">جميع حركات الخزنة مسجلة في فئاتها المحاسبية الصحيحة!</h4>
+                    <p className="text-xs text-burgundy/50">لم يتم العثور على أي حركات مسحوبات شخصية أو موردين مخصومة كـ مصروفات تشغيل بالخطأ.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+                    <p className="text-xs font-bold text-burgundy/70">قائمة الحركات التي تحتاج تصحيح الفئة:</p>
+                    {auditData.warnings.map(w => (
+                      <div key={w.id} className="bg-white rounded-2xl p-4 border border-amber-200 shadow-sm space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-sm text-red-600 flex items-center gap-1.5">
+                              <span>⚠️ {w.title}</span>
+                            </h4>
+                            <p className="text-xs text-burgundy/70 font-semibold mt-1">البيان: "{w.description || 'بدون تدوين'}"</p>
+                            <p className="text-[10px] text-burgundy/40 mt-0.5">
+                              المبلغ: <strong className="text-burgundy">{EGP(w.amount)}</strong> | الفئة الحالية: <span className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-mono">{w.category}</span>
+                            </p>
+                          </div>
+                          <span className="text-xs text-burgundy/40 font-mono">{new Date(w.date).toLocaleDateString('ar-EG-u-nu-latn')}</span>
+                        </div>
+
+                        <div className="bg-emerald-50 rounded-xl p-2.5 text-xs text-emerald-800 font-bold flex items-center justify-between">
+                          <span>💡 {w.impactMessage}</span>
+                          <button
+                            onClick={() => handleFixCategory(w.id, w.suggestedCategory)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-extrabold transition shadow-sm"
+                          >
+                            ✨ تصحيح لـ "{w.suggestedCategory}" فوراً
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

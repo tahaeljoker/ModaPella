@@ -166,6 +166,111 @@ router.post('/safe/transaction', auth, requireRole(['admin', 'cashier', 'manager
   }
 });
 
+// PUT /api/cashier/safe/transaction/:id/category — update transaction category
+router.put('/safe/transaction/:id/category', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { category } = req.body;
+    const transaction = await Transaction.findById(req.params.id);
+    if (!transaction) return res.status(404).json({ message: 'الحركة غير موجودة' });
+    transaction.category = category;
+    await transaction.save();
+    res.json({ message: 'تم تعديل فئة الحركة بنجاح', transaction });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to update transaction category', error: error.message });
+  }
+});
+
+// GET /api/cashier/safe/smart-audit — Audit safe transactions for accounting misclassifications
+router.get('/safe/smart-audit', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { from, to, period = 'current' } = req.query;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    let startDate, endDate;
+    if (from && to) {
+      startDate = new Date(from);
+      endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      startDate = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0, 0);
+      endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+    }
+
+    const transactions = await Transaction.find({
+      createdAt: { $gte: startDate, $lte: endDate }
+    }).populate('user', 'name role').sort({ createdAt: -1 });
+
+    const warnings = [];
+    let potentialProfitGain = 0;
+
+    transactions.forEach(t => {
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      const isSupplierCat = cat === 'supplierpayment' || cat === 'supplierpurchase' || cat.includes('مورد') || cat.includes('بضاعة');
+      const isInternalCat = cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
+      const isRefundCat = cat === 'refund' || cat.includes('مرتجع');
+
+      if (t.type === 'OUT' && !isSupplierCat && !isInternalCat && !isRefundCat) {
+        if (desc.includes('جمعيه') || desc.includes('جمعية') || desc.includes('شخصي') || desc.includes('سلفة مالك') || desc.includes('مسحوبات')) {
+          warnings.push({
+            id: t._id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.createdAt,
+            user: t.user ? t.user.name : 'غير محدد',
+            issueType: 'PERSONAL_WITHDRAWAL',
+            title: 'مسحوبات شخصية / جمعية مخصومة كـ مصروف تشغيلي بالخطأ!',
+            suggestedCategory: 'مسحوبات شخصية',
+            impactMessage: `تحويل الفئة سيُضيف ${Math.round(t.amount)} ج.م فوراً لصافي ربحك!`
+          });
+          potentialProfitGain += t.amount;
+        } else if (desc.includes('مورد') || desc.includes('بضاعة') || desc.includes('قماش') || desc.includes('مصنع') || desc.includes('سداد حساب')) {
+          warnings.push({
+            id: t._id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.createdAt,
+            user: t.user ? t.user.name : 'غير محدد',
+            issueType: 'SUPPLIER_PAYMENT',
+            title: 'سداد مورد مخصوم كـ مصروف تشغيلي بالخطأ!',
+            suggestedCategory: 'سداد للمورد',
+            impactMessage: `تحويل الفئة سيُضيف ${Math.round(t.amount)} ج.م لصافي الربح وسيعالجه ف حساب المورد!`
+          });
+          potentialProfitGain += t.amount;
+        } else if (desc.includes('ترجيع') || desc.includes('استرجاع') || desc.includes('مرتجع')) {
+          warnings.push({
+            id: t._id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.createdAt,
+            user: t.user ? t.user.name : 'غير محدد',
+            issueType: 'REFUND_MISCLASSIFIED',
+            title: 'مرتجع مخصوم كـ مصروف تشغيلي بالخطأ!',
+            suggestedCategory: 'Refund',
+            impactMessage: `تحويل الفئة سيُضيف ${Math.round(t.amount)} ج.م لصافي الربح وسيعالجه كمرتجع!`
+          });
+          potentialProfitGain += t.amount;
+        }
+      }
+    });
+
+    res.json({
+      period,
+      totalAnalyzed: transactions.length,
+      warningsCount: warnings.length,
+      potentialProfitGain: Math.round(potentialProfitGain),
+      warnings
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to perform smart audit', error: error.message });
+  }
+});
+
 // POST /api/cashier/safe/close-shift — clear the safe (End of Shift)
 router.post('/safe/close-shift', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
@@ -348,6 +453,8 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
 
       activities.push({
         id: `tx-${t._id}`,
+        txId: t._id,
+        category: t.category,
         timestamp: t.createdAt,
         type: t.category.toLowerCase() === 'expense' ? 'expense' : t.category.toLowerCase() === 'refund' ? 'refund' : t.category.toLowerCase() === 'debtpayment' ? 'deposit' : 'safe_movement',
         user: t.user?.name || 'غير معروف',
