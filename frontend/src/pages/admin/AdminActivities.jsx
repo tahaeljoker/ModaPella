@@ -293,7 +293,7 @@ function AdminActivities() {
                           <span className="text-[10px] text-burgundy/40 font-mono bg-burgundy/5 px-2 py-0.5 rounded">الفئة: {act.category || 'أخرى'}</span>
                           <button
                             onClick={() => {
-                              const targetCat = prompt('أدخل الفئة الجديدة لهذه الحركة (مثال: مسحوبات شخصية، دفع للمورد، كهرباء ومياه، صيانة):', act.category || 'مسحوبات شخصية');
+                              const targetCat = prompt('اختر الفئة الجديدة لهذه الحركة (مسحوبات شخصية، انترنت ومرافق، صيانة وإصلاحات، دفع لمورد، كهرباء ومياه، نظافة):', act.category || 'مسحوبات شخصية');
                               if (targetCat && targetCat.trim()) {
                                 handleFixCategory(act.txId, targetCat.trim());
                               }

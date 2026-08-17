@@ -5,7 +5,18 @@ import { exportToCSV } from '../../services/export';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
-const EXPENSE_CATEGORIES = ['ضيافة', 'كهرباء ومياه', 'نظافة', 'نولون شحن', 'دفع لمورد', 'أخرى'];
+const EXPENSE_CATEGORIES = [
+  'مسحوبات شخصية',
+  'انترنت ومرافق',
+  'صيانة وإصلاحات',
+  'دفع لمورد',
+  'كهرباء ومياه',
+  'نظافة',
+  'نولون شحن',
+  'تعبئة ومطبوعات',
+  'ضيافة',
+  'أخرى'
+];
 
 function CashierSafe() {
   const [data, setData] = useState({
