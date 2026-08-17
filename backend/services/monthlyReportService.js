@@ -54,10 +54,17 @@ const isPersonalTx = (t) => {
     cat === 'personalwithdrawal' ||
     cat.includes('مسحوبات') ||
     cat.includes('شخصي') ||
+    cat.includes('شخصى') ||
     cat.includes('جمعية') ||
     cat.includes('جمعيه') ||
-    desc.includes('مسحوبات شخصية') ||
-    desc.includes('جمعيه بيد ام ادم')
+    desc.includes('مسحوبات') ||
+    desc.includes('شخصي') ||
+    desc.includes('شخصى') ||
+    desc.includes('جمعية') ||
+    desc.includes('جمعيه') ||
+    desc.includes('سلفة') ||
+    desc.includes('سلفه') ||
+    desc.includes('ادم')
   );
 };
 
