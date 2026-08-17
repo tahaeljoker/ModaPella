@@ -308,23 +308,23 @@ function AdminOverview() {
           <p className="mt-2 text-sm opacity-70">{todayOrders} طلب اليوم</p>
         </div>
         <StatCard
-          label={period === 'current' ? 'مبيعات الشهر الجاري' : period === 'previous' ? 'مبيعات الشهر السابق' : 'إجمالي المبيعات (كل الأوقات)'}
+          label={period === 'current' ? 'صافي المبيعات (المستحق)' : period === 'previous' ? 'مبيعات الشهر السابق' : 'إجمالي المبيعات'}
           value={formatSensitive('totalSales', EGP(overview?.totalSales ?? 0))}
           icon="💰"
           color="bg-white"
-          sub={`${overview?.totalOrders || 0} طلب مكتمل`}
+          sub={`${overview?.totalOrders || 0} طلب مكتمل (بعد الخصم)`}
           onClick={() => toggleCardReveal('totalSales')}
           popover={
             <InfoPopover
-              title="إجمالي المبيعات"
-              formula="مجموع صافي قيمة كل الفواتير المكتملة بعد الخصم"
+              title="صافي المبيعات (المستحق)"
+              formula="المبيعات الإجمالية ➖ الخصومات الممنوحة"
               rows={[
-                { label: 'إجمالي قيمة الفواتير قبل الخصم', value: EGP((overview?.totalSales ?? 0) + (overview?.totalDiscounts ?? 0)) },
-                { label: 'الخصومات الممنوحة', value: `-${EGP(overview?.totalDiscounts ?? 0)}`, negative: true },
+                { label: 'إجمالي المبيعات قبل الخصم', value: EGP((overview?.totalSales ?? 0) + (overview?.totalDiscounts ?? 0)) },
+                { label: 'الخصومات الممنوحة ف الفواتير', value: `-${EGP(overview?.totalDiscounts ?? 0)}`, negative: true },
                 { separator: true },
-                { label: '= إجمالي المبيعات الصافية', value: EGP(overview?.totalSales ?? 0), highlight: true },
+                { label: '= صافي المبيعات المستحقة', value: EGP(overview?.totalSales ?? 0), highlight: true },
               ]}
-              note="الفواتير الآجلة تُسجَّل بقيمتها الكاملة هنا بغض النظر عن المدفوع منها"
+              note="ده إجمالي الإيراد الصافي المستحق للمحل بعد تنزيل التخفيضات المباشرة للعملاء ف الفواتير."
             />
           }
         />
@@ -333,7 +333,7 @@ function AdminOverview() {
           value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))}
           icon="🏷️"
           color="bg-amber-50/40"
-          sub="خصومات وتخفيضات الفواتير"
+          sub="التخفيضات المطبقة ف الفواتير"
           onClick={() => toggleCardReveal('totalDiscounts')}
           popover={
             <InfoPopover
@@ -345,31 +345,53 @@ function AdminOverview() {
                 { separator: true },
                 { label: '= صافي المبيعات بعد الخصم', value: EGP(overview?.totalSales ?? 0), highlight: true },
               ]}
-              note="الخصم يُطرح مباشرة من المبيعات في وقت إنشاء الفاتورة"
+              note="الخصومات تُطرح مباشرة ف وقت إخراج الفاتورة للعميل وتخفّض الإيراد قبل حساب الأرباح."
             />
           }
         />
         <StatCard
-          label="صافي ربح النشاط"
-          value={formatSensitive('netProfit', EGP(overview?.netProfit ?? 0))}
-          icon="📈"
-          color="bg-emerald-50/60"
-          sub="أرباح البضاعة المباعة ➖ مصاريف التشغيل"
-          onClick={() => toggleCardReveal('netProfit')}
+          label="تكلفة البضاعة المباعة (COGS)"
+          value={formatSensitive('cogs', EGP(overview?.cogs ?? Math.max(0, (overview?.totalSales ?? 0) - (overview?.grossProfit ?? 0))))}
+          icon="📦"
+          color="bg-amber-50/60"
+          sub="سعر التكلفة الأصلي لشراء القطع المباعة"
+          onClick={() => toggleCardReveal('cogs')}
           popover={
             <InfoPopover
-              title="صافي ربح النشاط"
-              formula="مجمل الربح ➖ مصاريف التشغيل"
+              title="تكلفة البضاعة المباعة (COGS)"
+              formula="مجموع (سعر تكلفة شراء القطعة × الكمية المباعة)"
               rows={[
-                { label: 'إجمالي الإيراد المحصَّل', value: EGP(overview?.totalSales ?? 0) },
-                { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(overview?.cogs ?? Math.max(0, (overview?.totalSales ?? 0) - (overview?.grossProfit ?? 0)))}`, negative: true },
-                { label: 'مجمل الربح التجاري', value: EGP(overview?.grossProfit ?? ((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0))) },
+                { label: 'إجمالي إيراد المبيعات الصافية', value: EGP(overview?.totalSales ?? 0) },
+                { label: 'تكلفة الشراء الأصلية للبضاعة المباعة (COGS)', value: `-${EGP(overview?.cogs ?? Math.max(0, (overview?.totalSales ?? 0) - (overview?.grossProfit ?? 0)))}`, negative: true },
                 { separator: true },
-                { label: 'مصاريف التشغيل', value: `-${EGP(overview?.operatingExpenses ?? 0)}`, negative: true },
-                { separator: true },
-                { label: '= صافي ربح النشاط', value: EGP(overview?.netProfit ?? 0), highlight: true },
+                { label: '= مجمل الربح التجاري للبضاعة', value: EGP(overview?.grossProfit ?? ((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0))), highlight: true },
               ]}
-              note="الفواتير الآجلة تُحسَب في الربح بالمبلغ المحصَّل فعلاً (amountPaid) وليس المبلغ الكامل — يمنع تضخيم الأرباح بديون غير محصَّلة"
+              note="دي التكلفة الأصلية لشراء القطع التي تم بيعها هذا الشهر ف الفواتير. تُخصم من المبيعات الصافية للوصول لمجمل ربح البضاعة."
+            />
+          }
+        />
+        <StatCard
+          label="مجمل الربح التجاري"
+          value={formatSensitive('grossProfit', EGP(overview?.grossProfit ?? ((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0))))}
+          icon="🛍️"
+          color="bg-teal-50/60"
+          sub="ربح البضاعة (صافي المبيعات ➖ تكلفة COGS)"
+          onClick={() => toggleCardReveal('grossProfit')}
+          popover={
+            <InfoPopover
+              title="مجمل الربح التجاري"
+              formula="صافي المبيعات ➖ تكلفة البضاعة المباعة (COGS)"
+              rows={[
+                { label: 'إجمالي المبيعات الصافية', value: EGP(overview?.totalSales ?? 0) },
+                { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(overview?.cogs ?? Math.max(0, (overview?.totalSales ?? 0) - (overview?.grossProfit ?? 0)))}`, negative: true },
+                { separator: true },
+                { label: '= مجمل الربح التجاري قبل المصاريف', value: EGP(overview?.grossProfit ?? ((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0))), highlight: true },
+                { separator: true },
+                { label: 'مصروفات التشغيل الإدارية', value: `-${EGP(overview?.operatingExpenses ?? 0)}`, negative: true },
+                { separator: true },
+                { label: '= صافي ربح النشاط النهائي', value: EGP(overview?.netProfit ?? 0), highlight: true },
+              ]}
+              note="مجمل الربح ده مكسب تجارة البضاعة فقط ف السعر قبل خصم إيجار المحل والمرتبات والكهرباء."
             />
           }
         />
@@ -378,19 +400,46 @@ function AdminOverview() {
           value={formatSensitive('operatingExpenses', EGP(overview?.operatingExpenses ?? (overview?.totalExpenses - (overview?.supplierPurchases || 0))))}
           icon="💸"
           color="bg-rose-50/40"
-          sub="إيجار، كهرباء، أجور، نثريات وشحن"
+          sub="إيجار المحل، أجور الموظفين، كهرباء ونثريات"
           onClick={() => toggleCardReveal('operatingExpenses')}
           popover={
             <InfoPopover
               title="مصروفات التشغيل"
-              formula="OUT transactions — بدون موردين، بدون مرتجعات، بدون تصفية وردية"
+              formula="إيجار + مرتبات + كهرباء + مرافق + صيانة ونثريات"
               rows={[
-                { label: 'إجمالي المصاريف التشغيلية', value: EGP(overview?.operatingExpenses ?? 0) },
-                { label: 'مشتريات الموردين (خارج الحساب)', value: EGP(overview?.supplierPurchases ?? 0) },
-                { label: 'مرتجعات العملاء (خارج الحساب)', value: '—' },
-                { label: 'تصفية الورديات (خارج الحساب)', value: '—' },
+                { label: 'مجمل الربح التجاري للبضاعة', value: EGP(overview?.grossProfit ?? ((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0))) },
+                { label: 'إجمالي مصاريف التشغيل الفعلية', value: `-${EGP(overview?.operatingExpenses ?? 0)}`, negative: true },
+                { separator: true },
+                { label: '= صافي ربح النشاط المتبقي', value: EGP(overview?.netProfit ?? 0), highlight: true },
+                { separator: true },
+                { label: 'مشتريات الموردين (مستبعدة كـ أصول بضاعة)', value: EGP(overview?.supplierPurchases ?? 0) },
+                { label: 'المسحوبات الشخصية (مستبعدة)', value: '—' },
               ]}
-              note="مصاريف التشغيل = فقط الحركات التشغيلية الفعلية مثل الإيجار والكهرباء والأجور — مستبعد منها الموردين والمرتجعات وحركات الخزنة الداخلية"
+              note="مصاريف التشغيل هي فقط التكاليف الإدارية والتشغيلية للمحل ف هذا الشهر (مستبعد منها الموردين والمسحوبات الشخصية)."
+            />
+          }
+        />
+        <StatCard
+          label="صافي ربح النشاط"
+          value={formatSensitive('netProfit', EGP(overview?.netProfit ?? 0))}
+          icon="📈"
+          color="bg-emerald-50/60"
+          sub="مجمل الربح التجاري ➖ مصروفات التشغيل"
+          onClick={() => toggleCardReveal('netProfit')}
+          popover={
+            <InfoPopover
+              title="صافي ربح النشاط النهائي"
+              formula="مجمل الربح التجاري ➖ مصاريف التشغيل"
+              rows={[
+                { label: 'صافي إيراد المبيعات', value: EGP(overview?.totalSales ?? 0) },
+                { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(overview?.cogs ?? Math.max(0, (overview?.totalSales ?? 0) - (overview?.grossProfit ?? 0)))}`, negative: true },
+                { label: '= مجمل الربح التجاري', value: EGP(overview?.grossProfit ?? ((overview?.netProfit ?? 0) + (overview?.operatingExpenses ?? 0))) },
+                { separator: true },
+                { label: 'مصروفات التشغيل (إيجار/مرتبات)', value: `-${EGP(overview?.operatingExpenses ?? 0)}`, negative: true },
+                { separator: true },
+                { label: '= صافي ربح النشاط النهائي', value: EGP(overview?.netProfit ?? 0), highlight: true },
+              ]}
+              note="ده الصافي التجاري النهائي للمحل بعد خصم كافة التكاليف والمصاريف الإدارية."
             />
           }
         />
