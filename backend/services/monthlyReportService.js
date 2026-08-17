@@ -46,6 +46,21 @@ const isSupplierTx = (t) => {
   );
 };
 
+const isPersonalTx = (t) => {
+  if (t.type !== 'OUT') return false;
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'personalwithdrawal' ||
+    cat.includes('مسحوبات') ||
+    cat.includes('شخصي') ||
+    cat.includes('جمعية') ||
+    cat.includes('جمعيه') ||
+    desc.includes('مسحوبات شخصية') ||
+    desc.includes('جمعيه بيد ام ادم')
+  );
+};
+
 /**
  * Calculates all metrics for a given year and month (1-indexed).
  */
@@ -129,7 +144,7 @@ async function calculateMonthlyData(year, month) {
       } else {
         refundsInstapay += t.amount;
       }
-    } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
+    } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isPersonalTx(t)) {
       // Operating expense
       const cat = t.category || 'أخرى';
       expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;

@@ -100,12 +100,30 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       return cat === 'refund' || cat.includes('مرتجع');
     };
 
+    const isPersonalTx = (t) => {
+      if (t.type !== 'OUT') return false;
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'personalwithdrawal' ||
+        cat.includes('مسحوبات') ||
+        cat.includes('شخصي') ||
+        cat.includes('جمعية') ||
+        cat.includes('جمعيه') ||
+        desc.includes('مسحوبات شخصية') ||
+        desc.includes('جمعيه بيد ام ادم')
+      );
+    };
+
     let operatingExpenses = 0;
     let supplierPurchases = 0;
+    let personalWithdrawals = 0;
     const expenseMap = {};
 
     outTransactions.forEach(t => {
-      if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isRefundTx(t)) {
+      if (isPersonalTx(t)) {
+        personalWithdrawals += t.amount;
+      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isRefundTx(t)) {
         const cat = t.category || 'أخرى';
         expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
         operatingExpenses += t.amount;
