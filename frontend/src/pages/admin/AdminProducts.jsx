@@ -255,7 +255,14 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
   const parsedColors = getParsedItems(form.colors);
   const [variantStocks, setVariantStocks] = useState(() => {
     const initial = {};
-    if (product?.variants) product.variants.forEach(v => { initial[`${v.size || ''}_${v.color || ''}`] = v.stock; });
+    if (product?.variants && product.variants.length > 0) {
+      product.variants.forEach(v => {
+        const sz = v.size || '-';
+        const clr = v.color || '-';
+        initial[`${sz}_${clr}`] = v.stock;
+        initial[`${v.size || ''}_${v.color || ''}`] = v.stock;
+      });
+    }
     return initial;
   });
   const handleChange = (e) => { const { name, value } = e.target; setForm(p => ({ ...p, [name]: value })); };
@@ -264,21 +271,35 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
   const activeColors = parsedColors.length > 0 ? parsedColors : (parsedSizes.length > 0 ? ['-'] : []);
   const combinations = [];
   if (hasVariants) activeSizes.forEach(size => activeColors.forEach(color => combinations.push({ size, color })));
+  
+  const getVariantStockVal = (sz, clr) => {
+    if (variantStocks[`${sz}_${clr}`] !== undefined) return variantStocks[`${sz}_${clr}`];
+    if (variantStocks[`${sz}_`] !== undefined) return variantStocks[`${sz}_`];
+    if (variantStocks[`_${clr}`] !== undefined) return variantStocks[`_${clr}`];
+    if (combinations.length === 1 && product?.stock) return Number(product.stock);
+    return 0;
+  };
+
   const totalVariantStock = hasVariants
-    ? combinations.reduce((sum, c) => sum + (variantStocks[`${c.size}_${c.color}`] || 0), 0)
+    ? combinations.reduce((sum, c) => sum + Number(getVariantStockVal(c.size, c.color) || 0), 0)
     : Number(form.stock || 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true);
     try {
+      const finalStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
       const payload = {
         ...form,
         price: Number(form.price),
         discountPrice: form.discountPrice ? Number(form.discountPrice) : null,
         discountStartDate: form.discountStartDate ? new Date(form.discountStartDate) : null,
         discountEndDate: form.discountEndDate ? new Date(form.discountEndDate) : null,
-        stock: totalVariantStock,
-        variants: hasVariants ? combinations.map(c => ({ size: c.size, color: c.color, stock: variantStocks[`${c.size}_${c.color}`] || 0 })) : [],
+        stock: finalStock,
+        variants: hasVariants ? combinations.map(c => ({
+          size: c.size,
+          color: c.color,
+          stock: Number(getVariantStockVal(c.size, c.color) || 0)
+        })) : [],
         images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
         sizes: activeSizes, colors: activeColors,
       };
