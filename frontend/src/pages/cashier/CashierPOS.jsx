@@ -604,6 +604,28 @@ function CashierPOS() {
     let buffer = '';
     let timer = null;
 
+    const ARABIC_KEYBOARD_MAP = {
+      'ذ': '`', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9', '٠': '0',
+      'ض': 'q', 'ص': 'w', 'ث': 'e', 'ق': 'r', 'ف': 't', 'غ': 'y', 'ع': 'u', 'ه': 'i', 'خ': 'o', 'ح': 'p',
+      'ش': 'a', 'س': 's', 'ي': 'd', 'ب': 'f', 'ل': 'g', 'ا': 'h', 'ت': 'j', 'ن': 'k', 'م': 'l',
+      'ئ': 'z', 'ء': 'x', 'ؤ': 'c', 'ر': 'v', 'لا': 'b', 'ى': 'n', 'ة': 'm'
+    };
+
+    const normalizeBarcodeString = (str) => {
+      if (!str) return '';
+      let result = '';
+      const strVal = String(str);
+      for (let i = 0; i < strVal.length; i++) {
+        const char = strVal[i];
+        if (ARABIC_KEYBOARD_MAP[char]) {
+          result += ARABIC_KEYBOARD_MAP[char];
+        } else {
+          result += char;
+        }
+      }
+      return result.trim();
+    };
+
     const normalizeDigits = (str) => {
       if (!str) return '';
       const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -621,7 +643,8 @@ function CashierPOS() {
       if (e.key === 'Enter') {
         if (buffer.length >= 3) {
           const rawSku = buffer.trim();
-          const sku = normalizeDigits(rawSku).toUpperCase();
+          const normSku = normalizeBarcodeString(rawSku);
+          const sku = normalizeDigits(normSku).toUpperCase();
           const scannedDigits = sku.replace(/[^0-9]/g, '');
 
           const found = products.find(p => {

@@ -5,7 +5,28 @@ const StockHistory = require('../models/StockHistory');
 
 const router = express.Router();
 
-const ensureMissingSkus = async (products) => {
+const ARABIC_KEYBOARD_MAP = {
+  'ذ': '`', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9', '٠': '0',
+  'ض': 'q', 'ص': 'w', 'ث': 'e', 'ق': 'r', 'ف': 't', 'غ': 'y', 'ع': 'u', 'ه': 'i', 'خ': 'o', 'ح': 'p',
+  'ش': 'a', 'س': 's', 'ي': 'd', 'ب': 'f', 'ل': 'g', 'ا': 'h', 'ت': 'j', 'ن': 'k', 'م': 'l',
+  'ئ': 'z', 'ء': 'x', 'ؤ': 'c', 'ر': 'v', 'لا': 'b', 'ى': 'n', 'ة': 'm'
+};
+
+const normalizeBarcodeString = (str) => {
+  if (!str || typeof str !== 'string') return '';
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (ARABIC_KEYBOARD_MAP[char]) {
+      result += ARABIC_KEYBOARD_MAP[char];
+    } else {
+      result += char;
+    }
+  }
+  return result.trim().toUpperCase();
+};
+
+const generateNextSku = async () => {
   const allProducts = await Product.find({}, { sku: 1 }).lean();
   let maxNum = 1000;
   for (const item of allProducts) {
@@ -15,13 +36,22 @@ const ensureMissingSkus = async (products) => {
       if (!isNaN(num) && num > maxNum) maxNum = num;
     }
   }
+  return (maxNum + 1).toString();
+};
 
+const ensureMissingSkus = async (products) => {
+  let nextSkuNum = null;
   for (const p of products) {
     const hasSku = p.sku && typeof p.sku === 'string' && p.sku.trim().length > 0;
     if (!hasSku) {
       try {
-        maxNum += 1;
-        p.sku = maxNum.toString();
+        if (!nextSkuNum) {
+          const skuStr = await generateNextSku();
+          nextSkuNum = parseInt(skuStr, 10);
+        } else {
+          nextSkuNum += 1;
+        }
+        p.sku = nextSkuNum.toString();
         await p.save();
       } catch (err) {
         console.error('Auto SKU generation error for product:', p._id, err.message);
@@ -44,10 +74,13 @@ router.get('/', async (req, res) => {
     
     if (search && search.trim() !== '') {
       const s = search.trim();
+      const normS = normalizeBarcodeString(s);
       query.$or = [
         { name: { $regex: s, $options: 'i' } },
         { sku: { $regex: s, $options: 'i' } },
+        { sku: { $regex: normS, $options: 'i' } },
         { oldSku: { $regex: s, $options: 'i' } },
+        { oldSku: { $regex: normS, $options: 'i' } },
         { category: { $regex: s, $options: 'i' } },
         { 'variants.sku': { $regex: s, $options: 'i' } }
       ];
@@ -74,10 +107,11 @@ router.get('/lookup-barcode', async (req, res) => {
     }
 
     const code = rawCode.trim();
-    const codeClean = code.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const codeDigits = code.replace(/[^0-9]/g, '');
+    const normCode = normalizeBarcodeString(code);
+    const codeClean = normCode.replace(/[^a-zA-Z0-9]/g, '');
+    const codeDigits = normCode.replace(/[^0-9]/g, '');
 
-    // Search across ALL products (including active: false)
+    // Search across ALL products
     const allProducts = await Product.find({}).sort({ createdAt: -1 });
 
     let matched = allProducts.find(p => {
@@ -86,29 +120,31 @@ router.get('/lookup-barcode', async (req, res) => {
       const pIdFull = p._id ? p._id.toString().toUpperCase() : '';
       const pIdDigits = p._id ? (parseInt(p._id.toString().slice(-6), 16) % 89999 + 10000).toString() : '';
 
-      if (pSku && pSku === code.toUpperCase()) return true;
-      if (pOldSku && pOldSku === code.toUpperCase()) return true;
-      if (pIdFull && pIdFull === code.toUpperCase()) return true;
-      if (pIdDigits && pIdDigits === code) return true;
+      if (pSku && (pSku === code.toUpperCase() || pSku === normCode)) return true;
+      if (pOldSku && (pOldSku === code.toUpperCase() || pOldSku === normCode)) return true;
+      if (pIdFull && (pIdFull === code.toUpperCase() || pIdFull === normCode)) return true;
+      if (pIdDigits && (pIdDigits === code || pIdDigits === normCode)) return true;
 
       const pSkuClean = pSku.replace(/[^a-zA-Z0-9]/g, '');
       const pOldSkuClean = pOldSku.replace(/[^a-zA-Z0-9]/g, '');
       if (codeClean && pSkuClean && codeClean === pSkuClean) return true;
       if (codeClean && pOldSkuClean && codeClean === pOldSkuClean) return true;
 
-      const codeNoPrefixClean = codeClean.replace(/^[A-Z]/, '');
+      const codeNoPrefixClean = codeClean.replace(/^[A-Z]+/, '');
       if (codeNoPrefixClean && pSkuClean && codeNoPrefixClean === pSkuClean) return true;
       if (codeNoPrefixClean && pOldSkuClean && codeNoPrefixClean === pOldSkuClean) return true;
 
       return false;
     });
 
-    // Fallback: match extracted numeric part against p.sku
+    // Fallback: match extracted numeric part
     if (!matched && codeDigits && codeDigits.length >= 3) {
       matched = allProducts.find(p => {
         const pSku = (p.sku || '').trim();
         const pOldSku = (p.oldSku || '').trim();
-        return pSku === codeDigits || pOldSku === codeDigits;
+        const pDigits = pSku.replace(/[^0-9]/g, '');
+        const pOldDigits = pOldSku.replace(/[^0-9]/g, '');
+        return pSku === codeDigits || pOldSku === codeDigits || pDigits === codeDigits || pOldDigits === codeDigits;
       });
     }
 
@@ -118,8 +154,8 @@ router.get('/lookup-barcode', async (req, res) => {
         matched.active = true;
         modified = true;
       }
-      if (matched.oldSku !== code) {
-        matched.oldSku = code;
+      if (!matched.oldSku || (matched.oldSku !== code && matched.oldSku !== normCode)) {
+        matched.oldSku = normCode || code;
         modified = true;
       }
       if (modified) {
@@ -165,8 +201,35 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, category, description, price, stock, images, sizes, colors, type } = req.body;
-    const product = new Product({ name, category, description, price, stock, images, sizes, colors, type });
+    const { name, category, description, price, costPrice, stock, images, sizes, colors, type, sku, oldSku, supplier, supplierId, allowDiscount, discountPrice, discountStartDate, discountEndDate, variants } = req.body;
+    
+    let finalSku = sku && typeof sku === 'string' ? sku.trim() : '';
+    if (!finalSku) {
+      finalSku = await generateNextSku();
+    }
+
+    const product = new Product({
+      name,
+      category,
+      description,
+      price: Number(price || 0),
+      costPrice: Number(costPrice || 0),
+      stock: Number(stock || 0),
+      images,
+      sizes,
+      colors,
+      type,
+      sku: finalSku,
+      oldSku: oldSku ? oldSku.trim() : '',
+      supplier: supplier || '',
+      supplierId: supplierId || null,
+      allowDiscount: allowDiscount !== false,
+      discountPrice: discountPrice ? Number(discountPrice) : null,
+      discountStartDate: discountStartDate ? new Date(discountStartDate) : null,
+      discountEndDate: discountEndDate ? new Date(discountEndDate) : null,
+      variants: variants || []
+    });
+
     await product.save();
     
     // Create Initial Stock History
@@ -200,6 +263,10 @@ router.post('/', auth, async (req, res) => {
         performedByName: req.user.name
       });
     }
+
+    // Emit real-time WebSockets to update all POS clients immediately
+    req.app.locals.io?.emit('inventory:update', product);
+    req.app.locals.io?.emit('product:created', product);
 
     res.status(201).json(product);
   } catch (error) {
