@@ -60,12 +60,16 @@ function AdminOrders() {
 
   const handleFullReturn = async (id) => {
     try {
-      await api.patch(`/orders/${id}`, { status: 'Returned' });
+      await api.post('/pos/recover', {
+        orderId: id,
+        reason: 'إرجاع كامل من لوحة تحكم الإدارة'
+      });
       await loadOrders();
       setIsFullReturnConfirmOpen(false);
       setOrderToReturnFull(null);
     } catch (e) {
       console.error(e);
+      alert(e.response?.data?.message || 'حدث خطأ أثناء إجراء الإرجاع الكامل');
     }
   };
 

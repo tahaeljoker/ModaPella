@@ -285,14 +285,14 @@ router.post('/public-checkout', async (req, res) => {
 
     // Trigger notification
     try {
-      const Notification = require('../models/Notification');
-      await Notification.create({
+      const SystemNotification = require('../models/SystemNotification');
+      const notification = await SystemNotification.create({
         title: '🛒 طلب أونلاين جديد معلق',
         message: `طلب جديد بقيمة ${totalAmount} ج.م من العميل ${dbCustomer.name} (${dbCustomer.phone}) ينتظر الموافقة.`,
-        type: 'warning',
-        referenceId: order._id
+        type: 'info',
+        recipient: null
       });
-      req.app.locals.io?.emit('notification:new');
+      req.app.locals.io?.emit('notification:new', notification);
     } catch (err) {
       console.error('Failed to create order notification:', err);
     }

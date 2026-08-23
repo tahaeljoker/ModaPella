@@ -400,6 +400,16 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
       req.body.oldSku = existingProduct.sku;
     }
 
+    if (req.body.variants && Array.isArray(req.body.variants) && req.body.variants.length > 0) {
+      req.body.stock = req.body.variants.reduce((sum, v) => sum + Number(v.stock || 0), 0);
+    }
+
+    const currentSold = existingProduct.sold || 0;
+    const incomingStock = Number(req.body.stock ?? existingProduct.stock ?? 0);
+    if ((incomingStock + currentSold) > (existingProduct.totalReceived || 0)) {
+      req.body.totalReceived = incomingStock + currentSold;
+    }
+
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
     req.app.locals.io?.emit('inventory:update', product);
     res.json(product);

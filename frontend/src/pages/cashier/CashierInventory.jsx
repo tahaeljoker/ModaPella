@@ -127,9 +127,14 @@ function CashierInventory() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي كمية البداية الاستلام">
-                        🔷 {p.totalReceived > 0 ? p.totalReceived : ((p.stock || 0) + (p.sold || 0))} بداية
+                      <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي ما دخل المحل من المنتج">
+                        🔷 {Math.max(p.totalReceived || 0, (p.stock || 0) + (p.sold || 0))} توريد
                       </span>
+                      {p.sold > 0 && (
+                        <span className="rounded-full bg-purple-50 text-purple-700 border border-purple-200/80 px-2 py-1 text-xs font-bold" title="إجمالي المبيعات">
+                          🏷️ {p.sold} مباع
+                        </span>
+                      )}
                       <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`} title="المخزون الفعلي المتاح حالياً">
                         🟢 {p.stock} متبقي
                       </span>

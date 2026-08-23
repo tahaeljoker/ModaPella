@@ -570,6 +570,9 @@ router.patch('/storage/:productId', auth, async (req, res) => {
     if (product.variants && product.variants.length > 0) {
       product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
     }
+    if ((product.stock + (product.sold || 0)) > (product.totalReceived || 0)) {
+      product.totalReceived = product.stock + (product.sold || 0);
+    }
     await product.save();
 
     // Log stock history

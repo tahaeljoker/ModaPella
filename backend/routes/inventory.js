@@ -125,6 +125,12 @@ router.post('/counts/:id/apply', auth, requireRole(['admin']), async (req, res) 
         prevStock = product.stock;
         product.stock = item.countedStock;
       }
+      if (product.variants && product.variants.length > 0) {
+        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      }
+      if ((product.stock + (product.sold || 0)) > (product.totalReceived || 0)) {
+        product.totalReceived = product.stock + (product.sold || 0);
+      }
       await product.save();
 
       // Log stock history
@@ -143,6 +149,7 @@ router.post('/counts/:id/apply', auth, requireRole(['admin']), async (req, res) 
         notes: `تحديث عبر جلسة جرد: "${count.label}"`
       });
       await history.save();
+      req.app.locals.io?.emit('inventory:update', product);
     }
 
     count.status = 'applied';

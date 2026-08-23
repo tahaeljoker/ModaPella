@@ -970,14 +970,21 @@ function CashierPOS() {
       setIsDebt(false);
       setDebtPaidAmount('');
     } catch (err) {
-      // If editing an existing order, show a proper error — don't save as offline
+      // If editing an existing order, show a proper error
       if (editOrderId) {
         const errMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'فشل تعديل الفاتورة';
         showToast(`❌ ${errMsg}`, 'error');
         return;
       }
 
-      // If new sale fails (connection refused or timeout), save locally
+      // If error is from the server (e.g. 400 Bad Request, stock unavailable), show the error directly to the cashier
+      if (err.response) {
+        const errMsg = err.response?.data?.message || err.response?.data?.error || 'فشلت عملية البيع';
+        showToast(`❌ ${errMsg}`, 'error');
+        return;
+      }
+
+      // ONLY if there is a real network failure (no server response), save locally for offline sync
       const offlineId = `OFFLINE-${Date.now()}`;
       const emp = employees.find(e => e._id === selectedEmployee);
       
@@ -995,7 +1002,7 @@ function CashierPOS() {
 
       saveOfflineSales([...offlineSales, { id: offlineId, payload: salePayload }]);
       setCompletedOrder(fakeOrder);
-      showToast('⚠️ تم حفظ الفاتورة محلياً بسبب انقطاع اتصال الخادر', 'error');
+      showToast('⚠️ تم حفظ الفاتورة محلياً لعدم القدرة على الوصول للسيرفر', 'error');
 
       setCart([]);
       setDiscount(0);

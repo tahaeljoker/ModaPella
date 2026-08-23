@@ -146,7 +146,8 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
     // ─── Net Profit ────────────────────────────────────────────────────
     const netProfit = completedOrders.reduce((sum, order) => {
       const orderProfit = order.items.reduce((s, item) => {
-        return s + ((item.price - (item.costPrice || 0)) * item.quantity);
+        const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+        return s + ((item.price - (item.costPrice || 0)) * netQty);
       }, 0);
       return sum + orderProfit - (order.discount || 0);
     }, 0);
@@ -159,7 +160,7 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
 
     // ─── Total Items Sold ──────────────────────────────────────────────
     const totalItemsSold = completedOrders.reduce((sum, o) => {
-      return sum + o.items.reduce((s, i) => s + i.quantity, 0);
+      return sum + o.items.reduce((s, i) => s + Math.max(0, i.quantity - (i.returnedQuantity || 0)), 0);
     }, 0);
 
     // ─── Category Breakdown & Top Category ─────────────────────────────

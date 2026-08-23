@@ -247,14 +247,14 @@ async function calculateMonthlyData(year, month) {
       } else if (isRefundTx(t)) {
         if (t.paymentMethod === 'Cash') dayRefundCash += t.amount;
         else dayRefundInstapay += t.amount;
-      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
+      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isPersonalTx(t)) {
         dayOpExpenses += t.amount;
       }
     });
 
     let daySupplierPurchases = 0;
     daySupplierTxs.forEach(st => {
-      if (st.type === 'payment' || st.type === 'purchase' || st.type === 'cash_purchase') {
+      if (st.type === 'purchase') {
         daySupplierPurchases += st.amount;
       }
     });
