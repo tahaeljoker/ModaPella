@@ -413,7 +413,9 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
 
     const currentSold = existingProduct.sold || 0;
     const incomingStock = Number(req.body.stock ?? existingProduct.stock ?? 0);
-    if ((incomingStock + currentSold) > (existingProduct.totalReceived || 0)) {
+    if (req.body.totalReceived !== undefined && !isNaN(Number(req.body.totalReceived))) {
+      req.body.totalReceived = Math.max(Number(req.body.totalReceived), incomingStock + currentSold);
+    } else if ((incomingStock + currentSold) > (existingProduct.totalReceived || 0)) {
       req.body.totalReceived = incomingStock + currentSold;
     }
 

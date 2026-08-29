@@ -392,7 +392,7 @@ function RestockModal({ product, onClose, onRestocked }) {
   );
 }
 
-const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
+const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
@@ -402,6 +402,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
     if (product) {
       return {
         ...product,
+        totalReceived: product.totalReceived !== undefined ? product.totalReceived : ((product.stock || 0) + (product.sold || 0)),
         discountPrice: product.discountPrice ?? '',
         discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
         discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().split('T')[0] : '',
@@ -499,6 +500,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
         discountStartDate: form.discountStartDate ? new Date(form.discountStartDate) : null,
         discountEndDate: form.discountEndDate ? new Date(form.discountEndDate) : null,
         stock: finalStock,
+        totalReceived: form.totalReceived !== '' && form.totalReceived !== undefined ? Number(form.totalReceived) : undefined,
         variants: hasVariants ? combinations.map(c => ({
           size: c.size,
           color: c.color,
@@ -651,10 +653,43 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المخزون الكلي *</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المخزون الكلي (المتاح حالياً) *</label>
               <input type="number" name="stock" value={hasVariants ? totalVariantStock : form.stock} onChange={handleChange}
                 disabled={hasVariants} className={`${inp} ${hasVariants ? 'bg-burgundy/5 opacity-70 cursor-not-allowed font-bold' : ''}`} required min="0" />
               {hasVariants && <p className="mt-1 text-[10px] text-burgundy/50">يُحسب تلقائياً من مجموع مخزون المتغيرات</p>}
+            </div>
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs font-bold uppercase tracking-wide text-blue-900 flex items-center gap-1">
+                  <span>🔷</span> إجمالي التوريد (الاستلام الكلي)
+                </label>
+                {product && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const curStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
+                      const sold = Number(product?.sold || 0);
+                      setForm(p => ({ ...p, totalReceived: curStock + sold }));
+                    }}
+                    className="text-[10px] font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2.5 py-0.5 rounded-lg transition flex items-center gap-1 shadow-sm"
+                    title="ضبط تلقائي = المتبقي الحالي + المباع"
+                  >
+                    <span>🔄</span> ضبط تلقائي ({ (hasVariants ? totalVariantStock : Number(form.stock || 0)) + Number(product?.sold || 0) } قطعة)
+                  </button>
+                )}
+              </div>
+              <input
+                type="number"
+                min="0"
+                name="totalReceived"
+                value={form.totalReceived ?? ''}
+                onChange={handleChange}
+                placeholder="مثال: 20 أو 50"
+                className={`${inp} border-blue-200 bg-blue-50/40 text-blue-900 font-bold focus:border-blue-500`}
+              />
+              <p className="mt-1 text-[10px] text-blue-800/60">
+                {product ? `المباع: ${product.sold || 0} قطعة · المتبقي: ${hasVariants ? totalVariantStock : Number(form.stock || 0)} قطعة` : 'اتركه فارغاً ليتطابق مع المخزون الافتتاحي'}
+              </p>
             </div>
             <div className="sm:col-span-2">
               <div className="flex justify-between items-center mb-1">
@@ -856,6 +891,7 @@ function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory,
   const [search, setSearch] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('الكل');
   const [filterSize, setFilterSize] = useState('الكل');
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
 const arabicKeyboardMap = {
   'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
@@ -1024,27 +1060,79 @@ const normalizeDigits = (str) => {
                     🟢 {p.stock} متبقي
                   </span>
                 </div>
-                <div className="flex gap-1.5 flex-wrap items-center">
-                  {p.stock === 0 ? (
+                <div className="flex items-center gap-2 justify-end">
+                  {p.stock === 0 && (
                     <button
                       onClick={() => onRestock(p)}
-                      className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm flex items-center gap-1"
-                      title="استلام وتزويد كمية جديدة من المنتج"
+                      className="rounded-xl bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm flex items-center gap-1"
+                      title="تزويد واستلام شحنة جديدة"
                     >
                       <span>📦</span> تزويد
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => onRestock(p)}
-                      className="rounded-xl border border-emerald-300 text-emerald-700 font-bold px-2 py-1.5 text-xs hover:bg-emerald-50 transition"
-                      title="استلام وتزويد شحنة جديدة"
-                    >
-                      📦+
-                    </button>
                   )}
-                  <button onClick={() => onEdit(p)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
-                  {p.sku && <button onClick={() => printBarcode(p)} className="rounded-xl border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-500 hover:text-white">🖶</button>}
-                  <button onClick={() => onDelete(p._id)} className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-500 hover:text-white">أرشفة</button>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(activeMenuId === p._id ? null : p._id);
+                      }}
+                      className="h-8 w-8 rounded-xl border border-burgundy/20 hover:bg-burgundy/10 flex items-center justify-center text-base font-bold text-burgundy transition shadow-sm bg-white"
+                      title="خيارات المنتج"
+                    >
+                      ⋮
+                    </button>
+
+                    {activeMenuId === p._id && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
+                        <div
+                          className="absolute left-0 mt-1 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => { setActiveMenuId(null); onRestock(p); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
+                          >
+                            <span className="text-sm">📦</span> تزويد مخزون / شحنة
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setActiveMenuId(null); onEdit(p); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+                          >
+                            <span className="text-sm">✏️</span> تعديل بيانات المنتج
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setActiveMenuId(null); onShowHistory(p); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+                          >
+                            <span className="text-sm">📜</span> سجل حركة المخزون
+                          </button>
+                          {p.sku && (
+                            <button
+                              type="button"
+                              onClick={() => { setActiveMenuId(null); printBarcode(p); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl transition"
+                            >
+                              <span className="text-sm">🖶</span> طباعة ملصق الباركود
+                            </button>
+                          )}
+                          <div className="border-t border-burgundy/5 my-1" />
+                          <button
+                            type="button"
+                            onClick={() => { setActiveMenuId(null); onDelete(p._id); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition"
+                          >
+                            <span className="text-sm">🗑️</span> أرشفة المنتج
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1057,7 +1145,7 @@ const normalizeDigits = (str) => {
 }
 
 // ─── Tab: Inventory ────────────────────────────────────────────────────────────
-function InventoryTab({ products, loading, onRefresh, onRestock, categories, catAr }) {
+function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowHistory, categories, catAr }) {
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('الكل');
   const [filterSupplier, setFilterSupplier] = useState('الكل');
@@ -1066,6 +1154,7 @@ function InventoryTab({ products, loading, onRefresh, onRestock, categories, cat
   const [adjValue, setAdjValue]     = useState('');
   const [selectedVariant, setSelectedVariant] = useState('');
   const [expanded, setExpanded]     = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
   const [toast, setToast]           = useState('');
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
@@ -1233,18 +1322,72 @@ function InventoryTab({ products, loading, onRefresh, onRestock, categories, cat
                         <button onClick={() => { setAdjusting(null); setAdjValue(''); }} className="rounded-xl border border-burgundy/20 px-2 py-1 text-xs text-burgundy hover:bg-burgundy/8 transition">✕</button>
                       </div>
                     ) : (
-                      <div className="flex gap-1.5 items-center">
+                      <div className="flex items-center gap-2 justify-end">
                         <button
-                          onClick={() => onRestock(p)}
-                          className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm flex items-center gap-1"
-                          title="استلام وتزويد كمية جديدة من المنتج"
+                          onClick={() => startAdjusting(p)}
+                          className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-semibold text-burgundy transition hover:bg-burgundy hover:text-white"
                         >
-                          <span>📦</span> تزويد
-                        </button>
-                        <button onClick={() => startAdjusting(p)}
-                          className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-semibold text-burgundy transition hover:bg-burgundy hover:text-white">
                           تعديل سريع
                         </button>
+
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuId(activeMenuId === p._id ? null : p._id);
+                            }}
+                            className="h-8 w-8 rounded-xl border border-burgundy/20 hover:bg-burgundy/10 flex items-center justify-center text-base font-bold text-burgundy transition shadow-sm bg-white"
+                            title="خيارات إضافية"
+                          >
+                            ⋮
+                          </button>
+
+                          {activeMenuId === p._id && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
+                              <div
+                                className="absolute left-0 mt-1 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveMenuId(null); onRestock(p); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
+                                >
+                                  <span className="text-sm">📦</span> تزويد مخزون / شحنة
+                                </button>
+                                {onEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveMenuId(null); onEdit(p); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+                                  >
+                                    <span className="text-sm">✏️</span> تعديل بيانات المنتج
+                                  </button>
+                                )}
+                                {onShowHistory && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveMenuId(null); onShowHistory(p); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+                                  >
+                                    <span className="text-sm">📜</span> سجل حركة المخزون
+                                  </button>
+                                )}
+                                {p.sku && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveMenuId(null); printBarcode(p); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl transition"
+                                  >
+                                    <span className="text-sm">🖶</span> طباعة ملصق الباركود
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1433,6 +1576,8 @@ function AdminProducts() {
           catAr={catAr}
           onRefresh={loadProducts}
           onRestock={setRestockingProduct}
+          onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
+          onShowHistory={setHistoryProduct}
         />
       )}
 
