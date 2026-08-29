@@ -287,7 +287,7 @@ router.post('/public-checkout', async (req, res) => {
     try {
       const SystemNotification = require('../models/SystemNotification');
       const notification = await SystemNotification.create({
-        title: '🛒 طلب أونلاين جديد معلق',
+        title: 'طلب أونلاين جديد معلق',
         message: `طلب جديد بقيمة ${totalAmount} ج.م من العميل ${dbCustomer.name} (${dbCustomer.phone}) ينتظر الموافقة.`,
         type: 'info',
         recipient: null

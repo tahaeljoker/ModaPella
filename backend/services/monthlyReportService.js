@@ -406,11 +406,11 @@ async function calculateMonthlyData(year, month) {
       totalSales: `إجمالي المبيعات الصافية = مجموع الفواتير المكتملة بعد الخصم المباشر (عدد ${orders.length} فاتورة بقيمة إجمالية ${totalSales.toLocaleString()} ج.م). المبيعات الإجمالية قبل الخصم كانت ${(totalSales + totalDiscounts).toLocaleString()} ج.م.`,
       totalDiscounts: `إجمالي الخصومات الممنوحة = مجموع التخفيضات التي تم تنزيلها للعملاء في الفواتير بقيمة ${totalDiscounts.toLocaleString()} ج.م. (خصم مباشر تم تنزيله من المبيعات قبل الوصول لصافي الربح).`,
       cogs: `تكلفة البضاعة المباعة (COGS) = مجموع تكلفة شراء الأجناس المباعة بأسعار الجملة/الشراء (إجمالي ${totalCogs.toLocaleString()} ج.م).`,
-      grossProfit: `مجمل الربح التجاري = المبيعات الصافية (${totalSales.toLocaleString()} ج.م) ➖ تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م. (دون تخصيم الخصم مرتين).`,
+      grossProfit: `مجمل الربح التجاري = المبيعات الصافية (${totalSales.toLocaleString()} ج.م) - تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م. (دون تخصيم الخصم مرتين).`,
       operatingExpenses: `مصاريف التشغيل = إجمالي المصاريف الإدارية والعمومية (عدد ${operatingExpensesList.length} حركة بقيمة ${operatingExpenses.toLocaleString()} ج.م) مع استبعاد الموردين والورديات.`,
       supplierPurchases: `مشتريات بضائع الموردين = إجمالي مبالغ البضائع وسداد الموردين (عدد ${supplierPaymentsList.length} حركة بقيمة ${supplierPurchases.toLocaleString()} ج.م) من الخزنة أو من خارجها.`,
-      netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) ➖ مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م.`,
-      netCashFlow: `صافي حركة الخزنة = (السيولة المباشرة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) ➖ (المصروفات ${operatingExpenses.toLocaleString()} ج.م + الموردين ${supplierPurchases.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
+      netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) - مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م.`,
+      netCashFlow: `صافي حركة الخزنة = (السيولة المباشرة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) - (المصروفات ${operatingExpenses.toLocaleString()} ج.م + الموردين ${supplierPurchases.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
     }
   };
 

@@ -60,7 +60,7 @@ router.post('/', auth, requireRole(['admin', 'manager']), async (req, res) => {
 
     // Create system notification for employee
     const notification = new SystemNotification({
-      title: 'تكليف جرد جديد 📦',
+      title: 'تكليف جرد جديد',
       message: `تم تكليفك بمهمة جرد جديدة: "${title}"`,
       recipient: employee,
       type: 'info'
@@ -103,7 +103,7 @@ router.put('/:id/submit', auth, requireRole(['employee']), async (req, res) => {
 
     // Create system notification for admin
     const notification = new SystemNotification({
-      title: 'تسليم جرد جديد 📋',
+      title: 'تسليم جرد جديد',
       message: `قام الموظف "${req.user.name}" بتسليم الجرد المكلف به: "${task.title}"`,
       recipient: null, // target admins
       type: 'info'
@@ -160,7 +160,7 @@ router.put('/:id/review', auth, requireRole(['admin', 'manager']), async (req, r
 
       // Notify employee of acceptance
       const notification = new SystemNotification({
-        title: 'قبول مهمة الجرد ✅',
+        title: 'قبول مهمة الجرد',
         message: `تم قبول واعتماد مهمة الجرد الخاصة بك: "${task.title}"`,
         recipient: task.employee,
         type: 'info'
@@ -170,7 +170,7 @@ router.put('/:id/review', auth, requireRole(['admin', 'manager']), async (req, r
     } else {
       // Notify employee of rejection
       const notification = new SystemNotification({
-        title: 'رفض مهمة الجرد ❌',
+        title: 'رفض مهمة الجرد',
         message: `تم رفض مهمة الجرد الخاصة بك: "${task.title}". ملاحظات المدير: ${adminNotes || 'يرجى مراجعة الكميات المجرودة.'}`,
         recipient: task.employee,
         type: 'info'
