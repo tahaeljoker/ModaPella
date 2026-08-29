@@ -9,449 +9,449 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const STATUS_AR = { Completed: 'مكتمل', Returned: 'مرتجع', Pending: 'معلق' };
 const STATUS_COLOR = {
-  Completed: 'bg-emerald-100 text-emerald-700',
-  Returned: 'bg-red-100 text-red-600',
-  Pending: 'bg-amber-100 text-amber-700',
+ Completed: 'bg-emerald-100 text-emerald-700',
+ Returned: 'bg-red-100 text-red-600',
+ Pending: 'bg-amber-100 text-amber-700',
 };
 const TYPE_AR = { Online: 'أونلاين', Offline: 'كاشير' };
-const PAY_AR = { Cash: '💵 كاش', Instapay: '📱 انستا باي', Wallet: '💳 محفظة كاش' };
+const PAY_AR = { Cash: ' كاش', Instapay: ' انستا باي', Wallet: ' محفظة كاش' };
 const PAY_COLOR = { Cash: 'bg-blue-50 text-blue-700', Instapay: 'bg-violet-50 text-violet-700', Wallet: 'bg-amber-50 text-amber-700' };
 
 function AdminOrders() {
-  const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [filterType, setFilterType] = useState('All');
-  const [filterEmployee, setFilterEmployee] = useState('All');
-  const [search, setSearch] = useState('');
-  const [expanded, setExpanded] = useState(null);
-  const [returnModal, setReturnModal] = useState(null); // { order }
-  const [returnQtys, setReturnQtys] = useState({}); // { itemId: qty }
-  const [returnReason, setReturnReason] = useState('');
-  const [returning, setReturning] = useState(false);
-  const [isFullReturnConfirmOpen, setIsFullReturnConfirmOpen] = useState(false);
-  const [orderToReturnFull, setOrderToReturnFull] = useState(null);
+ const navigate = useNavigate();
+ const [orders, setOrders] = useState([]);
+ const [employees, setEmployees] = useState([]);
+ const [loading, setLoading] = useState(true);
+ const [filterStatus, setFilterStatus] = useState('All');
+ const [filterType, setFilterType] = useState('All');
+ const [filterEmployee, setFilterEmployee] = useState('All');
+ const [search, setSearch] = useState('');
+ const [expanded, setExpanded] = useState(null);
+ const [returnModal, setReturnModal] = useState(null); // { order }
+ const [returnQtys, setReturnQtys] = useState({}); // { itemId: qty }
+ const [returnReason, setReturnReason] = useState('');
+ const [returning, setReturning] = useState(false);
+ const [isFullReturnConfirmOpen, setIsFullReturnConfirmOpen] = useState(false);
+ const [orderToReturnFull, setOrderToReturnFull] = useState(null);
 
-  const loadOrders = async () => {
-    try {
-      const [ordersRes, employeesRes] = await Promise.all([
-        api.get('/orders'),
-        api.get('/employees')
-      ]);
-      setOrders(ordersRes.data);
-      setEmployees(employeesRes.data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+ const loadOrders = async () => {
+ try {
+ const [ordersRes, employeesRes] = await Promise.all([
+ api.get('/orders'),
+ api.get('/employees')
+ ]);
+ setOrders(ordersRes.data);
+ setEmployees(employeesRes.data);
+ } catch (e) {
+ console.error(e);
+ } finally {
+ setLoading(false);
+ }
+ };
 
-  const handleStatusChange = async (id, status) => {
-    try {
-      await api.patch(`/orders/${id}`, { status });
-      await loadOrders();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+ const handleStatusChange = async (id, status) => {
+ try {
+ await api.patch(`/orders/${id}`, { status });
+ await loadOrders();
+ } catch (e) {
+ console.error(e);
+ }
+ };
 
-  const handleFullReturn = async (id) => {
-    try {
-      await api.post('/pos/recover', {
-        orderId: id,
-        reason: 'إرجاع كامل من لوحة تحكم الإدارة'
-      });
-      await loadOrders();
-      setIsFullReturnConfirmOpen(false);
-      setOrderToReturnFull(null);
-    } catch (e) {
-      console.error(e);
-      alert(e.response?.data?.message || 'حدث خطأ أثناء إجراء الإرجاع الكامل');
-    }
-  };
+ const handleFullReturn = async (id) => {
+ try {
+ await api.post('/pos/recover', {
+ orderId: id,
+ reason: 'إرجاع كامل من لوحة تحكم الإدارة'
+ });
+ await loadOrders();
+ setIsFullReturnConfirmOpen(false);
+ setOrderToReturnFull(null);
+ } catch (e) {
+ console.error(e);
+ alert(e.response?.data?.message || 'حدث خطأ أثناء إجراء الإرجاع الكامل');
+ }
+ };
 
-  const openReturnModal = (order) => {
-    const initial = {};
-    order.items.forEach(item => { initial[item._id] = 0; });
-    setReturnQtys(initial);
-    setReturnReason('');
-    setReturnModal({ order });
-  };
+ const openReturnModal = (order) => {
+ const initial = {};
+ order.items.forEach(item => { initial[item._id] = 0; });
+ setReturnQtys(initial);
+ setReturnReason('');
+ setReturnModal({ order });
+ };
 
-  const handleReturn = async () => {
-    if (!returnModal) return;
-    setReturning(true);
-    try {
-      const selectedItems = Object.entries(returnQtys)
-        .filter(([, qty]) => qty > 0)
-        .map(([itemId, qty]) => ({ itemId, quantity: Number(qty) }));
+ const handleReturn = async () => {
+ if (!returnModal) return;
+ setReturning(true);
+ try {
+ const selectedItems = Object.entries(returnQtys)
+ .filter(([, qty]) => qty > 0)
+ .map(([itemId, qty]) => ({ itemId, quantity: Number(qty) }));
 
-      if (selectedItems.length === 0) {
-        alert('اختر قطعة واحدة على الأقل للإرجاع');
-        return;
-      }
+ if (selectedItems.length === 0) {
+ alert('اختر قطعة واحدة على الأقل للإرجاع');
+ return;
+ }
 
-      await api.post('/pos/recover', {
-        orderId: returnModal.order._id,
-        reason: returnReason || 'غير محدد',
-        returnItems: selectedItems
-      });
-      setReturnModal(null);
-      await loadOrders();
-    } catch (e) {
-      alert(e.response?.data?.message || 'حدث خطأ أثناء الاسترجاع');
-    } finally {
-      setReturning(false);
-    }
-  };
+ await api.post('/pos/recover', {
+ orderId: returnModal.order._id,
+ reason: returnReason || 'غير محدد',
+ returnItems: selectedItems
+ });
+ setReturnModal(null);
+ await loadOrders();
+ } catch (e) {
+ alert(e.response?.data?.message || 'حدث خطأ أثناء الاسترجاع');
+ } finally {
+ setReturning(false);
+ }
+ };
 
-  useEffect(() => { loadOrders(); }, []);
+ useEffect(() => { loadOrders(); }, []);
 
-  const filtered = orders.filter((o) => {
-    const matchStatus = filterStatus === 'All' || o.status === filterStatus;
-    const matchType = filterType === 'All' || o.type === filterType;
-    const matchEmployee = filterEmployee === 'All' || o.employeeName === filterEmployee || (o.employee && o.employee.name === filterEmployee);
-    const shortId = o._id?.slice(-6).toUpperCase() || '';
-    const matchSearch = !search ||
-      shortId.includes(search.toUpperCase()) ||
-      o.items?.some(i => i.name.toLowerCase().includes(search.toLowerCase()));
-    return matchStatus && matchType && matchSearch && matchEmployee;
-  });
+ const filtered = orders.filter((o) => {
+ const matchStatus = filterStatus === 'All' || o.status === filterStatus;
+ const matchType = filterType === 'All' || o.type === filterType;
+ const matchEmployee = filterEmployee === 'All' || o.employeeName === filterEmployee || (o.employee && o.employee.name === filterEmployee);
+ const shortId = o._id?.slice(-6).toUpperCase() || '';
+ const matchSearch = !search ||
+ shortId.includes(search.toUpperCase()) ||
+ o.items?.some(i => i.name.toLowerCase().includes(search.toLowerCase()));
+ return matchStatus && matchType && matchSearch && matchEmployee;
+ });
 
-  const totalFiltered = filtered.filter((o) => o.status === 'Completed').reduce((s, o) => s + o.totalAmount, 0);
+ const totalFiltered = filtered.filter((o) => o.status === 'Completed').reduce((s, o) => s + o.totalAmount, 0);
 
-  const handleExport = () => {
-    const headers = ['رقم الطلب', 'التاريخ', 'المنتجات', 'النوع', 'طريقة الدفع', 'الحالة', 'الإجمالي'];
-    const rows = filtered.map(o => [
-      o._id?.slice(-6).toUpperCase() || '',
-      new Date(o.createdAt).toLocaleString('ar-EG-u-nu-latn'),
-      o.items?.map(i => `${i.name} (${i.size || '-'}/${i.color || '-'}) x${i.quantity}`).join(' + ') || '',
-      o.type === 'Offline' ? 'كاشير' : 'أونلاين',
-      o.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي',
-      o.status === 'Completed' ? 'مكتمل' : o.status === 'Returned' ? 'مرتجع' : 'معلق',
-      o.totalAmount
-    ]);
-    exportToCSV(`طلبات_مودابيلا_${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`, headers, rows);
-  };
+ const handleExport = () => {
+ const headers = ['رقم الطلب', 'التاريخ', 'المنتجات', 'النوع', 'طريقة الدفع', 'الحالة', 'الإجمالي'];
+ const rows = filtered.map(o => [
+ o._id?.slice(-6).toUpperCase() || '',
+ new Date(o.createdAt).toLocaleString('ar-EG-u-nu-latn'),
+ o.items?.map(i => `${i.name} (${i.size || '-'}/${i.color || '-'}) x${i.quantity}`).join(' + ') || '',
+ o.type === 'Offline' ? 'كاشير' : 'أونلاين',
+ o.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي',
+ o.status === 'Completed' ? 'مكتمل' : o.status === 'Returned' ? 'مرتجع' : 'معلق',
+ o.totalAmount
+ ]);
+ exportToCSV(`طلبات_مودابيلا_${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`, headers, rows);
+ };
 
-  return (
-    <div className="space-y-6 text-burgundy">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-burgundy/50">إدارة</p>
-          <h2 className="text-3xl font-bold">الطلبات</h2>
-          <p className="mt-1 text-sm text-burgundy/50">{orders.length} طلب إجمالي</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-700"
-          >
-            📥 تصدير Excel
-          </button>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="بحث برقم الطلب أو المنتج..."
-            className="rounded-full border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none transition focus:border-burgundy w-56"
-          />
-          <div className="rounded-2xl bg-burgundy/8 px-5 py-3 text-right">
-            <p className="text-xs text-burgundy/60">إجمالي المعروض</p>
-            <p className="text-xl font-bold">{EGP(totalFiltered)}</p>
-          </div>
-        </div>
-      </div>
+ return (
+ <div className="space-y-6 text-burgundy">
+ {/* Header */}
+ <div className="flex flex-wrap items-center justify-between gap-4">
+ <div>
+ <p className="text-xs uppercase tracking-[0.35em] text-burgundy/50">إدارة</p>
+ <h2 className="text-3xl font-bold">الطلبات</h2>
+ <p className="mt-1 text-sm text-burgundy/50">{orders.length} طلب إجمالي</p>
+ </div>
+ <div className="flex flex-wrap items-center gap-3">
+ <button
+ type="button"
+ onClick={handleExport}
+ className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-700"
+ >
+ تصدير Excel
+ </button>
+ <input
+ type="text"
+ value={search}
+ onChange={(e) => setSearch(e.target.value)}
+ placeholder="بحث برقم الطلب أو المنتج..."
+ className="rounded-full border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none transition focus:border-burgundy w-56"
+ />
+ <div className="rounded-2xl bg-burgundy/8 px-5 py-3 text-right">
+ <p className="text-xs text-burgundy/60">إجمالي المعروض</p>
+ <p className="text-xl font-bold">{EGP(totalFiltered)}</p>
+ </div>
+ </div>
+ </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        {['All', 'Completed', 'Pending', 'Returned'].map((s) => (
-          <button key={s} type="button" onClick={() => setFilterStatus(s)}
-            className={`rounded-full px-4 py-2 text-xs font-semibold transition ${filterStatus === s ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
-            {s === 'All' ? 'كل الحالات' : STATUS_AR[s]}
-          </button>
-        ))}
-        <div className="mx-2 w-px bg-burgundy/20" />
-        {['All', 'Online', 'Offline'].map((t) => (
-          <button key={t} type="button" onClick={() => setFilterType(t)}
-            className={`rounded-full px-4 py-2 text-xs font-semibold transition ${filterType === t ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
-            {t === 'All' ? 'كل الأنواع' : TYPE_AR[t]}
-          </button>
-        ))}
-        {employees.length > 0 && (
-          <>
-            <div className="mx-2 w-px bg-burgundy/20" />
-            <select
-              value={filterEmployee}
-              onChange={(e) => setFilterEmployee(e.target.value)}
-              className="rounded-full border border-burgundy/20 bg-white px-4 py-2 text-xs font-semibold text-burgundy outline-none transition focus:border-burgundy"
-            >
-              <option value="All">كل الموظفين (البائعين)</option>
-              {employees.map((emp) => (
-                <option key={emp._id} value={emp.name}>{emp.name}</option>
-              ))}
-            </select>
-          </>
-        )}
-      </div>
+ {/* Filters */}
+ <div className="flex flex-wrap gap-3">
+ {['All', 'Completed', 'Pending', 'Returned'].map((s) => (
+ <button key={s} type="button" onClick={() => setFilterStatus(s)}
+ className={`rounded-full px-4 py-2 text-xs font-semibold transition ${filterStatus === s ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
+ {s === 'All' ? 'كل الحالات' : STATUS_AR[s]}
+ </button>
+ ))}
+ <div className="mx-2 w-px bg-burgundy/20" />
+ {['All', 'Online', 'Offline'].map((t) => (
+ <button key={t} type="button" onClick={() => setFilterType(t)}
+ className={`rounded-full px-4 py-2 text-xs font-semibold transition ${filterType === t ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
+ {t === 'All' ? 'كل الأنواع' : TYPE_AR[t]}
+ </button>
+ ))}
+ {employees.length > 0 && (
+ <>
+ <div className="mx-2 w-px bg-burgundy/20" />
+ <select
+ value={filterEmployee}
+ onChange={(e) => setFilterEmployee(e.target.value)}
+ className="rounded-full border border-burgundy/20 bg-white px-4 py-2 text-xs font-semibold text-burgundy outline-none transition focus:border-burgundy"
+ >
+ <option value="All">كل الموظفين (البائعين)</option>
+ {employees.map((emp) => (
+ <option key={emp._id} value={emp.name}>{emp.name}</option>
+ ))}
+ </select>
+ </>
+ )}
+ </div>
 
-      {/* Orders list */}
-      {loading ? (
-        <div className="flex h-40 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white p-12 text-center text-sm text-burgundy/50">
-          لا توجد طلبات مطابقة
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((order) => (
-            <div key={order._id} className="rounded-[1.75rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-              <div
-                className="flex flex-wrap cursor-pointer items-center justify-between gap-4 px-6 py-4 hover:bg-burgundy/3 transition"
-                onClick={() => setExpanded(expanded === order._id ? null : order._id)}
-              >
-                <div className="flex items-center gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold">{order.items?.map((i) => i.name).join('، ')}</p>
-                      <span className="rounded bg-burgundy/8 px-1.5 py-0.5 font-mono text-[10px] text-burgundy/60">
-                        #{order._id?.slice(-6).toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-burgundy/50">
-                      {new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.type === 'Offline' ? 'bg-burgundy/10 text-burgundy' : 'bg-emerald-100 text-emerald-700'}`}>
-                    {TYPE_AR[order.type]}
-                  </span>
-                  {order.paymentMethod && (
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${PAY_COLOR[order.paymentMethod] || 'bg-gray-100 text-gray-600'}`}>
-                      {PAY_AR[order.paymentMethod] || order.paymentMethod}
-                    </span>
-                  )}
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_COLOR[order.status]}`}>
-                    {STATUS_AR[order.status]}
-                  </span>
-                  <p className="text-lg font-bold">{EGP(order.totalAmount)}</p>
-                  <span className="text-burgundy/40">{expanded === order._id ? '▲' : '▼'}</span>
-                </div>
-              </div>
-              {expanded === order._id && (
-                <div className="border-t border-burgundy/8 bg-burgundy/3 px-6 py-4">
-                  <div className="mb-4 space-y-2">
-                    {order.items?.map((item, i) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span className="text-burgundy/80">
-                          {item.name} × {item.quantity}
-                          {item.size && <span className="mr-1 text-burgundy/50">({item.size}{item.color ? ` / ${item.color}` : ''})</span>}
-                        </span>
-                        <span className="font-semibold">{EGP(item.price * item.quantity)}</span>
-                      </div>
-                    ))}
-                    {order.discount > 0 && (
-                      <div className="flex justify-between text-sm text-red-500">
-                        <span>🏷️ خصم</span>
-                        <span>-{EGP(order.discount)}</span>
-                      </div>
-                    )}
-                    <div className="mt-2 flex justify-between border-t border-burgundy/10 pt-2 font-bold">
-                      <span>الصافي المدفوع</span>
-                      <span>{EGP(order.totalAmount)}</span>
-                    </div>
-                    {order.paymentMethod && (
-                      <div className="mt-1 flex justify-between text-sm text-burgundy/60">
-                        <span>طريقة الدفع</span>
-                        <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${PAY_COLOR[order.paymentMethod] || ''}`}>
-                          {PAY_AR[order.paymentMethod] || order.paymentMethod}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
-                        const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
-                        const itemsHTML = order.items.map(item => `
-                          <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
-                            <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
-                            <span>${(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
-                          </div>
-                        `).join('');
+ {/* Orders list */}
+ {loading ? (
+ <div className="flex h-40 items-center justify-center">
+ <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
+ </div>
+ ) : filtered.length === 0 ? (
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white p-12 text-center text-sm text-burgundy/50">
+ لا توجد طلبات مطابقة
+ </div>
+ ) : (
+ <div className="space-y-3">
+ {filtered.map((order) => (
+ <div key={order._id} className="rounded-[1.75rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
+ <div
+ className="flex flex-wrap cursor-pointer items-center justify-between gap-4 px-6 py-4 hover:bg-burgundy/3 transition"
+ onClick={() => setExpanded(expanded === order._id ? null : order._id)}
+ >
+ <div className="flex items-center gap-4">
+ <div>
+ <div className="flex items-center gap-2">
+ <p className="font-semibold">{order.items?.map((i) => i.name).join('، ')}</p>
+ <span className="rounded bg-burgundy/8 px-1.5 py-0.5 font-mono text-[10px] text-burgundy/60">
+ #{order._id?.slice(-6).toUpperCase()}
+ </span>
+ </div>
+ <p className="mt-0.5 text-xs text-burgundy/50">
+ {new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}
+ </p>
+ </div>
+ </div>
+ <div className="flex items-center gap-2 flex-wrap">
+ <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.type === 'Offline' ? 'bg-burgundy/10 text-burgundy' : 'bg-emerald-100 text-emerald-700'}`}>
+ {TYPE_AR[order.type]}
+ </span>
+ {order.paymentMethod && (
+ <span className={`rounded-full px-3 py-1 text-xs font-semibold ${PAY_COLOR[order.paymentMethod] || 'bg-gray-100 text-gray-600'}`}>
+ {PAY_AR[order.paymentMethod] || order.paymentMethod}
+ </span>
+ )}
+ <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_COLOR[order.status]}`}>
+ {STATUS_AR[order.status]}
+ </span>
+ <p className="text-lg font-bold">{EGP(order.totalAmount)}</p>
+ <span className="text-burgundy/40">{expanded === order._id ? '▲' : '▼'}</span>
+ </div>
+ </div>
+ {expanded === order._id && (
+ <div className="border-t border-burgundy/8 bg-burgundy/3 px-6 py-4">
+ <div className="mb-4 space-y-2">
+ {order.items?.map((item, i) => (
+ <div key={i} className="flex justify-between text-sm">
+ <span className="text-burgundy/80">
+ {item.name} × {item.quantity}
+ {item.size && <span className="mr-1 text-burgundy/50">({item.size}{item.color ? ` / ${item.color}` : ''})</span>}
+ </span>
+ <span className="font-semibold">{EGP(item.price * item.quantity)}</span>
+ </div>
+ ))}
+ {order.discount > 0 && (
+ <div className="flex justify-between text-sm text-red-500">
+ <span> خصم</span>
+ <span>-{EGP(order.discount)}</span>
+ </div>
+ )}
+ <div className="mt-2 flex justify-between border-t border-burgundy/10 pt-2 font-bold">
+ <span>الصافي المدفوع</span>
+ <span>{EGP(order.totalAmount)}</span>
+ </div>
+ {order.paymentMethod && (
+ <div className="mt-1 flex justify-between text-sm text-burgundy/60">
+ <span>طريقة الدفع</span>
+ <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${PAY_COLOR[order.paymentMethod] || ''}`}>
+ {PAY_AR[order.paymentMethod] || order.paymentMethod}
+ </span>
+ </div>
+ )}
+ </div>
+ <div className="flex flex-wrap gap-2">
+ <button
+ type="button"
+ onClick={() => {
+ const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
+ const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
+ const itemsHTML = order.items.map(item => `
+ <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
+ <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
+ <span>${(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
+ </div>
+ `).join('');
 
-                        const printDiv = document.createElement('div');
-                        printDiv.id = 'receipt-reprint-root';
-                        printDiv.innerHTML = `
-                          <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:15px;width:58mm;font-size:12px;color:#000;line-height:1.4">
-                            <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:3px">ModaPella 🎠</div>
-                            <div style="text-align:center;margin-bottom:12px;font-size:9px;color:#444">إعادة طباعة فاتورة (مسؤول)</div>
-                            
-                            <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
-                              <div><strong>رقم الفاتورة:</strong> #${shortId}</div>
-                              <div><strong>التاريخ:</strong> ${dateStr}</div>
-                              <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
-                              ${order.employeeName ? `<div><strong>البائع:</strong> ${order.employeeName}</div>` : ''}
-                              ${order.notes ? `<div><strong>ملاحظات:</strong> ${order.notes}</div>` : ''}
-                            </div>
+ const printDiv = document.createElement('div');
+ printDiv.id = 'receipt-reprint-root';
+ printDiv.innerHTML = `
+ <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:15px;width:58mm;font-size:12px;color:#000;line-height:1.4">
+ <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:3px">ModaPella </div>
+ <div style="text-align:center;margin-bottom:12px;font-size:9px;color:#444">إعادة طباعة فاتورة (مسؤول)</div>
+ 
+ <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
+ <div><strong>رقم الفاتورة:</strong> #${shortId}</div>
+ <div><strong>التاريخ:</strong> ${dateStr}</div>
+ <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
+ ${order.employeeName ? `<div><strong>البائع:</strong> ${order.employeeName}</div>` : ''}
+ ${order.notes ? `<div><strong>ملاحظات:</strong> ${order.notes}</div>` : ''}
+ </div>
 
-                            <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
-                              ${itemsHTML}
-                            </div>
+ <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
+ ${itemsHTML}
+ </div>
 
-                            <div style="font-weight:bold;font-size:12px">
-                              ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
-                              <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px">
-                                <span>الإجمالي الفعلي:</span>
-                                <span>${order.totalAmount.toLocaleString('en-US')} ج.م</span>
-                              </div>
-                            </div>
+ <div style="font-weight:bold;font-size:12px">
+ ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
+ <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px">
+ <span>الإجمالي الفعلي:</span>
+ <span>${order.totalAmount.toLocaleString('en-US')} ج.م</span>
+ </div>
+ </div>
 
-                            <div style="text-align:center;margin-top:20px;font-size:9px;color:#666">
-                              شكراً لتعاملكم معنا! ModaPella
-                            </div>
-                          </div>
-                        `;
+ <div style="text-align:center;margin-top:20px;font-size:9px;color:#666">
+ شكراً لتعاملكم معنا! ModaPella
+ </div>
+ </div>
+ `;
 
-                        document.body.appendChild(printDiv);
-                        setTimeout(() => {
-                          window.print();
-                          document.body.removeChild(printDiv);
-                        }, 100);
-                      }}
-                      className="rounded-xl bg-burgundy text-white px-4 py-2 text-xs font-bold transition hover:bg-[#650018]"
-                    >
-                      🖨️ طباعة الفاتورة
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const id = order._id?.toString().slice(-8).toUpperCase();
-                        const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
-                        const printDiv = document.createElement('div');
-                        printDiv.id = 'invoice-barcode-print-root';
-                        printDiv.innerHTML = `
-                          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:58mm;font-family:Cairo,sans-serif;background:#fff;padding:5mm;box-sizing:border-box;">
-                            <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
-                            <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
-                            <div style="width:100%;height:15mm;">${barcodeSVG}</div>
-                            <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
-                          </div>
-                          <div style="page-break-after: always;"></div>
-                        `;
-                        document.body.appendChild(printDiv);
-                        setTimeout(() => {
-                          window.print();
-                          document.body.removeChild(printDiv);
-                        }, 100);
-                      }}
-                      className="rounded-xl border-2 border-burgundy bg-[#F7F0EC] px-4 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy/10"
-                    >
-                      🏷️ طباعة كود
-                    </button>
-                    {order.status === 'Pending' && (
-                      <>
-                        <button type="button" onClick={() => handleStatusChange(order._id, 'Completed')}
-                          className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
-                          تأكيد كمكتمل
-                        </button>
-                        <button type="button" onClick={() => { setOrderToReturnFull(order._id); setIsFullReturnConfirmOpen(true); }}
-                          className="rounded-xl border border-red-300 px-4 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50">
-                          مرتجع كامل
-                        </button>
-                      </>
-                    )}
-                    {order.status === 'Completed' && !order.recovered && (
-                      <>
-                        <button type="button" onClick={() => navigate(`/cashier/pos?edit=${order._id}`)}
-                          className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
-                          ✏️ تعديل الفاتورة
-                        </button>
-                        <button type="button" onClick={() => openReturnModal(order)}
-                          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
-                          🔄 مرتجع (جزئي أو كامل)
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+ document.body.appendChild(printDiv);
+ setTimeout(() => {
+ window.print();
+ document.body.removeChild(printDiv);
+ }, 100);
+ }}
+ className="rounded-xl bg-burgundy text-white px-4 py-2 text-xs font-bold transition hover:bg-[#650018]"
+ >
+ طباعة الفاتورة
+ </button>
+ <button
+ type="button"
+ onClick={() => {
+ const id = order._id?.toString().slice(-8).toUpperCase();
+ const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
+ const printDiv = document.createElement('div');
+ printDiv.id = 'invoice-barcode-print-root';
+ printDiv.innerHTML = `
+ <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:58mm;font-family:Cairo,sans-serif;background:#fff;padding:5mm;box-sizing:border-box;">
+ <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
+ <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
+ <div style="width:100%;height:15mm;">${barcodeSVG}</div>
+ <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
+ </div>
+ <div style="page-break-after: always;"></div>
+ `;
+ document.body.appendChild(printDiv);
+ setTimeout(() => {
+ window.print();
+ document.body.removeChild(printDiv);
+ }, 100);
+ }}
+ className="rounded-xl border-2 border-burgundy bg-[#F7F0EC] px-4 py-2 text-xs font-bold text-burgundy transition hover:bg-burgundy/10"
+ >
+ طباعة كود
+ </button>
+ {order.status === 'Pending' && (
+ <>
+ <button type="button" onClick={() => handleStatusChange(order._id, 'Completed')}
+ className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
+ تأكيد كمكتمل
+ </button>
+ <button type="button" onClick={() => { setOrderToReturnFull(order._id); setIsFullReturnConfirmOpen(true); }}
+ className="rounded-xl border border-red-300 px-4 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50">
+ مرتجع كامل
+ </button>
+ </>
+ )}
+ {order.status === 'Completed' && !order.recovered && (
+ <>
+ <button type="button" onClick={() => navigate(`/cashier/pos?edit=${order._id}`)}
+ className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+ تعديل الفاتورة
+ </button>
+ <button type="button" onClick={() => openReturnModal(order)}
+ className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
+ مرتجع (جزئي أو كامل)
+ </button>
+ </>
+ )}
+ </div>
+ </div>
+ )}
+ </div>
+ ))}
+ </div>
+ )}
 
-      {/* Partial Return Modal */}
-      {returnModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setReturnModal(null)}>
-          <div className="w-full max-w-md rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="mb-1 text-xl font-bold text-burgundy">🔄 تسجيل مرتجع</h3>
-            <p className="mb-4 text-xs text-burgundy/50">حدد القطع والكميات التي تريد إرجاعها</p>
-            <div className="space-y-3 max-h-[40vh] overflow-y-auto mb-4">
-              {returnModal.order.items.map((item) => (
-                <div key={item._id} className="flex items-center justify-between rounded-xl border border-burgundy/10 bg-white p-3">
-                  <div>
-                    <p className="text-sm font-semibold">{item.name}</p>
-                    <p className="text-xs text-burgundy/50">
-                      {item.size && `مقاس: ${item.size}`} {item.color && `· ${item.color}`} · الكمية المباعة: {item.quantity}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-burgundy/50">إرجاع:</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max={item.quantity}
-                      value={returnQtys[item._id] ?? 0}
-                      onChange={(e) => setReturnQtys(prev => ({ ...prev, [item._id]: Math.min(item.quantity, Math.max(0, Number(e.target.value))) }))}
-                      className="w-14 rounded-lg border border-burgundy/20 bg-white px-2 py-1 text-center text-sm font-bold outline-none focus:border-burgundy"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <input
-              type="text"
-              placeholder="سبب الإرجاع (اختياري)"
-              value={returnReason}
-              onChange={(e) => setReturnReason(e.target.value)}
-              className="mb-4 w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
-            />
-            <div className="flex gap-3">
-              <button type="button" onClick={handleReturn} disabled={returning}
-                className="flex-1 rounded-full bg-burgundy py-3 text-sm font-bold text-white transition hover:bg-[#650018] disabled:opacity-60">
-                {returning ? 'جاري الاسترجاع...' : 'تأكيد الاسترجاع'}
-              </button>
-              <button type="button" onClick={() => setReturnModal(null)}
-                className="rounded-full border border-burgundy/20 px-5 py-3 text-sm font-medium text-burgundy hover:bg-burgundy/10">
-                إلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+ {/* Partial Return Modal */}
+ {returnModal && (
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setReturnModal(null)}>
+ <div className="w-full max-w-md rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+ <h3 className="mb-1 text-xl font-bold text-burgundy"> تسجيل مرتجع</h3>
+ <p className="mb-4 text-xs text-burgundy/50">حدد القطع والكميات التي تريد إرجاعها</p>
+ <div className="space-y-3 max-h-[40vh] overflow-y-auto mb-4">
+ {returnModal.order.items.map((item) => (
+ <div key={item._id} className="flex items-center justify-between rounded-xl border border-burgundy/10 bg-white p-3">
+ <div>
+ <p className="text-sm font-semibold">{item.name}</p>
+ <p className="text-xs text-burgundy/50">
+ {item.size && `مقاس: ${item.size}`} {item.color && `· ${item.color}`} · الكمية المباعة: {item.quantity}
+ </p>
+ </div>
+ <div className="flex items-center gap-2">
+ <span className="text-xs text-burgundy/50">إرجاع:</span>
+ <input
+ type="number"
+ min="0"
+ max={item.quantity}
+ value={returnQtys[item._id] ?? 0}
+ onChange={(e) => setReturnQtys(prev => ({ ...prev, [item._id]: Math.min(item.quantity, Math.max(0, Number(e.target.value))) }))}
+ className="w-14 rounded-lg border border-burgundy/20 bg-white px-2 py-1 text-center text-sm font-bold outline-none focus:border-burgundy"
+ />
+ </div>
+ </div>
+ ))}
+ </div>
+ <input
+ type="text"
+ placeholder="سبب الإرجاع (اختياري)"
+ value={returnReason}
+ onChange={(e) => setReturnReason(e.target.value)}
+ className="mb-4 w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
+ />
+ <div className="flex gap-3">
+ <button type="button" onClick={handleReturn} disabled={returning}
+ className="flex-1 rounded-full bg-burgundy py-3 text-sm font-bold text-white transition hover:bg-[#650018] disabled:opacity-60">
+ {returning ? 'جاري الاسترجاع...' : 'تأكيد الاسترجاع'}
+ </button>
+ <button type="button" onClick={() => setReturnModal(null)}
+ className="rounded-full border border-burgundy/20 px-5 py-3 text-sm font-medium text-burgundy hover:bg-burgundy/10">
+ إلغاء
+ </button>
+ </div>
+ </div>
+ </div>
+ )}
 
-      {/* Full Return Confirmation Modal */}
-      <ConfirmModal
-        isOpen={isFullReturnConfirmOpen}
-        title="تأكيد المرتجع الكامل"
-        message="هل أنت متأكد من تحويل هذا الطلب إلى مرتجع كامل؟ سيتم إعادة جميع القطع للمخزون وتسجيل حركة بالخزنة."
-        confirmText="نعم، مرتجع كامل"
-        onConfirm={() => handleFullReturn(orderToReturnFull)}
-        onCancel={() => { setIsFullReturnConfirmOpen(false); setOrderToReturnFull(null); }}
-      />
-    </div>
-  );
+ {/* Full Return Confirmation Modal */}
+ <ConfirmModal
+ isOpen={isFullReturnConfirmOpen}
+ title="تأكيد المرتجع الكامل"
+ message="هل أنت متأكد من تحويل هذا الطلب إلى مرتجع كامل؟ سيتم إعادة جميع القطع للمخزون وتسجيل حركة بالخزنة."
+ confirmText="نعم، مرتجع كامل"
+ onConfirm={() => handleFullReturn(orderToReturnFull)}
+ onCancel={() => { setIsFullReturnConfirmOpen(false); setOrderToReturnFull(null); }}
+ />
+ </div>
+ );
 }
 
 export default AdminOrders;

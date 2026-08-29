@@ -4,401 +4,401 @@ import { renderBarcodeDataUrl } from '../../utils/barcode';
 import { isDiscountActive } from '../../utils/discount';
 
 const CATEGORY_LABELS = {
-  Blazer: 'بليزر',
-  Blouse: 'بلوزة',
-  Chemise: 'شميز',
-  Skirt: 'جيبة',
-  Dress: 'فستان',
-  Pantalon: 'بنطلون',
-  'T-shirt': 'تيشيرت',
-  Bag: 'شنطة',
-  Cardigan: 'كاردن',
-  Suit: 'سوت',
-  Tonic: 'تونيك',
-  Takem: 'طقم',
+ Blazer: 'بليزر',
+ Blouse: 'بلوزة',
+ Chemise: 'شميز',
+ Skirt: 'جيبة',
+ Dress: 'فستان',
+ Pantalon: 'بنطلون',
+ 'T-shirt': 'تيشيرت',
+ Bag: 'شنطة',
+ Cardigan: 'كاردن',
+ Suit: 'سوت',
+ Tonic: 'تونيك',
+ Takem: 'طقم',
 };
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 // ── Label Component (1.57in × 1.18in thermal label style) ───────────────────────
 function BarcodeLabel({ product, qty }) {
-  const effPrice = isDiscountActive(product) ? product.discountPrice : product.price;
-  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
-  return (
-    <div
-      className="barcode-label"
-      style={{
-        width: '1.57in',
-        height: '1.18in',
-        border: '1px solid #ddd',
-        borderRadius: '3px',
-        padding: '1mm 1.5mm',
-        display: 'inline-flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center', // Centers vertically in flex column
-        fontFamily: 'Cairo, Arial, sans-serif',
-        direction: 'rtl',
-        background: '#fff',
-        margin: '1mm',
-        pageBreakInside: 'avoid',
-        breakInside: 'avoid',
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-      }}
-    >
-      <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: '7.5px', fontWeight: '900', color: '#000' }}>ModaPella</div>
-        <div style={{ fontSize: '7px', color: '#000', marginTop: '0.5px', maxWidth: '95%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-          {product.name}
-        </div>
-      </div>
+ const effPrice = isDiscountActive(product) ? product.discountPrice : product.price;
+ const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
+ return (
+ <div
+ className="barcode-label"
+ style={{
+ width: '1.57in',
+ height: '1.18in',
+ border: '1px solid #ddd',
+ borderRadius: '3px',
+ padding: '1mm 1.5mm',
+ display: 'inline-flex',
+ flexDirection: 'column',
+ alignItems: 'center',
+ justifyContent: 'center', // Centers vertically in flex column
+ fontFamily: 'Cairo, Arial, sans-serif',
+ direction: 'rtl',
+ background: '#fff',
+ margin: '1mm',
+ pageBreakInside: 'avoid',
+ breakInside: 'avoid',
+ boxSizing: 'border-box',
+ overflow: 'hidden',
+ }}
+ >
+ <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+ <div style={{ fontSize: '7.5px', fontWeight: '900', color: '#000' }}>ModaPella</div>
+ <div style={{ fontSize: '7px', color: '#000', marginTop: '0.5px', maxWidth: '95%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+ {product.name}
+ </div>
+ </div>
 
-      {dataUrl ? (
-        <div style={{ width: '96%', height: '13mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '1px 0', overflow: 'visible' }}>
-          <img src={dataUrl} alt={product.sku} style={{ maxWidth: '96%', height: '13mm', objectFit: 'contain', imageRendering: 'pixelated', display: 'block', margin: '0 auto' }} />
-        </div>
-      ) : (
-        <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
-      )}
+ {dataUrl ? (
+ <div style={{ width: '96%', height: '13mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '1px 0', overflow: 'visible' }}>
+ <img src={dataUrl} alt={product.sku} style={{ maxWidth: '96%', height: '13mm', objectFit: 'contain', imageRendering: 'pixelated', display: 'block', margin: '0 auto' }} />
+ </div>
+ ) : (
+ <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
+ )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '95%', alignItems: 'center', lineHeight: '1', marginTop: '1px' }}>
-        <span style={{ fontSize: '8px', fontWeight: '700', fontFamily: 'monospace', color: '#000' }}>
-          {product.sku}
-        </span>
-        <span style={{ fontSize: '8.5px', fontWeight: '900', color: '#000' }}>
-          {EGP(effPrice)}
-        </span>
-      </div>
-    </div>
-  );
+ <div style={{ display: 'flex', justifyContent: 'space-between', width: '95%', alignItems: 'center', lineHeight: '1', marginTop: '1px' }}>
+ <span style={{ fontSize: '8px', fontWeight: '700', fontFamily: 'monospace', color: '#000' }}>
+ {product.sku}
+ </span>
+ <span style={{ fontSize: '8.5px', fontWeight: '900', color: '#000' }}>
+ {EGP(effPrice)}
+ </span>
+ </div>
+ </div>
+ );
 }
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 function AdminBarcodeLabels() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [quantities, setQuantities] = useState({}); // productId => qty
-  const [selected, setSelected] = useState({}); // productId => bool
-  const printRef = useRef(null);
+ const [products, setProducts] = useState([]);
+ const [loading, setLoading] = useState(true);
+ const [search, setSearch] = useState('');
+ const [quantities, setQuantities] = useState({}); // productId => qty
+ const [selected, setSelected] = useState({}); // productId => bool
+ const printRef = useRef(null);
 
-  useEffect(() => {
-    api.get('/products')
-      .then(res => {
-        const withSku = (res.data || []).filter(p => p.sku && p.active !== false);
-        setProducts(withSku);
-        const defaultQtys = {};
-        const defaultSel = {};
-        withSku.forEach(p => { defaultQtys[p._id] = 1; defaultSel[p._id] = false; });
-        setQuantities(defaultQtys);
-        setSelected(defaultSel);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+ useEffect(() => {
+ api.get('/products')
+ .then(res => {
+ const withSku = (res.data || []).filter(p => p.sku && p.active !== false);
+ setProducts(withSku);
+ const defaultQtys = {};
+ const defaultSel = {};
+ withSku.forEach(p => { defaultQtys[p._id] = 1; defaultSel[p._id] = false; });
+ setQuantities(defaultQtys);
+ setSelected(defaultSel);
+ })
+ .catch(console.error)
+ .finally(() => setLoading(false));
+ }, []);
 
-  const arabicKeyboardMap = {
-    'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
-    'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
-    'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
-    'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
-  };
+ const arabicKeyboardMap = {
+ 'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+ 'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+ 'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+ 'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+ };
 
-  const translateArabicKeyboard = (str) => {
-    if (!str) return '';
-    let res = '';
-    for (let char of str) {
-      if (arabicKeyboardMap[char]) {
-        res += arabicKeyboardMap[char];
-      } else {
-        res += char;
-      }
-    }
-    return res;
-  };
+ const translateArabicKeyboard = (str) => {
+ if (!str) return '';
+ let res = '';
+ for (let char of str) {
+ if (arabicKeyboardMap[char]) {
+ res += arabicKeyboardMap[char];
+ } else {
+ res += char;
+ }
+ }
+ return res;
+ };
 
-  const normalizeDigits = (str) => {
-    if (!str) return '';
-    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    let res = String(str);
-    for (let i = 0; i < 10; i++) {
-      res = res.replaceAll(arabicDigits[i], String(i));
-    }
-    return res;
-  };
+ const normalizeDigits = (str) => {
+ if (!str) return '';
+ const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+ let res = String(str);
+ for (let i = 0; i < 10; i++) {
+ res = res.replaceAll(arabicDigits[i], String(i));
+ }
+ return res;
+ };
 
-  const translatedSearch = translateArabicKeyboard(search);
-  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
+ const translatedSearch = translateArabicKeyboard(search);
+ const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
 
-  const filtered = products.filter(p => {
-    const pName = (p.name || '').toLowerCase();
-    const pSku = (p.sku || '').toLowerCase();
-    const pOldSku = (p.oldSku || '').toLowerCase();
-    const pCat = (CATEGORY_LABELS[p.category] || p.category || '').toLowerCase();
+ const filtered = products.filter(p => {
+ const pName = (p.name || '').toLowerCase();
+ const pSku = (p.sku || '').toLowerCase();
+ const pOldSku = (p.oldSku || '').toLowerCase();
+ const pCat = (CATEGORY_LABELS[p.category] || p.category || '').toLowerCase();
 
-    return pName.includes(search.toLowerCase()) ||
-           pName.includes(normalizedSearch) ||
-           pSku.includes(search.toLowerCase()) ||
-           pSku.includes(normalizedSearch) ||
-           pOldSku.includes(search.toLowerCase()) ||
-           pOldSku.includes(normalizedSearch) ||
-           pCat.includes(search.toLowerCase()) ||
-           pCat.includes(normalizedSearch);
-  });
+ return pName.includes(search.toLowerCase()) ||
+ pName.includes(normalizedSearch) ||
+ pSku.includes(search.toLowerCase()) ||
+ pSku.includes(normalizedSearch) ||
+ pOldSku.includes(search.toLowerCase()) ||
+ pOldSku.includes(normalizedSearch) ||
+ pCat.includes(search.toLowerCase()) ||
+ pCat.includes(normalizedSearch);
+ });
 
-  const selectedProducts = products.filter(p => selected[p._id]);
+ const selectedProducts = products.filter(p => selected[p._id]);
 
-  const handlePrint = () => {
-    if (selectedProducts.length === 0) return alert('اختر منتجاً واحداً على الأقل لطباعة ملصقاته');
-    const printDiv = document.createElement('div');
-    printDiv.id = 'barcode-print-root';
+ const handlePrint = () => {
+ if (selectedProducts.length === 0) return alert('اختر منتجاً واحداً على الأقل لطباعة ملصقاته');
+ const printDiv = document.createElement('div');
+ printDiv.id = 'barcode-print-root';
 
-    const labelsHTML = selectedProducts.flatMap(p => {
-      const qty = quantities[p._id] || 1;
-      return Array.from({ length: qty }, () => {
-        const dataUrl = renderBarcodeDataUrl(p.sku, { width: 2, height: 45, margin: 5 });
-        const barcodeContent = dataUrl
-          ? `<img src="${dataUrl}" alt="${p.sku}" style="max-width:96%;height:13mm;object-fit:contain;image-rendering:pixelated;display:block;margin:0 auto;" />`
-          : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
+ const labelsHTML = selectedProducts.flatMap(p => {
+ const qty = quantities[p._id] || 1;
+ return Array.from({ length: qty }, () => {
+ const dataUrl = renderBarcodeDataUrl(p.sku, { width: 2, height: 45, margin: 5 });
+ const barcodeContent = dataUrl
+ ? `<img src="${dataUrl}" alt="${p.sku}" style="max-width:96%;height:13mm;object-fit:contain;image-rendering:pixelated;display:block;margin:0 auto;" />`
+ : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
-        return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:30mm;overflow:hidden;box-sizing:border-box;">
-          <div class="print-label-page" style="width:40mm;height:30mm;padding:1mm 1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
-            <div style="width:100%;text-align:center;line-height:1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-              <div style="font-size:7.5px;font-weight:900;color:#000;">ModaPella</div>
-              <div style="font-size:7px;color:#000;margin-top:0.5px;max-width:95%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;">${p.name}</div>
-            </div>
-            <div style="width:100%;display:flex;justify-content:center;align-items:center;margin:1px 0;overflow:visible;">
-              <div style="width:96%;height:13mm;display:flex;justify-content:center;align-items:center;">
-                ${barcodeContent}
-              </div>
-            </div>
-            <div style="display:flex;justify-content:space-between;width:95%;align-items:center;line-height:1;margin-top:1px;">
-              <span style="font-size:8px;font-weight:700;font-family:monospace;color:#000;text-align:right;">${p.sku}</span>
-              <span style="font-size:8.5px;font-weight:900;color:#000;text-align:left;">${Number(isDiscountActive(p) ? p.discountPrice : p.price).toLocaleString('en-US')} ج.م</span>
-            </div>
-          </div>
-        </div>`;
-      });
-    }).join('');
+ return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:30mm;overflow:hidden;box-sizing:border-box;">
+ <div class="print-label-page" style="width:40mm;height:30mm;padding:1mm 1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
+ <div style="width:100%;text-align:center;line-height:1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+ <div style="font-size:7.5px;font-weight:900;color:#000;">ModaPella</div>
+ <div style="font-size:7px;color:#000;margin-top:0.5px;max-width:95%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;">${p.name}</div>
+ </div>
+ <div style="width:100%;display:flex;justify-content:center;align-items:center;margin:1px 0;overflow:visible;">
+ <div style="width:96%;height:13mm;display:flex;justify-content:center;align-items:center;">
+ ${barcodeContent}
+ </div>
+ </div>
+ <div style="display:flex;justify-content:space-between;width:95%;align-items:center;line-height:1;margin-top:1px;">
+ <span style="font-size:8px;font-weight:700;font-family:monospace;color:#000;text-align:right;">${p.sku}</span>
+ <span style="font-size:8.5px;font-weight:900;color:#000;text-align:left;">${Number(isDiscountActive(p) ? p.discountPrice : p.price).toLocaleString('en-US')} ج.م</span>
+ </div>
+ </div>
+ </div>`;
+ });
+ }).join('');
 
-    printDiv.innerHTML = labelsHTML;
+ printDiv.innerHTML = labelsHTML;
 
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @media print {
-        @page {
-          size: 40mm 30mm;
-          margin: 0;
-        }
-        body {
-          margin: 0;
-          padding: 0;
-          background: #fff;
-        }
-        body > * {
-          display: none !important;
-        }
-        #barcode-print-root {
-          display: block !important;
-          width: 40mm;
-          height: 30mm;
-          margin: 0;
-          padding: 0;
-        }
-        #barcode-print-root, #barcode-print-root * {
-          visibility: visible;
-        }
-        .print-label-wrapper {
-          display: block !important;
-          width: 40mm;
-          height: 30mm;
-          page-break-after: always;
-          break-after: page;
-          page-break-inside: avoid;
-          break-inside: avoid;
-          box-sizing: border-box;
-          overflow: hidden;
-        }
-      }
-    `;
+ const style = document.createElement('style');
+ style.innerHTML = `
+ @media print {
+ @page {
+ size: 40mm 30mm;
+ margin: 0;
+ }
+ body {
+ margin: 0;
+ padding: 0;
+ background: #fff;
+ }
+ body > * {
+ display: none !important;
+ }
+ #barcode-print-root {
+ display: block !important;
+ width: 40mm;
+ height: 30mm;
+ margin: 0;
+ padding: 0;
+ }
+ #barcode-print-root, #barcode-print-root * {
+ visibility: visible;
+ }
+ .print-label-wrapper {
+ display: block !important;
+ width: 40mm;
+ height: 30mm;
+ page-break-after: always;
+ break-after: page;
+ page-break-inside: avoid;
+ break-inside: avoid;
+ box-sizing: border-box;
+ overflow: hidden;
+ }
+ }
+ `;
 
-    document.head.appendChild(style);
-    document.body.appendChild(printDiv);
-    window.print();
-    document.body.removeChild(printDiv);
-    document.head.removeChild(style);
-  };
+ document.head.appendChild(style);
+ document.body.appendChild(printDiv);
+ window.print();
+ document.body.removeChild(printDiv);
+ document.head.removeChild(style);
+ };
 
-  const toggleAll = (val) => {
-    const upd = {};
-    filtered.forEach(p => { upd[p._id] = val; });
-    setSelected(prev => ({ ...prev, ...upd }));
-  };
+ const toggleAll = (val) => {
+ const upd = {};
+ filtered.forEach(p => { upd[p._id] = val; });
+ setSelected(prev => ({ ...prev, ...upd }));
+ };
 
-  const totalLabels = selectedProducts.reduce((s, p) => s + (quantities[p._id] || 1), 0);
+ const totalLabels = selectedProducts.reduce((s, p) => s + (quantities[p._id] || 1), 0);
 
-  return (
-    <div className="space-y-6 text-burgundy" dir="rtl">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-burgundy/50">لوحة التحكم</p>
-          <h2 className="mt-1 text-3xl font-bold">🏷️ مولّد ملصقات الباركود</h2>
-          <p className="mt-1 text-sm text-burgundy/60">
-            اختر المنتجات وحدد عدد الملصقات لكل منتج، ثم اضغط طباعة
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {totalLabels > 0 && (
-            <span className="rounded-full bg-burgundy/10 px-4 py-2 text-sm font-bold text-burgundy">
-              {totalLabels} ملصق جاهز للطباعة
-            </span>
-          )}
-          <button
-            onClick={handlePrint}
-            disabled={selectedProducts.length === 0}
-            className="flex items-center gap-2 rounded-full bg-burgundy px-6 py-2.5 text-sm font-bold text-white shadow transition hover:bg-[#650018] disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            🖨️ طباعة الملصقات
-          </button>
-        </div>
-      </div>
+ return (
+ <div className="space-y-6 text-burgundy" dir="rtl">
+ {/* Header */}
+ <div className="flex flex-wrap items-center justify-between gap-4">
+ <div>
+ <p className="text-xs uppercase tracking-[0.35em] text-burgundy/50">لوحة التحكم</p>
+ <h2 className="mt-1 text-3xl font-bold"> مولّد ملصقات الباركود</h2>
+ <p className="mt-1 text-sm text-burgundy/60">
+ اختر المنتجات وحدد عدد الملصقات لكل منتج، ثم اضغط طباعة
+ </p>
+ </div>
+ <div className="flex items-center gap-3">
+ {totalLabels > 0 && (
+ <span className="rounded-full bg-burgundy/10 px-4 py-2 text-sm font-bold text-burgundy">
+ {totalLabels} ملصق جاهز للطباعة
+ </span>
+ )}
+ <button
+ onClick={handlePrint}
+ disabled={selectedProducts.length === 0}
+ className="flex items-center gap-2 rounded-full bg-burgundy px-6 py-2.5 text-sm font-bold text-white shadow transition hover:bg-[#650018] disabled:opacity-40 disabled:cursor-not-allowed"
+ >
+ طباعة الملصقات
+ </button>
+ </div>
+ </div>
 
-      {/* Info Banner */}
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm text-blue-800">
-        💡 <strong>نصيحة:</strong> استخدم رول ملصقات باركود حراري بمقاس **1.57 × 1.18 بوصة (40 × 30 مم)**. التصميم يدعم السنترة التلقائية للمحتوى ومصمم ليناسب هذا المقاس بدقة بدون أي تداخل.
-      </div>
+ {/* Info Banner */}
+ <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm text-blue-800">
+ <strong>نصيحة:</strong> استخدم رول ملصقات باركود حراري بمقاس **1.57 × 1.18 بوصة (40 × 30 مم)**. التصميم يدعم السنترة التلقائية للمحتوى ومصمم ليناسب هذا المقاس بدقة بدون أي تداخل.
+ </div>
 
-      {/* Search + Select All */}
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="ابحث باسم المنتج أو SKU أو الفئة..."
-          className="flex-1 rounded-2xl border border-burgundy/20 bg-white px-5 py-3 text-sm outline-none transition focus:border-burgundy focus:shadow-sm"
-        />
-        <button
-          onClick={() => toggleAll(true)}
-          className="rounded-xl bg-burgundy/10 px-4 py-2.5 text-sm font-bold text-burgundy transition hover:bg-burgundy/20"
-        >
-          تحديد الكل
-        </button>
-        <button
-          onClick={() => toggleAll(false)}
-          className="rounded-xl border border-burgundy/20 px-4 py-2.5 text-sm font-bold text-burgundy/60 transition hover:bg-burgundy/5"
-        >
-          إلغاء التحديد
-        </button>
-      </div>
+ {/* Search + Select All */}
+ <div className="flex flex-wrap items-center gap-3">
+ <input
+ type="text"
+ value={search}
+ onChange={e => setSearch(e.target.value)}
+ placeholder="ابحث باسم المنتج أو SKU أو الفئة..."
+ className="flex-1 rounded-2xl border border-burgundy/20 bg-white px-5 py-3 text-sm outline-none transition focus:border-burgundy focus:shadow-sm"
+ />
+ <button
+ onClick={() => toggleAll(true)}
+ className="rounded-xl bg-burgundy/10 px-4 py-2.5 text-sm font-bold text-burgundy transition hover:bg-burgundy/20"
+ >
+ تحديد الكل
+ </button>
+ <button
+ onClick={() => toggleAll(false)}
+ className="rounded-xl border border-burgundy/20 px-4 py-2.5 text-sm font-bold text-burgundy/60 transition hover:bg-burgundy/5"
+ >
+ إلغاء التحديد
+ </button>
+ </div>
 
-      {/* Products Table */}
-      {loading ? (
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex h-40 flex-col items-center justify-center gap-2 text-burgundy/40">
-          <span className="text-4xl">🔍</span>
-          <p className="text-sm">لا توجد منتجات بباركود تطابق البحث</p>
-          <p className="text-xs">تأكد من إضافة كود SKU للمنتجات من صفحة إدارة المنتجات</p>
-        </div>
-      ) : (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
-          <table className="w-full text-right text-sm">
-            <thead>
-              <tr className="border-b border-burgundy/8 bg-burgundy/5">
-                <th className="py-4 pr-5 font-semibold text-burgundy/70 w-10">
-                  <input
-                    type="checkbox"
-                    checked={filtered.every(p => selected[p._id])}
-                    onChange={e => toggleAll(e.target.checked)}
-                    className="rounded"
-                  />
-                </th>
-                <th className="py-4 font-semibold text-burgundy/70">المنتج</th>
-                <th className="py-4 font-semibold text-burgundy/70">SKU / الكود</th>
-                <th className="py-4 font-semibold text-burgundy/70">الفئة</th>
-                <th className="py-4 font-semibold text-burgundy/70">السعر</th>
-                <th className="py-4 font-semibold text-burgundy/70 pl-5 text-left">عدد الملصقات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(p => (
-                <tr
-                  key={p._id}
-                  onClick={() => setSelected(prev => ({ ...prev, [p._id]: !prev[p._id] }))}
-                  className={`border-b border-burgundy/5 last:border-0 cursor-pointer transition ${
-                    selected[p._id] ? 'bg-burgundy/5' : 'hover:bg-burgundy/3'
-                  }`}
-                >
-                  <td className="py-3 pr-5">
-                    <input
-                      type="checkbox"
-                      checked={!!selected[p._id]}
-                      onChange={() => {}}
-                      className="rounded pointer-events-none"
-                    />
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-3">
-                      {p.images?.[0] ? (
-                        <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-xl bg-burgundy/8 flex items-center justify-center text-lg flex-shrink-0">👗</div>
-                      )}
-                      <div>
-                        <p className="font-semibold text-burgundy">{p.name}</p>
-                        {p.supplier && <p className="text-xs text-burgundy/50">🏭 {p.supplier}</p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <span className="rounded-lg bg-burgundy/8 px-3 py-1 font-mono text-xs font-bold text-burgundy">
-                      {p.sku}
-                    </span>
-                  </td>
-                  <td className="py-3 text-burgundy/70">{CATEGORY_LABELS[p.category] || p.category}</td>
-                  <td className="py-3 font-bold">{EGP(p.price)}</td>
-                  <td className="py-3 pl-5" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={() => setQuantities(prev => ({ ...prev, [p._id]: Math.max(1, (prev[p._id] || 1) - 1) }))}
-                        className="w-8 h-8 rounded-lg bg-burgundy/8 text-burgundy font-bold hover:bg-burgundy/15 transition"
-                      >−</button>
-                      <span className="w-8 text-center font-bold text-burgundy">{quantities[p._id] || 1}</span>
-                      <button
-                        onClick={() => setQuantities(prev => ({ ...prev, [p._id]: (prev[p._id] || 1) + 1 }))}
-                        className="w-8 h-8 rounded-lg bg-burgundy/8 text-burgundy font-bold hover:bg-burgundy/15 transition"
-                      >+</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+ {/* Products Table */}
+ {loading ? (
+ <div className="flex h-64 items-center justify-center">
+ <div className="h-10 w-10 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
+ </div>
+ ) : filtered.length === 0 ? (
+ <div className="flex h-40 flex-col items-center justify-center gap-2 text-burgundy/40">
+ <span className="text-4xl"></span>
+ <p className="text-sm">لا توجد منتجات بباركود تطابق البحث</p>
+ <p className="text-xs">تأكد من إضافة كود SKU للمنتجات من صفحة إدارة المنتجات</p>
+ </div>
+ ) : (
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
+ <table className="w-full text-right text-sm">
+ <thead>
+ <tr className="border-b border-burgundy/8 bg-burgundy/5">
+ <th className="py-4 pr-5 font-semibold text-burgundy/70 w-10">
+ <input
+ type="checkbox"
+ checked={filtered.every(p => selected[p._id])}
+ onChange={e => toggleAll(e.target.checked)}
+ className="rounded"
+ />
+ </th>
+ <th className="py-4 font-semibold text-burgundy/70">المنتج</th>
+ <th className="py-4 font-semibold text-burgundy/70">SKU / الكود</th>
+ <th className="py-4 font-semibold text-burgundy/70">الفئة</th>
+ <th className="py-4 font-semibold text-burgundy/70">السعر</th>
+ <th className="py-4 font-semibold text-burgundy/70 pl-5 text-left">عدد الملصقات</th>
+ </tr>
+ </thead>
+ <tbody>
+ {filtered.map(p => (
+ <tr
+ key={p._id}
+ onClick={() => setSelected(prev => ({ ...prev, [p._id]: !prev[p._id] }))}
+ className={`border-b border-burgundy/5 last:border-0 cursor-pointer transition ${
+ selected[p._id] ? 'bg-burgundy/5' : 'hover:bg-burgundy/3'
+ }`}
+ >
+ <td className="py-3 pr-5">
+ <input
+ type="checkbox"
+ checked={!!selected[p._id]}
+ onChange={() => {}}
+ className="rounded pointer-events-none"
+ />
+ </td>
+ <td className="py-3">
+ <div className="flex items-center gap-3">
+ {p.images?.[0] ? (
+ <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+ ) : (
+ <div className="w-10 h-10 rounded-xl bg-burgundy/8 flex items-center justify-center text-lg flex-shrink-0"></div>
+ )}
+ <div>
+ <p className="font-semibold text-burgundy">{p.name}</p>
+ {p.supplier && <p className="text-xs text-burgundy/50"> {p.supplier}</p>}
+ </div>
+ </div>
+ </td>
+ <td className="py-3">
+ <span className="rounded-lg bg-burgundy/8 px-3 py-1 font-mono text-xs font-bold text-burgundy">
+ {p.sku}
+ </span>
+ </td>
+ <td className="py-3 text-burgundy/70">{CATEGORY_LABELS[p.category] || p.category}</td>
+ <td className="py-3 font-bold">{EGP(p.price)}</td>
+ <td className="py-3 pl-5" onClick={e => e.stopPropagation()}>
+ <div className="flex items-center gap-2 justify-end">
+ <button
+ onClick={() => setQuantities(prev => ({ ...prev, [p._id]: Math.max(1, (prev[p._id] || 1) - 1) }))}
+ className="w-8 h-8 rounded-lg bg-burgundy/8 text-burgundy font-bold hover:bg-burgundy/15 transition"
+ >−</button>
+ <span className="w-8 text-center font-bold text-burgundy">{quantities[p._id] || 1}</span>
+ <button
+ onClick={() => setQuantities(prev => ({ ...prev, [p._id]: (prev[p._id] || 1) + 1 }))}
+ className="w-8 h-8 rounded-lg bg-burgundy/8 text-burgundy font-bold hover:bg-burgundy/15 transition"
+ >+</button>
+ </div>
+ </td>
+ </tr>
+ ))}
+ </tbody>
+ </table>
+ </div>
+ )}
 
-      {/* Preview */}
-      {selectedProducts.length > 0 && (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-bold">معاينة الملصقات</h3>
-            <span className="text-sm text-burgundy/50">{totalLabels} ملصق</span>
-          </div>
-          <div ref={printRef} className="flex flex-wrap gap-2">
-            {selectedProducts.flatMap(p =>
-              Array.from({ length: quantities[p._id] || 1 }, (_, i) => (
-                <BarcodeLabel key={`${p._id}-${i}`} product={p} qty={quantities[p._id] || 1} />
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+ {/* Preview */}
+ {selectedProducts.length > 0 && (
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+ <div className="mb-4 flex items-center justify-between">
+ <h3 className="text-lg font-bold">معاينة الملصقات</h3>
+ <span className="text-sm text-burgundy/50">{totalLabels} ملصق</span>
+ </div>
+ <div ref={printRef} className="flex flex-wrap gap-2">
+ {selectedProducts.flatMap(p =>
+ Array.from({ length: quantities[p._id] || 1 }, (_, i) => (
+ <BarcodeLabel key={`${p._id}-${i}`} product={p} qty={quantities[p._id] || 1} />
+ ))
+ )}
+ </div>
+ </div>
+ )}
+ </div>
+ );
 }
 
 export default AdminBarcodeLabels;

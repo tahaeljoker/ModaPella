@@ -9,387 +9,369 @@ const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pa
 const DEFAULT_CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
-const getProductIcon = (category = '', name = '') => {
-  const cat = (category || '').toLowerCase();
-  const nm = (name || '').toLowerCase();
-  if (cat.includes('takem') || cat.includes('طقم') || nm.includes('طقم')) return '🧣';
-  if (cat.includes('tonic') || cat.includes('تونيك') || nm.includes('تونيك')) return '👚';
-  if (cat.includes('suit') || cat.includes('سوت') || nm.includes('سوت')) return '👔';
-  if (cat.includes('bag') || cat.includes('حقيبة') || cat.includes('شنط') || nm.includes('شنط') || nm.includes('حقيب')) return '👜';
-  if (cat.includes('dress') || cat.includes('فستان') || cat.includes('دريس') || nm.includes('فستان') || nm.includes('دريس')) return '👗';
-  if (cat.includes('shoes') || cat.includes('حذاء') || cat.includes('شوز') || cat.includes('كوتش') || nm.includes('شوز') || nm.includes('حذاء') || nm.includes('كوتش')) return '👟';
-  if (cat.includes('t-shirt') || cat.includes('تيشرت') || cat.includes('تي شيرت') || nm.includes('تيشرت') || nm.includes('تي شيرت')) return '👕';
-  if (cat.includes('shirt') || cat.includes('قميص') || nm.includes('قميص') || nm.includes('شيرت')) return '👔';
-  if (cat.includes('pants') || cat.includes('trousers') || cat.includes('بنطلون') || cat.includes('جينز') || nm.includes('بنطلون') || nm.includes('جينز')) return '👖';
-  if (cat.includes('blazer') || cat.includes('بليزر') || nm.includes('بليزر')) return '🧥';
-  if (cat.includes('jacket') || cat.includes('جاكيت') || cat.includes('معطف') || cat.includes('بالتو') || nm.includes('جاكيت') || nm.includes('معطف')) return '🧥';
-  if (cat.includes('skirt') || cat.includes('جيب') || cat.includes('تنورة') || nm.includes('جيب') || nm.includes('تنورة')) return '👗';
-  if (cat.includes('wallet') || cat.includes('محفظة') || cat.includes('بورتفيه') || nm.includes('محفظة') || nm.includes('بورتفيه')) return '👛';
-  if (cat.includes('perfume') || cat.includes('عطر') || cat.includes('برفيوم') || nm.includes('عطر') || nm.includes('برفيوم')) return '🧴';
-  if (cat.includes('accessory') || cat.includes('إكسسوار') || cat.includes('اكسسوار') || nm.includes('إكسسوار') || nm.includes('اكسسوار')) return '💍';
-  if (cat.includes('socks') || cat.includes('شراب') || nm.includes('شراب') || nm.includes('جورب')) return '🧦';
-  if (cat.includes('blouse') || cat.includes('بلوزة') || nm.includes('بلوزة')) return '👚';
-  if (cat.includes('scarf') || cat.includes('طرحة') || cat.includes('شال') || cat.includes('حجاب') || nm.includes('طرحة') || nm.includes('شال') || nm.includes('حجاب')) return '🧣';
-  return '🛍️';
-};
+const getProductIcon = () => (
+ <svg className="w-5 h-5 text-burgundy/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+ <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+ </svg>
+);
 
 function printBarcode(product) {
-  if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
-  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
-  if (!dataUrl) return alert('تعذر إنشاء باركود لهذا الكود');
-  const win = window.open('', '_blank', 'width=400,height=300');
-  win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
-  <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
-  * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: 1.57in 1.18in landscape; margin: 0; }
-  body {
-    font-family: 'Cairo', sans-serif;
-    background: #fff;
-    width: 1.57in;
-    height: 1.14in;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 1mm 1.5mm;
-    overflow: hidden;
-    direction: rtl;
-  }
-  .brand {
-    font-size: 7.5px;
-    font-weight: 900;
-    color: #000;
-    line-height: 1;
-    margin-bottom: 1px;
-    text-align: center;
-    width: 100%;
-  }
-  .name {
-    font-size: 7px;
-    color: #000;
-    max-width: 95%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1;
-    margin-bottom: 2px;
-    text-align: center;
-    width: 100%;
-  }
-  .barcode-wrapper {
-    width: 90%;
-    height: 12mm;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-  }
-  .barcode-wrapper img {
-    max-width: 100%;
-    height: 12mm;
-    object-fit: contain;
-    image-rendering: pixelated;
-  }
-  .footer {
-    display: flex;
-    justify-content: space-between;
-    width: 95%;
-    align-items: center;
-    line-height: 1;
-    margin-top: 2px;
-  }
-  .sku {
-    font-family: monospace;
-    font-size: 8px;
-    font-weight: 700;
-    color: #000;
-    text-align: right;
-  }
-  .price {
-    font-size: 8.5px;
-    font-weight: 900;
-    color: #000;
-    text-align: left;
-  }
-  @media print {
-    body { padding: 1mm 2mm; }
-  }
-  </style></head>
-  <body>
-    <div class="brand">ModaPella</div>
-    <div class="name">${product.name}</div>
-    <div class="barcode-wrapper"><img src="${dataUrl}" alt="${product.sku}" /></div>
-    <div class="footer">
-      <span class="sku">${product.sku}</span>
-      <span class="price">${Number(isDiscountActive(product) ? product.discountPrice : product.price).toLocaleString('en-US')} ج.م</span>
-    </div>
-  </body></html>`);
-  win.document.close(); win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 500);
+ if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
+ const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
+ if (!dataUrl) return alert('تعذر إنشاء باركود لهذا الكود');
+ const win = window.open('', '_blank', 'width=400,height=300');
+ win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
+ <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
+ * { margin:0; padding:0; box-sizing:border-box; }
+ @page { size: 1.57in 1.18in landscape; margin: 0; }
+ body {
+ font-family: 'Cairo', sans-serif;
+ background: #fff;
+ width: 1.57in;
+ height: 1.14in;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ padding: 1mm 1.5mm;
+ overflow: hidden;
+ direction: rtl;
+ }
+ .brand {
+ font-size: 7.5px;
+ font-weight: 900;
+ color: #000;
+ line-height: 1;
+ margin-bottom: 1px;
+ text-align: center;
+ width: 100%;
+ }
+ .name {
+ font-size: 7px;
+ color: #000;
+ max-width: 95%;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+ line-height: 1;
+ margin-bottom: 2px;
+ text-align: center;
+ width: 100%;
+ }
+ .barcode-wrapper {
+ width: 90%;
+ height: 12mm;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ margin: 0 auto;
+ }
+ .barcode-wrapper img {
+ max-width: 100%;
+ height: 12mm;
+ object-fit: contain;
+ image-rendering: pixelated;
+ }
+ .footer {
+ display: flex;
+ justify-content: space-between;
+ width: 95%;
+ align-items: center;
+ line-height: 1;
+ margin-top: 2px;
+ }
+ .sku {
+ font-family: monospace;
+ font-size: 8px;
+ font-weight: 700;
+ color: #000;
+ text-align: right;
+ }
+ .price {
+ font-size: 8.5px;
+ font-weight: 900;
+ color: #000;
+ text-align: left;
+ }
+ @media print {
+ body { padding: 1mm 2mm; }
+ }
+ </style></head>
+ <body>
+ <div class="brand">ModaPella</div>
+ <div class="name">${product.name}</div>
+ <div class="barcode-wrapper"><img src="${dataUrl}" alt="${product.sku}" /></div>
+ <div class="footer">
+ <span class="sku">${product.sku}</span>
+ <span class="price">${Number(isDiscountActive(product) ? product.discountPrice : product.price).toLocaleString('en-US')} ج.م</span>
+ </div>
+ </body></html>`);
+ win.document.close(); win.focus();
+ setTimeout(() => { win.print(); win.close(); }, 500);
 }
 
 const ACTION_AR = {
-  'POS Sale': 'مبيعات (كاشير)',
-  'Manual Adjustment': 'تعديل يدوي',
-  'Refund': 'مرتجع',
-  'Inventory Count': 'جرد مخزون',
-  'Initial Stock': 'رصيد افتتاحي (كمية البداية)',
-  'Purchase Receive': 'استلام مشتريات',
-  'Restock': '📦 تزويد مخزون / شحنة جديدة',
-  'Product Edit': '✏️ تعديل بيانات المنتج'
+ 'POS Sale': 'مبيعات (كاشير)',
+ 'Manual Adjustment': 'تعديل يدوي',
+ 'Refund': 'مرتجع',
+ 'Inventory Count': 'جرد مخزون',
+ 'Initial Stock': 'رصيد افتتاحي (كمية البداية)',
+ 'Purchase Receive': 'استلام مشتريات',
+ 'Restock': 'تزويد مخزون / شحنة جديدة',
+ 'Product Edit': 'تعديل بيانات المنتج'
 };
 
 function StockHistoryModal({ product, onClose }) {
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const productId = product?._id;
+ const [history, setHistory] = useState([]);
+ const [loading, setLoading] = useState(true);
+ const productId = product?._id;
 
-  useEffect(() => {
-    if (!productId) return;
-    api.get(`/admin/products/${productId}/stock-history`)
-      .then(r => setHistory(r.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [productId]);
+ useEffect(() => {
+ if (!productId) return;
+ api.get(`/admin/products/${productId}/stock-history`)
+ .then(r => setHistory(r.data))
+ .catch(console.error)
+ .finally(() => setLoading(false));
+ }, [productId]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-lg overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
-          <div>
-            <h3 className="text-lg font-bold">📜 سجل حركة مخزون المنتج</h3>
-            <p className="text-xs font-bold text-emerald-700 mt-1">
-              إجمالي ما تم استلامه وتوريده: {Math.max(product?.totalReceived || 0, (product?.stock || 0) + (product?.sold || 0))} قطعة
-            </p>
-          </div>
-          <button onClick={onClose} className="text-sm font-bold text-burgundy/50 hover:text-burgundy">✕</button>
-        </div>
-        
-        {loading ? (
-          <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
-        ) : history.length === 0 ? (
-          <div className="py-8 text-center text-sm text-burgundy/40">لا توجد حركات مخزون مسجلة لهذا المنتج بعد.</div>
-        ) : (
-          <div className="relative border-r border-burgundy/20 pr-4 mr-2 space-y-4">
-            {history.map((h, i) => {
-              const diff = h.quantityChanged;
-              const diffClass = diff > 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
-              return (
-                <div key={h._id} className="relative">
-                  {/* Circle node */}
-                  <div className="absolute right-[-21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-burgundy bg-[#F7F0EC]" />
-                  
-                  <div className="bg-white rounded-2xl p-3.5 border border-burgundy/5 shadow-sm space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-burgundy">{ACTION_AR[h.changeType] || h.changeType}</span>
-                      <span className="text-[10px] text-burgundy/40">{new Date(h.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs py-1">
-                      <div>
-                        {h.size || h.color ? (
-                          <span className="text-burgundy/60 font-semibold">{h.size} · {h.color}</span>
-                        ) : (
-                          <span className="text-burgundy/40">المنتج الرئيسي</span>
-                        )}
-                      </div>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${diffClass}`}>
-                        {diff > 0 ? `+${diff}` : diff} قطعة
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-burgundy/50 leading-relaxed">{h.notes}</p>
-                    <div className="flex items-center justify-between text-[10px] text-burgundy/30 pt-1 border-t border-burgundy/5">
-                      <span>الرصيد: {h.previousStock} ➔ {h.newStock}</span>
-                      {h.performedBy?.name && <span>بواسطة: {h.performedBy.name}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+ return (
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+ <div className="w-full max-w-lg overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-6 shadow-2xl max-h-[85vh] text-burgundy" onClick={e => e.stopPropagation()}>
+ <div className="flex items-center justify-between mb-4 border-b border-burgundy/10 pb-3">
+ <div>
+ <h3 className="text-lg font-bold">سجل حركة مخزون المنتج</h3>
+ <p className="text-xs font-bold text-emerald-700 mt-1">
+ إجمالي ما تم استلامه وتوريده: {Math.max(product?.totalReceived || 0, (product?.stock || 0) + (product?.sold || 0))} قطعة
+ </p>
+ </div>
+ <button onClick={onClose} className="text-sm font-bold text-burgundy/50 hover:text-burgundy"></button>
+ </div>
+ 
+ {loading ? (
+ <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+ ) : history.length === 0 ? (
+ <div className="py-8 text-center text-sm text-burgundy/40">لا توجد حركات مخزون مسجلة لهذا المنتج بعد.</div>
+ ) : (
+ <div className="relative border-r border-burgundy/20 pr-4 mr-2 space-y-4">
+ {history.map((h, i) => {
+ const diff = h.quantityChanged;
+ const diffClass = diff > 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
+ return (
+ <div key={h._id} className="relative">
+ {/* Circle node */}
+ <div className="absolute right-[-21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-burgundy bg-[#F7F0EC]" />
+ 
+ <div className="bg-white rounded-2xl p-3.5 border border-burgundy/5 shadow-sm space-y-1">
+ <div className="flex items-center justify-between gap-2">
+ <span className="text-xs font-bold text-burgundy">{ACTION_AR[h.changeType] || h.changeType}</span>
+ <span className="text-[10px] text-burgundy/40">{new Date(h.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
+ </div>
+ <div className="flex items-center justify-between text-xs py-1">
+ <div>
+ {h.size || h.color ? (
+ <span className="text-burgundy/60 font-semibold">{h.size} · {h.color}</span>
+ ) : (
+ <span className="text-burgundy/40">المنتج الرئيسي</span>
+ )}
+ </div>
+ <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${diffClass}`}>
+ {diff > 0 ? `+${diff}` : diff} قطعة
+ </span>
+ </div>
+ <p className="text-[11px] text-burgundy/50 leading-relaxed">{h.notes}</p>
+ <div className="flex items-center justify-between text-[10px] text-burgundy/30 pt-1 border-t border-burgundy/5">
+ <span>الرصيد: {h.previousStock} {h.newStock}</span>
+ {h.performedBy?.name && <span>بواسطة: {h.performedBy.name}</span>}
+ </div>
+ </div>
+ </div>
+ );
+ })}
+ </div>
+ )}
+ </div>
+ </div>
+ );
 }
 
 // ─── Restock Modal ─────────────────────────────────────────────────────────────
 function RestockModal({ product, onClose, onRestocked }) {
-  const [additions, setAdditions] = useState(() => {
-    if (product?.variants && product.variants.length > 0) {
-      return product.variants.map(v => ({
-        size: v.size,
-        color: v.color,
-        currentStock: v.stock || 0,
-        quantity: ''
-      }));
-    }
-    return [];
-  });
-  const [quantity, setQuantity] = useState('');
-  const [costPrice, setCostPrice] = useState(product?.costPrice || '');
-  const [supplier, setSupplier] = useState(product?.supplier || '');
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+ const [additions, setAdditions] = useState(() => {
+ if (product?.variants && product.variants.length > 0) {
+ return product.variants.map(v => ({
+ size: v.size,
+ color: v.color,
+ currentStock: v.stock || 0,
+ quantity: ''
+ }));
+ }
+ return [];
+ });
+ const [quantity, setQuantity] = useState('');
+ const [costPrice, setCostPrice] = useState(product?.costPrice || '');
+ const [supplier, setSupplier] = useState(product?.supplier || '');
+ const [notes, setNotes] = useState('');
+ const [submitting, setSubmitting] = useState(false);
+ const [error, setError] = useState('');
 
-  const hasVariants = product?.variants && product.variants.length > 0;
+ const hasVariants = product?.variants && product.variants.length > 0;
 
-  const totalAdded = hasVariants
-    ? additions.reduce((sum, a) => sum + (Number(a.quantity) || 0), 0)
-    : (Number(quantity) || 0);
+ const totalAdded = hasVariants
+ ? additions.reduce((sum, a) => sum + (Number(a.quantity) || 0), 0)
+ : (Number(quantity) || 0);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (totalAdded <= 0) {
-      setError('يرجى إدخال كمية مضافة واحدة على الأقل أكبر من 0');
-      return;
-    }
-    setSubmitting(true);
-    setError('');
-    try {
-      const payload = {
-        additions: hasVariants ? additions.filter(a => Number(a.quantity) > 0).map(a => ({ size: a.size, color: a.color, quantity: Number(a.quantity) })) : [],
-        quantity: !hasVariants ? Number(quantity) || 0 : 0,
-        costPrice: costPrice ? Number(costPrice) : undefined,
-        supplier: supplier ? supplier.trim() : undefined,
-        notes: notes.trim()
-      };
-      await api.post(`/admin/products/${product._id}/restock`, payload);
-      onRestocked(`✅ تم تزويد المخزون بنجاح (+${totalAdded} قطعة) للمنتج: ${product.name}`);
-      onClose();
-    } catch (err) {
-      setError(err.response?.data?.message || 'فشل تزويد المخزون');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+ const handleSubmit = async (e) => {
+ e.preventDefault();
+ if (totalAdded <= 0) {
+ setError('يرجى إدخال كمية مضافة واحدة على الأقل أكبر من 0');
+ return;
+ }
+ setSubmitting(true);
+ setError('');
+ try {
+ const payload = {
+ additions: hasVariants ? additions.filter(a => Number(a.quantity) > 0).map(a => ({ size: a.size, color: a.color, quantity: Number(a.quantity) })) : [],
+ quantity: !hasVariants ? Number(quantity) || 0 : 0,
+ costPrice: costPrice ? Number(costPrice) : undefined,
+ supplier: supplier ? supplier.trim() : undefined,
+ notes: notes.trim()
+ };
+ await api.post(`/admin/products/${product._id}/restock`, payload);
+ onRestocked(`تم تزويد المخزون بنجاح (+${totalAdded} قطعة) للمنتج: ${product.name}`);
+ onClose();
+ } catch (err) {
+ setError(err.response?.data?.message || 'فشل تزويد المخزون');
+ } finally {
+ setSubmitting(false);
+ }
+ };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-[2rem] bg-[#F7F0EC] p-7 shadow-2xl overflow-hidden text-burgundy" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between pb-3 border-b border-burgundy/10">
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-emerald-700 font-extrabold flex items-center gap-1">
-              <span>📦</span> تزويد مخزون / استلام شحنة جديدة
-            </p>
-            <h3 className="text-xl font-bold mt-1 text-burgundy">{product?.name}</h3>
-            <p className="text-xs text-burgundy/60 font-mono mt-0.5">
-              {product?.sku ? `كود: ${product.sku} · ` : ''}المخزون الحالي: <strong className={product?.stock === 0 ? 'text-red-600' : 'text-emerald-700'}>{product?.stock || 0} قطعة</strong>
-            </p>
-          </div>
-          <button onClick={onClose} className="rounded-full p-2 text-burgundy/40 hover:bg-burgundy/10 hover:text-burgundy font-bold text-sm">✕</button>
-        </div>
+ return (
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+ <div className="w-full max-w-md rounded-[2rem] bg-[#F7F0EC] p-7 shadow-2xl overflow-hidden text-burgundy" onClick={e => e.stopPropagation()}>
+ <div className="flex items-center justify-between pb-3 border-b border-burgundy/10">
+ <div>
+ <p className="text-[11px] uppercase tracking-widest text-emerald-700 font-extrabold flex items-center gap-1">
+ <span>تزويد مخزون / استلام شحنة جديدة</span>
+ </p>
+ <h3 className="text-xl font-bold mt-1 text-burgundy">{product?.name}</h3>
+ <p className="text-xs text-burgundy/60 font-mono mt-0.5">
+ {product?.sku ? `كود: ${product.sku} · ` : ''}المخزون الحالي: <strong className={product?.stock === 0 ? 'text-red-600' : 'text-emerald-700'}>{product?.stock || 0} قطعة</strong>
+ </p>
+ </div>
+ <button onClick={onClose} className="rounded-full p-2 text-burgundy/40 hover:bg-burgundy/10 hover:text-burgundy font-bold text-sm"></button>
+ </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {hasVariants ? (
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-burgundy/80">أدخل الكميات الجديدة الموردة لكل مقاس ولون:</label>
-              <div className="max-h-52 overflow-y-auto space-y-2 border border-burgundy/10 rounded-2xl p-3 bg-white shadow-inner">
-                {additions.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-3 bg-burgundy/3 p-2.5 rounded-xl border border-burgundy/5">
-                    <div className="text-xs font-semibold">
-                      <span className="font-bold">{item.size || 'عادي'}</span>
-                      {item.color && item.color !== '-' && <span className="text-burgundy/60"> · {item.color}</span>}
-                      <span className="text-[10px] text-burgundy/40 block mt-0.5">المتاح حالياً: {item.currentStock} قطعة</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-extrabold text-emerald-600">+</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setAdditions(prev => prev.map((a, i) => i === idx ? { ...a, quantity: val } : a));
-                        }}
-                        placeholder="0"
-                        className="w-20 rounded-xl border border-burgundy/20 bg-white px-2 py-1.5 text-center text-xs font-bold outline-none focus:border-burgundy"
-                      />
-                      <span className="text-[10px] text-burgundy/50">قطعة</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="mb-1 block text-xs font-bold text-burgundy/80">الكمية الجديدة المستلمة (+)</label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={quantity}
-                onChange={e => setQuantity(e.target.value)}
-                placeholder="مثال: 20 أو 50 قطعة"
-                className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm font-bold text-burgundy outline-none focus:border-burgundy"
-              />
-            </div>
-          )}
+ <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+ {hasVariants ? (
+ <div className="space-y-2">
+ <label className="block text-xs font-bold text-burgundy/80">أدخل الكميات الجديدة الموردة لكل مقاس ولون:</label>
+ <div className="max-h-52 overflow-y-auto space-y-2 border border-burgundy/10 rounded-2xl p-3 bg-white shadow-inner">
+ {additions.map((item, idx) => (
+ <div key={idx} className="flex items-center justify-between gap-3 bg-burgundy/3 p-2.5 rounded-xl border border-burgundy/5">
+ <div className="text-xs font-semibold">
+ <span className="font-bold">{item.size || 'عادي'}</span>
+ {item.color && item.color !== '-' && <span className="text-burgundy/60"> · {item.color}</span>}
+ <span className="text-[10px] text-burgundy/40 block mt-0.5">المتاح حالياً: {item.currentStock} قطعة</span>
+ </div>
+ <div className="flex items-center gap-1.5">
+ <span className="text-xs font-extrabold text-emerald-600">+</span>
+ <input
+ type="number"
+ min="0"
+ value={item.quantity}
+ onChange={e => {
+ const val = e.target.value;
+ setAdditions(prev => prev.map((a, i) => i === idx ? { ...a, quantity: val } : a));
+ }}
+ placeholder="0"
+ className="w-20 rounded-xl border border-burgundy/20 bg-white px-2 py-1.5 text-center text-xs font-bold outline-none focus:border-burgundy"
+ />
+ <span className="text-[10px] text-burgundy/50">قطعة</span>
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
+ ) : (
+ <div>
+ <label className="mb-1 block text-xs font-bold text-burgundy/80">الكمية الجديدة المستلمة (+)</label>
+ <input
+ type="number"
+ min="1"
+ required
+ value={quantity}
+ onChange={e => setQuantity(e.target.value)}
+ placeholder="مثال: 20 أو 50 قطعة"
+ className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm font-bold text-burgundy outline-none focus:border-burgundy"
+ />
+ </div>
+ )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-[10px] font-semibold text-burgundy/60">سعر التكلفة للدفعة (ج.م)</label>
-              <input
-                type="number"
-                min="0"
-                value={costPrice}
-                onChange={e => setCostPrice(e.target.value)}
-                placeholder="425"
-                className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] font-semibold text-burgundy/60">الشركة الموردة</label>
-              <input
-                type="text"
-                value={supplier}
-                onChange={e => setSupplier(e.target.value)}
-                placeholder="مكتب كاردن..."
-                className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-              />
-            </div>
-          </div>
+ <div className="grid grid-cols-2 gap-3">
+ <div>
+ <label className="mb-1 block text-[10px] font-semibold text-burgundy/60">سعر التكلفة للدفعة (ج.م)</label>
+ <input
+ type="number"
+ min="0"
+ value={costPrice}
+ onChange={e => setCostPrice(e.target.value)}
+ placeholder="425"
+ className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+ />
+ </div>
+ <div>
+ <label className="mb-1 block text-[10px] font-semibold text-burgundy/60">الشركة الموردة</label>
+ <input
+ type="text"
+ value={supplier}
+ onChange={e => setSupplier(e.target.value)}
+ placeholder="مكتب كاردن..."
+ className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+ />
+ </div>
+ </div>
 
-          <div>
-            <label className="mb-1 block text-[10px] font-semibold text-burgundy/60">ملاحظات التوريد (اختياري)</label>
-            <input
-              type="text"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="مثال: شحنة مستلمة بتاريخ اليوم، فاتورة رقم..."
-              className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-            />
-          </div>
+ <div>
+ <label className="mb-1 block text-[10px] font-semibold text-burgundy/60">ملاحظات التوريد (اختياري)</label>
+ <input
+ type="text"
+ value={notes}
+ onChange={e => setNotes(e.target.value)}
+ placeholder="مثال: شحنة مستلمة بتاريخ اليوم، فاتورة رقم..."
+ className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+ />
+ </div>
 
-          {error && <p className="text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-xl border border-red-200">{error}</p>}
+ {error && <p className="text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-xl border border-red-200">{error}</p>}
 
-          <div className="flex items-center justify-between pt-3 border-t border-burgundy/10">
-            <div>
-              <span className="text-xs text-burgundy/60">إجمالي الزيادة: </span>
-              <strong className="text-sm text-emerald-600 font-bold">+{totalAdded} قطعة</strong>
-              <span className="text-[10px] text-burgundy/40 block mt-0.5">الرصيد الجديد: {(product?.stock || 0) + totalAdded}</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-full border border-burgundy/20 px-4 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10 transition"
-              >
-                إلغاء
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || totalAdded <= 0}
-                className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-5 py-2 text-xs font-bold text-white transition shadow disabled:opacity-50"
-              >
-                {submitting ? 'جاري الإضافة...' : '📦 تأكيد التوريد'}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+ <div className="flex items-center justify-between pt-3 border-t border-burgundy/10">
+ <div>
+ <span className="text-xs text-burgundy/60">إجمالي الزيادة: </span>
+ <strong className="text-sm text-emerald-600 font-bold">+{totalAdded} قطعة</strong>
+ <span className="text-[10px] text-burgundy/40 block mt-0.5">الرصيد الجديد: {(product?.stock || 0) + totalAdded}</span>
+ </div>
+ <div className="flex gap-2">
+ <button
+ type="button"
+ onClick={onClose}
+ className="rounded-full border border-burgundy/20 px-4 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10 transition"
+ >
+ إلغاء
+ </button>
+ <button
+ type="submit"
+ disabled={submitting || totalAdded <= 0}
+ className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-5 py-2 text-xs font-bold text-white transition shadow disabled:opacity-50"
+ >
+ {submitting ? 'جاري الإضافة...' : 'تأكيد التوريد'}
+ </button>
+ </div>
+ </div>
+ </form>
+ </div>
+ </div>
+ );
 }
 
 const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
@@ -398,1231 +380,1231 @@ const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, co
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSave, categories, catAr, onAddCategory }) {
-  const [form, setForm] = useState(() => {
-    if (product) {
-      return {
-        ...product,
-        totalReceived: product.totalReceived !== undefined ? product.totalReceived : ((product.stock || 0) + (product.sold || 0)),
-        discountPrice: product.discountPrice ?? '',
-        discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
-        discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().split('T')[0] : '',
-      };
-    }
-    return emptyProduct;
-  });
-  const [loading, setLoading] = useState(false);
-  const [isCalcOpen, setIsCalcOpen] = useState(false);
-  const [suppliers, setSuppliers] = useState([]);
-  const [isManualSupplier, setIsManualSupplier] = useState(false);
+ const [form, setForm] = useState(() => {
+ if (product) {
+ return {
+ ...product,
+ totalReceived: product.totalReceived !== undefined ? product.totalReceived : ((product.stock || 0) + (product.sold || 0)),
+ discountPrice: product.discountPrice ?? '',
+ discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
+ discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().split('T')[0] : '',
+ };
+ }
+ return emptyProduct;
+ });
+ const [loading, setLoading] = useState(false);
+ const [isCalcOpen, setIsCalcOpen] = useState(false);
+ const [suppliers, setSuppliers] = useState([]);
+ const [isManualSupplier, setIsManualSupplier] = useState(false);
 
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const res = await api.get('/suppliers');
-        setSuppliers(res.data);
-        if (product?.supplier) {
-          const exists = res.data.some(s => s.name === product.supplier);
-          if (!exists) {
-            setIsManualSupplier(true);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load suppliers:', err);
-      }
-    };
-    fetchSuppliers();
-  }, [product]);
+ useEffect(() => {
+ const fetchSuppliers = async () => {
+ try {
+ const res = await api.get('/suppliers');
+ setSuppliers(res.data);
+ if (product?.supplier) {
+ const exists = res.data.some(s => s.name === product.supplier);
+ if (!exists) {
+ setIsManualSupplier(true);
+ }
+ }
+ } catch (err) {
+ console.error('Failed to load suppliers:', err);
+ }
+ };
+ fetchSuppliers();
+ }, [product]);
 
-  const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : str) : [];
-  const parsedSizes = getParsedItems(form.sizes);
-  const parsedColors = getParsedItems(form.colors);
+ const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : str) : [];
+ const parsedSizes = getParsedItems(form.sizes);
+ const parsedColors = getParsedItems(form.colors);
 
-  const normalizeVariantStr = (s) => {
-    if (!s) return '';
-    return String(s)
-      .trim()
-      .toLowerCase()
-      .replace(/[أإآ]/g, 'ا')
-      .replace(/ة/g, 'ه')
-      .replace(/ى/g, 'ي')
-      .replace(/[-_]/g, '')
-      .replace(/\s+/g, '');
-  };
-  const makeVariantKey = (sz, clr) => `${normalizeVariantStr(sz)}_${normalizeVariantStr(clr)}`;
+ const normalizeVariantStr = (s) => {
+ if (!s) return '';
+ return String(s)
+ .trim()
+ .toLowerCase()
+ .replace(/[أإآ]/g, 'ا')
+ .replace(/ة/g, 'ه')
+ .replace(/ى/g, 'ي')
+ .replace(/[-_]/g, '')
+ .replace(/\s+/g, '');
+ };
+ const makeVariantKey = (sz, clr) => `${normalizeVariantStr(sz)}_${normalizeVariantStr(clr)}`;
 
-  const [variantStocks, setVariantStocks] = useState(() => {
-    const initial = {};
-    if (product?.variants && product.variants.length > 0) {
-      product.variants.forEach(v => {
-        const normKey = makeVariantKey(v.size, v.color);
-        initial[normKey] = v.stock;
-        const sz = v.size || '-';
-        const clr = v.color || '-';
-        initial[`${sz}_${clr}`] = v.stock;
-        initial[`${v.size || ''}_${v.color || ''}`] = v.stock;
-      });
-    }
-    return initial;
-  });
-  const handleChange = (e) => { const { name, value } = e.target; setForm(p => ({ ...p, [name]: value })); };
-  const hasVariants = parsedSizes.length > 0 || parsedColors.length > 0;
-  const activeSizes = parsedSizes.length > 0 ? parsedSizes : (parsedColors.length > 0 ? ['-'] : []);
-  const activeColors = parsedColors.length > 0 ? parsedColors : (parsedSizes.length > 0 ? ['-'] : []);
-  const combinations = [];
-  if (hasVariants) activeSizes.forEach(size => activeColors.forEach(color => combinations.push({ size, color })));
-  
-  const getVariantStockVal = (sz, clr) => {
-    const normKey = makeVariantKey(sz, clr);
-    if (variantStocks[normKey] !== undefined) return variantStocks[normKey];
-    if (variantStocks[`${sz}_${clr}`] !== undefined) return variantStocks[`${sz}_${clr}`];
-    if (variantStocks[`${sz}_`] !== undefined) return variantStocks[`${sz}_`];
-    if (variantStocks[`_${clr}`] !== undefined) return variantStocks[`_${clr}`];
-    if (product?.variants && product.variants.length > 0) {
-      const match = product.variants.find(v => makeVariantKey(v.size, v.color) === normKey);
-      if (match) return match.stock;
-    }
-    if (combinations.length === 1 && product?.stock) return Number(product.stock);
-    return 0;
-  };
+ const [variantStocks, setVariantStocks] = useState(() => {
+ const initial = {};
+ if (product?.variants && product.variants.length > 0) {
+ product.variants.forEach(v => {
+ const normKey = makeVariantKey(v.size, v.color);
+ initial[normKey] = v.stock;
+ const sz = v.size || '-';
+ const clr = v.color || '-';
+ initial[`${sz}_${clr}`] = v.stock;
+ initial[`${v.size || ''}_${v.color || ''}`] = v.stock;
+ });
+ }
+ return initial;
+ });
+ const handleChange = (e) => { const { name, value } = e.target; setForm(p => ({ ...p, [name]: value })); };
+ const hasVariants = parsedSizes.length > 0 || parsedColors.length > 0;
+ const activeSizes = parsedSizes.length > 0 ? parsedSizes : (parsedColors.length > 0 ? ['-'] : []);
+ const activeColors = parsedColors.length > 0 ? parsedColors : (parsedSizes.length > 0 ? ['-'] : []);
+ const combinations = [];
+ if (hasVariants) activeSizes.forEach(size => activeColors.forEach(color => combinations.push({ size, color })));
+ 
+ const getVariantStockVal = (sz, clr) => {
+ const normKey = makeVariantKey(sz, clr);
+ if (variantStocks[normKey] !== undefined) return variantStocks[normKey];
+ if (variantStocks[`${sz}_${clr}`] !== undefined) return variantStocks[`${sz}_${clr}`];
+ if (variantStocks[`${sz}_`] !== undefined) return variantStocks[`${sz}_`];
+ if (variantStocks[`_${clr}`] !== undefined) return variantStocks[`_${clr}`];
+ if (product?.variants && product.variants.length > 0) {
+ const match = product.variants.find(v => makeVariantKey(v.size, v.color) === normKey);
+ if (match) return match.stock;
+ }
+ if (combinations.length === 1 && product?.stock) return Number(product.stock);
+ return 0;
+ };
 
-  const totalVariantStock = hasVariants
-    ? combinations.reduce((sum, c) => sum + Number(getVariantStockVal(c.size, c.color) || 0), 0)
-    : Number(form.stock || 0);
+ const totalVariantStock = hasVariants
+ ? combinations.reduce((sum, c) => sum + Number(getVariantStockVal(c.size, c.color) || 0), 0)
+ : Number(form.stock || 0);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault(); setLoading(true);
-    try {
-      const finalStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
-      const payload = {
-        ...form,
-        price: Number(form.price),
-        discountPrice: form.discountPrice ? Number(form.discountPrice) : null,
-        discountStartDate: form.discountStartDate ? new Date(form.discountStartDate) : null,
-        discountEndDate: form.discountEndDate ? new Date(form.discountEndDate) : null,
-        stock: finalStock,
-        totalReceived: form.totalReceived !== '' && form.totalReceived !== undefined ? Number(form.totalReceived) : undefined,
-        variants: hasVariants ? combinations.map(c => ({
-          size: c.size,
-          color: c.color,
-          stock: Number(getVariantStockVal(c.size, c.color) || 0)
-        })) : [],
-        images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
-        sizes: activeSizes, colors: activeColors,
-      };
-      await onSave(payload); onClose();
-    } catch (e) { console.error(e); } finally { setLoading(false); }
-  };
+ const handleSubmit = async (e) => {
+ e.preventDefault(); setLoading(true);
+ try {
+ const finalStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
+ const payload = {
+ ...form,
+ price: Number(form.price),
+ discountPrice: form.discountPrice ? Number(form.discountPrice) : null,
+ discountStartDate: form.discountStartDate ? new Date(form.discountStartDate) : null,
+ discountEndDate: form.discountEndDate ? new Date(form.discountEndDate) : null,
+ stock: finalStock,
+ totalReceived: form.totalReceived !== '' && form.totalReceived !== undefined ? Number(form.totalReceived) : undefined,
+ variants: hasVariants ? combinations.map(c => ({
+ size: c.size,
+ color: c.color,
+ stock: Number(getVariantStockVal(c.size, c.color) || 0)
+ })) : [],
+ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
+ sizes: activeSizes, colors: activeColors,
+ };
+ await onSave(payload); onClose();
+ } catch (e) { console.error(e); } finally { setLoading(false); }
+ };
 
-  const inp = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-8 shadow-2xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <h3 className="mb-6 text-2xl font-bold text-burgundy">{form._id ? 'تعديل المنتج' : 'إضافة منتج جديد'}</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">اسم المنتج *</label><input name="name" value={form.name} onChange={handleChange} className={inp} required /></div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex justify-between items-center">
-                <span>الفئة *</span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const key = prompt('أدخل اسم الفئة بالإنجليزية (رمز فريد، مثلاً: Shoes):');
-                    if (!key) return;
-                    const nameAr = prompt('أدخل اسم الفئة بالعربية (مثلاً: أحذية):');
-                    if (!nameAr) return;
-                    const addedKey = await onAddCategory(key.trim(), nameAr.trim());
-                    if (addedKey) {
-                      setForm(p => ({ ...p, category: addedKey }));
-                    }
-                  }}
-                  className="text-[10px] text-burgundy bg-burgundy/5 px-2 py-0.5 rounded hover:bg-burgundy/10 font-bold transition"
-                >
-                  ➕ فئة جديدة
-                </button>
-              </label>
-              <select name="category" value={form.category} onChange={handleChange} className={inp}>
-                {categories.map(c => <option key={c} value={c}>{(catAr[c] || c)} ({c})</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex justify-between items-center">
-                <span>سعر البيع (ج.م) *</span>
-                <button
-                  type="button"
-                  onClick={() => setIsCalcOpen(!isCalcOpen)}
-                  className="text-[10px] text-burgundy bg-burgundy/5 px-2 py-0.5 rounded hover:bg-burgundy/10 font-bold transition flex items-center gap-1"
-                >
-                  🧮 تسعير ذكي
-                </button>
-              </label>
-              <div className="relative">
-                <input type="number" name="price" value={form.price} onChange={handleChange} className={inp} required min="0" />
-                {isCalcOpen && (
-                  <div className="absolute top-full right-0 left-0 mt-1.5 z-40 bg-white rounded-2xl p-4 shadow-xl border border-burgundy/10 space-y-2 text-right">
-                    <p className="text-[11px] font-bold text-burgundy/60">حاسبة تسعير ذكي بناءً على التكلفة:</p>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {[15, 25, 35, 50, 60, 70].map(pct => (
-                        <button
-                          key={pct}
-                          type="button"
-                          onClick={() => {
-                            const cost = Number(form.costPrice || 0);
-                            if (cost > 0) {
-                              const calcPrice = Math.round(cost * (1 + pct / 100));
-                              setForm(p => ({ ...p, price: calcPrice }));
-                              setIsCalcOpen(false);
-                            } else {
-                              alert('برجاء إدخال سعر التكلفة أولاً');
-                            }
-                          }}
-                          className="text-[10px] bg-burgundy text-white px-2 py-1 rounded hover:bg-[#650018] font-bold"
-                        >
-                          +{pct}% ربح
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">سعر التكلفة (ج.م)</label>
-              <input type="number" name="costPrice" value={form.costPrice ?? ''} onChange={handleChange} className={inp} min="0" placeholder="0" />
-              {form.price > 0 && form.costPrice > 0 && (
-                <p className="mt-1 text-[10px] text-emerald-600 font-semibold">
-                  هامش الربح: {(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100).toFixed(0)}%
-                  ({EGP(Number(form.price) - Number(form.costPrice))} / قطعة)
-                </p>
-              )}
-            </div>
+ const inp = 'w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy';
+ return (
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+ <div className="w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-[#F7F0EC] p-8 shadow-2xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
+ <h3 className="mb-6 text-2xl font-bold text-burgundy">{form._id ? 'تعديل المنتج' : 'إضافة منتج جديد'}</h3>
+ <form onSubmit={handleSubmit} className="space-y-4">
+ <div className="grid gap-4 sm:grid-cols-2">
+ <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">اسم المنتج *</label><input name="name" value={form.name} onChange={handleChange} className={inp} required /></div>
+ <div>
+ <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex justify-between items-center">
+ <span>الفئة *</span>
+ <button
+ type="button"
+ onClick={async () => {
+ const key = prompt('أدخل اسم الفئة بالإنجليزية (رمز فريد، مثلاً: Shoes):');
+ if (!key) return;
+ const nameAr = prompt('أدخل اسم الفئة بالعربية (مثلاً: أحذية):');
+ if (!nameAr) return;
+ const addedKey = await onAddCategory(key.trim(), nameAr.trim());
+ if (addedKey) {
+ setForm(p => ({ ...p, category: addedKey }));
+ }
+ }}
+ className="text-[10px] text-burgundy bg-burgundy/5 px-2 py-0.5 rounded hover:bg-burgundy/10 font-bold transition"
+ >
+ + فئة جديدة
+ </button>
+ </label>
+ <select name="category" value={form.category} onChange={handleChange} className={inp}>
+ {categories.map(c => <option key={c} value={c}>{(catAr[c] || c)} ({c})</option>)}
+ </select>
+ </div>
+ <div>
+ <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex justify-between items-center">
+ <span>سعر البيع (ج.م) *</span>
+ <button
+ type="button"
+ onClick={() => setIsCalcOpen(!isCalcOpen)}
+ className="text-[10px] text-burgundy bg-burgundy/5 px-2 py-0.5 rounded hover:bg-burgundy/10 font-bold transition flex items-center gap-1"
+ >
+ تسعير ذكي
+ </button>
+ </label>
+ <div className="relative">
+ <input type="number" name="price" value={form.price} onChange={handleChange} className={inp} required min="0" />
+ {isCalcOpen && (
+ <div className="absolute top-full right-0 left-0 mt-1.5 z-40 bg-white rounded-2xl p-4 shadow-xl border border-burgundy/10 space-y-2 text-right">
+ <p className="text-[11px] font-bold text-burgundy/60">حاسبة تسعير ذكي بناءً على التكلفة:</p>
+ <div className="flex gap-1.5 flex-wrap">
+ {[15, 25, 35, 50, 60, 70].map(pct => (
+ <button
+ key={pct}
+ type="button"
+ onClick={() => {
+ const cost = Number(form.costPrice || 0);
+ if (cost > 0) {
+ const calcPrice = Math.round(cost * (1 + pct / 100));
+ setForm(p => ({ ...p, price: calcPrice }));
+ setIsCalcOpen(false);
+ } else {
+ alert('برجاء إدخال سعر التكلفة أولاً');
+ }
+ }}
+ className="text-[10px] bg-burgundy text-white px-2 py-1 rounded hover:bg-[#650018] font-bold"
+ >
+ +{pct}% ربح
+ </button>
+ ))}
+ </div>
+ </div>
+ )}
+ </div>
+ </div>
+ <div>
+ <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">سعر التكلفة (ج.م)</label>
+ <input type="number" name="costPrice" value={form.costPrice ?? ''} onChange={handleChange} className={inp} min="0" placeholder="0" />
+ {form.price > 0 && form.costPrice > 0 && (
+ <p className="mt-1 text-[10px] text-emerald-600 font-semibold">
+ هامش الربح: {(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100).toFixed(0)}%
+ ({EGP(Number(form.price) - Number(form.costPrice))} / قطعة)
+ </p>
+ )}
+ </div>
 
-            {/* Discount Section */}
-            <div className="sm:col-span-2">
-              <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-red-700 uppercase tracking-widest">🏷️ عرض وتخفيض سعري</p>
-                  {form.discountPrice > 0 && form.discountPrice < form.price && (
-                    <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
-                      خصم {Math.round((1 - form.discountPrice / form.price) * 100)}%
-                    </span>
-                  )}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div>
-                    <label className="mb-1 block text-[10px] font-semibold text-red-700/80">سعر العرض (ج.م) — اتركه فارغاً لإلغاء العرض</label>
-                    <input
-                      type="number"
-                      name="discountPrice"
-                      value={form.discountPrice ?? ''}
-                      onChange={handleChange}
-                      className={`${inp} border-red-200 focus:border-red-400`}
-                      min="0"
-                      placeholder="مثال: 120"
-                    />
-                    {form.discountPrice > 0 && form.price > 0 && Number(form.discountPrice) < Number(form.price) && (
-                      <p className="mt-1 text-[10px] text-red-600 font-bold">
-                        وفري {EGP(Number(form.price) - Number(form.discountPrice))} عن السعر الأصلي
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-semibold text-red-700/80">بداية العرض (اختياري)</label>
-                    <input
-                      type="datetime-local"
-                      name="discountStartDate"
-                      value={form.discountStartDate ? form.discountStartDate.slice(0, 16) : ''}
-                      onChange={handleChange}
-                      className={`${inp} border-red-200 focus:border-red-400 text-xs`}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-semibold text-red-700/80">نهاية العرض (اختياري)</label>
-                    <input
-                      type="datetime-local"
-                      name="discountEndDate"
-                      value={form.discountEndDate ? form.discountEndDate.slice(0, 16) : ''}
-                      onChange={handleChange}
-                      className={`${inp} border-red-200 focus:border-red-400 text-xs`}
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-red-700/60">
-                  لو سعر العرض فارغ أو كبير من سعر البيع، مش هيظهر أي خصم على الموقع.
-                </p>
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المخزون الكلي (المتاح حالياً) *</label>
-              <input type="number" name="stock" value={hasVariants ? totalVariantStock : form.stock} onChange={handleChange}
-                disabled={hasVariants} className={`${inp} ${hasVariants ? 'bg-burgundy/5 opacity-70 cursor-not-allowed font-bold' : ''}`} required min="0" />
-              {hasVariants && <p className="mt-1 text-[10px] text-burgundy/50">يُحسب تلقائياً من مجموع مخزون المتغيرات</p>}
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-xs font-bold uppercase tracking-wide text-blue-900 flex items-center gap-1">
-                  <span>🔷</span> إجمالي التوريد (الاستلام الكلي)
-                </label>
-                {product && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const curStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
-                      const sold = Number(product?.sold || 0);
-                      setForm(p => ({ ...p, totalReceived: curStock + sold }));
-                    }}
-                    className="text-[10px] font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2.5 py-0.5 rounded-lg transition flex items-center gap-1 shadow-sm"
-                    title="ضبط تلقائي = المتبقي الحالي + المباع"
-                  >
-                    <span>🔄</span> ضبط تلقائي ({ (hasVariants ? totalVariantStock : Number(form.stock || 0)) + Number(product?.sold || 0) } قطعة)
-                  </button>
-                )}
-              </div>
-              <input
-                type="number"
-                min="0"
-                name="totalReceived"
-                value={form.totalReceived ?? ''}
-                onChange={handleChange}
-                placeholder="مثال: 20 أو 50"
-                className={`${inp} border-blue-200 bg-blue-50/40 text-blue-900 font-bold focus:border-blue-500`}
-              />
-              <p className="mt-1 text-[10px] text-blue-800/60">
-                {product ? `المباع: ${product.sold || 0} قطعة · المتبقي: ${hasVariants ? totalVariantStock : Number(form.stock || 0)} قطعة` : 'اتركه فارغاً ليتطابق مع المخزون الافتتاحي'}
-              </p>
-            </div>
-            <div className="sm:col-span-2">
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">الشركة الموردة / الماركة</label>
-                <button
-                  onClick={() => {
-                    setIsManualSupplier(!isManualSupplier);
-                    setForm(p => ({ ...p, supplier: '', supplierId: null }));
-                  }}
-                  className="text-[10px] text-burgundy bg-burgundy/5 px-2.5 py-1 rounded-xl hover:bg-burgundy/10 font-bold transition"
-                >
-                  {isManualSupplier ? '📋 اختيار من المسجلين' : '✍️ كتابة مورد غير مسجل'}
-                </button>
-              </div>
-              {isManualSupplier ? (
-                <input
-                  name="supplier"
-                  value={form.supplier}
-                  onChange={(e) => setForm(p => ({ ...p, supplier: e.target.value, supplierId: null }))}
-                  className={inp}
-                  placeholder="مثال: Zara, H&M..."
-                />
-              ) : (
-                <select
-                  name="supplier"
-                  value={form.supplier}
-                  onChange={(e) => {
-                    const selected = suppliers.find(s => s.name === e.target.value);
-                    setForm(p => ({
-                      ...p,
-                      supplier: e.target.value,
-                      supplierId: selected?._id || null
-                    }));
-                  }}
-                  className={inp}
-                >
-                  <option value="">-- اختر مورد من القائمة --</option>
-                  {suppliers.map(s => (
-                    <option key={s._id} value={s.name}>
-                      {s.name} {s.phone ? `(${s.phone})` : ''}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {!isManualSupplier && suppliers.length === 0 && (
-                <p className="mt-1 text-[10px] text-amber-600 font-medium">
-                  ⚠️ لا يوجد موردون مسجلون حالياً. يمكنك كتابة اسم المورد يدوياً أو تسجيلهم أولاً من شاشة الموردين.
-                </p>
-              )}
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex items-center gap-2">
-                كود المنتج (SKU)
-                <span className="normal-case font-normal text-burgundy/40 text-[10px] bg-burgundy/5 px-2 py-0.5 rounded-full">اختياري — لو فراغته بيتولد تلقائي</span>
-              </label>
-              <input
-                name="sku"
-                value={form.sku || ''}
-                onChange={handleChange}
-                className={`${inp} font-mono tracking-widest uppercase`}
-                placeholder="مثال: 1019"
-                maxLength={30}
-              />
-              {form.sku && (
-                <p className="mt-1 text-[10px] text-emerald-600 font-semibold">
-                  ✅ سيتم حفظ الكود: <span className="font-mono">{form.sku.toUpperCase()}</span>
-                </p>
-              )}
-              {!form.sku && (
-                <p className="mt-1 text-[10px] text-burgundy/40">
-                  ⚙️ سيتولد الكود رقمياً تلقائياً من النظام (مثال: 1019)
-                </p>
-              )}
-            </div>
-            <div className="sm:col-span-2">
-              <label className="flex items-center gap-2 cursor-pointer bg-burgundy/5 p-3 rounded-xl border border-burgundy/10 hover:bg-burgundy/10 transition">
-                <input
-                  type="checkbox"
-                  name="allowDiscount"
-                  checked={form.allowDiscount !== false}
-                  onChange={(e) => setForm(p => ({ ...p, allowDiscount: e.target.checked }))}
-                  className="w-5 h-5 accent-burgundy cursor-pointer"
-                />
-                <div>
-                  <span className="block text-sm font-bold text-burgundy">مسموح بالخصم لهذا المنتج؟</span>
-                  <span className="block text-[10px] text-burgundy/60">لو تم إلغاء التفعيل، الكاشير مش هيقدر يضيف أي خصم على المنتج ده</span>
-                </div>
-              </label>
-            </div>
-            
-            {form.allowDiscount !== false && (
-              <div className="sm:col-span-2 bg-burgundy/5 p-4 rounded-xl border border-burgundy/10 space-y-3">
-                <h4 className="text-sm font-bold text-burgundy">🏷️ إعدادات الخصم المؤقت (اختياري)</h4>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-burgundy/60">سعر الخصم الجديد (ج.م)</label>
-                    <input
-                      type="number"
-                      name="discountPrice"
-                      value={form.discountPrice ?? ''}
-                      onChange={handleChange}
-                      placeholder="مثال: 350"
-                      className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ بدء الخصم</label>
-                    <input
-                      type="date"
-                      name="discountStartDate"
-                      value={form.discountStartDate ?? ''}
-                      onChange={handleChange}
-                      className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ انتهاء الخصم</label>
-                    <input
-                      type="date"
-                      name="discountEndDate"
-                      value={form.discountEndDate ?? ''}
-                      onChange={handleChange}
-                      className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-burgundy/40 leading-relaxed">
-                  * لو سبت التواريخ فاضية، الخصم هيطبق فوراً وبشكل مستمر. لو حددت التواريخ، الخصم هيتوقف تلقائياً بعد انتهاء الفترة.
-                </p>
-              </div>
-            )}
-          </div>
-          <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الوصف</label><textarea name="description" value={form.description} onChange={handleChange} className={`${inp} min-h-[80px]`} /></div>
-          <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">روابط الصور (سطر لكل رابط)</label>
-            <textarea name="images" value={typeof form.images === 'string' ? form.images : (form.images || []).join('\n')} onChange={handleChange} className={`${inp} min-h-[70px]`} placeholder="https://example.com/image.jpg" />
-          </div>
-          {ENABLE_VARIANTS && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات (بفاصلة)</label>
-                <input name="sizes" value={typeof form.sizes === 'string' ? form.sizes : (form.sizes || []).join(', ')} onChange={handleChange} className={inp} placeholder="S, M, L, XL" />
-              </div>
-              <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان (بفاصلة)</label>
-                <input name="colors" value={typeof form.colors === 'string' ? form.colors : (form.colors || []).join(', ')} onChange={handleChange} className={inp} placeholder="أبيض, أسود, بورجندي" />
-              </div>
-            </div>
-          )}
-          {hasVariants && (
-            <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-5 space-y-3 shadow-inner max-h-[220px] overflow-y-auto">
-              <p className="text-xs font-bold uppercase tracking-wider text-burgundy/60">🔢 مخزون المقاسات والألوان</p>
-              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
-                {combinations.map(c => {
-                  const key = `${c.size}_${c.color}`;
-                  return (
-                    <div key={key} className="flex items-center justify-between gap-3 p-3 bg-burgundy/3 rounded-xl border border-burgundy/5">
-                      <div className="text-sm font-semibold">
-                        {c.size && <span>مقاس: {c.size}</span>}
-                        {c.size && c.color && <span> · </span>}
-                        {c.color && <span>لون: {c.color}</span>}
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={getVariantStockVal(c.size, c.color)}
-                        onChange={e => {
-                          const val = Math.max(0, Number(e.target.value) || 0);
-                          const normKey = makeVariantKey(c.size, c.color);
-                          setVariantStocks(prev => ({
-                            ...prev,
-                            [normKey]: val,
-                            [key]: val,
-                            [`${c.size}_`]: val,
-                            [`_${c.color}`]: val
-                          }));
-                        }}
-                        className="w-20 rounded-lg border border-burgundy/20 bg-white px-2 py-1.5 text-center text-xs font-bold outline-none focus:border-burgundy"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          <div className="flex gap-3 pt-2">
-            <button type="submit" disabled={loading} className="flex-1 rounded-full bg-burgundy py-3 text-sm font-bold text-white transition hover:bg-[#650018] disabled:opacity-60">
-              {loading ? 'جاري الحفظ...' : 'حفظ المنتج'}
-            </button>
-            <button type="button" onClick={onClose} className="rounded-full border border-burgundy/20 px-6 py-3 text-sm font-medium text-burgundy transition hover:bg-burgundy/10">إلغاء</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+ {/* Discount Section */}
+ <div className="sm:col-span-2">
+ <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4 space-y-3">
+ <div className="flex items-center justify-between">
+ <p className="text-xs font-bold text-red-700 uppercase tracking-widest">عرض وتخفيض سعري</p>
+ {form.discountPrice > 0 && form.discountPrice < form.price && (
+ <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
+ خصم {Math.round((1 - form.discountPrice / form.price) * 100)}%
+ </span>
+ )}
+ </div>
+ <div className="grid gap-3 sm:grid-cols-3">
+ <div>
+ <label className="mb-1 block text-[10px] font-semibold text-red-700/80">سعر العرض (ج.م) — اتركه فارغاً لإلغاء العرض</label>
+ <input
+ type="number"
+ name="discountPrice"
+ value={form.discountPrice ?? ''}
+ onChange={handleChange}
+ className={`${inp} border-red-200 focus:border-red-400`}
+ min="0"
+ placeholder="مثال: 120"
+ />
+ {form.discountPrice > 0 && form.price > 0 && Number(form.discountPrice) < Number(form.price) && (
+ <p className="mt-1 text-[10px] text-red-600 font-bold">
+ وفري {EGP(Number(form.price) - Number(form.discountPrice))} عن السعر الأصلي
+ </p>
+ )}
+ </div>
+ <div>
+ <label className="mb-1 block text-[10px] font-semibold text-red-700/80">بداية العرض (اختياري)</label>
+ <input
+ type="datetime-local"
+ name="discountStartDate"
+ value={form.discountStartDate ? form.discountStartDate.slice(0, 16) : ''}
+ onChange={handleChange}
+ className={`${inp} border-red-200 focus:border-red-400 text-xs`}
+ />
+ </div>
+ <div>
+ <label className="mb-1 block text-[10px] font-semibold text-red-700/80">نهاية العرض (اختياري)</label>
+ <input
+ type="datetime-local"
+ name="discountEndDate"
+ value={form.discountEndDate ? form.discountEndDate.slice(0, 16) : ''}
+ onChange={handleChange}
+ className={`${inp} border-red-200 focus:border-red-400 text-xs`}
+ />
+ </div>
+ </div>
+ <p className="text-[10px] text-red-700/60">
+ لو سعر العرض فارغ أو كبير من سعر البيع، مش هيظهر أي خصم على الموقع.
+ </p>
+ </div>
+ </div>
+ <div>
+ <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المخزون الكلي (المتاح حالياً) *</label>
+ <input type="number" name="stock" value={hasVariants ? totalVariantStock : form.stock} onChange={handleChange}
+ disabled={hasVariants} className={`${inp} ${hasVariants ? 'bg-burgundy/5 opacity-70 cursor-not-allowed font-bold' : ''}`} required min="0" />
+ {hasVariants && <p className="mt-1 text-[10px] text-burgundy/50">يُحسب تلقائياً من مجموع مخزون المتغيرات</p>}
+ </div>
+ <div>
+ <div className="flex justify-between items-center mb-1">
+ <label className="text-xs font-bold uppercase tracking-wide text-blue-900 flex items-center gap-1">
+ <span>إجمالي التوريد (الاستلام الكلي)</span>
+ </label>
+ {product && (
+ <button
+ type="button"
+ onClick={() => {
+ const curStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
+ const sold = Number(product?.sold || 0);
+ setForm(p => ({ ...p, totalReceived: curStock + sold }));
+ }}
+ className="text-[10px] font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2.5 py-0.5 rounded-lg transition flex items-center gap-1 shadow-sm"
+ title="ضبط تلقائي = المتبقي الحالي + المباع"
+ >
+ <span>ضبط تلقائي</span> ({ (hasVariants ? totalVariantStock : Number(form.stock || 0)) + Number(product?.sold || 0) } قطعة)
+ </button>
+ )}
+ </div>
+ <input
+ type="number"
+ min="0"
+ name="totalReceived"
+ value={form.totalReceived ?? ''}
+ onChange={handleChange}
+ placeholder="مثال: 20 أو 50"
+ className={`${inp} border-blue-200 bg-blue-50/40 text-blue-900 font-bold focus:border-blue-500`}
+ />
+ <p className="mt-1 text-[10px] text-blue-800/60">
+ {product ? `المباع: ${product.sold || 0} قطعة · المتبقي: ${hasVariants ? totalVariantStock : Number(form.stock || 0)} قطعة` : 'اتركه فارغاً ليتطابق مع المخزون الافتتاحي'}
+ </p>
+ </div>
+ <div className="sm:col-span-2">
+ <div className="flex justify-between items-center mb-1">
+ <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">الشركة الموردة / الماركة</label>
+ <button
+ onClick={() => {
+ setIsManualSupplier(!isManualSupplier);
+ setForm(p => ({ ...p, supplier: '', supplierId: null }));
+ }}
+ className="text-[10px] text-burgundy bg-burgundy/5 px-2.5 py-1 rounded-xl hover:bg-burgundy/10 font-bold transition"
+ >
+ {isManualSupplier ? 'اختيار من المسجلين' : 'كتابة مورد غير مسجل'}
+ </button>
+ </div>
+ {isManualSupplier ? (
+ <input
+ name="supplier"
+ value={form.supplier}
+ onChange={(e) => setForm(p => ({ ...p, supplier: e.target.value, supplierId: null }))}
+ className={inp}
+ placeholder="مثال: Zara, H&M..."
+ />
+ ) : (
+ <select
+ name="supplier"
+ value={form.supplier}
+ onChange={(e) => {
+ const selected = suppliers.find(s => s.name === e.target.value);
+ setForm(p => ({
+ ...p,
+ supplier: e.target.value,
+ supplierId: selected?._id || null
+ }));
+ }}
+ className={inp}
+ >
+ <option value="">-- اختر مورد من القائمة --</option>
+ {suppliers.map(s => (
+ <option key={s._id} value={s.name}>
+ {s.name} {s.phone ? `(${s.phone})` : ''}
+ </option>
+ ))}
+ </select>
+ )}
+ {!isManualSupplier && suppliers.length === 0 && (
+ <p className="mt-1 text-[10px] text-amber-600 font-medium">
+ تنبيه: لا يوجد موردون مسجلون حالياً. يمكنك كتابة اسم المورد يدوياً أو تسجيلهم أولاً من شاشة الموردين.
+ </p>
+ )}
+ </div>
+ <div className="sm:col-span-2">
+ <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex items-center gap-2">
+ كود المنتج (SKU)
+ <span className="normal-case font-normal text-burgundy/40 text-[10px] bg-burgundy/5 px-2 py-0.5 rounded-full">اختياري — لو فراغته بيتولد تلقائي</span>
+ </label>
+ <input
+ name="sku"
+ value={form.sku || ''}
+ onChange={handleChange}
+ className={`${inp} font-mono tracking-widest uppercase`}
+ placeholder="مثال: 1019"
+ maxLength={30}
+ />
+ {form.sku && (
+ <p className="mt-1 text-[10px] text-emerald-600 font-semibold">
+ سيتم حفظ الكود: <span className="font-mono">{form.sku.toUpperCase()}</span>
+ </p>
+ )}
+ {!form.sku && (
+ <p className="mt-1 text-[10px] text-burgundy/40">
+ سيتولد الكود رقمياً تلقائياً من النظام (مثال: 1019)
+ </p>
+ )}
+ </div>
+ <div className="sm:col-span-2">
+ <label className="flex items-center gap-2 cursor-pointer bg-burgundy/5 p-3 rounded-xl border border-burgundy/10 hover:bg-burgundy/10 transition">
+ <input
+ type="checkbox"
+ name="allowDiscount"
+ checked={form.allowDiscount !== false}
+ onChange={(e) => setForm(p => ({ ...p, allowDiscount: e.target.checked }))}
+ className="w-5 h-5 accent-burgundy cursor-pointer"
+ />
+ <div>
+ <span className="block text-sm font-bold text-burgundy">مسموح بالخصم لهذا المنتج؟</span>
+ <span className="block text-[10px] text-burgundy/60">لو تم إلغاء التفعيل، الكاشير مش هيقدر يضيف أي خصم على المنتج ده</span>
+ </div>
+ </label>
+ </div>
+ 
+ {form.allowDiscount !== false && (
+ <div className="sm:col-span-2 bg-burgundy/5 p-4 rounded-xl border border-burgundy/10 space-y-3">
+ <h4 className="text-sm font-bold text-burgundy">إعدادات الخصم المؤقت (اختياري)</h4>
+ <div className="grid gap-3 sm:grid-cols-3">
+ <div>
+ <label className="mb-1 block text-xs font-semibold text-burgundy/60">سعر الخصم الجديد (ج.م)</label>
+ <input
+ type="number"
+ name="discountPrice"
+ value={form.discountPrice ?? ''}
+ onChange={handleChange}
+ placeholder="مثال: 350"
+ className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
+ min="0"
+ />
+ </div>
+ <div>
+ <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ بدء الخصم</label>
+ <input
+ type="date"
+ name="discountStartDate"
+ value={form.discountStartDate ?? ''}
+ onChange={handleChange}
+ className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
+ />
+ </div>
+ <div>
+ <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ انتهاء الخصم</label>
+ <input
+ type="date"
+ name="discountEndDate"
+ value={form.discountEndDate ?? ''}
+ onChange={handleChange}
+ className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
+ />
+ </div>
+ </div>
+ <p className="text-[10px] text-burgundy/40 leading-relaxed">
+ * لو سبت التواريخ فاضية، الخصم هيطبق فوراً وبشكل مستمر. لو حددت التواريخ، الخصم هيتوقف تلقائياً بعد انتهاء الفترة.
+ </p>
+ </div>
+ )}
+ </div>
+ <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الوصف</label><textarea name="description" value={form.description} onChange={handleChange} className={`${inp} min-h-[80px]`} /></div>
+ <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">روابط الصور (سطر لكل رابط)</label>
+ <textarea name="images" value={typeof form.images === 'string' ? form.images : (form.images || []).join('\n')} onChange={handleChange} className={`${inp} min-h-[70px]`} placeholder="https://example.com/image.jpg" />
+ </div>
+ {ENABLE_VARIANTS && (
+ <div className="grid gap-4 sm:grid-cols-2">
+ <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات (بفاصلة)</label>
+ <input name="sizes" value={typeof form.sizes === 'string' ? form.sizes : (form.sizes || []).join(', ')} onChange={handleChange} className={inp} placeholder="S, M, L, XL" />
+ </div>
+ <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان (بفاصلة)</label>
+ <input name="colors" value={typeof form.colors === 'string' ? form.colors : (form.colors || []).join(', ')} onChange={handleChange} className={inp} placeholder="أبيض, أسود, بورجندي" />
+ </div>
+ </div>
+ )}
+ {hasVariants && (
+ <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-5 space-y-3 shadow-inner max-h-[220px] overflow-y-auto">
+ <p className="text-xs font-bold uppercase tracking-wider text-burgundy/60">مخزون المقاسات والألوان</p>
+ <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+ {combinations.map(c => {
+ const key = `${c.size}_${c.color}`;
+ return (
+ <div key={key} className="flex items-center justify-between gap-3 p-3 bg-burgundy/3 rounded-xl border border-burgundy/5">
+ <div className="text-sm font-semibold">
+ {c.size && <span>مقاس: {c.size}</span>}
+ {c.size && c.color && <span> · </span>}
+ {c.color && <span>لون: {c.color}</span>}
+ </div>
+ <input
+ type="number"
+ min="0"
+ value={getVariantStockVal(c.size, c.color)}
+ onChange={e => {
+ const val = Math.max(0, Number(e.target.value) || 0);
+ const normKey = makeVariantKey(c.size, c.color);
+ setVariantStocks(prev => ({
+ ...prev,
+ [normKey]: val,
+ [key]: val,
+ [`${c.size}_`]: val,
+ [`_${c.color}`]: val
+ }));
+ }}
+ className="w-20 rounded-lg border border-burgundy/20 bg-white px-2 py-1.5 text-center text-xs font-bold outline-none focus:border-burgundy"
+ />
+ </div>
+ );
+ })}
+ </div>
+ </div>
+ )}
+ <div className="flex gap-3 pt-2">
+ <button type="submit" disabled={loading} className="flex-1 rounded-full bg-burgundy py-3 text-sm font-bold text-white transition hover:bg-[#650018] disabled:opacity-60">
+ {loading ? 'جاري الحفظ...' : 'حفظ المنتج'}
+ </button>
+ <button type="button" onClick={onClose} className="rounded-full border border-burgundy/20 px-6 py-3 text-sm font-medium text-burgundy transition hover:bg-burgundy/10">إلغاء</button>
+ </div>
+ </form>
+ </div>
+ </div>
+ );
 }
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
 function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onRestock, categories, catAr }) {
-  const [filter, setFilter] = useState('All');
-  const [search, setSearch] = useState('');
-  const [filterSupplier, setFilterSupplier] = useState('الكل');
-  const [filterSize, setFilterSize] = useState('الكل');
-  const [activeMenuId, setActiveMenuId] = useState(null);
+ const [filter, setFilter] = useState('All');
+ const [search, setSearch] = useState('');
+ const [filterSupplier, setFilterSupplier] = useState('الكل');
+ const [filterSize, setFilterSize] = useState('الكل');
+ const [activeMenuId, setActiveMenuId] = useState(null);
 
 const arabicKeyboardMap = {
-  'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
-  'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
-  'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
-  'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+ 'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+ 'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+ 'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+ 'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
 };
 
 const translateArabicKeyboard = (str) => {
-  if (!str) return '';
-  let res = '';
-  for (let char of str) {
-    if (arabicKeyboardMap[char]) {
-      res += arabicKeyboardMap[char];
-    } else {
-      res += char;
-    }
-  }
-  return res;
+ if (!str) return '';
+ let res = '';
+ for (let char of str) {
+ if (arabicKeyboardMap[char]) {
+ res += arabicKeyboardMap[char];
+ } else {
+ res += char;
+ }
+ }
+ return res;
 };
 
 const normalizeDigits = (str) => {
-  if (!str) return '';
-  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-  let res = String(str);
-  for (let i = 0; i < 10; i++) {
-    res = res.replaceAll(arabicDigits[i], String(i));
-  }
-  return res;
+ if (!str) return '';
+ const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+ let res = String(str);
+ for (let i = 0; i < 10; i++) {
+ res = res.replaceAll(arabicDigits[i], String(i));
+ }
+ return res;
 };
 
-  const suppliersList = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
-  const sizesList = Array.from(new Set(products.flatMap(p => p.sizes || []).filter(Boolean))).sort();
+ const suppliersList = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
+ const sizesList = Array.from(new Set(products.flatMap(p => p.sizes || []).filter(Boolean))).sort();
 
-  const translatedSearch = translateArabicKeyboard(search);
-  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
+ const translatedSearch = translateArabicKeyboard(search);
+ const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
 
-  const filtered = products.filter(p => {
-    const mc = filter === 'All' || p.category === filter;
-    const pName = (p.name || '').toLowerCase();
-    const pSku = (p.sku || '').toLowerCase();
-    const pOldSku = (p.oldSku || '').toLowerCase();
+ const filtered = products.filter(p => {
+ const mc = filter === 'All' || p.category === filter;
+ const pName = (p.name || '').toLowerCase();
+ const pSku = (p.sku || '').toLowerCase();
+ const pOldSku = (p.oldSku || '').toLowerCase();
 
-    const ms = !search ||
-      pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
-      pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
-      pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch);
+ const ms = !search ||
+ pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
+ pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
+ pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch);
 
-    const mSup = filterSupplier === 'الكل' || p.supplier === filterSupplier;
-    const mSz = filterSize === 'الكل' || p.sizes?.includes(filterSize) || p.variants?.some(v => v.size === filterSize);
-    return mc && ms && mSup && mSz;
-  });
+ const mSup = filterSupplier === 'الكل' || p.supplier === filterSupplier;
+ const mSz = filterSize === 'الكل' || p.sizes?.includes(filterSize) || p.variants?.some(v => v.size === filterSize);
+ return mc && ms && mSup && mSz;
+ });
 
-  return (
-    <div className="space-y-4">
-      {/* Filters row */}
-      <div className="flex flex-wrap items-center gap-3">
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 بحث بالاسم أو الكود..."
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy min-w-[180px] flex-1" />
-        
-        {/* Supplier Filter */}
-        <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
-          <option value="الكل">كل الموردين</option>
-          {suppliersList.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+ return (
+ <div className="space-y-4">
+ {/* Filters row */}
+ <div className="flex flex-wrap items-center gap-3">
+ <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+ placeholder="بحث بالاسم أو الكود..."
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy min-w-[180px] flex-1" />
+ 
+ {/* Supplier Filter */}
+ <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
+ <option value="الكل">كل الموردين</option>
+ {suppliersList.map(s => <option key={s} value={s}>{s}</option>)}
+ </select>
 
-        {/* Size Filter */}
-        <select value={filterSize} onChange={e => setFilterSize(e.target.value)}
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
-          <option value="الكل">كل المقاسات</option>
-          {sizesList.map(sz => <option key={sz} value={sz}>{sz}</option>)}
-        </select>
+ {/* Size Filter */}
+ <select value={filterSize} onChange={e => setFilterSize(e.target.value)}
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
+ <option value="الكل">كل المقاسات</option>
+ {sizesList.map(sz => <option key={sz} value={sz}>{sz}</option>)}
+ </select>
 
-        <div className="flex flex-wrap gap-2">
-          {['All', ...categories].map(c => (
-            <button key={c} onClick={() => setFilter(c)}
-              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${filter === c ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
-              {c === 'All' ? 'الكل' : (catAr[c] || c)}
-            </button>
-          ))}
-        </div>
-        <div>
-          <button onClick={onAdd} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
-            + إضافة منتج
-          </button>
-        </div>
-      </div>
+ <div className="flex flex-wrap gap-2">
+ {['All', ...categories].map(c => (
+ <button key={c} onClick={() => setFilter(c)}
+ className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${filter === c ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
+ {c === 'All' ? 'الكل' : (catAr[c] || c)}
+ </button>
+ ))}
+ </div>
+ <div>
+ <button onClick={onAdd} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
+ + إضافة منتج
+ </button>
+ </div>
+ </div>
 
-      {/* Table */}
-      {loading ? (
-        <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-4xl mb-3">📭</p><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
-      ) : (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-x-auto">
-          <div className="min-w-[900px]">
-            <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50">
-              <span>المنتج</span><span>الفئة</span><span>السعر</span><span>التكلفة والربح</span><span>المخزون</span><span>الإجراءات</span>
-            </div>
-            <div className="divide-y divide-burgundy/6">
-              {filtered.map(p => (
-                <div key={p._id} className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
-                  {/* Product */}
-                  <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl">
-                    {getProductIcon(p.category, p.name)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-sm">{p.name}</p>
-                    <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-burgundy/50 items-center">
-                      {p.sku && <span className="font-mono bg-burgundy/5 px-1.5 py-0.5 rounded text-burgundy">{p.sku}</span>}
-                      {p.supplier && <span>🏭 {p.supplier}</span>}
-                    </div>
-                    {p.sizes?.length > 0 && <p className="mt-0.5 text-xs text-burgundy/35">{p.sizes.join(' · ')}</p>}
-                    <button
-                      type="button"
-                      onClick={() => onShowHistory(p)}
-                      className="mt-1 text-[10px] text-burgundy hover:underline flex items-center gap-1 font-bold"
-                    >
-                      📜 حركة المخزون
-                    </button>
-                  </div>
-                </div>
-                <span className="inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{catAr[p.category] || p.category}</span>
-                {isDiscountActive(p) ? (
-                  <div className="flex flex-col">
-                    <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
-                    <span className="block text-xs text-red-500 line-through">{EGP(p.price)}</span>
-                    <span className="inline-block mt-1 rounded bg-red-100 text-red-600 px-1.5 py-0.5 text-[9px] font-bold w-fit">
-                      خصم {Math.round((1 - p.discountPrice / p.price) * 100)}%
-                    </span>
-                  </div>
-                ) : (
-                  <span className="block text-sm font-bold">{EGP(p.price)}</span>
-                )}
-                
-                {/* Cost & Profit */}
-                <div className="flex flex-col text-xs space-y-0.5">
-                  <span className="text-burgundy/50">التكلفة: {p.costPrice ? EGP(p.costPrice) : '—'}</span>
-                  {p.costPrice ? (
-                    (() => {
-                      const effPrice = isDiscountActive(p) ? p.discountPrice : p.price;
-                      return (
-                        <span className="font-bold text-emerald-600">
-                          الربح: {EGP(effPrice - p.costPrice)} ({(((effPrice - p.costPrice) / effPrice) * 100).toFixed(0)}%)
-                        </span>
-                      );
-                    })()
-                  ) : (
-                    <span className="text-amber-500 font-semibold text-[10px]">غير مسعر تكلفة</span>
-                  )}
-                </div>
+ {/* Table */}
+ {loading ? (
+ <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+ ) : filtered.length === 0 ? (
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
+ ) : (
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-x-auto">
+ <div className="min-w-[900px]">
+ <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50">
+ <span>المنتج</span><span>الفئة</span><span>السعر</span><span>التكلفة والربح</span><span>المخزون</span><span>الإجراءات</span>
+ </div>
+ <div className="divide-y divide-burgundy/6">
+ {filtered.map(p => (
+ <div key={p._id} className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
+ {/* Product */}
+ <div className="flex items-center gap-3 min-w-0">
+ <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl">
+ {getProductIcon(p.category, p.name)}
+ </div>
+ <div className="min-w-0">
+ <p className="truncate font-semibold text-sm">{p.name}</p>
+ <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-burgundy/50 items-center">
+ {p.sku && <span className="font-mono bg-burgundy/5 px-1.5 py-0.5 rounded text-burgundy">{p.sku}</span>}
+ {p.supplier && <span>{p.supplier}</span>}
+ </div>
+ {p.sizes?.length > 0 && <p className="mt-0.5 text-xs text-burgundy/35">{p.sizes.join(' · ')}</p>}
+ <button
+ type="button"
+ onClick={() => onShowHistory(p)}
+ className="mt-1 text-[10px] text-burgundy hover:underline flex items-center gap-1 font-bold"
+ >
+ حركة المخزون
+ </button>
+ </div>
+ </div>
+ <span className="inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{catAr[p.category] || p.category}</span>
+ {isDiscountActive(p) ? (
+ <div className="flex flex-col">
+ <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
+ <span className="block text-xs text-red-500 line-through">{EGP(p.price)}</span>
+ <span className="inline-block mt-1 rounded bg-red-100 text-red-600 px-1.5 py-0.5 text-[9px] font-bold w-fit">
+ خصم {Math.round((1 - p.discountPrice / p.price) * 100)}%
+ </span>
+ </div>
+ ) : (
+ <span className="block text-sm font-bold">{EGP(p.price)}</span>
+ )}
+ 
+ {/* Cost & Profit */}
+ <div className="flex flex-col text-xs space-y-0.5">
+ <span className="text-burgundy/50">التكلفة: {p.costPrice ? EGP(p.costPrice) : '—'}</span>
+ {p.costPrice ? (
+ (() => {
+ const effPrice = isDiscountActive(p) ? p.discountPrice : p.price;
+ return (
+ <span className="font-bold text-emerald-600">
+ الربح: {EGP(effPrice - p.costPrice)} ({(((effPrice - p.costPrice) / effPrice) * 100).toFixed(0)}%)
+ </span>
+ );
+ })()
+ ) : (
+ <span className="text-amber-500 font-semibold text-[10px]">غير مسعر تكلفة</span>
+ )}
+ </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي ما دخل المحل من المنتج">
-                    🔷 {Math.max(p.totalReceived || 0, (p.stock || 0) + (p.sold || 0))} توريد
-                  </span>
-                  {p.sold > 0 && (
-                    <span className="rounded-full bg-purple-50 text-purple-700 border border-purple-200/80 px-2 py-1 text-xs font-bold" title="إجمالي مبيعات المنتج">
-                      🏷️ {p.sold} مباع
-                    </span>
-                  )}
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`} title="المخزون الفعلي المتاح حالياً">
-                    🟢 {p.stock} متبقي
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 justify-end">
-                  {p.stock === 0 && (
-                    <button
-                      onClick={() => onRestock(p)}
-                      className="rounded-xl bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm flex items-center gap-1"
-                      title="تزويد واستلام شحنة جديدة"
-                    >
-                      <span>📦</span> تزويد
-                    </button>
-                  )}
+ <div className="flex items-center gap-1.5 flex-wrap">
+ <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي ما دخل المحل من المنتج">
+ {Math.max(p.totalReceived || 0, (p.stock || 0) + (p.sold || 0))} توريد
+ </span>
+ {p.sold > 0 && (
+ <span className="rounded-full bg-purple-50 text-purple-700 border border-purple-200/80 px-2 py-1 text-xs font-bold" title="إجمالي مبيعات المنتج">
+ {p.sold} مباع
+ </span>
+ )}
+ <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`} title="المخزون الفعلي المتاح حالياً">
+ {p.stock} متبقي
+ </span>
+ </div>
+ <div className="flex items-center gap-2 justify-end">
+ {p.stock === 0 && (
+ <button
+ onClick={() => onRestock(p)}
+ className="rounded-xl bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm flex items-center gap-1"
+ title="تزويد واستلام شحنة جديدة"
+ >
+ <span>تزويد</span>
+ </button>
+ )}
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveMenuId(activeMenuId === p._id ? null : p._id);
-                      }}
-                      className="h-8 w-8 rounded-xl border border-burgundy/20 hover:bg-burgundy/10 flex items-center justify-center text-base font-bold text-burgundy transition shadow-sm bg-white"
-                      title="خيارات المنتج"
-                    >
-                      ⋮
-                    </button>
+ <div className="relative">
+ <button
+ type="button"
+ onClick={(e) => {
+ e.stopPropagation();
+ setActiveMenuId(activeMenuId === p._id ? null : p._id);
+ }}
+ className="h-8 w-8 rounded-xl border border-burgundy/20 hover:bg-burgundy/10 flex items-center justify-center text-base font-bold text-burgundy transition shadow-sm bg-white"
+ title="خيارات المنتج"
+ >
+ ⋮
+ </button>
 
-                    {activeMenuId === p._id && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
-                        <div
-                          className="absolute left-0 mt-1 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => { setActiveMenuId(null); onRestock(p); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
-                          >
-                            <span className="text-sm">📦</span> تزويد مخزون / شحنة
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setActiveMenuId(null); onEdit(p); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
-                          >
-                            <span className="text-sm">✏️</span> تعديل بيانات المنتج
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setActiveMenuId(null); onShowHistory(p); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
-                          >
-                            <span className="text-sm">📜</span> سجل حركة المخزون
-                          </button>
-                          {p.sku && (
-                            <button
-                              type="button"
-                              onClick={() => { setActiveMenuId(null); printBarcode(p); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl transition"
-                            >
-                              <span className="text-sm">🖶</span> طباعة ملصق الباركود
-                            </button>
-                          )}
-                          <div className="border-t border-burgundy/5 my-1" />
-                          <button
-                            type="button"
-                            onClick={() => { setActiveMenuId(null); onDelete(p._id); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition"
-                          >
-                            <span className="text-sm">🗑️</span> أرشفة المنتج
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+ {activeMenuId === p._id && (
+ <>
+ <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
+ <div
+ className="absolute left-0 mt-1 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
+ onClick={(e) => e.stopPropagation()}
+ >
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onRestock(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
+ >
+ تزويد مخزون / شحنة
+ </button>
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onEdit(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+ >
+ تعديل بيانات المنتج
+ </button>
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onShowHistory(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+ >
+ سجل حركة المخزون
+ </button>
+ {p.sku && (
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); printBarcode(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl transition"
+ >
+ طباعة ملصق الباركود
+ </button>
+ )}
+ <div className="border-t border-burgundy/5 my-1" />
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onDelete(p._id); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition"
+ >
+ أرشفة المنتج
+ </button>
+ </div>
+ </>
+ )}
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
+ </div>
+ )}
+ </div>
+ );
 }
 
 // ─── Tab: Inventory ────────────────────────────────────────────────────────────
 function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowHistory, categories, catAr }) {
-  const [search, setSearch]         = useState('');
-  const [filterCat, setFilterCat]   = useState('الكل');
-  const [filterSupplier, setFilterSupplier] = useState('الكل');
-  const [filterStock, setFilterStock] = useState('all');
-  const [adjusting, setAdjusting]   = useState(null);
-  const [adjValue, setAdjValue]     = useState('');
-  const [selectedVariant, setSelectedVariant] = useState('');
-  const [expanded, setExpanded]     = useState(null);
-  const [activeMenuId, setActiveMenuId] = useState(null);
-  const [toast, setToast]           = useState('');
+ const [search, setSearch] = useState('');
+ const [filterCat, setFilterCat] = useState('الكل');
+ const [filterSupplier, setFilterSupplier] = useState('الكل');
+ const [filterStock, setFilterStock] = useState('all');
+ const [adjusting, setAdjusting] = useState(null);
+ const [adjValue, setAdjValue] = useState('');
+ const [selectedVariant, setSelectedVariant] = useState('');
+ const [expanded, setExpanded] = useState(null);
+ const [activeMenuId, setActiveMenuId] = useState(null);
+ const [toast, setToast] = useState('');
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+ const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const startAdjusting = (p) => {
-    setAdjusting(p._id); setAdjValue('');
-    setSelectedVariant(p.variants?.length > 0 ? `${p.variants[0].size}|${p.variants[0].color}` : '');
-  };
+ const startAdjusting = (p) => {
+ setAdjusting(p._id); setAdjValue('');
+ setSelectedVariant(p.variants?.length > 0 ? `${p.variants[0].size}|${p.variants[0].color}` : '');
+ };
 
-  const handleAdjust = async (productId) => {
-    if (!adjValue || isNaN(Number(adjValue))) return;
-    try {
-      const p = products.find(x => x._id === productId);
-      const payload = { adjustment: Number(adjValue) };
-      if (p?.variants?.length > 0 && selectedVariant) {
-        const [size, color] = selectedVariant.split('|');
-        payload.size = size; payload.color = color;
-      }
-      await api.patch(`/pos/storage/${productId}`, payload);
-      showToast('✅ تم تحديث المخزون');
-      setAdjusting(null); setAdjValue(''); setSelectedVariant('');
-      onRefresh();
-    } catch { showToast('❌ حدث خطأ'); }
-  };
+ const handleAdjust = async (productId) => {
+ if (!adjValue || isNaN(Number(adjValue))) return;
+ try {
+ const p = products.find(x => x._id === productId);
+ const payload = { adjustment: Number(adjValue) };
+ if (p?.variants?.length > 0 && selectedVariant) {
+ const [size, color] = selectedVariant.split('|');
+ payload.size = size; payload.color = color;
+ }
+ await api.patch(`/pos/storage/${productId}`, payload);
+ showToast('تم تحديث المخزون بنجاح');
+ setAdjusting(null); setAdjValue(''); setSelectedVariant('');
+ onRefresh();
+ } catch { showToast('حدث خطأ'); }
+ };
 
-  const stockBadge = (s) => s === 0 ? 'bg-red-100 text-red-600' : s <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+ const stockBadge = (s) => s === 0 ? 'bg-red-100 text-red-600' : s <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
 
-  const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
+ const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
 
-  const filtered = products.filter(p => {
-    const pName = (p.name || '').toLowerCase();
-    const pSku = (p.sku || '').toLowerCase();
-    const pOldSku = (p.oldSku || '').toLowerCase();
-    const pCat = ((catAr[p.category] || p.category) || '').toLowerCase();
+ const filtered = products.filter(p => {
+ const pName = (p.name || '').toLowerCase();
+ const pSku = (p.sku || '').toLowerCase();
+ const pOldSku = (p.oldSku || '').toLowerCase();
+ const pCat = ((catAr[p.category] || p.category) || '').toLowerCase();
 
-    const ms = !search ||
-      pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
-      pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
-      pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch) ||
-      pCat.includes(search.toLowerCase()) || pCat.includes(normalizedSearch);
+ const ms = !search ||
+ pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
+ pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
+ pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch) ||
+ pCat.includes(search.toLowerCase()) || pCat.includes(normalizedSearch);
 
-    const mc = filterCat === 'الكل' || p.category === filterCat;
-    const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
-    const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
-    return ms && mc && mk && mSup;
-  });
+ const mc = filterCat === 'الكل' || p.category === filterCat;
+ const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
+ const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
+ return ms && mc && mk && mSup;
+ });
 
-  const totalItems = filtered.reduce((s, p) => s + p.stock, 0);
-  const totalValue = filtered.reduce((s, p) => s + p.stock * p.price, 0);
-  const lowCount   = filtered.filter(p => p.stock > 0 && p.stock <= 5).length;
-  const outCount   = filtered.filter(p => p.stock === 0).length;
+ const totalItems = filtered.reduce((s, p) => s + p.stock, 0);
+ const totalValue = filtered.reduce((s, p) => s + p.stock * p.price, 0);
+ const lowCount = filtered.filter(p => p.stock > 0 && p.stock <= 5).length;
+ const outCount = filtered.filter(p => p.stock === 0).length;
 
-  return (
-    <div className="space-y-4">
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-xl">{toast}</div>}
+ return (
+ <div className="space-y-4">
+ {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-xl">{toast}</div>}
 
-      {/* Stats */}
-      <div className="grid gap-3 sm:grid-cols-4">
-        {[
-          { label: 'إجمالي القطع', value: `${totalItems.toLocaleString()} قطعة`, icon: '📦', cls: 'border-burgundy/10 bg-white', vcls: 'text-burgundy' },
-          { label: 'قيمة المخزون', value: EGP(totalValue), icon: '💰', cls: 'border-burgundy/10 bg-white', vcls: 'text-burgundy' },
-          { label: 'مخزون منخفض', value: `${lowCount} منتج`, icon: '⚠️', cls: 'border-amber-200 bg-amber-50', vcls: 'text-amber-700' },
-          { label: 'نفد المخزون', value: `${outCount} منتج`, icon: '❌', cls: outCount > 0 ? 'border-red-200 bg-red-50' : 'border-burgundy/10 bg-white', vcls: outCount > 0 ? 'text-red-600' : 'text-burgundy' },
-        ].map(s => (
-          <div key={s.label} className={`rounded-[1.5rem] border p-4 ${s.cls}`}>
-            <p className="text-xs text-burgundy/50 mb-1">{s.icon} {s.label}</p>
-            <p className={`text-xl font-extrabold ${s.vcls}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
+ {/* Stats */}
+ <div className="grid gap-3 sm:grid-cols-4">
+ {[
+ { label: 'إجمالي القطع', value: `${totalItems.toLocaleString()} قطعة`, icon: '', cls: 'border-burgundy/10 bg-white', vcls: 'text-burgundy' },
+ { label: 'قيمة المخزون', value: EGP(totalValue), icon: '', cls: 'border-burgundy/10 bg-white', vcls: 'text-burgundy' },
+ { label: 'مخزون منخفض', value: `${lowCount} منتج`, icon: '', cls: 'border-amber-200 bg-amber-50', vcls: 'text-amber-700' },
+ { label: 'نفد المخزون', value: `${outCount} منتج`, icon: '', cls: outCount > 0 ? 'border-red-200 bg-red-50' : 'border-burgundy/10 bg-white', vcls: outCount > 0 ? 'text-red-600' : 'text-burgundy' },
+ ].map(s => (
+ <div key={s.label} className={`rounded-[1.5rem] border p-4 ${s.cls}`}>
+ <p className="text-xs text-burgundy/50 mb-1">{s.icon} {s.label}</p>
+ <p className={`text-xl font-extrabold ${s.vcls}`}>{s.value}</p>
+ </div>
+ ))}
+ </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 بحث بالاسم أو الكود..."
-          className="flex-1 min-w-[180px] rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy" />
-        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
-          {['الكل', ...categories].map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : (catAr[c] || c)}</option>)}
-        </select>
-        <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
-          className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
-          <option value="الكل">كل الموردين</option>
-          {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
-          <option value="بدون مورد">بدون مورد</option>
-        </select>
-        <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden">
-          {[{ id: 'all', l: 'الكل' }, { id: 'low', l: '⚠️ منخفض' }, { id: 'out', l: '❌ نفد' }].map(f => (
-            <button key={f.id} onClick={() => setFilterStock(f.id)}
-              className={`px-4 py-2.5 text-xs font-semibold transition ${filterStock === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>
-              {f.l}
-            </button>
-          ))}
-        </div>
-        <button onClick={onRefresh} className="rounded-2xl border border-burgundy/20 px-4 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy hover:text-white transition">🔄 تحديث</button>
-      </div>
+ {/* Filters */}
+ <div className="flex flex-wrap gap-3">
+ <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم أو الكود..."
+ className="flex-1 min-w-[180px] rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy" />
+ <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
+ {['الكل', ...categories].map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : (catAr[c] || c)}</option>)}
+ </select>
+ <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
+ <option value="الكل">كل الموردين</option>
+ {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
+ <option value="بدون مورد">بدون مورد</option>
+ </select>
+ <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden">
+ {[{ id: 'all', l: 'الكل' }, { id: 'low', l: 'منخفض' }, { id: 'out', l: 'نفد' }].map(f => (
+ <button key={f.id} onClick={() => setFilterStock(f.id)}
+ className={`px-4 py-2.5 text-xs font-semibold transition ${filterStock === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>
+ {f.l}
+ </button>
+ ))}
+ </div>
+ <button onClick={onRefresh} className="rounded-2xl border border-burgundy/20 px-4 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy hover:text-white transition">تحديث</button>
+ </div>
 
-      {/* Table */}
-      {loading ? (
-        <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-4xl mb-3">📭</p><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
-      ) : (
-        <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-x-auto">
-          <div className="min-w-[800px]">
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-3 border-b border-burgundy/8 bg-[#F7F0EC] text-xs font-bold uppercase tracking-wide text-burgundy/50">
-              <span>المنتج</span><span>الفئة</span><span>السعر</span><span>المخزون</span><span>تعديل الكمية</span>
-            </div>
-            <div className="divide-y divide-burgundy/6">
-              {filtered.map(p => (
-                <div key={p._id}>
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-4 items-center hover:bg-[#F7F0EC]/40 transition">
-                    {/* Product */}
-                    <div className="flex items-center gap-3 min-w-0">
-                    {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
-                      : <div className="h-12 w-12 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl flex-shrink-0">👗</div>}
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{p.name}</p>
-                      {p.sku && <p className="text-xs text-burgundy/40 font-mono">{p.sku}</p>}
-                      {p.supplier && <p className="text-xs text-burgundy/40">🏭 {p.supplier}</p>}
-                      {p.allowDiscount === false && <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">🚫 غير مسموح بالخصم</span>}
-                    </div>
-                  </div>
-                  <span className="inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">{catAr[p.category] || p.category}</span>
-                  {isDiscountActive(p) ? (
-                    <div className="flex flex-col">
-                      <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
-                      <span className="block text-xs text-red-500 line-through">{EGP(p.price)}</span>
-                    </div>
-                  ) : (
-                    <span className="block text-sm font-bold">{EGP(p.price)}</span>
-                  )}
-                  {/* Stock */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي ما دخل المحل من المنتج">
-                      🔷 {Math.max(p.totalReceived || 0, (p.stock || 0) + (p.sold || 0))} توريد
-                    </span>
-                    {p.sold > 0 && (
-                      <span className="rounded-full bg-purple-50 text-purple-700 border border-purple-200/80 px-2 py-1 text-xs font-bold" title="إجمالي مبيعات المنتج">
-                        🏷️ {p.sold} مباع
-                      </span>
-                    )}
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${stockBadge(p.stock)}`} title="المخزون الفعلي المتاح حالياً">
-                      🟢 {p.stock} متبقي
-                    </span>
-                    {p.variants?.length > 0 && (
-                      <button onClick={() => setExpanded(expanded === p._id ? null : p._id)} className="text-xs text-burgundy/40 hover:text-burgundy transition">
-                        {expanded === p._id ? '▲' : '▼'}
-                      </button>
-                    )}
-                  </div>
-                  {/* Adjust */}
-                  <div>
-                    {adjusting === p._id ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {p.variants?.length > 0 && (
-                          <select value={selectedVariant} onChange={e => setSelectedVariant(e.target.value)}
-                            className="rounded-xl border border-burgundy/20 bg-white px-2 py-1 text-xs text-burgundy outline-none">
-                            {p.variants.map((v, i) => <option key={i} value={`${v.size}|${v.color}`}>{v.size} · {v.color} ({v.stock})</option>)}
-                          </select>
-                        )}
-                        <input type="number" value={adjValue} onChange={e => setAdjValue(e.target.value)} placeholder="+10 أو -3" autoFocus
-                          className="w-24 rounded-xl border border-burgundy px-2.5 py-1 text-sm text-burgundy outline-none"
-                          onKeyDown={e => { if (e.key === 'Enter') handleAdjust(p._id); if (e.key === 'Escape') setAdjusting(null); }} />
-                        <button onClick={() => handleAdjust(p._id)} className="rounded-xl bg-burgundy px-2.5 py-1 text-xs font-bold text-white hover:bg-[#650018] transition">✓</button>
-                        <button onClick={() => { setAdjusting(null); setAdjValue(''); }} className="rounded-xl border border-burgundy/20 px-2 py-1 text-xs text-burgundy hover:bg-burgundy/8 transition">✕</button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 justify-end">
-                        <button
-                          onClick={() => startAdjusting(p)}
-                          className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-semibold text-burgundy transition hover:bg-burgundy hover:text-white"
-                        >
-                          تعديل سريع
-                        </button>
+ {/* Table */}
+ {loading ? (
+ <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+ ) : filtered.length === 0 ? (
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
+ ) : (
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-x-auto">
+ <div className="min-w-[800px]">
+ <div className="grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-3 border-b border-burgundy/8 bg-[#F7F0EC] text-xs font-bold uppercase tracking-wide text-burgundy/50">
+ <span>المنتج</span><span>الفئة</span><span>السعر</span><span>المخزون</span><span>تعديل الكمية</span>
+ </div>
+ <div className="divide-y divide-burgundy/6">
+ {filtered.map(p => (
+ <div key={p._id}>
+ <div className="grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-4 items-center hover:bg-[#F7F0EC]/40 transition">
+ {/* Product */}
+ <div className="flex items-center gap-3 min-w-0">
+ {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
+ : <div className="h-12 w-12 rounded-xl bg-burgundy/8 flex items-center justify-center flex-shrink-0"><span className="text-xs text-burgundy/50 font-bold">صورة</span></div>}
+ <div className="min-w-0">
+ <p className="font-semibold text-sm truncate">{p.name}</p>
+ {p.sku && <p className="text-xs text-burgundy/40 font-mono">{p.sku}</p>}
+ {p.supplier && <p className="text-xs text-burgundy/40">{p.supplier}</p>}
+ {p.allowDiscount === false && <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">غير مسموح بالخصم</span>}
+ </div>
+ </div>
+ <span className="inline-block text-xs bg-burgundy/8 text-burgundy px-2.5 py-1 rounded-full font-medium w-fit">{catAr[p.category] || p.category}</span>
+ {isDiscountActive(p) ? (
+ <div className="flex flex-col">
+ <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
+ <span className="block text-xs text-red-500 line-through">{EGP(p.price)}</span>
+ </div>
+ ) : (
+ <span className="block text-sm font-bold">{EGP(p.price)}</span>
+ )}
+ {/* Stock */}
+ <div className="flex items-center gap-1.5 flex-wrap">
+ <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي ما دخل المحل من المنتج">
+ {Math.max(p.totalReceived || 0, (p.stock || 0) + (p.sold || 0))} توريد
+ </span>
+ {p.sold > 0 && (
+ <span className="rounded-full bg-purple-50 text-purple-700 border border-purple-200/80 px-2 py-1 text-xs font-bold" title="إجمالي مبيعات المنتج">
+ {p.sold} مباع
+ </span>
+ )}
+ <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${stockBadge(p.stock)}`} title="المخزون الفعلي المتاح حالياً">
+ {p.stock} متبقي
+ </span>
+ {p.variants?.length > 0 && (
+ <button onClick={() => setExpanded(expanded === p._id ? null : p._id)} className="text-xs text-burgundy/40 hover:text-burgundy transition">
+ {expanded === p._id ? '▲' : '▼'}
+ </button>
+ )}
+ </div>
+ {/* Adjust */}
+ <div>
+ {adjusting === p._id ? (
+ <div className="flex flex-wrap items-center gap-1.5">
+ {p.variants?.length > 0 && (
+ <select value={selectedVariant} onChange={e => setSelectedVariant(e.target.value)}
+ className="rounded-xl border border-burgundy/20 bg-white px-2 py-1 text-xs text-burgundy outline-none">
+ {p.variants.map((v, i) => <option key={i} value={`${v.size}|${v.color}`}>{v.size} · {v.color} ({v.stock})</option>)}
+ </select>
+ )}
+ <input type="number" value={adjValue} onChange={e => setAdjValue(e.target.value)} placeholder="+10 أو -3" autoFocus
+ className="w-24 rounded-xl border border-burgundy px-2.5 py-1 text-sm text-burgundy outline-none"
+ onKeyDown={e => { if (e.key === 'Enter') handleAdjust(p._id); if (e.key === 'Escape') setAdjusting(null); }} />
+ <button onClick={() => handleAdjust(p._id)} className="rounded-xl bg-burgundy px-2.5 py-1 text-xs font-bold text-white hover:bg-[#650018] transition"></button>
+ <button onClick={() => { setAdjusting(null); setAdjValue(''); }} className="rounded-xl border border-burgundy/20 px-2 py-1 text-xs text-burgundy hover:bg-burgundy/8 transition"></button>
+ </div>
+ ) : (
+ <div className="flex items-center gap-2 justify-end">
+ <button
+ onClick={() => startAdjusting(p)}
+ className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-semibold text-burgundy transition hover:bg-burgundy hover:text-white"
+ >
+ تعديل سريع
+ </button>
 
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === p._id ? null : p._id);
-                            }}
-                            className="h-8 w-8 rounded-xl border border-burgundy/20 hover:bg-burgundy/10 flex items-center justify-center text-base font-bold text-burgundy transition shadow-sm bg-white"
-                            title="خيارات إضافية"
-                          >
-                            ⋮
-                          </button>
+ <div className="relative">
+ <button
+ type="button"
+ onClick={(e) => {
+ e.stopPropagation();
+ setActiveMenuId(activeMenuId === p._id ? null : p._id);
+ }}
+ className="h-8 w-8 rounded-xl border border-burgundy/20 hover:bg-burgundy/10 flex items-center justify-center text-base font-bold text-burgundy transition shadow-sm bg-white"
+ title="خيارات إضافية"
+ >
+ ⋮
+ </button>
 
-                          {activeMenuId === p._id && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
-                              <div
-                                className="absolute left-0 mt-1 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => { setActiveMenuId(null); onRestock(p); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
-                                >
-                                  <span className="text-sm">📦</span> تزويد مخزون / شحنة
-                                </button>
-                                {onEdit && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setActiveMenuId(null); onEdit(p); }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
-                                  >
-                                    <span className="text-sm">✏️</span> تعديل بيانات المنتج
-                                  </button>
-                                )}
-                                {onShowHistory && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setActiveMenuId(null); onShowHistory(p); }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
-                                  >
-                                    <span className="text-sm">📜</span> سجل حركة المخزون
-                                  </button>
-                                )}
-                                {p.sku && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setActiveMenuId(null); printBarcode(p); }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl transition"
-                                  >
-                                    <span className="text-sm">🖶</span> طباعة ملصق الباركود
-                                  </button>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* Variants breakdown */}
-                {expanded === p._id && p.variants?.length > 0 && (
-                  <div className="bg-[#F7F0EC]/60 px-6 py-4 border-t border-burgundy/8">
-                    <p className="text-xs font-semibold text-burgundy/50 uppercase tracking-wider mb-3">تفاصيل الأحجام والألوان</p>
-                    <div className="flex flex-wrap gap-2">
-                      {p.variants.map((v, i) => (
-                        <div key={i} className={`rounded-2xl border px-4 py-2 text-center text-xs font-medium ${v.stock === 0 ? 'border-red-200 bg-red-50 text-red-600' : v.stock <= 5 ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-burgundy/15 bg-white text-burgundy'}`}>
-                          <p className="font-bold">{v.size} · {v.color}</p>
-                          <p className="mt-0.5 text-xl font-extrabold">{v.stock}</p>
-                          <p className="text-[10px] opacity-50">قطعة</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+ {activeMenuId === p._id && (
+ <>
+ <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
+ <div
+ className="absolute left-0 mt-1 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
+ onClick={(e) => e.stopPropagation()}
+ >
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onRestock(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
+ >
+ تزويد مخزون / شحنة
+ </button>
+ {onEdit && (
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onEdit(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+ >
+ تعديل بيانات المنتج
+ </button>
+ )}
+ {onShowHistory && (
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onShowHistory(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
+ >
+ سجل حركة المخزون
+ </button>
+ )}
+ {p.sku && (
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); printBarcode(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl transition"
+ >
+ طباعة ملصق الباركود
+ </button>
+ )}
+ </div>
+ </>
+ )}
+ </div>
+ </div>
+ )}
+ </div>
+ </div>
+ {/* Variants breakdown */}
+ {expanded === p._id && p.variants?.length > 0 && (
+ <div className="bg-[#F7F0EC]/60 px-6 py-4 border-t border-burgundy/8">
+ <p className="text-xs font-semibold text-burgundy/50 uppercase tracking-wider mb-3">تفاصيل الأحجام والألوان</p>
+ <div className="flex flex-wrap gap-2">
+ {p.variants.map((v, i) => (
+ <div key={i} className={`rounded-2xl border px-4 py-2 text-center text-xs font-medium ${v.stock === 0 ? 'border-red-200 bg-red-50 text-red-600' : v.stock <= 5 ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-burgundy/15 bg-white text-burgundy'}`}>
+ <p className="font-bold">{v.size} · {v.color}</p>
+ <p className="mt-0.5 text-xl font-extrabold">{v.stock}</p>
+ <p className="text-[10px] opacity-50">قطعة</p>
+ </div>
+ ))}
+ </div>
+ </div>
+ )}
+ </div>
+ ))}
+ </div>
+ </div>
+ </div>
+ )}
+ </div>
+ );
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 function AdminProducts() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [tab, setTab]           = useState('catalog'); // 'catalog' | 'inventory'
-  const [modal, setModal]       = useState(null);
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-  const [catAr, setCatAr]       = useState(DEFAULT_CAT_AR);
-  const [historyProduct, setHistoryProduct] = useState(null);
-  const [toast, setToast]       = useState('');
+ const [products, setProducts] = useState([]);
+ const [loading, setLoading] = useState(true);
+ const [tab, setTab] = useState('catalog'); // 'catalog' | 'inventory'
+ const [modal, setModal] = useState(null);
+ const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+ const [catAr, setCatAr] = useState(DEFAULT_CAT_AR);
+ const [historyProduct, setHistoryProduct] = useState(null);
+ const [toast, setToast] = useState('');
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+ const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/products');
-      setProducts(res.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  };
+ const loadProducts = async () => {
+ try {
+ setLoading(true);
+ const res = await api.get('/products');
+ setProducts(res.data);
+ } catch (e) { console.error(e); }
+ finally { setLoading(false); }
+ };
 
-  const fetchConfig = async () => {
-    try {
-      const res = await api.get('/admin/site-config');
-      if (res.data && res.data.categories && res.data.categories.length > 0) {
-        const cats = res.data.categories.map(c => c.key);
-        const mapAr = {};
-        res.data.categories.forEach(c => {
-          mapAr[c.key] = c.nameAr;
-        });
-        setCategories(cats);
-        setCatAr(mapAr);
-      }
-    } catch (err) {
-      console.error('Failed to load site config categories:', err);
-    }
-  };
+ const fetchConfig = async () => {
+ try {
+ const res = await api.get('/admin/site-config');
+ if (res.data && res.data.categories && res.data.categories.length > 0) {
+ const cats = res.data.categories.map(c => c.key);
+ const mapAr = {};
+ res.data.categories.forEach(c => {
+ mapAr[c.key] = c.nameAr;
+ });
+ setCategories(cats);
+ setCatAr(mapAr);
+ }
+ } catch (err) {
+ console.error('Failed to load site config categories:', err);
+ }
+ };
 
-  useEffect(() => {
-    loadProducts();
-    fetchConfig();
-  }, []);
+ useEffect(() => {
+ loadProducts();
+ fetchConfig();
+ }, []);
 
-  const handleAddCategory = async (key, nameAr) => {
-    try {
-      const resConfig = await api.get('/admin/site-config');
-      const currentCats = resConfig.data?.categories || [];
-      if (currentCats.some(c => c.key.toLowerCase() === key.toLowerCase())) {
-        alert('هذه الفئة موجودة بالفعل!');
-        return key;
-      }
-      const newCats = [...currentCats, { key, nameAr }];
-      const res = await api.put('/admin/site-config', { categories: newCats });
-      if (res.data && res.data.categories) {
-        const cats = res.data.categories.map(c => c.key);
-        const mapAr = {};
-        res.data.categories.forEach(c => {
-          mapAr[c.key] = c.nameAr;
-        });
-        setCategories(cats);
-        setCatAr(mapAr);
-      }
-      showToast('✅ تم إضافة الفئة الجديدة');
-      return key;
-    } catch (err) {
-      console.error(err);
-      alert('فشل إضافة الفئة الجديدة');
-      return null;
-    }
-  };
+ const handleAddCategory = async (key, nameAr) => {
+ try {
+ const resConfig = await api.get('/admin/site-config');
+ const currentCats = resConfig.data?.categories || [];
+ if (currentCats.some(c => c.key.toLowerCase() === key.toLowerCase())) {
+ alert('هذه الفئة موجودة بالفعل!');
+ return key;
+ }
+ const newCats = [...currentCats, { key, nameAr }];
+ const res = await api.put('/admin/site-config', { categories: newCats });
+ if (res.data && res.data.categories) {
+ const cats = res.data.categories.map(c => c.key);
+ const mapAr = {};
+ res.data.categories.forEach(c => {
+ mapAr[c.key] = c.nameAr;
+ });
+ setCategories(cats);
+ setCatAr(mapAr);
+ }
+ showToast('تم إضافة الفئة الجديدة بنجاح');
+ return key;
+ } catch (err) {
+ console.error(err);
+ alert('فشل إضافة الفئة الجديدة');
+ return null;
+ }
+ };
 
-  const handleSave = async (payload) => {
-    try {
-      if (payload._id) {
-        await api.put(`/admin/products/${payload._id}`, payload);
-        showToast('✅ تم تحديث المنتج');
-      } else {
-        await api.post('/admin/products', payload);
-        showToast('✅ تم إضافة المنتج');
-      }
-      await loadProducts();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'خطأ غير معروف';
-      alert(`فشل الحفظ: ${msg}`); throw err;
-    }
-  };
+ const handleSave = async (payload) => {
+ try {
+ if (payload._id) {
+ await api.put(`/admin/products/${payload._id}`, payload);
+ showToast('تم تحديث المنتج بنجاح');
+ } else {
+ await api.post('/admin/products', payload);
+ showToast('تم إضافة المنتج بنجاح');
+ }
+ await loadProducts();
+ } catch (err) {
+ const msg = err.response?.data?.message || err.message || 'خطأ غير معروف';
+ alert(`فشل الحفظ: ${msg}`); throw err;
+ }
+ };
 
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
-  const [restockingProduct, setRestockingProduct] = useState(null);
+ const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+ const [productToDelete, setProductToDelete] = useState(null);
+ const [restockingProduct, setRestockingProduct] = useState(null);
 
-  const handleDelete = async (id) => {
-    await api.delete(`/admin/products/${id}`);
-    showToast('✅ تم الأرشفة');
-    await loadProducts();
-    setIsDeleteOpen(false);
-    setProductToDelete(null);
-  };
+ const handleDelete = async (id) => {
+ await api.delete(`/admin/products/${id}`);
+ showToast('تمت الأرشفة بنجاح');
+ await loadProducts();
+ setIsDeleteOpen(false);
+ setProductToDelete(null);
+ };
 
-  const TABS = [
-    { id: 'catalog',   label: 'كتالوج المنتجات', icon: '🛍️' },
-    { id: 'inventory', label: 'إدارة المخزون',    icon: '📦' },
-  ];
+ const TABS = [
+ { id: 'catalog', label: 'كتالوج المنتجات' },
+ { id: 'inventory', label: 'إدارة المخزون', icon: '' },
+ ];
 
-  return (
-    <div className="space-y-6 text-burgundy">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-xl">
-          {toast}
-        </div>
-      )}
+ return (
+ <div className="space-y-6 text-burgundy">
+ {/* Toast */}
+ {toast && (
+ <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-xl">
+ {toast}
+ </div>
+ )}
 
-      {/* Header */}
-      <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
-        <h2 className="text-2xl font-bold">المنتجات والمخزون</h2>
-      </div>
+ {/* Header */}
+ <div>
+ <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
+ <h2 className="text-2xl font-bold">المنتجات والمخزون</h2>
+ </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-white rounded-2xl border border-burgundy/10 p-1.5 w-fit shadow-sm">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              tab === t.id
-                ? 'bg-burgundy text-white shadow-md shadow-burgundy/25'
-                : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/6'
-            }`}
-          >
-            <span>{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
+ {/* Tabs */}
+ <div className="flex gap-1 bg-white rounded-2xl border border-burgundy/10 p-1.5 w-fit shadow-sm">
+ {TABS.map(t => (
+ <button
+ key={t.id}
+ onClick={() => setTab(t.id)}
+ className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+ tab === t.id
+ ? 'bg-burgundy text-white shadow-md shadow-burgundy/25'
+ : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/6'
+ }`}
+ >
+ <span>{t.icon}</span>
+ {t.label}
+ </button>
+ ))}
+ </div>
 
-      {/* Tab Content */}
-      {tab === 'catalog' ? (
-        <CatalogTab
-          products={products}
-          loading={loading}
-          categories={categories}
-          catAr={catAr}
-          onAdd={() => setModal('create')}
-          onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
-          onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
-          onShowHistory={setHistoryProduct}
-          onRestock={setRestockingProduct}
-        />
-      ) : (
-        <InventoryTab
-          products={products}
-          loading={loading}
-          categories={categories}
-          catAr={catAr}
-          onRefresh={loadProducts}
-          onRestock={setRestockingProduct}
-          onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
-          onShowHistory={setHistoryProduct}
-        />
-      )}
+ {/* Tab Content */}
+ {tab === 'catalog' ? (
+ <CatalogTab
+ products={products}
+ loading={loading}
+ categories={categories}
+ catAr={catAr}
+ onAdd={() => setModal('create')}
+ onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
+ onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
+ onShowHistory={setHistoryProduct}
+ onRestock={setRestockingProduct}
+ />
+ ) : (
+ <InventoryTab
+ products={products}
+ loading={loading}
+ categories={categories}
+ catAr={catAr}
+ onRefresh={loadProducts}
+ onRestock={setRestockingProduct}
+ onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
+ onShowHistory={setHistoryProduct}
+ />
+ )}
 
-      {/* Modal */}
-      {modal && (
-        <ProductModal
-          product={modal === 'create' ? null : modal}
-          onClose={() => setModal(null)}
-          onSave={handleSave}
-          categories={categories}
-          catAr={catAr}
-          onAddCategory={handleAddCategory}
-        />
-      )}
+ {/* Modal */}
+ {modal && (
+ <ProductModal
+ product={modal === 'create' ? null : modal}
+ onClose={() => setModal(null)}
+ onSave={handleSave}
+ categories={categories}
+ catAr={catAr}
+ onAddCategory={handleAddCategory}
+ />
+ )}
 
-      {/* Restock Modal */}
-      {restockingProduct && (
-        <RestockModal
-          product={restockingProduct}
-          onClose={() => setRestockingProduct(null)}
-          onRestocked={(msg) => {
-            showToast(msg);
-            loadProducts();
-          }}
-        />
-      )}
+ {/* Restock Modal */}
+ {restockingProduct && (
+ <RestockModal
+ product={restockingProduct}
+ onClose={() => setRestockingProduct(null)}
+ onRestocked={(msg) => {
+ showToast(msg);
+ loadProducts();
+ }}
+ />
+ )}
 
-      {/* Stock History Modal */}
-      {historyProduct && (
-        <StockHistoryModal
-          product={historyProduct}
-          onClose={() => setHistoryProduct(null)}
-        />
-      )}
+ {/* Stock History Modal */}
+ {historyProduct && (
+ <StockHistoryModal
+ product={historyProduct}
+ onClose={() => setHistoryProduct(null)}
+ />
+ )}
 
-      {/* Delete Confirmation */}
-      <ConfirmModal
-        isOpen={isDeleteOpen}
-        title="تأكيد الأرشفة"
-        message="هل أنت متأكد من أرشفة هذا المنتج؟ لن يظهر مجدداً في واجهة الكاشير ولكنه سيظل في قاعدة البيانات للتقارير القديمة."
-        onConfirm={() => handleDelete(productToDelete)}
-        onCancel={() => { setIsDeleteOpen(false); setProductToDelete(null); }}
-      />
-    </div>
-  );
+ {/* Delete Confirmation */}
+ <ConfirmModal
+ isOpen={isDeleteOpen}
+ title="تأكيد الأرشفة"
+ message="هل أنت متأكد من أرشفة هذا المنتج؟ لن يظهر مجدداً في واجهة الكاشير ولكنه سيظل في قاعدة البيانات للتقارير القديمة."
+ onConfirm={() => handleDelete(productToDelete)}
+ onCancel={() => { setIsDeleteOpen(false); setProductToDelete(null); }}
+ />
+ </div>
+ );
 }
 
 export default AdminProducts;
