@@ -410,11 +410,101 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
       req.body.totalReceived = incomingStock + currentSold;
     }
 
+    const prevStock = existingProduct.stock || 0;
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    
+    // Log stock change in StockHistory if stock changed during edit
+    const newStock = product.stock || 0;
+    if (prevStock !== newStock) {
+      await StockHistory.create({
+        product: product._id,
+        productName: product.name,
+        changeType: 'Product Edit',
+        quantityChanged: newStock - prevStock,
+        previousStock: prevStock,
+        newStock: newStock,
+        performedBy: req.user.id,
+        performedByName: req.user.name || '',
+        notes: `تعديل يدوي للمخزون عبر شاشة المنتجات (${prevStock} ➔ ${newStock})`
+      });
+    }
+
     req.app.locals.io?.emit('inventory:update', product);
     res.json(product);
   } catch (error) {
     res.status(500).json({ message: 'Unable to update product', error: error.message });
+  }
+});
+
+// POST /api/admin/products/:id/restock — Restock a product (add new incoming shipment)
+router.post('/products/:id/restock', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'المنتج غير موجود' });
+
+    const { additions = [], quantity = 0, costPrice, supplier, notes = '' } = req.body;
+
+    let totalAdded = 0;
+    const prevStock = product.stock || 0;
+
+    if (product.variants && product.variants.length > 0 && Array.isArray(additions) && additions.length > 0) {
+      additions.forEach(add => {
+        const qty = Number(add.quantity || 0);
+        if (qty <= 0) return;
+        const v = product.variants.find(item => item.size === add.size && item.color === add.color);
+        if (v) {
+          v.stock = (v.stock || 0) + qty;
+          totalAdded += qty;
+        } else {
+          product.variants.push({ size: add.size, color: add.color, stock: qty });
+          totalAdded += qty;
+        }
+      });
+      product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+    } else {
+      const qty = Number(quantity || 0);
+      if (qty > 0) {
+        product.stock = (product.stock || 0) + qty;
+        totalAdded = qty;
+      }
+    }
+
+    if (totalAdded <= 0) {
+      return res.status(400).json({ message: 'يرجى إدخال كمية موجبة لتزويد المخزون' });
+    }
+
+    product.totalReceived = (product.totalReceived || 0) + totalAdded;
+
+    if (costPrice && Number(costPrice) > 0) {
+      product.costPrice = Number(costPrice);
+    }
+    if (supplier && supplier.trim()) {
+      product.supplier = supplier.trim();
+    }
+    if (product.active === false) {
+      product.active = true;
+    }
+
+    await product.save();
+
+    // Log Stock History
+    await StockHistory.create({
+      product: product._id,
+      productName: product.name,
+      changeType: 'Restock',
+      quantityChanged: totalAdded,
+      previousStock: prevStock,
+      newStock: product.stock,
+      performedBy: req.user.id,
+      performedByName: req.user.name || '',
+      notes: notes ? `تزويد شحنة جديدة (+${totalAdded} قطعة) - ${notes}` : `تزويد شحنة جديدة (+${totalAdded} قطعة)`
+    });
+
+    req.app.locals.io?.emit('inventory:update', product);
+    res.json({ message: 'تم تزويد المخزون بنجاح', product });
+  } catch (error) {
+    console.error('Restock error:', error);
+    res.status(500).json({ message: 'فشل تزويد المخزون', error: error.message });
   }
 });
 
