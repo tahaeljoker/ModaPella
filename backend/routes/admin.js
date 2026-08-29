@@ -306,9 +306,16 @@ router.put('/site-config', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
+const ARABIC_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+
 const sanitizeSku = (str) => {
   if (!str || typeof str !== 'string') return '';
-  return str.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+  let s = str.trim();
+  for (let i = 0; i < 10; i++) {
+    s = s.replaceAll(ARABIC_DIGITS[i], String(i)).replaceAll(PERSIAN_DIGITS[i], String(i));
+  }
+  return s.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
 };
 
 const generateSku = async () => {

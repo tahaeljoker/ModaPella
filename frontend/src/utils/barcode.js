@@ -7,21 +7,24 @@ import JsBarcode from 'jsbarcode';
 export function renderBarcodeDataUrl(text, options = {}) {
   if (!text || typeof text !== 'string') return '';
   try {
-    // Filter non-printable ASCII chars if any
+    // Filter non-printable ASCII chars if any and trim
     const sanitized = text.split('').filter(c => {
       const code = c.charCodeAt(0);
       return code >= 32 && code <= 127;
-    }).join('');
+    }).join('').trim();
 
     if (!sanitized) return '';
 
     const canvas = document.createElement('canvas');
-    const defaultWidth = sanitized.length <= 6 ? 2.5 : 2;
+    // Ensure barcodes with short codes (e.g. 103) have thick enough bars for laser scanners
+    const defaultWidth = sanitized.length <= 4 ? 2.6 : sanitized.length <= 7 ? 2.2 : 1.8;
+    const safeMargin = options.margin !== undefined ? Math.max(options.margin, 8) : 10;
+
     JsBarcode(canvas, sanitized, {
       format: 'CODE128',
       width: options.width || defaultWidth,
-      height: options.height || 55,
-      margin: options.margin !== undefined ? options.margin : 10,
+      height: options.height || 50,
+      margin: safeMargin,
       displayValue: false,
       lineColor: '#000000',
       background: '#ffffff',
@@ -43,16 +46,19 @@ export function renderBarcodeSVG(text, height = 55, quietZone = 10) {
     const sanitized = text.split('').filter(c => {
       const code = c.charCodeAt(0);
       return code >= 32 && code <= 127;
-    }).join('');
+    }).join('').trim();
 
     if (!sanitized) return '';
+
+    const defaultWidth = sanitized.length <= 4 ? 2.6 : sanitized.length <= 7 ? 2.2 : 1.8;
+    const safeMargin = Math.max(quietZone, 8);
 
     const svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     JsBarcode(svgNode, sanitized, {
       format: 'CODE128',
-      width: 2,
+      width: defaultWidth,
       height: height,
-      margin: quietZone,
+      margin: safeMargin,
       displayValue: false,
       lineColor: '#000000',
       background: '#ffffff'
