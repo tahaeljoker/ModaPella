@@ -104,6 +104,9 @@ async function calculateMonthlyData(year, month) {
   let salesInstapayCollected = 0;
 
   orders.forEach(o => {
+    // Fix 6: Exclude manual debt entries from sales revenue (they have no real items sold)
+    if (o.isManualDebt) return;
+
     totalSales += o.totalAmount;
     totalDiscounts += (o.discount || 0);
 
@@ -136,7 +139,38 @@ async function calculateMonthlyData(year, month) {
   let refundsInstapay = 0;
   let operatingExpenses = 0;
 
+  // Fix 3 & 4: Track cross-month debt payment profit and cross-month refund loss
+  // These affect profit even though the original orders are in a different month.
+  let crossMonthDebtProfit = 0;
+  let crossMonthRefundLoss = 0;
+
   const expenseMap = {};
+
+  // Pre-build a set of order IDs created this month for fast lookup
+  const thisMonthOrderIds = new Set(orders.map(o => o._id.toString()));
+
+  // Fetch previous orders referenced by this month's debt payments / refunds
+  // We need their COGS to correctly calculate the profit contribution.
+  const crossMonthOrderIdsToFetch = new Set();
+  transactions.forEach(t => {
+    if (t.referenceId) {
+      const refId = t.referenceId.toString();
+      if (!thisMonthOrderIds.has(refId)) {
+        if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
+          crossMonthOrderIdsToFetch.add(refId);
+        }
+        if (isRefundTx(t)) {
+          crossMonthOrderIdsToFetch.add(refId);
+        }
+      }
+    }
+  });
+
+  const crossMonthOrders = crossMonthOrderIdsToFetch.size > 0
+    ? await Order.find({ _id: { $in: [...crossMonthOrderIdsToFetch] } })
+    : [];
+  const crossMonthOrderMap = {};
+  crossMonthOrders.forEach(o => { crossMonthOrderMap[o._id.toString()] = o; });
 
   transactions.forEach(t => {
     if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
@@ -145,11 +179,41 @@ async function calculateMonthlyData(year, month) {
       } else {
         debtPaymentsInstapay += t.amount;
       }
+      // Fix 3: Add profit for cross-month debt payments
+      // Cash collected this month from last month's debt order = real profit realization
+      if (t.referenceId) {
+        const refId = t.referenceId.toString();
+        if (!thisMonthOrderIds.has(refId)) {
+          const prevOrder = crossMonthOrderMap[refId];
+          if (prevOrder) {
+            // COGS per collected amount (proportional)
+            const orderTotal = prevOrder.totalAmount || 0;
+            const orderCost = prevOrder.items.reduce((sum, item) => {
+              const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+              return sum + (item.costPrice || 0) * netQty;
+            }, 0);
+            const costProportion = orderTotal > 0 ? (orderCost / orderTotal) : 0;
+            const thisCogs = t.amount * costProportion;
+            crossMonthDebtProfit += (t.amount - thisCogs);
+          } else {
+            // Order not found (deleted?) — treat full payment as profit
+            crossMonthDebtProfit += t.amount;
+          }
+        }
+      }
     } else if (isRefundTx(t)) {
       if (t.paymentMethod === 'Cash') {
         refundsCash += t.amount;
       } else {
         refundsInstapay += t.amount;
+      }
+      // Fix 4: Cross-month refunds should reduce this month's profit
+      if (t.referenceId) {
+        const refId = t.referenceId.toString();
+        if (!thisMonthOrderIds.has(refId)) {
+          // Refund paid this month for last month's sale = profit loss this month
+          crossMonthRefundLoss += t.amount;
+        }
       }
     } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isPersonalTx(t)) {
       // Operating expense
@@ -159,23 +223,30 @@ async function calculateMonthlyData(year, month) {
     }
   });
 
-  // Calculate Supplier Purchases & Payments
-  // Only count 'purchase' type to avoid double-counting:
-  // cash_purchase creates both a 'purchase' AND a 'payment' record,
-  // so summing both types would double the amount.
-  let supplierPurchases = 0;
+  grossProfit += crossMonthDebtProfit;
+  grossProfit -= crossMonthRefundLoss;
+
+  // Calculate Supplier Cash Paid (actual outflows only, not credit purchases)
+  // Fix 5: Use 'payment' type only (actual cash paid), not 'purchase' (goods received on credit).
+  // This prevents fictitiously deducting credit purchases from the cash flow.
+  let supplierCashPaid = 0;
+  let supplierPurchases = 0; // kept for display/audit — value of goods received this month
 
   supplierTxs.forEach(st => {
     if (st.type === 'purchase') {
       supplierPurchases += st.amount;
     }
+    if (st.type === 'payment') {
+      supplierCashPaid += st.amount;
+    }
   });
 
-  // If there are safe transactions for supplier payments not tracked in SupplierTransaction
+  // Also capture supplier safe transactions not tracked in SupplierTransaction model
   transactions.forEach(t => {
     if (isSupplierTx(t)) {
       const isAlreadyInSupplierTx = t.referenceId && supplierTxs.some(st => st._id.toString() === t.referenceId.toString());
       if (!isAlreadyInSupplierTx) {
+        supplierCashPaid += t.amount;
         supplierPurchases += t.amount;
       }
     }
@@ -185,7 +256,7 @@ async function calculateMonthlyData(year, month) {
     expenseMap['مشتريات وبضائع موردين'] = supplierPurchases;
   }
 
-  const totalExpenses = operatingExpenses + supplierPurchases;
+  const totalExpenses = operatingExpenses + supplierCashPaid;
 
   const expenseBreakdown = Object.entries(expenseMap).map(([category, amount]) => ({
     category,
@@ -199,8 +270,8 @@ async function calculateMonthlyData(year, month) {
   // Net Operating Profit = Gross Profit - Operating Expenses
   const netProfit = grossProfit - operatingExpenses;
 
-  // Net Cash Flow = (Cash Collected + Instapay Collected) - Total Outflows
-  const netCashFlow = (cashRevenue + instapayRevenue) - (operatingExpenses + supplierPurchases);
+  // Fix 5: Net Cash Flow uses actual cash paid to suppliers (supplierCashPaid), not purchase values
+  const netCashFlow = (cashRevenue + instapayRevenue) - (operatingExpenses + supplierCashPaid);
 
   // Daily Breakdown
   const dailyData = [];
@@ -410,7 +481,7 @@ async function calculateMonthlyData(year, month) {
       operatingExpenses: `مصاريف التشغيل = إجمالي المصاريف الإدارية والعمومية (عدد ${operatingExpensesList.length} حركة بقيمة ${operatingExpenses.toLocaleString()} ج.م) مع استبعاد الموردين والورديات.`,
       supplierPurchases: `مشتريات بضائع الموردين = إجمالي مبالغ البضائع وسداد الموردين (عدد ${supplierPaymentsList.length} حركة بقيمة ${supplierPurchases.toLocaleString()} ج.م) من الخزنة أو من خارجها.`,
       netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) - مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م.`,
-      netCashFlow: `صافي حركة الخزنة = (السيولة المباشرة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) - (المصروفات ${operatingExpenses.toLocaleString()} ج.م + الموردين ${supplierPurchases.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
+      netCashFlow: `صافي حركة الخزنة = (السيولة المباشرة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) - (المصروفات ${operatingExpenses.toLocaleString()} ج.م + المدفوع فعلاً للموردين ${supplierCashPaid.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
     }
   };
 

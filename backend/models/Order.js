@@ -31,7 +31,8 @@ const OrderSchema = new mongoose.Schema({
   recovered: { type: Boolean, default: false },
   amountPaid: { type: Number, default: 0 },
   debtAmount: { type: Number, default: 0 },
-  isDebt: { type: Boolean, default: false }
+  isDebt: { type: Boolean, default: false },
+  isManualDebt: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

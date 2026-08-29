@@ -608,6 +608,7 @@ router.post('/debts/manual', auth, requireRole(['admin', 'cashier', 'manager']),
       paymentMethod: 'Cash',
       notes: `تسجيل دين يدوي: ${notes}`,
       isDebt: true,
+      isManualDebt: true,
       amountPaid: 0,
       debtAmount: debtAmount
     });

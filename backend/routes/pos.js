@@ -314,6 +314,26 @@ router.post('/recover', auth, async (req, res) => {
     });
     await transaction.save();
 
+    // Fix: If the original order was a debt order, reduce the customer's outstanding debt
+    // by the proportion of items returned (since they weren't fully paid, we reduce debtAmount).
+    if (order.isDebt && order.customer) {
+      const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+      const originalOrderTotal = order.totalAmount + order.discount;
+      if (originalOrderTotal > 0) {
+        const returnProportion = returnedItemsValue / originalOrderTotal;
+        const debtReduction = Math.round((order.debtAmount || 0) * returnProportion * 100) / 100;
+        if (debtReduction > 0) {
+          order.debtAmount = Math.max(0, (order.debtAmount || 0) - debtReduction);
+          await order.save();
+          const customer = await Customer.findById(order.customer);
+          if (customer) {
+            customer.debt = Math.max(0, (customer.debt || 0) - debtReduction);
+            await customer.save();
+          }
+        }
+      }
+    }
+
     res.json({ order, refundAmount, returnedItems: itemsToReturn, message: fullyRecovered ? 'Full return processed' : 'Partial return processed' });
   } catch (error) {
     res.status(500).json({ message: 'Recovery failed', error: error.message });
@@ -784,6 +804,26 @@ router.put('/orders/:id', auth, async (req, res) => {
         shift: openShift?._id
       });
       await newTransaction.save();
+    }
+
+    // 4. Recalculate debt if this is a debt order
+    if (isDebtOrder && order.customer) {
+      const oldDebt = order.debtAmount || 0;
+      const newAmountPaid = Math.min(totalAmount, finalAmountPaidEdit);
+      const newDebt = Math.max(0, totalAmount - newAmountPaid);
+      const debtDelta = newDebt - oldDebt; // positive = debt increased, negative = debt decreased
+
+      order.amountPaid = newAmountPaid;
+      order.debtAmount = newDebt;
+      await order.save();
+
+      if (debtDelta !== 0) {
+        const customer = await Customer.findById(order.customer);
+        if (customer) {
+          customer.debt = Math.max(0, (customer.debt || 0) + debtDelta);
+          await customer.save();
+        }
+      }
     }
 
     res.json({ order, message: 'Order updated successfully' });
