@@ -86,7 +86,7 @@ async function calculateMonthlyData(year, month) {
   const [orders, transactions, supplierTxs] = await Promise.all([
     Order.find({
       createdAt: { $gte: startDate, $lte: endDate },
-      status: 'Completed'
+      status: { $in: ['Completed', 'Returned'] }
     }).populate('employee'),
     Transaction.find({
       createdAt: { $gte: startDate, $lte: endDate }
@@ -305,12 +305,13 @@ async function calculateMonthlyData(year, month) {
       return time >= dStart.getTime() && time <= dEnd.getTime();
     });
 
-    const dayRevenue = dayOrders.reduce((s, o) => s + o.totalAmount, 0);
-    const dayDiscounts = dayOrders.reduce((s, o) => s + (o.discount || 0), 0);
+    const dayRevenue = dayOrders.reduce((s, o) => s + (o.isManualDebt ? 0 : o.totalAmount), 0);
+    const dayDiscounts = dayOrders.reduce((s, o) => s + (o.isManualDebt ? 0 : (o.discount || 0)), 0);
 
     let daySalesCash = 0;
     let daySalesInstapay = 0;
     dayOrders.forEach(o => {
+      if (o.isManualDebt) return;
       const paid = o.isDebt ? (o.amountPaid || 0) : o.totalAmount;
       if (o.paymentMethod === 'Cash') daySalesCash += paid;
       else daySalesInstapay += paid;
@@ -321,6 +322,7 @@ async function calculateMonthlyData(year, month) {
     let dayRefundCash = 0;
     let dayRefundInstapay = 0;
     let dayOpExpenses = 0;
+    let dayPersonalWithdrawals = 0;
 
     dayTransactions.forEach(t => {
       if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
@@ -329,15 +331,21 @@ async function calculateMonthlyData(year, month) {
       } else if (isRefundTx(t)) {
         if (t.paymentMethod === 'Cash') dayRefundCash += t.amount;
         else dayRefundInstapay += t.amount;
-      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isPersonalTx(t)) {
+      } else if (isPersonalTx(t)) {
+        dayPersonalWithdrawals += t.amount;
+      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
         dayOpExpenses += t.amount;
       }
     });
 
     let daySupplierPurchases = 0;
+    let daySupplierCashPaid = 0;
     daySupplierTxs.forEach(st => {
       if (st.type === 'purchase') {
         daySupplierPurchases += st.amount;
+      }
+      if (st.type === 'payment') {
+        daySupplierCashPaid += st.amount;
       }
     });
 
@@ -346,6 +354,7 @@ async function calculateMonthlyData(year, month) {
         const isAlreadyInSupplierTx = t.referenceId && daySupplierTxs.some(st => st._id.toString() === t.referenceId.toString());
         if (!isAlreadyInSupplierTx) {
           daySupplierPurchases += t.amount;
+          daySupplierCashPaid += t.amount;
         }
       }
     });
@@ -355,11 +364,13 @@ async function calculateMonthlyData(year, month) {
     const dayExpenses = dayOpExpenses + daySupplierPurchases;
 
     const dayGrossProfit = dayOrders.reduce((sum, o) => {
+      if (o.isManualDebt) return sum;
       const orderCost = o.items.reduce((cSum, item) => {
         const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
         return cSum + (item.costPrice || 0) * netQty;
       }, 0);
-      return sum + (o.totalAmount - orderCost);
+      const effectiveRevenue = o.isDebt ? (o.amountPaid || 0) : o.totalAmount;
+      return sum + (effectiveRevenue - orderCost);
     }, 0);
 
     const dayProfit = dayGrossProfit - dayOpExpenses;

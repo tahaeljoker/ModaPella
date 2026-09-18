@@ -6,6 +6,7 @@ import { exportToCSV } from '../../services/export';
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const EXPENSE_CATEGORIES = [
+ 'مسحوبات شخصية / جمعية',
  'مسحوبات شخصية',
  'انترنت ومرافق',
  'صيانة وإصلاحات',
@@ -301,7 +302,9 @@ function CashierSafe() {
  {t.type === 'IN' ? 'داخل' : 'خارج'}
  </span>
  </td>
- <td className="py-4">{t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Safe Transfer' ? 'تحويل للخزينة' : t.category === 'Expense' ? 'مصروف' : 'أخرى'}</td>
+ <td className="py-4 font-semibold text-xs text-burgundy">
+ {t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Safe Transfer' ? 'تحويل للخزينة' : t.category === 'Expense' ? 'مصروف' : (t.category || 'أخرى')}
+ </td>
  <td className="py-4">{t.paymentMethod}</td>
  <td className={`py-4 font-bold ${t.type === 'IN' ? 'text-emerald-600' : 'text-red-600'}`}>{EGP(t.amount)}</td>
  <td className="py-4 text-xs text-burgundy/70">{t.description || '-'}</td>

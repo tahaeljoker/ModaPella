@@ -70,7 +70,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
     const totalValue = Math.round(products.reduce((sum, item) => sum + item.stock * item.price, 0));
-    const totalSales = Math.round(periodOrders.reduce((sum, order) => sum + order.totalAmount, 0));
+    const totalSales = Math.round(periodOrders.reduce((sum, order) => sum + (order.isManualDebt ? 0 : order.totalAmount), 0));
     const lowStock = products.filter((item) => item.stock <= 5);
 
     const isInternalMovement = (t) => {
@@ -124,6 +124,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     let operatingExpenses = 0;
     let supplierPurchases = 0;
+    let supplierCashPaid = 0;
     let personalWithdrawals = 0;
     const expenseMap = {};
 
@@ -138,8 +139,11 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     });
 
     supplierTxs.forEach(st => {
-      if (st.type === 'payment' || st.type === 'purchase' || st.type === 'cash_purchase') {
+      if (st.type === 'purchase') {
         supplierPurchases += st.amount;
+      }
+      if (st.type === 'payment') {
+        supplierCashPaid += st.amount;
       }
     });
 
@@ -148,6 +152,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         const isAlreadyInSupplierTx = t.referenceId && supplierTxs.some(st => st._id.toString() === t.referenceId.toString());
         if (!isAlreadyInSupplierTx) {
           supplierPurchases += t.amount;
+          supplierCashPaid += t.amount;
         }
       }
     });
@@ -156,6 +161,8 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     let grossProfit = 0;
 
     periodOrders.forEach(order => {
+      if (order.isManualDebt) return;
+
       const orderCost = order.items.reduce((s, item) => {
         const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
         return s + (item.costPrice || 0) * netQty;
@@ -171,7 +178,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     operatingExpenses = Math.round(operatingExpenses);
     supplierPurchases = Math.round(supplierPurchases);
     const netProfit = Math.round(grossProfit - operatingExpenses);
-    const totalDiscounts = Math.round(periodOrders.reduce((sum, o) => sum + (o.discount || 0), 0));
+    const totalDiscounts = Math.round(periodOrders.reduce((sum, o) => sum + (o.isManualDebt ? 0 : (o.discount || 0)), 0));
 
     // Calculate best selling products
     const productSales = {};

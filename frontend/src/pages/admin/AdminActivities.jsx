@@ -145,7 +145,52 @@ function AdminActivities() {
  </div>
 
  {/* Date Filters & Search */}
- <div className="grid gap-4 md:grid-cols-3 bg-white p-5 rounded-[2rem] border border-burgundy/10 shadow-sm">
+ <div className="space-y-3 bg-white p-5 rounded-[2rem] border border-burgundy/10 shadow-sm">
+ <div className="flex items-center justify-between gap-2 flex-wrap">
+ <div className="flex items-center gap-1.5 flex-wrap">
+ <span className="text-xs font-bold text-burgundy/50 ml-1">عرض سريع:</span>
+ <button
+ type="button"
+ onClick={() => { setFrom(getTodayString()); setTo(getTodayString()); }}
+ className={`px-3 py-1 rounded-lg text-xs font-bold transition ${from === getTodayString() && to === getTodayString() ? 'bg-burgundy text-white' : 'bg-burgundy/5 text-burgundy hover:bg-burgundy/10'}`}
+ >
+ اليوم
+ </button>
+ <button
+ type="button"
+ onClick={() => {
+ const d = new Date();
+ const firstDay = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+ const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+ setFrom(firstDay); setTo(lastDay);
+ }}
+ className="px-3 py-1 rounded-lg text-xs font-bold bg-burgundy/5 text-burgundy hover:bg-burgundy/10 transition"
+ >
+ هذا الشهر
+ </button>
+ <button
+ type="button"
+ onClick={() => {
+ const d = new Date();
+ const prevFirst = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
+ const prevLast = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().split('T')[0];
+ setFrom(prevFirst); setTo(prevLast);
+ }}
+ className="px-3 py-1 rounded-lg text-xs font-bold bg-burgundy/5 text-burgundy hover:bg-burgundy/10 transition"
+ >
+ الشهر السابق
+ </button>
+ <button
+ type="button"
+ onClick={() => { setFrom(''); setTo(''); }}
+ className={`px-3 py-1 rounded-lg text-xs font-bold transition ${!from && !to ? 'bg-burgundy text-white' : 'bg-burgundy/5 text-burgundy hover:bg-burgundy/10'}`}
+ >
+ كل السجلات
+ </button>
+ </div>
+ </div>
+
+ <div className="grid gap-4 md:grid-cols-3 pt-2 border-t border-burgundy/5">
  <div className="flex items-center gap-2">
  <span className="text-xs font-bold text-burgundy/60 whitespace-nowrap">من تاريخ:</span>
  <input
@@ -172,6 +217,7 @@ function AdminActivities() {
  placeholder=" بحث بالبيان، المستخدم، التفاصيل..."
  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
  />
+ </div>
  </div>
  </div>
 
