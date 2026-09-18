@@ -144,13 +144,72 @@ router.patch('/:id', auth, async (req, res) => {
     if (!['Pending', 'Completed', 'Returned'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status value' });
     }
-    const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
+
+    const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const prevStatus = order.status;
+    order.status = status;
+    await order.save();
+
+    // Fix: when an online order is returned or cancelled, restore the deducted stock.
+    // Stock was deducted at checkout time (public-checkout), but was never restored on return.
+    const shouldRestoreStock =
+      (status === 'Returned') &&
+      (prevStatus === 'Pending' || prevStatus === 'Completed') &&
+      order.type === 'Online' &&
+      !order.recovered; // don't double-restore if already processed via /recover
+
+    if (shouldRestoreStock) {
+      const StockHistory = require('../models/StockHistory');
+      await Promise.all(order.items.map(async (item) => {
+        const product = await Product.findById(item.product);
+        if (!product) return;
+
+        const qty = item.quantity - (item.returnedQuantity || 0);
+        if (qty <= 0) return;
+
+        let prevStock = 0;
+        if (product.variants && product.variants.length > 0) {
+          const variant = product.variants.find(v => v.size === item.size && v.color === item.color);
+          if (variant) {
+            prevStock = variant.stock;
+            variant.stock += qty;
+          }
+          product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+        } else {
+          prevStock = product.stock;
+          product.stock += qty;
+        }
+        product.sold = Math.max(0, product.sold - qty);
+        await product.save();
+
+        await StockHistory.create({
+          product: product._id,
+          productName: product.name,
+          size: item.size || '',
+          color: item.color || '',
+          changeType: 'Refund',
+          quantityChanged: qty,
+          previousStock: prevStock,
+          newStock: prevStock + qty,
+          notes: `إرجاع طلب أونلاين #${order._id.toString().slice(-6).toUpperCase()}`
+        });
+
+        req.app.locals.io?.emit('inventory:update', product);
+      }));
+
+      // Mark order as recovered so stock isn't restored twice
+      order.recovered = true;
+      await order.save();
+    }
+
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: 'Unable to update order status', error: error.message });
   }
 });
+
 
 // POST /api/orders/public-checkout — Public endpoint for guest user online checkout
 router.post('/public-checkout', async (req, res) => {

@@ -488,6 +488,11 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  color: c.color,
  stock: Number(getVariantStockVal(c.size, c.color) || 0)
  })) : [],
+ // Snapshot of variant stocks when modal was opened — backend uses this to compute
+ // a safe delta and avoid overwriting sales that happened while modal was open
+ originalVariants: product?.variants
+ ? product.variants.map(v => ({ size: v.size, color: v.color, stock: v.stock || 0 }))
+ : [],
  images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
  sizes: activeSizes, colors: activeColors,
  };

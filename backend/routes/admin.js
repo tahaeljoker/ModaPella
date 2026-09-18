@@ -408,6 +408,34 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
     }
 
     if (req.body.variants && Array.isArray(req.body.variants) && req.body.variants.length > 0) {
+      // Fix race condition: frontend sends originalVariants (snapshot at modal-open time).
+      // We compute the delta the admin intended, then apply it on top of the *live* DB stock
+      // so any sales that occurred while the modal was open are NOT erased.
+      const originalVariants = req.body.originalVariants || [];
+      const originalMap = {};
+      originalVariants.forEach(ov => {
+        const key = `${ov.size || ''}_${ov.color || ''}`;
+        originalMap[key] = Number(ov.stock || 0);
+      });
+
+      req.body.variants = req.body.variants.map(v => {
+        const key = `${v.size || ''}_${v.color || ''}`;
+        const originalStock = originalMap.hasOwnProperty(key) ? originalMap[key] : Number(v.stock || 0);
+        const intendedStock = Number(v.stock || 0);
+        const delta = intendedStock - originalStock; // positive = admin added, negative = admin removed
+
+        // Find the current live DB stock for this variant
+        const dbVariant = existingProduct.variants
+          ? existingProduct.variants.find(dv => dv.size === v.size && dv.color === v.color)
+          : null;
+        const liveStock = dbVariant != null ? (dbVariant.stock || 0) : intendedStock;
+
+        // Apply delta on top of live stock (never go below 0)
+        const correctedStock = Math.max(0, liveStock + delta);
+        return { ...v, stock: correctedStock };
+      });
+
+      delete req.body.originalVariants; // don't persist this helper field
       req.body.stock = req.body.variants.reduce((sum, v) => sum + Number(v.stock || 0), 0);
     }
 

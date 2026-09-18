@@ -270,8 +270,19 @@ async function calculateMonthlyData(year, month) {
   // Net Operating Profit = Gross Profit - Operating Expenses
   const netProfit = grossProfit - operatingExpenses;
 
+  // Fix 3 (جمعية/Cash flow): also track personal withdrawals — they leave the safe
+  // but were intentionally excluded from operatingExpenses (correct for profit).
+  // They MUST be subtracted from netCashFlow so the safe balance is accurate.
+  let personalWithdrawals = 0;
+  transactions.forEach(t => {
+    if (isPersonalTx(t)) {
+      personalWithdrawals += t.amount;
+    }
+  });
+
   // Fix 5: Net Cash Flow uses actual cash paid to suppliers (supplierCashPaid), not purchase values
-  const netCashFlow = (cashRevenue + instapayRevenue) - (operatingExpenses + supplierCashPaid);
+  // Also subtracts personal withdrawals (جمعية etc.) since they physically leave the safe
+  const netCashFlow = (cashRevenue + instapayRevenue) - (operatingExpenses + supplierCashPaid + personalWithdrawals);
 
   // Daily Breakdown
   const dailyData = [];

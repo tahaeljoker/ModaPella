@@ -222,11 +222,11 @@ router.get('/safe/smart-audit', auth, requireRole(['admin']), async (req, res) =
             date: t.createdAt,
             user: t.user ? t.user.name : 'غير محدد',
             issueType: 'PERSONAL_WITHDRAWAL',
-            title: 'مسحوبات شخصية / جمعية مخصومة كـ مصروف تشغيلي بالخطأ!',
+            title: 'مسحوبات شخصية / جمعية',
             suggestedCategory: 'مسحوبات شخصية',
-            impactMessage: `تحويل الفئة سيُضيف ${Math.round(t.amount)} ج.م فوراً لصافي ربحك!`
+            impactMessage: `هذه المبالغ (${Math.round(t.amount)} ج.م) مستبعدة من الربح بشكل صحيح ولا تؤثر عليه، لكنها تؤثر على صافي التدفق النقدي للخزنة.`
           });
-          potentialProfitGain += t.amount;
+          // Note: personal withdrawals are correctly excluded from profit, do NOT add to potentialProfitGain
         } else if (desc.includes('مورد') || desc.includes('بضاعة') || desc.includes('قماش') || desc.includes('مصنع') || desc.includes('سداد حساب')) {
           warnings.push({
             id: t._id,
