@@ -5,14 +5,15 @@ import { exportToCSV } from '../../services/export';
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const TYPE_CONFIG = {
- sale: { label: 'مبيعات', icon: '', color: 'border-emerald-500 bg-emerald-50 text-emerald-800 node-bg-emerald' },
- expense: { label: 'مصروفات', icon: '', color: 'border-rose-500 bg-rose-50 text-rose-800 node-bg-rose' },
- refund: { label: 'مرتجع', icon: '', color: 'border-amber-500 bg-amber-50 text-amber-800 node-bg-amber' },
- deposit: { label: 'إيداع', icon: '', color: 'border-blue-500 bg-blue-50 text-blue-800 node-bg-blue' },
- safe_movement: { label: 'حركة خزينة', icon: '', color: 'border-indigo-500 bg-indigo-50 text-indigo-800 node-bg-indigo' },
- stock_adjustment: { label: 'مخزون', icon: '', color: 'border-teal-500 bg-teal-50 text-teal-800 node-bg-teal' },
- shift_open: { label: 'فتح وردية', icon: '', color: 'border-purple-500 bg-purple-50 text-purple-800 node-bg-purple' },
- shift_close: { label: 'إغلاق وردية', icon: '', color: 'border-slate-500 bg-slate-50 text-slate-800 node-bg-slate' }
+  sale: { label: 'مبيعات', icon: '', color: 'border-emerald-500 bg-emerald-50 text-emerald-800 node-bg-emerald' },
+  expense: { label: 'مصروفات تشغيل', icon: '', color: 'border-rose-500 bg-rose-50 text-rose-800 node-bg-rose' },
+  personal_withdrawal: { label: 'مسحوبات شخصية / جمعية', icon: '', color: 'border-amber-500 bg-amber-50 text-amber-900 node-bg-amber' },
+  refund: { label: 'مرتجع', icon: '', color: 'border-amber-500 bg-amber-50 text-amber-800 node-bg-amber' },
+  deposit: { label: 'إيداع', icon: '', color: 'border-blue-500 bg-blue-50 text-blue-800 node-bg-blue' },
+  safe_movement: { label: 'حركة خزينة', icon: '', color: 'border-indigo-500 bg-indigo-50 text-indigo-800 node-bg-indigo' },
+  stock_adjustment: { label: 'مخزون', icon: '', color: 'border-teal-500 bg-teal-50 text-teal-800 node-bg-teal' },
+  shift_open: { label: 'فتح وردية', icon: '', color: 'border-purple-500 bg-purple-50 text-purple-800 node-bg-purple' },
+  shift_close: { label: 'إغلاق وردية', icon: '', color: 'border-slate-500 bg-slate-50 text-slate-800 node-bg-slate' }
 };
 
 function AdminActivities() {
@@ -267,6 +268,14 @@ function AdminActivities() {
  <p className="text-xs text-burgundy/75 leading-relaxed bg-[#F7F0EC]/30 p-2.5 rounded-xl border border-burgundy/5">
  {act.description}
  </p>
+ )}
+
+ {/* Accounting notes / clarifications */}
+ {act.notes && (
+ <div className="flex items-center gap-1.5 text-[11px] bg-amber-500/10 text-amber-900 border border-amber-500/20 px-3 py-1.5 rounded-xl font-semibold">
+ <span>معلومة محاسبية:</span>
+ <span>{act.notes}</span>
+ </div>
  )}
 
  {/* Transaction amount, note, and edit category button */}

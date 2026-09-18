@@ -340,22 +340,22 @@ export default function AdminMonthlyReports() {
  </div>
  </div>
 
- {/* Formula Summary Card */}
- <div className="rounded-2xl bg-burgundy/5 p-4 border border-burgundy/10 space-y-2">
- <h4 className="font-bold text-sm text-burgundy"> القواعد والقيود المحاسبية المعتمدة للتقفيل الشهري:</h4>
- <p className="text-xs text-burgundy/80">
- <span className="font-bold">1. صافي المبيعات = </span> إجمالي قيم المبيعات قبل الخصم إجمالي الخصومات الممنوحة ({EGP(report.totalDiscounts)})
- </p>
- <p className="text-xs text-burgundy/80">
- <span className="font-bold">2. مجمل الربح التجاري = </span> صافي المبيعات تكلفة شراء البضاعة المباعة (COGS) <span className="text-burgundy/60 font-semibold">(عدم خصم التخفيض مرتين)</span>
- </p>
- <p className="text-xs text-burgundy/80">
- <span className="font-bold">3. صافي الربح النهائي = </span> مجمل الربح التجاري مصروفات التشغيل
- </p>
- <p className="text-xs text-burgundy/80">
- <span className="font-bold">4. صافي السيولة النقدية = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون) (مصاريف التشغيل + الموردين)
- </p>
- </div>
+  {/* Formula Summary Card */}
+  <div className="rounded-2xl bg-burgundy/5 p-4 border border-burgundy/10 space-y-2.5">
+  <h4 className="font-bold text-sm text-burgundy"> القواعد والقيود المحاسبية المعتمدة للتقفيل المالي:</h4>
+  <p className="text-xs text-burgundy/80">
+  <span className="font-bold">1. صافي المبيعات = </span> إجمالي قيم المبيعات قبل الخصم - إجمالي الخصومات الممنوحة ({EGP(report.totalDiscounts)})
+  </p>
+  <p className="text-xs text-burgundy/80">
+  <span className="font-bold">2. مجمل الربح التجاري = </span> صافي المبيعات - تكلفة شراء البضاعة المباعة (COGS) <span className="text-burgundy/60 font-semibold">(دون خصم التخفيض مرتين)</span>
+  </p>
+  <p className="text-xs text-burgundy/80">
+  <span className="font-bold">3. صافي ربح النشاط = </span> مجمل الربح التجاري - مصروفات التشغيل العمومية فقط <span className="text-emerald-700 font-bold">(المسحوبات الشخصية والجمعية مستبعدة تماماً لحماية أرباح المحل)</span>
+  </p>
+  <p className="text-xs text-burgundy/80">
+  <span className="font-bold">4. صافي حركة الخزنة والسيولة = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون) - (مصاريف التشغيل + المدفوع للموردين + المسحوبات الشخصية والجمعية {report.auditDetails?.personalWithdrawalsTotal ? `[${EGP(report.auditDetails.personalWithdrawalsTotal)}]` : ''})
+  </p>
+  </div>
 
  {/* Itemized Operating Expense List */}
  {report.auditDetails?.operatingExpensesList && report.auditDetails.operatingExpensesList.length > 0 && (

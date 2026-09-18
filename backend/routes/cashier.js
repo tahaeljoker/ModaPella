@@ -453,15 +453,32 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
       else if (t.category === 'DebtPayment') typeLabel = 'سداد دين عميل';
       else if (t.category === 'Other') typeLabel = 'حركة خزينة أخرى';
 
+      const catLower = (t.category || '').toLowerCase();
+      const descLower = (t.description || '').toLowerCase();
+      const isPersonal = catLower.includes('مسحوبات') || catLower.includes('شخصي') || catLower.includes('جمعية') || catLower.includes('جمعيه') || descLower.includes('جمعية') || descLower.includes('جمعيه') || descLower.includes('شخصي') || descLower.includes('مسحوبات');
+
+      let actType = 'safe_movement';
+      if (isPersonal) {
+        actType = 'personal_withdrawal';
+        typeLabel = 'مسحوبات شخصية / جمعية (تؤثر على الخزنة فقط - مستبعدة من الربح)';
+      } else if (catLower === 'expense') {
+        actType = 'expense';
+      } else if (catLower === 'refund') {
+        actType = 'refund';
+      } else if (catLower === 'debtpayment') {
+        actType = 'deposit';
+      }
+
       activities.push({
         id: `tx-${t._id}`,
         txId: t._id,
         category: t.category,
         timestamp: t.createdAt,
-        type: t.category.toLowerCase() === 'expense' ? 'expense' : t.category.toLowerCase() === 'refund' ? 'refund' : t.category.toLowerCase() === 'debtpayment' ? 'deposit' : 'safe_movement',
+        type: actType,
         user: t.user?.name || 'غير معروف',
-        title: `حركة خزينة: ${typeLabel}`,
+        title: isPersonal ? 'مسحوبات شخصية / جمعية مالك' : `حركة خزينة: ${typeLabel}`,
         description: t.description || '',
+        notes: isPersonal ? 'مستبعدة من صافي الربح محاسبياً · مخصومة من رصيد الخزنة الفعلي فقط' : '',
         amount: t.amount,
         paymentMethod: t.paymentMethod,
         referenceId: t.referenceId || t._id,
