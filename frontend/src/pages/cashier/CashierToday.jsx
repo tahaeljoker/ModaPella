@@ -73,6 +73,21 @@ function OrderDetailModal({ order, onClose }) {
  <span>الإجمالي</span>
  <span>{EGP(order.totalAmount)}</span>
  </div>
+
+  {/* Debt details — show paid / remaining for آجل orders */}
+  {order.isDebt && (
+  <>
+  <div className="border-t border-dashed border-amber-300 my-1" />
+  <div className="flex justify-between text-green-700 font-semibold">
+  <span>دفع عند الشراء</span>
+  <span>{EGP(order.amountPaid || 0)}</span>
+  </div>
+  <div className="flex justify-between font-extrabold text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
+  <span>المتبقي عليه</span>
+  <span>{EGP(order.debtAmount || 0)}</span>
+  </div>
+  </>
+  )}
  </div>
  </div>
 
@@ -347,9 +362,16 @@ function CashierToday() {
  </span>
 
  {/* Amount */}
- <span className={`font-bold text-sm text-left ${isRet ? 'text-red-500 line-through' : 'text-burgundy'}`}>
+ <div className="text-left">
+ <span className={`font-bold text-sm ${isRet ? 'text-red-500 line-through' : 'text-burgundy'}`}>
  {EGP(order.totalAmount)}
  </span>
+ {order.isDebt && !isRet && (
+ <div className="text-[10px] font-semibold text-amber-600 mt-0.5">
+ دفع {EGP(order.amountPaid || 0)} · باقي {EGP(order.debtAmount || 0)}
+ </div>
+ )}
+ </div>
  </button>
  );
  })}

@@ -211,8 +211,10 @@ router.get('/safe/smart-audit', auth, requireRole(['admin']), async (req, res) =
       const isSupplierCat = cat === 'supplierpayment' || cat === 'supplierpurchase' || cat.includes('مورد') || cat.includes('بضاعة');
       const isInternalCat = cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
       const isRefundCat = cat === 'refund' || cat.includes('مرتجع');
+      // If category already identifies it as personal/withdrawal — it's already fixed, skip it
+      const isPersonalCat = cat === 'personalwithdrawal' || cat.includes('مسحوبات') || cat.includes('شخصي') || cat.includes('شخصى') || cat.includes('جمعية') || cat.includes('جمعيه');
 
-      if (t.type === 'OUT' && !isSupplierCat && !isInternalCat && !isRefundCat) {
+      if (t.type === 'OUT' && !isSupplierCat && !isInternalCat && !isRefundCat && !isPersonalCat) {
         if (desc.includes('جمعيه') || desc.includes('جمعية') || desc.includes('شخصي') || desc.includes('سلفة مالك') || desc.includes('مسحوبات')) {
           warnings.push({
             id: t._id,
@@ -222,11 +224,11 @@ router.get('/safe/smart-audit', auth, requireRole(['admin']), async (req, res) =
             date: t.createdAt,
             user: t.user ? t.user.name : 'غير محدد',
             issueType: 'PERSONAL_WITHDRAWAL',
-            title: 'مسحوبات شخصية / جمعية',
+            title: 'مسحوبات شخصية / جمعية — الفئة تحتاج تصحيح',
             suggestedCategory: 'مسحوبات شخصية',
-            impactMessage: `هذه المبالغ (${Math.round(t.amount)} ج.م) مستبعدة من الربح بشكل صحيح ولا تؤثر عليه، لكنها تؤثر على صافي التدفق النقدي للخزنة.`
+            impactMessage: `فئة الحركة (${t.category}) لا تُعرَّف كمسحوبات شخصية — اضغط تصحيح لضمان استبعادها من الربح والتدفق النقدي بشكل صحيح.`
           });
-          // Note: personal withdrawals are correctly excluded from profit, do NOT add to potentialProfitGain
+          // Personal withdrawals don't add to potentialProfitGain (already excluded from profit)
         } else if (desc.includes('مورد') || desc.includes('بضاعة') || desc.includes('قماش') || desc.includes('مصنع') || desc.includes('سداد حساب')) {
           warnings.push({
             id: t._id,
