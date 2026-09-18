@@ -123,13 +123,25 @@ function OrderDetailModal({ order, onClose }) {
  ${itemsHTML}
  </div>
 
- <div style="font-weight:bold;font-size:10px">
- ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
- <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px">
- <span>الإجمالي الفعلي:</span>
- <span>${order.totalAmount.toLocaleString('en-US')} ج.م</span>
- </div>
- </div>
+  <div style="font-weight:bold;font-size:10px">
+  ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
+  <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px">
+  <span>الإجمالي الفعلي:</span>
+  <span>${order.totalAmount.toLocaleString('en-US')} ج.م</span>
+  </div>
+  ${order.isDebt ? `
+  <div style="border-top:1px dashed #000;margin-top:4px;padding-top:3px">
+  <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#000">
+  <span>المدفوع:</span>
+  <span>${Number(order.amountPaid || 0).toLocaleString('en-US')} ج.م</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-top:1px">
+  <span>المتبقي (آجل):</span>
+  <span>${Number(order.debtAmount || 0).toLocaleString('en-US')} ج.م</span>
+  </div>
+  </div>
+  ` : ''}
+  </div>
 
  <div style="text-align:center;margin-top:15px;font-size:8.5px;color:#666">
  شكراً لتعاملكم معنا! ModaPella

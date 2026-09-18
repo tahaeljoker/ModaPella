@@ -70,7 +70,11 @@ ${order.notes ? `<div class="sub" style="font-weight:bold;margin-top:2px;">مل�
  <tbody>${itemsHTML}${discountRow}</tbody>
 </table>
 <div class="total">الإجمالي الكلي: ${Number(order.totalAmount).toLocaleString('en-US')} ج.م</div>
-<div class="method">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش ' : order.paymentMethod === 'Instapay' ? 'انستا باي ' : 'محفظة كاش '}</div>
+${order.isDebt ? `
+<div class="method" style="color:#056608;font-weight:bold;">المدفوع نقداً: ${Number(order.amountPaid || 0).toLocaleString('en-US')} ج.م</div>
+<div class="method" style="color:#b45309;font-weight:900;font-size:14px;">المتبقي (آجل / دين): ${Number(order.debtAmount || 0).toLocaleString('en-US')} ج.م</div>
+` : ''}
+<div class="method">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش ' : order.paymentMethod === 'Instapay' ? 'انستا باي ' : 'محفظة كاش '}${order.isDebt ? '(آجل)' : ''}</div>
 ${order._employeeName ? `<div class="emp">الموظف: ${order._employeeName}</div>` : ''}
 <div class="footer">
  شكراً لتعاملكم مع ModaPella <br/>
@@ -127,7 +131,19 @@ function InvoiceModal({ order, onClose }) {
  <span>الإجمالي:</span>
  <span>${Number(order.totalAmount).toLocaleString('en-US')} ج.م</span>
  </div>
- <div style="font-size:10px;margin-top:2px;font-weight:normal">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
+ ${order.isDebt ? `
+ <div style="border-top:1px dashed #000;margin-top:5px;padding-top:4px">
+ <div style="display:flex;justify-content:space-between;font-size:11px;color:#000">
+ <span>المدفوع:</span>
+ <span>${Number(order.amountPaid || 0).toLocaleString('en-US')} ج.م</span>
+ </div>
+ <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:900;margin-top:2px">
+ <span>المتبقي (آجل):</span>
+ <span>${Number(order.debtAmount || 0).toLocaleString('en-US')} ج.م</span>
+ </div>
+ </div>
+ ` : ''}
+ <div style="font-size:10px;margin-top:2px;font-weight:normal">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}${order.isDebt ? ' (آجل)' : ''}</div>
  </div>
 
  <div style="text-align:center;margin-top:15px;font-size:10px;color:#444">
@@ -228,9 +244,22 @@ function InvoiceModal({ order, onClose }) {
  <span>الإجمالي</span>
  <span>{EGP(order.totalAmount)}</span>
  </div>
+ {order.isDebt && (
+ <>
+ <div className="border-t border-dashed border-amber-300 my-1" />
+ <div className="flex justify-between text-xs font-semibold text-emerald-700">
+ <span>المدفوع نقداً</span>
+ <span>{EGP(order.amountPaid || 0)}</span>
+ </div>
+ <div className="flex justify-between text-xs font-extrabold text-amber-700 bg-amber-50 rounded-xl px-2.5 py-1.5">
+ <span>المتبقي (دين على العميل)</span>
+ <span>{EGP(order.debtAmount || 0)}</span>
+ </div>
+ </>
+ )}
  <div className="flex justify-between text-sm text-burgundy/60">
  <span>طريقة الدفع</span>
- <span>{order.paymentMethod === 'Cash' ? ' كاش' : order.paymentMethod === 'Instapay' ? ' انستا باي' : ' محفظة كاش'}</span>
+ <span>{order.paymentMethod === 'Cash' ? ' كاش' : order.paymentMethod === 'Instapay' ? ' انستا باي' : ' محفظة كاش'}{order.isDebt ? ' (آجل)' : ''}</span>
  </div>
  </div>
 
