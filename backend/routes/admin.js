@@ -12,6 +12,7 @@ const StockHistory = require('../models/StockHistory');
 const InventoryTask = require('../models/InventoryTask');
 const InventoryCount = require('../models/InventoryCount');
 const SupplierTransaction = require('../models/SupplierTransaction');
+const { calculateMonthlyData } = require('../services/monthlyReportService');
 
 const ARABIC_MONTHS = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -37,21 +38,71 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     let startDate, endDate;
 
+    if (!from && !to && (period === 'current' || period === 'previous')) {
+      let targetYear = currentYear;
+      let targetMonth = currentMonth;
+      if (period === 'previous') {
+        targetMonth -= 1;
+        if (targetMonth < 1) { targetMonth = 12; targetYear -= 1; }
+      }
+
+      const [products, recentOrders, siteConfig, monthlyData] = await Promise.all([
+        Product.find({ active: true }),
+        Order.find().sort({ createdAt: -1 }).limit(10),
+        getSiteConfig(),
+        calculateMonthlyData(targetYear, targetMonth)
+      ]);
+
+      const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
+      const totalValue = Math.round(products.reduce((sum, item) => sum + item.stock * item.price, 0));
+      const lowStock = products.filter((item) => item.stock <= 5);
+
+      return res.json({
+        period,
+        monthName: monthlyData.monthName,
+        products: products.length,
+        totalStock,
+        totalValue,
+        totalSales: monthlyData.totalSales,
+        grossProfit: monthlyData.grossProfit,
+        cogs: monthlyData.cogs,
+        netProfit: monthlyData.netProfit,
+        operatingExpenses: monthlyData.operatingExpenses,
+        supplierPurchases: monthlyData.supplierPurchases,
+        supplierCashPaid: monthlyData.supplierCashPaid,
+        personalWithdrawals: monthlyData.personalWithdrawals,
+        personalWithdrawalsList: monthlyData.auditDetails?.personalWithdrawalsList || [],
+        salesCashCollected: monthlyData.salesCashCollected,
+        salesInstapayCollected: monthlyData.salesInstapayCollected,
+        salesDebtRemaining: monthlyData.salesDebtRemaining,
+        totalExpenses: monthlyData.totalExpenses,
+        totalDiscounts: monthlyData.totalDiscounts,
+        totalOrders: monthlyData.totalOrders,
+        recentOrders,
+        lowStockProducts: lowStock.map((p) => ({ id: p._id, name: p.name, stock: p.stock, category: p.category })),
+        expenseBreakdown: monthlyData.expenseBreakdown,
+        bestSellers: monthlyData.bestSellers,
+        categoryBreakdown: monthlyData.categoryBreakdown,
+        employeeLeaderboard: (monthlyData.employeePerformance || []).map(e => ({
+          name: e.name,
+          amount: e.amount,
+          profit: e.profit,
+          orderCount: e.orderCount,
+          itemsSold: e.itemsSold,
+          topCategory: null
+        })),
+        siteConfig
+      });
+    }
+
     if (from && to) {
       startDate = new Date(from);
       endDate = new Date(to);
       endDate.setHours(23, 59, 59, 999);
-    } else if (period === 'previous') {
-      let prevYear = currentYear;
-      let prevMonth = currentMonth - 1;
-      if (prevMonth < 1) { prevMonth = 12; prevYear -= 1; }
-      startDate = new Date(prevYear, prevMonth - 1, 1, 0, 0, 0, 0);
-      endDate = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
     } else if (period === 'all') {
       startDate = new Date(2000, 0, 1);
       endDate = new Date(2099, 11, 31);
     } else {
-      // Default: Current Active Month (Auto-resets to 0 on day 1 of every month!)
       startDate = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0, 0);
       endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
     }
@@ -64,7 +115,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       SupplierTransaction.find({ date: { $gte: startDate, $lte: endDate } }),
       Order.find({
         createdAt: { $gte: startDate, $lte: endDate },
-        status: 'Completed'
+        status: { $in: ['Completed', 'Returned'] }
       }).populate('employee')
     ]);
 
