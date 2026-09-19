@@ -385,11 +385,42 @@ export default function AdminMonthlyReports() {
  </div>
  </div>
  )}
+
+ {/* Itemized Personal Withdrawals List */}
+ {report.auditDetails?.personalWithdrawalsList && report.auditDetails.personalWithdrawalsList.length > 0 && (
+ <div className="space-y-3">
+ <h4 className="font-bold text-sm text-purple-900 flex items-center gap-2">
+ <span> كشف حساب المسحوبات الشخصية والجمعية (سحب أرباح المالك):</span>
+ </h4>
+ <div className="max-h-60 overflow-y-auto rounded-2xl border border-purple-200 bg-white">
+ <table className="w-full text-right text-xs">
+ <thead className="bg-purple-50/60 font-bold sticky top-0">
+ <tr className="border-b border-purple-100">
+ <th className="py-2.5 px-3">التاريخ</th>
+ <th className="py-2.5 px-3">نوع الحركة</th>
+ <th className="py-2.5 px-3">الوصف</th>
+ <th className="py-2.5 px-3">المبلغ</th>
+ </tr>
+ </thead>
+ <tbody className="divide-y divide-purple-50">
+ {report.auditDetails.personalWithdrawalsList.map((pw, idx) => (
+ <tr key={idx} className="hover:bg-purple-50/30">
+ <td className="py-2 px-3 text-burgundy/60">{new Date(pw.date).toLocaleDateString('ar-EG')}</td>
+ <td className="py-2 px-3 font-semibold text-purple-800">{pw.category}</td>
+ <td className="py-2 px-3 text-burgundy/70">{pw.description || '—'}</td>
+ <td className="py-2 px-3 font-bold text-purple-700">{EGP(pw.amount)}</td>
+ </tr>
+ ))}
+ </tbody>
+ </table>
+ </div>
+ </div>
+ )}
  </div>
  )}
 
  {/* Metric Cards Grid */}
- <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+ <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
  {/* Total Sales */}
  <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-5 shadow-sm">
  <div className="flex items-center justify-between text-burgundy/60 text-xs font-medium">
@@ -399,7 +430,7 @@ export default function AdminMonthlyReports() {
  <p className="mt-2 text-2xl font-bold text-burgundy flex items-center gap-1">
  {EGP(report.totalSales)}
  <InfoPopover
- title="إجمالي المبيعات"
+ title="إجمالي المبيعات الصافية"
  formula="مجموع صافي قيمة الفواتير المكتملة بعد الخصم"
  rows={[
  { label: 'عدد الفواتير المكتملة', value: `${report.totalOrders} فاتورة` },
@@ -407,17 +438,20 @@ export default function AdminMonthlyReports() {
  { label: 'الخصومات الممنوحة', value: `-${EGP(report.totalDiscounts || 0)}`, negative: true },
  { separator: true },
  { label: '= إجمالي المبيعات الصافية', value: EGP(report.totalSales), highlight: true },
+ { separator: true },
+ { label: 'المحصل كاش من المبيعات', value: EGP(report.salesCashCollected ?? report.cashRevenue ?? 0) },
+ { label: 'المحصل إلكتروني (إنستاباي)', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
+ { label: 'الآجل المتبقي طرف العملاء', value: EGP(report.salesDebtRemaining ?? 0) },
  ]}
- rows2={[
- { label: 'كاش: ', value: EGP(report.cashRevenue) },
- { label: 'إنستاباي: ', value: EGP(report.instapayRevenue) },
- ]}
- note="الفواتير الآجلة تُسجَّل بقيمتها الكاملة هنا بغض النظر عن المدفوع منها"
+ note="صافي المبيعات = مجموع الكاش والإنستاباي والآجل المتبقي بالمليم. لا توجد أي مبالغ مفقودة."
  />
  </p>
- <div className="mt-2 flex justify-between text-[11px] text-burgundy/60">
- <span>كاش: {EGP(report.cashRevenue)}</span>
- <span>إنستاباي: {EGP(report.instapayRevenue)}</span>
+ <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-burgundy/60 font-medium">
+ <span>كاش: {EGP(report.salesCashCollected ?? report.cashRevenue ?? 0)}</span>
+ <span>| إنستاباي: {EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0)}</span>
+ {(report.salesDebtRemaining || 0) > 0 && (
+ <span className="text-amber-700">| آجل: {EGP(report.salesDebtRemaining)}</span>
+ )}
  </div>
  </div>
 
@@ -442,7 +476,62 @@ export default function AdminMonthlyReports() {
  />
  </p>
  <p className="mt-2 text-[11px] text-amber-900/70">
- خصومات الفواتير (قبل صافي المبيعات)
+ خصومات الفواتير الممنوحة للعملاء
+ </p>
+ </div>
+
+ {/* Gross Profit */}
+ <div className="rounded-[1.5rem] border border-teal-500/20 bg-teal-50/50 p-5 shadow-sm">
+ <div className="flex items-center justify-between text-teal-900 text-xs font-medium">
+ <span>مجمل الربح التجاري</span>
+ <span></span>
+ </div>
+ <p className="mt-2 text-2xl font-bold text-teal-800 flex items-center gap-1">
+ {EGP(report.grossProfit ?? ((report.totalSales || 0) - (report.cogs || report.auditDetails?.totalCogs || 0)))}
+ <InfoPopover
+ title="مجمل الربح التجاري"
+ formula="صافي المبيعات تكلفة البضاعة المباعة (COGS)"
+ rows={[
+ { label: 'إجمالي المبيعات الصافية', value: EGP(report.totalSales) },
+ { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(report.cogs ?? report.auditDetails?.totalCogs ?? 0)}`, negative: true },
+ { separator: true },
+ { label: '= مجمل الربح التجاري', value: EGP(report.grossProfit ?? ((report.totalSales || 0) - (report.cogs || report.auditDetails?.totalCogs || 0))), highlight: true },
+ { separator: true },
+ { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
+ { separator: true },
+ { label: '= صافي ربح النشاط النهائي', value: EGP(report.netProfit), highlight: true },
+ ]}
+ note="مجمل الربح يعكس مكسب تجارة البضاعة في السعر قبل خصم إيجار المحل والمرتبات والكهرباء."
+ />
+ </p>
+ <p className="mt-2 text-[11px] text-teal-900/70">
+ ربح البضاعة (صافي المبيعات تكلفة COGS)
+ </p>
+ </div>
+
+ {/* Operating Expenses */}
+ <div className="rounded-[1.5rem] border border-rose-500/20 bg-rose-50/50 p-5 shadow-sm">
+ <div className="flex items-center justify-between text-rose-800 text-xs font-medium">
+ <span>مصروفات التشغيل</span>
+ <span></span>
+ </div>
+ <p className="mt-2 text-2xl font-bold text-rose-700 flex items-center gap-1">
+ {EGP(report.operatingExpenses || 0)}
+ <InfoPopover
+ title="مصروفات التشغيل"
+ formula="OUT transactions — بدون موردين، بدون مرتجعات، بدون مسحوبات شخصية"
+ rows={[
+ { label: 'إجمالي المصاريف التشغيلية', value: EGP(report.operatingExpenses || 0) },
+ { label: 'عدد حركات المصروفات', value: `${report.auditDetails?.operatingExpensesList?.length || 0} حركة` },
+ { separator: true },
+ { label: 'مشتريات الموردين (مستبعدة كـ أصول بضاعة)', value: EGP(report.supplierPurchases || 0) },
+ { label: 'المسحوبات الشخصية (مستبعدة لحماية الأرباح)', value: EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0) },
+ ]}
+ note="مصاريف التشغيل = فقط الحركات التشغيلية الفعلية — مستبعد منها الموردين والمسحوبات الشخصية والجمعية لضمان عدم خفض أرباح التجارة خطأً."
+ />
+ </p>
+ <p className="mt-2 text-[11px] text-rose-800/70">
+ إيجار، كهرباء، أجور، نثريات وصيانة
  </p>
  </div>
 
@@ -455,48 +544,22 @@ export default function AdminMonthlyReports() {
  <p className="mt-2 text-2xl font-bold text-emerald-700 flex items-center gap-1">
  {EGP(report.netProfit)}
  <InfoPopover
- title="صافي ربح النشاط"
+ title="صافي ربح النشاط النهائي"
  formula="مجمل الربح مصاريف التشغيل"
  rows={[
- { label: 'الإيراد المحصَّل (بعد الخصم)', value: EGP(report.totalSales) },
- { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(report.auditDetails?.totalCogs || 0)}`, negative: true },
- { label: 'مجمل الربح التجاري', value: EGP(report.auditDetails?.grossProfit || 0) },
+ { label: 'صافي إيراد المبيعات', value: EGP(report.totalSales) },
+ { label: 'تكلفة البضاعة المباعة (COGS)', value: `-${EGP(report.cogs ?? report.auditDetails?.totalCogs ?? 0)}`, negative: true },
+ { label: '= مجمل الربح التجاري', value: EGP(report.grossProfit ?? ((report.totalSales || 0) - (report.cogs || report.auditDetails?.totalCogs || 0))) },
  { separator: true },
- { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
+ { label: 'مصاريف التشغيل (إيجار/مرتبات)', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
  { separator: true },
- { label: '= صافي ربح النشاط', value: EGP(report.netProfit), highlight: true },
+ { label: '= صافي ربح النشاط النهائي', value: EGP(report.netProfit), highlight: true },
  ]}
- note="الفواتير الآجلة تُحسَب بالمبلغ المحصَّل فعلاً (amountPaid) وليس المبلغ الكامل — يمنع تضخيم الأرباح بديون غير محصَّلة"
+ note="صافي ربح النشاط يطابق الآلة الحاسبة بالمليم: مجمل الربح ناقص مصاريف التشغيل."
  />
  </p>
  <p className="mt-2 text-[11px] text-emerald-800/70">
  أرباح البضاعة المباعة مصاريف التشغيل
- </p>
- </div>
-
- {/* Operating Expenses */}
- <div className="rounded-[1.5rem] border border-rose-500/20 bg-rose-50/50 p-5 shadow-sm">
- <div className="flex items-center justify-between text-rose-800 text-xs font-medium">
- <span>مصروفات التشغيل</span>
- <span></span>
- </div>
- <p className="mt-2 text-2xl font-bold text-rose-700 flex items-center gap-1">
- {EGP(report.operatingExpenses ?? (report.totalExpenses - (report.supplierPurchases || 0)))}
- <InfoPopover
- title="مصروفات التشغيل"
- formula="OUT transactions — بدون موردين، بدون مرتجعات، بدون تصفية وردية"
- rows={[
- { label: 'إجمالي المصاريف التشغيلية', value: EGP(report.operatingExpenses || 0) },
- { label: 'عدد حركات المصروفات', value: `${report.auditDetails?.operatingExpensesList?.length || 0} حركة` },
- { label: 'مشتريات الموردين (خارج الحساب)', value: EGP(report.supplierPurchases || 0) },
- { label: 'مرتجعات عملاء (خارج)', value: '—' },
- { label: 'تصفية ورديات (خارج)', value: '—' },
- ]}
- note="مصاريف التشغيل = فقط الحركات التشغيلية الفعلية — مستبعد منها الموردين والمرتجعات وحركات الخزنة الداخلية"
- />
- </p>
- <p className="mt-2 text-[11px] text-rose-800/70">
- إيجار، كهرباء، أجور، نثريات وشحن
  </p>
  </div>
 
@@ -510,16 +573,45 @@ export default function AdminMonthlyReports() {
  {EGP(report.supplierPurchases ?? 0)}
  <InfoPopover
  title="مشتريات الموردين"
- formula="SupplierTransactions من نوع 'purchase' فقط"
+ formula="قيمة البضائع الموردة للمحل"
  rows={[
- { label: 'إجمالي مشتريات البضائع للشهر', value: EGP(report.supplierPurchases || 0) },
- { label: 'عدد سجلات الشراء', value: `${report.auditDetails?.supplierPaymentsList?.length || 0} سجل` },
+ { label: 'إجمالي مشتريات البضائع للشهر', value: EGP(report.supplierPurchases || 0), highlight: true },
+ { label: 'المدفوع نقداً للموردين من الخزنة', value: EGP(report.supplierCashPaid ?? report.auditDetails?.supplierCashPaidTotal ?? 0) },
+ { separator: true },
+ { label: 'تأثيرها على صافي أرباح النشاط', value: '0 ج.م (لا تُخصم كـ مصروفات)' },
+ { label: 'تأثيرها على مخزون المحل', value: `+${EGP(report.supplierPurchases || 0)} (زيادة أصول بضاعة)` },
  ]}
- note="الشراء النقدي الفوري (cash_purchase) يُحسَب مرة واحدة فقط من سجل الشراء، لتفادي التضاعف"
+ note="مشتريات البضائع تتحول لأصول مخزون ولا تخصم من أرباح النشاط كـ مصاريف، وتُحسب تكلفتها عند البيع في بند COGS."
  />
  </p>
  <p className="mt-2 text-[11px] text-amber-900/70">
- مبالغ مدفوعة لشراء مخزون وبضائع
+ بضائع مخزون جديدة مضافة للمحل
+ </p>
+ </div>
+
+ {/* Personal Withdrawals */}
+ <div className="rounded-[1.5rem] border border-purple-500/20 bg-purple-50/50 p-5 shadow-sm">
+ <div className="flex items-center justify-between text-purple-900 text-xs font-medium">
+ <span>المسحوبات الشخصية والجمعية</span>
+ <span></span>
+ </div>
+ <p className="mt-2 text-2xl font-bold text-purple-800 flex items-center gap-1">
+ {EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}
+ <InfoPopover
+ title="المسحوبات الشخصية والجمعية"
+ formula="إجمالي المسحوبات الخاصة للمالك والشركاء (جمعيات وسلف)"
+ rows={[
+ { label: 'إجمالي المسحوبات الشخصية المسجلة', value: EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0), highlight: true },
+ { label: 'عدد حركات المسحوبات', value: `${report.auditDetails?.personalWithdrawalsList?.length || 0} حركة` },
+ { separator: true },
+ { label: 'تأثيرها على صافي أرباح المحل', value: '0 ج.م (مستبعدة لحماية أرباح النشاط)' },
+ { label: 'تأثيرها على رصيد الخزنة (الكاش)', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)} (خروج كاش فعلي من الدرج)`, negative: true },
+ ]}
+ note="المسحوبات الشخصية (مثل دفع الجمعية أو سلفة المالك) تخرج فعلياً من نقدية الخزنة، ولكنها لا تعتبر مصروفاً تشغيلياً للمحل حتى لا تنخفض أرباح التجارة الحقيقية خطأً."
+ />
+ </p>
+ <p className="mt-2 text-[11px] text-purple-900/70">
+ سلف الشركاء والجمعيات والمسحوبات الخاصة
  </p>
  </div>
 
@@ -530,22 +622,22 @@ export default function AdminMonthlyReports() {
  <span></span>
  </div>
  <p className="mt-2 text-2xl font-bold text-blue-800 flex items-center gap-1">
- {EGP(report.netCashFlow ?? (report.totalSales - report.totalExpenses))}
+ {EGP(report.netCashFlow ?? 0)}
  <InfoPopover
  title="صافي حركة السيولة الخزينة"
- formula="(الكاش + إنستاباي + تحصيلات ديون) (مصاريف + موردين)"
+ formula="(المقبوضات الكاش والبنكية) (مصاريف تشغيل + موردين + مسحوبات شخصية)"
  rows={[
- { label: 'إيراد كاش صافي', value: EGP(report.cashRevenue) },
- { label: 'إيراد إنستاباي صافي', value: EGP(report.instapayRevenue) },
- { label: 'تحصيلات ديون كاش', value: EGP(report.auditDetails?.debtPaymentsCash || 0) },
- { label: 'تحصيلات ديون إنستاباي', value: EGP(report.auditDetails?.debtPaymentsInstapay || 0) },
+ { label: 'إجمالي المقبوضات (كاش + إنستاباي)', value: EGP((report.cashRevenue || 0) + (report.instapayRevenue || 0)), highlight: true },
+ { label: 'كاش المبيعات المحصل', value: EGP(report.salesCashCollected ?? report.cashRevenue ?? 0) },
+ { label: 'إنستاباي المبيعات المحصل', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
  { separator: true },
  { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
- { label: 'مشتريات الموردين', value: `-${EGP(report.supplierPurchases || 0)}`, negative: true },
+ { label: 'المدفوع للموردين', value: `-${EGP(report.supplierCashPaid ?? report.supplierPurchases ?? 0)}`, negative: true },
+ { label: 'المسحوبات الشخصية والجمعية', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}`, negative: true },
  { separator: true },
- { label: '= صافي حركة الخزينة', value: EGP(report.netCashFlow ?? 0), highlight: true },
+ { label: '= صافي حركة الخزينة والسيولة', value: EGP(report.netCashFlow ?? 0), highlight: true },
  ]}
- note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويختلف عن صافي الربح لأنه يشمل مشتريات الموردين ومخصوم منه المرتجعات"
+ note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويطابق حركة الدرج بالمليم بعد خصم المصاريف والموردين والمسحوبات الشخصية."
  />
  </p>
  <p className="mt-2 text-[11px] text-blue-900/70">

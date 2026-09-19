@@ -127,14 +127,30 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     let supplierCashPaid = 0;
     let personalWithdrawals = 0;
     const expenseMap = {};
+    const operatingExpensesList = [];
+    const personalWithdrawalsList = [];
 
     outTransactions.forEach(t => {
       if (isPersonalTx(t)) {
         personalWithdrawals += t.amount;
+        personalWithdrawalsList.push({
+          id: t._id,
+          category: t.category || 'مسحوبات شخصية',
+          amount: t.amount,
+          description: t.description || 'مسحوبات شخصية / جمعية',
+          date: t.createdAt
+        });
       } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isRefundTx(t)) {
         const cat = t.category || 'أخرى';
         expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
         operatingExpenses += t.amount;
+        operatingExpensesList.push({
+          id: t._id,
+          category: t.category || 'أخرى',
+          amount: t.amount,
+          description: t.description || '',
+          date: t.createdAt
+        });
       }
     });
 
@@ -158,10 +174,18 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     });
 
     let cogs = 0;
-    let grossProfit = 0;
+    let salesCashCollected = 0;
+    let salesInstapayCollected = 0;
 
     periodOrders.forEach(order => {
       if (order.isManualDebt) return;
+
+      const paidAmount = order.isDebt ? (order.amountPaid || 0) : order.totalAmount;
+      if (order.paymentMethod === 'Cash') {
+        salesCashCollected += paidAmount;
+      } else {
+        salesInstapayCollected += paidAmount;
+      }
 
       const orderCost = order.items.reduce((s, item) => {
         const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
@@ -169,14 +193,19 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       }, 0);
 
       cogs += orderCost;
-      const effectiveRevenue = order.isDebt ? (order.amountPaid || 0) : order.totalAmount;
-      grossProfit += (effectiveRevenue - orderCost);
     });
 
     cogs = Math.round(cogs);
-    grossProfit = Math.round(grossProfit);
+    salesCashCollected = Math.round(salesCashCollected);
+    salesInstapayCollected = Math.round(salesInstapayCollected);
+    const salesDebtRemaining = Math.max(0, Math.round(totalSales - (salesCashCollected + salesInstapayCollected)));
+
+    // Gross profit = Net Sales - COGS (Airtight mathematical identity)
+    const grossProfit = Math.round(totalSales - cogs);
     operatingExpenses = Math.round(operatingExpenses);
     supplierPurchases = Math.round(supplierPurchases);
+    supplierCashPaid = Math.round(supplierCashPaid);
+    personalWithdrawals = Math.round(personalWithdrawals);
     const netProfit = Math.round(grossProfit - operatingExpenses);
     const totalDiscounts = Math.round(periodOrders.reduce((sum, o) => sum + (o.isManualDebt ? 0 : (o.discount || 0)), 0));
 
@@ -264,7 +293,13 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       netProfit,
       operatingExpenses,
       supplierPurchases,
-      totalExpenses: operatingExpenses + supplierPurchases,
+      supplierCashPaid,
+      personalWithdrawals,
+      personalWithdrawalsList,
+      salesCashCollected,
+      salesInstapayCollected,
+      salesDebtRemaining,
+      totalExpenses: operatingExpenses + supplierCashPaid,
       totalDiscounts,
       totalOrders: periodOrders.length,
       recentOrders,

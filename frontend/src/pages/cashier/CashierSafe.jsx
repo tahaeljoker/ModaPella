@@ -20,8 +20,8 @@ const EXPENSE_CATEGORIES = [
 function CashierSafe() {
  const [data, setData] = useState({
  transactions: [],
- summary: { cashDrawer: 0, instapayTotal: 0, expenses: 0, expectedCash: 0 },
- todaySummary: { cashSales: 0, instapaySales: 0, expenses: 0, netCashInSafe: 0 },
+ summary: { cashDrawer: 0, instapayTotal: 0, expenses: 0, personalWithdrawals: 0, expectedCash: 0 },
+ todaySummary: { cashSales: 0, instapaySales: 0, expenses: 0, personalWithdrawals: 0, netCashInSafe: 0 },
  recentShifts: []
  });
  const [loading, setLoading] = useState(true);
@@ -93,51 +93,56 @@ function CashierSafe() {
  exportToCSV(`حركات_الخزنة_${new Date().toLocaleDateString('ar-EG-u-nu-latn')}`, headers, rows);
  };
 
- const handlePrintZReport = (shift) => {
- const shiftData = shift || currentShift;
- const now = new Date().toLocaleString('ar-EG-u-nu-latn');
- const openTime = shiftData?.createdAt ? new Date(shiftData.createdAt).toLocaleString('ar-EG-u-nu-latn') : '—';
- const cashSales = data.todaySummary?.cashSales || 0;
- const instapaySales = data.todaySummary?.instapaySales || 0;
- const expenses = data.todaySummary?.expenses || 0;
- const openingBal = shiftData?.openingBalance || 0;
- const expectedCash = shiftData?.expectedCash ?? data.summary?.expectedCash ?? 0;
- const countedCash = shiftData?.closingBalance ?? expectedCash;
- const variance = countedCash - expectedCash;
+  const handlePrintZReport = (shift) => {
+    const shiftData = shift || currentShift;
+    const now = new Date().toLocaleString('ar-EG-u-nu-latn');
+    const openTime = shiftData?.createdAt ? new Date(shiftData.createdAt).toLocaleString('ar-EG-u-nu-latn') : '—';
+    const cashSales = data.todaySummary?.cashSales || 0;
+    const instapaySales = data.todaySummary?.instapaySales || 0;
+    const expenses = data.todaySummary?.expenses || 0;
+    const personalWithdrawals = data.todaySummary?.personalWithdrawals || data.summary?.personalWithdrawals || 0;
+    const supplierPayments = data.todaySummary?.supplierPayments || data.summary?.supplierPayments || 0;
+    const openingBal = shiftData?.openingBalance || 0;
+    const expectedCash = shiftData?.expectedCash ?? data.summary?.expectedCash ?? 0;
+    const countedCash = shiftData?.closingBalance ?? expectedCash;
+    const variance = countedCash - expectedCash;
 
- const printDiv = document.createElement('div');
- printDiv.id = 'invoice-print-root';
- printDiv.innerHTML = `
- <div class="invoice-print-header">
- <h1>ModaPella</h1>
- <p>تقرير تقفيل الوردية (Z-Report)</p>
- <p>${now}</p>
- </div>
- <table class="invoice-print-table" style="font-size:12px">
- <tbody>
- <tr><td>وقت الفتح</td><td style="text-align:left">${openTime}</td></tr>
- <tr><td>وقت الإغلاق</td><td style="text-align:left">${now}</td></tr>
- <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الإيرادات</td></tr>
- <tr><td>مبيعات كاش </td><td style="text-align:left;color:#15803d;font-weight:bold">${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
- <tr><td>مبيعات انستا باي </td><td style="text-align:left;color:#2563eb;font-weight:bold">${Number(instapaySales).toLocaleString('en-US')} ج.م</td></tr>
- <tr><td>إجمالي المبيعات</td><td style="text-align:left;font-weight:bold">${Number(cashSales + instapaySales).toLocaleString('en-US')} ج.م</td></tr>
- <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الدرج النقدي</td></tr>
- <tr><td>رصيد الافتتاح</td><td style="text-align:left">${Number(openingBal).toLocaleString('en-US')} ج.م</td></tr>
- <tr><td>مصروفات كاش</td><td style="text-align:left;color:#dc2626">- ${Number(expenses).toLocaleString('en-US')} ج.م</td></tr>
- <tr><td>الكاش المتوقع في الدرج</td><td style="text-align:left;font-weight:bold">${Number(expectedCash).toLocaleString('en-US')} ج.م</td></tr>
- <tr><td>الكاش الفعلي (عند العد)</td><td style="text-align:left;font-weight:bold">${Number(countedCash).toLocaleString('en-US')} ج.م</td></tr>
- <tr><td>الفرق (عجز/زيادة)</td><td style="text-align:left;font-weight:bold;color:${variance === 0 ? '#15803d' : variance > 0 ? '#d97706' : '#dc2626'}">${variance >= 0 ? '+' : ''}${Number(variance).toLocaleString('en-US')} ج.م</td></tr>
- </tbody>
- </table>
- <div class="invoice-print-footer">
- ModaPella — تقرير تقفيل الوردية<br/>
- ${now}
- </div>
- `;
- document.body.appendChild(printDiv);
- window.print();
- document.body.removeChild(printDiv);
- };
+    const printDiv = document.createElement('div');
+    printDiv.id = 'invoice-print-root';
+    printDiv.innerHTML = `
+      <div class="invoice-print-header">
+        <h1>ModaPella</h1>
+        <p>تقرير تقفيل الوردية (Z-Report)</p>
+        <p>${now}</p>
+      </div>
+      <table class="invoice-print-table" style="font-size:12px">
+        <tbody>
+          <tr><td>وقت الفتح</td><td style="text-align:left">${openTime}</td></tr>
+          <tr><td>وقت الإغلاق</td><td style="text-align:left">${now}</td></tr>
+          <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الإيرادات والتحصيل</td></tr>
+          <tr><td>مبيعات كاش محصلة</td><td style="text-align:left;color:#15803d;font-weight:bold">+ ${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>مبيعات إنستاباي / بنك</td><td style="text-align:left;color:#2563eb;font-weight:bold">${Number(instapaySales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>إجمالي المبيعات المحصلة</td><td style="text-align:left;font-weight:bold">${Number(cashSales + instapaySales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">حركة الدرج النقدي (الكاش)</td></tr>
+          <tr><td>رصيد الافتتاح</td><td style="text-align:left">${Number(openingBal).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>(+) كاش المبيعات</td><td style="text-align:left;color:#15803d">+ ${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>(-) مصاريف تشغيلية</td><td style="text-align:left;color:#dc2626">- ${Number(expenses).toLocaleString('en-US')} ج.م</td></tr>
+          ${personalWithdrawals > 0 ? `<tr><td>(-) مسحوبات شخصية / جمعية</td><td style="text-align:left;color:#9333ea;font-weight:bold">- ${Number(personalWithdrawals).toLocaleString('en-US')} ج.م</td></tr>` : ''}
+          ${supplierPayments > 0 ? `<tr><td>(-) مدفوع لموردين كاش</td><td style="text-align:left;color:#d97706">- ${Number(supplierPayments).toLocaleString('en-US')} ج.م</td></tr>` : ''}
+          <tr style="border-top:1px solid #000;font-weight:bold"><td>الكاش المتوقع في الدرج</td><td style="text-align:left">${Number(expectedCash).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>الكاش الفعلي (عند العد)</td><td style="text-align:left;font-weight:bold">${Number(countedCash).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>الفرق (عجز/زيادة)</td><td style="text-align:left;font-weight:bold;color:${variance === 0 ? '#15803d' : variance > 0 ? '#d97706' : '#dc2626'}">${variance >= 0 ? '+' : ''}${Number(variance).toLocaleString('en-US')} ج.م</td></tr>
+        </tbody>
+      </table>
+      <div class="invoice-print-footer">
+        ModaPella — تقرير تقفيل الوردية<br/>
+        ${now}
+      </div>
+    `;
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+  };
 
  return (
  <div className="flex h-[calc(100vh-3rem)] flex-col gap-6 text-burgundy">
@@ -212,24 +217,28 @@ function CashierSafe() {
  </div>
  </div>
 
- <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
- <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
- <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (كاش)</p>
- <p className="mt-2 text-xl font-bold text-burgundy">{EGP(data.todaySummary.cashSales)}</p>
- </div>
- <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
- <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (الكتروني)</p>
- <p className="mt-2 text-xl font-bold text-burgundy">{EGP(data.todaySummary.instapaySales)}</p>
- </div>
- <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
- <p className="text-xs font-semibold text-burgundy/60">مصروفات اليوم</p>
- <p className="mt-2 text-xl font-bold text-red-600">{EGP(data.todaySummary.expenses)}</p>
- </div>
- <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
- <p className="text-xs font-semibold text-burgundy/60">صافي الكاش المتوقع</p>
- <p className="mt-2 text-xl font-bold text-emerald-700">{EGP(data.todaySummary.netCashInSafe)}</p>
- </div>
- </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (كاش)</p>
+            <p className="mt-2 text-xl font-bold text-emerald-700">{EGP(data.todaySummary.cashSales)}</p>
+          </div>
+          <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (إلكتروني)</p>
+            <p className="mt-2 text-xl font-bold text-blue-700">{EGP(data.todaySummary.instapaySales)}</p>
+          </div>
+          <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-burgundy/60">مصروفات التشغيل اليوم</p>
+            <p className="mt-2 text-xl font-bold text-rose-600">{EGP(data.todaySummary.expenses)}</p>
+          </div>
+          <div className="rounded-[1.5rem] border border-purple-200 bg-purple-50/50 p-4 shadow-sm">
+            <p className="text-xs font-semibold text-purple-900/70">مسحوبات شخصية / جمعية</p>
+            <p className="mt-2 text-xl font-bold text-purple-700">{EGP(data.todaySummary.personalWithdrawals || 0)}</p>
+          </div>
+          <div className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-50/60 p-4 shadow-sm">
+            <p className="text-xs font-semibold text-emerald-900/70">صافي الكاش المتوقع بالدرج</p>
+            <p className="mt-2 text-xl font-bold text-emerald-700">{EGP(data.todaySummary.netCashInSafe)}</p>
+          </div>
+        </div>
 
  <div className="flex-1 overflow-hidden rounded-[2rem] border border-burgundy/10 bg-white flex flex-col">
  <div className="border-b border-burgundy/8 p-5">

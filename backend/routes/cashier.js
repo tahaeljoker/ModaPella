@@ -97,44 +97,116 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
 
     let cashDrawer = 0;
     let instapayTotal = 0;
-    let expenses = 0;
+    let operatingExpensesCash = 0;
+    let personalWithdrawalsCash = 0;
+    let supplierPaymentsCash = 0;
+    let refundsCash = 0;
+    let debtCollectionsCash = 0;
 
-    // Categories that are NOT operating expenses (internal movements, sales, refunds, etc.)
-    const isNonExpenseCategory = (cat) => {
-      const c = (cat || '').toLowerCase();
-      return c === 'shiftopen' || c === 'shiftclose' || c === 'sale' ||
-             c === 'safe transfer' || c === 'safetransfer' || c === 'transfer' ||
-             c === 'refund' || c.includes('مرتجع') || c === 'deposit' || c === 'debtpayment';
+    const isPersonalTx = (t) => {
+      if (t.type !== 'OUT') return false;
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'personalwithdrawal' ||
+        cat.includes('مسحوبات') ||
+        cat.includes('شخصي') ||
+        cat.includes('شخصى') ||
+        cat.includes('جمعية') ||
+        cat.includes('جمعيه') ||
+        desc.includes('مسحوبات') ||
+        desc.includes('شخصي') ||
+        desc.includes('شخصى') ||
+        desc.includes('جمعية') ||
+        desc.includes('جمعيه') ||
+        desc.includes('سلفة') ||
+        desc.includes('سلفه')
+      );
+    };
+
+    const isSupplierTx = (t) => {
+      if (t.type !== 'OUT') return false;
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'supplierpayment' ||
+        cat === 'supplierpurchase' ||
+        cat.includes('مورد') ||
+        cat.includes('بضاعة') ||
+        desc.includes('مورد') ||
+        desc.includes('بضاعة')
+      );
+    };
+
+    const isInternalMovement = (t) => {
+      const cat = (t.category || '').toLowerCase();
+      return cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
     };
 
     transactions.forEach(t => {
       if (t.paymentMethod === 'Cash') {
         if (t.type === 'IN') cashDrawer += t.amount;
         if (t.type === 'OUT') cashDrawer -= t.amount;
-        if (t.type === 'OUT' && !isNonExpenseCategory(t.category)) expenses += t.amount;
+
+        const cat = (t.category || '').toLowerCase();
+        if (t.type === 'IN' && (cat === 'debtpayment' || cat.includes('دين'))) {
+          debtCollectionsCash += t.amount;
+        } else if (t.type === 'OUT') {
+          if (cat === 'refund' || cat.includes('مرتجع')) {
+            refundsCash += t.amount;
+          } else if (isPersonalTx(t)) {
+            personalWithdrawalsCash += t.amount;
+          } else if (isSupplierTx(t)) {
+            supplierPaymentsCash += t.amount;
+          } else if (!isInternalMovement(t)) {
+            operatingExpensesCash += t.amount;
+          }
+        }
       } else if (t.paymentMethod === 'Instapay' || t.paymentMethod === 'Wallet') {
         if (t.type === 'IN') instapayTotal += t.amount;
         if (t.type === 'OUT') instapayTotal -= t.amount;
       }
     });
 
-    const cashSales = todayOrders
-      .filter(order => order.paymentMethod === 'Cash')
-      .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
+    // Calculate actual cash vs instapay collected from today's orders (accounting for debt down-payments)
+    let cashSalesCollected = 0;
+    let instapaySalesCollected = 0;
+    let totalBilledSales = 0;
 
-    const instapaySales = todayOrders
-      .filter(order => order.paymentMethod === 'Instapay' || order.paymentMethod === 'Wallet')
-      .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
+    todayOrders.forEach(order => {
+      if (order.isManualDebt) return;
+      totalBilledSales += Number(order.totalAmount || 0);
+      const paid = order.isDebt ? Number(order.amountPaid || 0) : Number(order.totalAmount || 0);
+      if (order.paymentMethod === 'Cash') {
+        cashSalesCollected += paid;
+      } else {
+        instapaySalesCollected += paid;
+      }
+    });
 
+    const debtSalesRemaining = Math.max(0, totalBilledSales - (cashSalesCollected + instapaySalesCollected));
     const netCashInSafe = cashDrawer;
 
     res.json({
       transactions,
-      summary: { cashDrawer, instapayTotal, expenses, expectedCash: cashDrawer },
+      summary: {
+        cashDrawer,
+        instapayTotal,
+        expenses: operatingExpensesCash,
+        personalWithdrawals: personalWithdrawalsCash,
+        supplierPayments: supplierPaymentsCash,
+        refunds: refundsCash,
+        debtCollections: debtCollectionsCash,
+        expectedCash: cashDrawer
+      },
       todaySummary: {
-        cashSales,
-        instapaySales,
-        expenses,
+        cashSales: cashSalesCollected,
+        instapaySales: instapaySalesCollected,
+        debtSalesRemaining,
+        totalSales: totalBilledSales,
+        expenses: operatingExpensesCash,
+        personalWithdrawals: personalWithdrawalsCash,
+        supplierPayments: supplierPaymentsCash,
         netCashInSafe
       },
       recentShifts

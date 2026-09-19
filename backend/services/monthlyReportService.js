@@ -99,12 +99,12 @@ async function calculateMonthlyData(year, month) {
   // Overall totals from completed orders
   let totalSales = 0;
   let totalDiscounts = 0;
-  let grossProfit = 0;
+  let totalCogs = 0;
   let salesCashCollected = 0;
   let salesInstapayCollected = 0;
 
   orders.forEach(o => {
-    // Fix 6: Exclude manual debt entries from sales revenue (they have no real items sold)
+    // Exclude manual debt entries from sales revenue (they have no real items sold)
     if (o.isManualDebt) return;
 
     totalSales += o.totalAmount;
@@ -124,13 +124,18 @@ async function calculateMonthlyData(year, month) {
       return sum + (item.costPrice || 0) * netQty;
     }, 0);
 
-    // Gross profit = Revenue actually collected - COGS
-    // For debt orders we use amountPaid (collected) not totalAmount (billed)
-    // to avoid overstating profit with uncollected receivables.
-    const effectiveRevenue = o.isDebt ? (o.amountPaid || 0) : o.totalAmount;
-    const orderProfit = effectiveRevenue - orderCost;
-    grossProfit += orderProfit;
+    totalCogs += orderCost;
   });
+
+  totalSales = Math.round(totalSales);
+  totalDiscounts = Math.round(totalDiscounts);
+  totalCogs = Math.round(totalCogs);
+  salesCashCollected = Math.round(salesCashCollected);
+  salesInstapayCollected = Math.round(salesInstapayCollected);
+  const salesDebtRemaining = Math.max(0, Math.round(totalSales - (salesCashCollected + salesInstapayCollected)));
+
+  // Gross profit = Net Sales - COGS (Direct mathematical identity)
+  const grossProfit = Math.round(totalSales - totalCogs);
 
   // Process Safe Transactions
   let debtPaymentsCash = 0;
@@ -138,39 +143,11 @@ async function calculateMonthlyData(year, month) {
   let refundsCash = 0;
   let refundsInstapay = 0;
   let operatingExpenses = 0;
-
-  // Fix 3 & 4: Track cross-month debt payment profit and cross-month refund loss
-  // These affect profit even though the original orders are in a different month.
-  let crossMonthDebtProfit = 0;
-  let crossMonthRefundLoss = 0;
+  let personalWithdrawals = 0;
 
   const expenseMap = {};
-
-  // Pre-build a set of order IDs created this month for fast lookup
-  const thisMonthOrderIds = new Set(orders.map(o => o._id.toString()));
-
-  // Fetch previous orders referenced by this month's debt payments / refunds
-  // We need their COGS to correctly calculate the profit contribution.
-  const crossMonthOrderIdsToFetch = new Set();
-  transactions.forEach(t => {
-    if (t.referenceId) {
-      const refId = t.referenceId.toString();
-      if (!thisMonthOrderIds.has(refId)) {
-        if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
-          crossMonthOrderIdsToFetch.add(refId);
-        }
-        if (isRefundTx(t)) {
-          crossMonthOrderIdsToFetch.add(refId);
-        }
-      }
-    }
-  });
-
-  const crossMonthOrders = crossMonthOrderIdsToFetch.size > 0
-    ? await Order.find({ _id: { $in: [...crossMonthOrderIdsToFetch] } })
-    : [];
-  const crossMonthOrderMap = {};
-  crossMonthOrders.forEach(o => { crossMonthOrderMap[o._id.toString()] = o; });
+  const operatingExpensesList = [];
+  const personalWithdrawalsList = [];
 
   transactions.forEach(t => {
     if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
@@ -179,58 +156,42 @@ async function calculateMonthlyData(year, month) {
       } else {
         debtPaymentsInstapay += t.amount;
       }
-      // Fix 3: Add profit for cross-month debt payments
-      // Cash collected this month from last month's debt order = real profit realization
-      if (t.referenceId) {
-        const refId = t.referenceId.toString();
-        if (!thisMonthOrderIds.has(refId)) {
-          const prevOrder = crossMonthOrderMap[refId];
-          if (prevOrder) {
-            // COGS per collected amount (proportional)
-            const orderTotal = prevOrder.totalAmount || 0;
-            const orderCost = prevOrder.items.reduce((sum, item) => {
-              const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
-              return sum + (item.costPrice || 0) * netQty;
-            }, 0);
-            const costProportion = orderTotal > 0 ? (orderCost / orderTotal) : 0;
-            const thisCogs = t.amount * costProportion;
-            crossMonthDebtProfit += (t.amount - thisCogs);
-          } else {
-            // Order not found (deleted?) — treat full payment as profit
-            crossMonthDebtProfit += t.amount;
-          }
-        }
-      }
     } else if (isRefundTx(t)) {
       if (t.paymentMethod === 'Cash') {
         refundsCash += t.amount;
       } else {
         refundsInstapay += t.amount;
       }
-      // Fix 4: Cross-month refunds should reduce this month's profit
-      if (t.referenceId) {
-        const refId = t.referenceId.toString();
-        if (!thisMonthOrderIds.has(refId)) {
-          // Refund paid this month for last month's sale = profit loss this month
-          crossMonthRefundLoss += t.amount;
-        }
-      }
-    } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isPersonalTx(t)) {
+    } else if (isPersonalTx(t)) {
+      personalWithdrawals += t.amount;
+      personalWithdrawalsList.push({
+        id: t._id,
+        category: t.category || 'مسحوبات شخصية',
+        amount: t.amount,
+        description: t.description || 'مسحوبات شخصية / جمعية',
+        date: t.createdAt
+      });
+    } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
       // Operating expense
       const cat = t.category || 'أخرى';
       expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
       operatingExpenses += t.amount;
+      operatingExpensesList.push({
+        id: t._id,
+        category: t.category || 'أخرى',
+        amount: t.amount,
+        description: t.description || '',
+        date: t.createdAt
+      });
     }
   });
 
-  grossProfit += crossMonthDebtProfit;
-  grossProfit -= crossMonthRefundLoss;
+  operatingExpenses = Math.round(operatingExpenses);
+  personalWithdrawals = Math.round(personalWithdrawals);
 
-  // Calculate Supplier Cash Paid (actual outflows only, not credit purchases)
-  // Fix 5: Use 'payment' type only (actual cash paid), not 'purchase' (goods received on credit).
-  // This prevents fictitiously deducting credit purchases from the cash flow.
+  // Calculate Supplier Cash Paid & Purchases
   let supplierCashPaid = 0;
-  let supplierPurchases = 0; // kept for display/audit — value of goods received this month
+  let supplierPurchases = 0;
 
   supplierTxs.forEach(st => {
     if (st.type === 'purchase') {
@@ -252,6 +213,9 @@ async function calculateMonthlyData(year, month) {
     }
   });
 
+  supplierPurchases = Math.round(supplierPurchases);
+  supplierCashPaid = Math.round(supplierCashPaid);
+
   if (supplierPurchases > 0) {
     expenseMap['مشتريات وبضائع موردين'] = supplierPurchases;
   }
@@ -267,22 +231,11 @@ async function calculateMonthlyData(year, month) {
   const cashRevenue = salesCashCollected + debtPaymentsCash - refundsCash;
   const instapayRevenue = salesInstapayCollected + debtPaymentsInstapay - refundsInstapay;
 
-  // Net Operating Profit = Gross Profit - Operating Expenses
-  const netProfit = grossProfit - operatingExpenses;
+  // Net Operating Profit = Gross Profit - Operating Expenses (Airtight mathematical identity)
+  const netProfit = Math.round(grossProfit - operatingExpenses);
 
-  // Fix 3 (جمعية/Cash flow): also track personal withdrawals — they leave the safe
-  // but were intentionally excluded from operatingExpenses (correct for profit).
-  // They MUST be subtracted from netCashFlow so the safe balance is accurate.
-  let personalWithdrawals = 0;
-  transactions.forEach(t => {
-    if (isPersonalTx(t)) {
-      personalWithdrawals += t.amount;
-    }
-  });
-
-  // Fix 5: Net Cash Flow uses actual cash paid to suppliers (supplierCashPaid), not purchase values
-  // Also subtracts personal withdrawals (جمعية etc.) since they physically leave the safe
-  const netCashFlow = (cashRevenue + instapayRevenue) - (operatingExpenses + supplierCashPaid + personalWithdrawals);
+  // Net Cash Flow = Inflows - Outflows (including personal withdrawals which physically left safe)
+  const netCashFlow = Math.round((cashRevenue + instapayRevenue) - (operatingExpenses + supplierCashPaid + personalWithdrawals));
 
   // Daily Breakdown
   const dailyData = [];
@@ -361,19 +314,17 @@ async function calculateMonthlyData(year, month) {
 
     const dayCash = daySalesCash + dayDebtCash - dayRefundCash;
     const dayInstapay = daySalesInstapay + dayDebtInstapay - dayRefundInstapay;
-    const dayExpenses = dayOpExpenses + daySupplierPurchases;
 
-    const dayGrossProfit = dayOrders.reduce((sum, o) => {
+    const dayCogs = dayOrders.reduce((sum, o) => {
       if (o.isManualDebt) return sum;
-      const orderCost = o.items.reduce((cSum, item) => {
+      return sum + o.items.reduce((cSum, item) => {
         const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
         return cSum + (item.costPrice || 0) * netQty;
       }, 0);
-      const effectiveRevenue = o.isDebt ? (o.amountPaid || 0) : o.totalAmount;
-      return sum + (effectiveRevenue - orderCost);
     }, 0);
 
-    const dayProfit = dayGrossProfit - dayOpExpenses;
+    const dayGrossProfit = Math.round(dayRevenue - dayCogs);
+    const dayProfit = Math.round(dayGrossProfit - dayOpExpenses);
 
     const dateStr = dStart.toLocaleDateString('ar-EG-u-nu-latn', { month: 'numeric', day: 'numeric' });
 
@@ -382,13 +333,17 @@ async function calculateMonthlyData(year, month) {
       date: dateStr,
       revenue: dayRevenue,
       discounts: dayDiscounts,
+      cogs: dayCogs,
+      grossProfit: dayGrossProfit,
       profit: dayProfit,
       count: dayOrders.length,
       cashRevenue: dayCash,
       instapayRevenue: dayInstapay,
-      expenses: dayExpenses,
+      expenses: dayOpExpenses,
       operatingExpenses: dayOpExpenses,
-      supplierPurchases: daySupplierPurchases
+      supplierPurchases: daySupplierPurchases,
+      supplierCashPaid: daySupplierCashPaid,
+      personalWithdrawals: dayPersonalWithdrawals
     });
   }
 
@@ -455,24 +410,6 @@ async function calculateMonthlyData(year, month) {
     itemsSold: data.itemsSold
   })).sort((a, b) => b.amount - a.amount);
 
-  // Detailed Financial Audit & Explanations ("دي جت ازاي")
-  const totalCogs = orders.reduce((sum, o) => {
-    return sum + o.items.reduce((s, item) => {
-      const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
-      return s + (item.costPrice || 0) * netQty;
-    }, 0);
-  }, 0);
-
-  const operatingExpensesList = transactions
-    .filter(t => t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isRefundTx(t))
-    .map(t => ({
-      id: t._id,
-      category: t.category || 'أخرى',
-      amount: t.amount,
-      description: t.description || '',
-      date: t.createdAt
-    }));
-
   const supplierPaymentsList = supplierTxs.map(st => ({
     id: st._id,
     type: st.type,
@@ -487,23 +424,27 @@ async function calculateMonthlyData(year, month) {
     grossProfit,
     operatingExpensesTotal: operatingExpenses,
     supplierPurchasesTotal: supplierPurchases,
+    supplierCashPaidTotal: supplierCashPaid,
     debtPaymentsCash,
     debtPaymentsInstapay,
     refundsCash,
     refundsInstapay,
     salesCashCollected,
     salesInstapayCollected,
+    salesDebtRemaining,
     personalWithdrawalsTotal: personalWithdrawals,
     operatingExpensesList,
+    personalWithdrawalsList,
     supplierPaymentsList,
     explanations: {
-      totalSales: `إجمالي المبيعات الصافية = مجموع الفواتير المكتملة بعد الخصم المباشر (عدد ${orders.length} فاتورة بقيمة إجمالية ${totalSales.toLocaleString()} ج.م). المبيعات الإجمالية قبل الخصم كانت ${(totalSales + totalDiscounts).toLocaleString()} ج.م.`,
+      totalSales: `إجمالي المبيعات الصافية = مجموع الفواتير المكتملة بعد الخصم المباشر (عدد ${orders.length} فاتورة بقيمة إجمالية ${totalSales.toLocaleString()} ج.م). المبيعات الإجمالية قبل الخصم كانت ${(totalSales + totalDiscounts).toLocaleString()} ج.م. منها كاش محصل (${salesCashCollected.toLocaleString()} ج.م) وإنستاباي (${salesInstapayCollected.toLocaleString()} ج.م)${salesDebtRemaining > 0 ? ` ومتبقي آجل طرف العملاء (${salesDebtRemaining.toLocaleString()} ج.م)` : ''}.`,
       totalDiscounts: `إجمالي الخصومات الممنوحة = مجموع التخفيضات التي تم تنزيلها للعملاء في الفواتير بقيمة ${totalDiscounts.toLocaleString()} ج.م. (خصم مباشر تم تنزيله من المبيعات قبل الوصول لصافي الربح).`,
       cogs: `تكلفة البضاعة المباعة (COGS) = مجموع تكلفة شراء الأجناس المباعة بأسعار الجملة/الشراء (إجمالي ${totalCogs.toLocaleString()} ج.م).`,
-      grossProfit: `مجمل الربح التجاري = المبيعات الصافية (${totalSales.toLocaleString()} ج.م) - تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م. (دون تخصيم الخصم مرتين).`,
-      operatingExpenses: `مصاريف التشغيل = إجمالي المصاريف الإدارية والعمومية (عدد ${operatingExpensesList.length} حركة بقيمة ${operatingExpenses.toLocaleString()} ج.م) مع استبعاد الموردين والورديات والمسحوبات الشخصية/الجمعية لضمان عدم خفض صافي ربح النشاط خطأً.`,
-      supplierPurchases: `مشتريات بضائع الموردين = إجمالي مبالغ البضائع وسداد الموردين (عدد ${supplierPaymentsList.length} حركة بقيمة ${supplierPurchases.toLocaleString()} ج.م) من الخزنة أو من خارجها.`,
-      netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) - مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م (المسحوبات والجمعية مستبعدة تماماً من هنا لحماية أرباحك).`,
+      grossProfit: `مجمل الربح التجاري = صافي المبيعات (${totalSales.toLocaleString()} ج.م) - تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م (ربح تجارة البضاعة).`,
+      operatingExpenses: `مصاريف التشغيل = إجمالي المصاريف الإدارية والعمومية (عدد ${operatingExpensesList.length} حركة بقيمة ${operatingExpenses.toLocaleString()} ج.م) كالإيجار والمرتبات والكهرباء (مستبعد منها الموردين والمسحوبات الشخصية).`,
+      supplierPurchases: `مشتريات بضائع الموردين = إجمالي قيمة البضائع الموردة للمحل بقيمة ${supplierPurchases.toLocaleString()} ج.م (أصول بضاعة يتم تحويلها لمخزون وحساب تكلفتها عند البيع في بند COGS).`,
+      personalWithdrawals: `المسحوبات الشخصية والجمعية = إجمالي المبالغ المسحوبة للمالك والشركاء والجمعيات بقيمة ${personalWithdrawals.toLocaleString()} ج.م (سُحبت من الخزنة وخفّضت رصيد الكاش، ولكنها مستبعدة من مصاريف التشغيل لحماية أرباح المحل التجارية).`,
+      netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) - مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م.`,
       netCashFlow: `صافي حركة الخزنة = (السيولة المباشرة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) - (مصاريف التشغيل ${operatingExpenses.toLocaleString()} ج.م + المدفوع للموردين ${supplierCashPaid.toLocaleString()} ج.م + المسحوبات الشخصية والجمعية ${personalWithdrawals.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
     }
   };
@@ -514,13 +455,20 @@ async function calculateMonthlyData(year, month) {
     yearMonth,
     monthName,
     totalSales,
+    grossProfit,
+    cogs: totalCogs,
     netProfit,
     totalExpenses,
     operatingExpenses,
     supplierPurchases,
+    supplierCashPaid,
+    personalWithdrawals,
     netCashFlow,
     totalDiscounts,
     totalOrders: orders.length,
+    salesCashCollected,
+    salesInstapayCollected,
+    salesDebtRemaining,
     cashRevenue,
     instapayRevenue,
     dailyData,
