@@ -500,6 +500,15 @@ function AdminUsers() {
  onSuccess={(msg) => { showToast(msg); setChangePwUser(null); }}
  />
  )}
+
+      {/* Edit User Modal */}
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSuccess={(msg) => { showToast(msg); setEditUser(null); loadUsers(); }}
+        />
+      )}
  </div>
  );
 }
