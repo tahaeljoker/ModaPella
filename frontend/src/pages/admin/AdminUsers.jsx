@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
-const ROLE_AR = { admin: 'مدير', cashier: 'كاشير', manager: 'مشرف', employee: 'موظف جرد' };
-const ROLE_COLOR = { admin: 'bg-burgundy/10 text-burgundy', cashier: 'bg-blue-100 text-blue-700', manager: 'bg-purple-100 text-purple-700', employee: 'bg-emerald-100 text-emerald-700' };
+const ROLE_AR = { admin: 'مدير', cashier: 'كاشير', manager: 'مشرف', employee: 'موظف جرد', developer: 'مطور النظام' };
+const ROLE_COLOR = { admin: 'bg-burgundy/10 text-burgundy', developer: 'bg-indigo-100 text-indigo-700', cashier: 'bg-blue-100 text-blue-700', manager: 'bg-purple-100 text-purple-700', employee: 'bg-emerald-100 text-emerald-700' };
 
 const emptyUser = { name: '', email: '', password: '', role: 'cashier', phone: '' };
 
@@ -99,6 +99,147 @@ function ChangePasswordModal({ user, onClose, onSuccess }) {
  );
 }
 
+// ── Edit User Details & Role Modal ───────────────────────────────────────────
+function EditUserModal({ user, onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
+    name: user.name || '',
+    email: user.email || '',
+    role: user.role || 'cashier',
+    phone: user.phone || '',
+    active: user.active !== false
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true); setErr('');
+    try {
+      await api.patch(`/admin/users/${user._id}`, formData);
+      onSuccess(`تم تحديث بيانات وصلاحيات ${formData.name} بنجاح`);
+      onClose();
+    } catch (err) {
+      setErr(err.response?.data?.message || 'حدث خطأ أثناء تعديل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md rounded-[2rem] bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="bg-burgundy px-6 py-4 text-white flex items-center justify-between">
+          <div>
+            <p className="text-xs opacity-70 uppercase tracking-widest">تعديل بيانات وصلاحيات المستخدم</p>
+            <p className="font-bold text-lg">{user.name}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/70 hover:text-white text-xl">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الاسم *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">البريد الإلكتروني *</label>
+            <input
+              type="email"
+              required
+              dir="ltr"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+              className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">صلاحية الحساب في النظام (الدور) *</label>
+            <select
+              value={formData.role}
+              onChange={e => setFormData({ ...formData, role: e.target.value })}
+              className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy font-bold outline-none focus:border-burgundy"
+            >
+              <option value="cashier">كاشير (نقطة البيع والخزينة والورديات)</option>
+              <option value="employee">موظف جرد (تطبيق الجرد والمخزن فقط)</option>
+              <option value="manager">مشرف (لوحة التحكم والعمليات اليومية)</option>
+              <option value="admin">مدير رئيسي (صلاحيات كاملة على كل شيء)</option>
+              <option value="developer">مطور النظام (صلاحيات برمجية وإدارية كاملة)</option>
+            </select>
+            <p className="mt-1 text-[11px] text-burgundy/50">
+              {formData.role === 'cashier' && 'يسمح له بفتح وردية كاشير وإصدار الفواتير وتحصيل المبيعات.'}
+              {formData.role === 'employee' && 'يسمح له بتسجيل ومراجعة جرد المخزن فقط.'}
+              {formData.role === 'admin' && 'يملك كل الصلاحيات الإدارية والمالية.'}
+              {formData.role === 'developer' && 'يملك صلاحيات المطور والوصول لكافة أجزاء النظام.'}
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">رقم الهاتف</label>
+            <input
+              type="text"
+              dir="ltr"
+              value={formData.phone}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="مثال: 01012345678"
+              className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">حالة الحساب</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm text-burgundy cursor-pointer">
+                <input
+                  type="radio"
+                  name="activeStatus"
+                  checked={formData.active === true}
+                  onChange={() => setFormData({ ...formData, active: true })}
+                />
+                <span className="font-bold text-emerald-700">نشط ومفعل</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-burgundy cursor-pointer">
+                <input
+                  type="radio"
+                  name="activeStatus"
+                  checked={formData.active === false}
+                  onChange={() => setFormData({ ...formData, active: false })}
+                />
+                <span className="font-bold text-slate-500">معطّل مؤقتاً</span>
+              </label>
+            </div>
+          </div>
+
+          {err && <p className="rounded-xl bg-red-50 px-4 py-2 text-xs text-red-600">{err}</p>}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 rounded-full bg-burgundy py-2.5 text-sm font-bold text-white hover:bg-[#650018] transition disabled:opacity-50"
+            >
+              {loading ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-burgundy/20 px-5 py-2.5 text-sm text-burgundy hover:bg-burgundy/8 transition"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function AdminUsers() {
  const [users, setUsers] = useState([]);
@@ -109,6 +250,7 @@ function AdminUsers() {
  const [toast, setToast] = useState('');
  const [toastType, setToastType] = useState('success');
  const [changePwUser, setChangePwUser] = useState(null);
+ const [editUser, setEditUser] = useState(null);
  const [copiedId, setCopiedId] = useState(null);
 
  const showToast = (msg, type = 'success') => {
@@ -298,6 +440,14 @@ function AdminUsers() {
  {/* Right: action buttons */}
  {u.role !== 'admin' ? (
  <div className="flex items-center gap-2 flex-wrap shrink-0">
+ {/* Edit role & details */}
+ <button
+ type="button"
+ onClick={() => setEditUser(u)}
+ className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-600 hover:text-white transition"
+ >
+ تعديل الصلاحية والبيانات
+ </button>
  {/* Change password */}
  <button
  type="button"

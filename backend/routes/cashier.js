@@ -44,26 +44,62 @@ router.get('/inventory', auth, requireRole(['admin', 'cashier', 'manager']), asy
 // GET /api/cashier/orders/:id — single order detail for returns
 router.get('/orders/:id', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const cleanId = req.params.id.trim();
+    let raw = req.params.id ? req.params.id.trim() : '';
+    // Normalize Arabic numerals:
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    arabicDigits.forEach((d, idx) => {
+      raw = raw.replaceAll(d, String(idx));
+    });
+    // Strip leading '#', 'طلب #', 'فاتورة #', 'كود #' or whitespace
+    let clean = raw.replace(/^(طلب|فاتورة|كود)?\s*#?\s*/i, '').trim();
+
     let order = null;
-    
-    if (cleanId.length === 24 && /^[0-9a-fA-F]{24}$/.test(cleanId)) {
-      order = await Order.findById(cleanId);
-    } else if (cleanId.length === 6) {
+
+    // 1. If 24 hex characters, search by exact ObjectId
+    if (clean.length === 24 && /^[0-9a-fA-F]{24}$/.test(clean)) {
+      order = await Order.findById(clean).populate('customer employee');
+    }
+
+    // 2. Search by end of _id (case-insensitive, e.g. 6-char short ID)
+    if (!order && /^[0-9a-fA-F]+$/.test(clean)) {
       order = await Order.findOne({
         $expr: {
-          $eq: [
-            { $strcasecmp: [ { $substrCP: [ { $toString: "$_id" }, 18, 6 ] }, cleanId ] },
-            0
-          ]
+          $regexMatch: {
+            input: { $toString: "$_id" },
+            regex: `${clean}$`,
+            options: "i"
+          }
         }
-      }).sort({ createdAt: -1 });
+      }).populate('customer employee').sort({ createdAt: -1 });
+    }
+
+    // 3. Search anywhere inside _id (minimum 4 hex chars)
+    if (!order && /^[0-9a-fA-F]{4,}$/.test(clean)) {
+      order = await Order.findOne({
+        $expr: {
+          $regexMatch: {
+            input: { $toString: "$_id" },
+            regex: clean,
+            options: "i"
+          }
+        }
+      }).populate('customer employee').sort({ createdAt: -1 });
+    }
+
+    // 4. Search by customer phone or customer name
+    if (!order && clean.length >= 3) {
+      order = await Order.findOne({
+        $or: [
+          { customerPhone: { $regex: clean, $options: 'i' } },
+          { customerName: { $regex: clean, $options: 'i' } }
+        ]
+      }).populate('customer employee').sort({ createdAt: -1 });
     }
 
     if (!order) return res.status(404).json({ message: 'لم يُعثر على طلب بهذا الرقم أو الكود' });
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Unable to load order', error: error.message });
+    res.status(500).json({ message: 'تعذر جلب تفاصيل الفاتورة', error: error.message });
   }
 });
 

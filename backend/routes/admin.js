@@ -747,7 +747,7 @@ router.post('/customers/delete', auth, requireRole(['admin']), async (req, res) 
 // GET /api/admin/users — list all staff users
 router.get('/users', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const users = await User.find({ role: { $in: ['admin', 'cashier', 'manager', 'employee'] } })
+    const users = await User.find({ role: { $in: ['admin', 'cashier', 'manager', 'employee', 'developer'] } })
       .select('-password')
       .sort({ createdAt: -1 });
     
@@ -808,6 +808,55 @@ router.post('/users', auth, requireRole(['admin']), async (req, res) => {
     res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });
   } catch (error) {
     res.status(500).json({ message: 'Unable to create user', error: error.message });
+  }
+});
+
+// PATCH /api/admin/users/:id — update user role, name, email, phone, active
+router.patch('/users/:id', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { name, email, role, phone, active } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+    if (name) user.name = name.trim();
+    if (email) {
+      const existing = await User.findOne({ email: email.toLowerCase().trim(), _id: { $ne: user._id } });
+      if (existing) return res.status(400).json({ message: 'البريد الإلكتروني مستخدم بالفعل بحساب آخر' });
+      user.email = email.toLowerCase().trim();
+    }
+    if (role) {
+      if (!['admin', 'cashier', 'manager', 'employee', 'developer'].includes(role)) {
+        return res.status(400).json({ message: 'الصلاحية المحددة غير صحيحة' });
+      }
+      user.role = role;
+    }
+    if (phone !== undefined) user.phone = phone.trim();
+    if (active !== undefined) user.active = Boolean(active);
+
+    await user.save();
+
+    // If Employee model exists and is linked, sync name and phone
+    const Employee = require('../models/Employee');
+    const linkedEmp = await Employee.findOne({ user: user._id });
+    if (linkedEmp) {
+      linkedEmp.name = user.name;
+      if (user.phone) linkedEmp.phone = user.phone;
+      await linkedEmp.save();
+    }
+
+    res.json({
+      message: 'تم تحديث بيانات المستخدم وصلاحياته بنجاح',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        active: user.active
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'تعذر تعديل بيانات المستخدم', error: error.message });
   }
 });
 

@@ -37,28 +37,36 @@ function CashierReturns() {
  .catch(console.error);
  }, []);
 
- const handleSearch = async (e) => {
- e?.preventDefault();
- if (!orderId.trim()) return;
- setLoading(true);
- setOrder(null);
- setReturnQtys({});
- setNewCart([]);
- try {
- const res = await api.get(`/cashier/orders/${orderId.trim()}`);
- setOrder(res.data);
- 
- const initial = {};
- res.data.items.forEach(item => {
- initial[item._id] = 0;
- });
- setReturnQtys(initial);
- } catch (err) {
- showToast(err.response?.data?.message || 'لم يُعثر على طلب بهذا الرقم أو الكود', 'error');
- } finally {
- setLoading(false);
- }
- };
+  const handleSearch = async (e) => {
+    e?.preventDefault();
+    let query = orderId.trim();
+    if (!query) return;
+
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    arabicDigits.forEach((d, idx) => {
+      query = query.replaceAll(d, String(idx));
+    });
+    query = query.replace(/^(طلب|فاتورة|كود)?\s*#?\s*/i, '').trim();
+
+    setLoading(true);
+    setOrder(null);
+    setReturnQtys({});
+    setNewCart([]);
+    try {
+      const res = await api.get(`/cashier/orders/${encodeURIComponent(query)}`);
+      setOrder(res.data);
+      
+      const initial = {};
+      res.data.items?.forEach(item => {
+        initial[item._id] = 0;
+      });
+      setReturnQtys(initial);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'لم يُعثر على طلب بهذا الرقم أو الكود', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
  const handleReturn = async () => {
  if (!order || order.recovered) return;
