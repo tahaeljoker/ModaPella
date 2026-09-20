@@ -747,7 +747,7 @@ router.post('/customers/delete', auth, requireRole(['admin']), async (req, res) 
 // GET /api/admin/users — list all staff users
 router.get('/users', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const users = await User.find({ role: { $in: ['admin', 'cashier', 'manager', 'employee', 'developer'] } })
+    const users = await User.find({ role: { $in: ['admin', 'cashier', 'manager', 'employee'] } })
       .select('-password')
       .sort({ createdAt: -1 });
     
@@ -825,7 +825,7 @@ router.patch('/users/:id', auth, requireRole(['admin']), async (req, res) => {
       user.email = email.toLowerCase().trim();
     }
     if (role) {
-      if (!['admin', 'cashier', 'manager', 'employee', 'developer'].includes(role)) {
+      if (!['admin', 'cashier', 'manager', 'employee'].includes(role)) {
         return res.status(400).json({ message: 'الصلاحية المحددة غير صحيحة' });
       }
       user.role = role;

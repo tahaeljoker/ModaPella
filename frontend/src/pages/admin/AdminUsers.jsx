@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
-const ROLE_AR = { admin: 'مدير', cashier: 'كاشير', manager: 'مشرف', employee: 'موظف جرد', developer: 'مطور النظام' };
-const ROLE_COLOR = { admin: 'bg-burgundy/10 text-burgundy', developer: 'bg-indigo-100 text-indigo-700', cashier: 'bg-blue-100 text-blue-700', manager: 'bg-purple-100 text-purple-700', employee: 'bg-emerald-100 text-emerald-700' };
+const ROLE_AR = { admin: 'مدير', cashier: 'كاشير', manager: 'مشرف', employee: 'موظف جرد' };
+const ROLE_COLOR = { admin: 'bg-burgundy/10 text-burgundy', cashier: 'bg-blue-100 text-blue-700', manager: 'bg-purple-100 text-purple-700', employee: 'bg-emerald-100 text-emerald-700' };
 
 const emptyUser = { name: '', email: '', password: '', role: 'cashier', phone: '' };
 
@@ -170,13 +170,13 @@ function EditUserModal({ user, onClose, onSuccess }) {
               <option value="employee">موظف جرد (تطبيق الجرد والمخزن فقط)</option>
               <option value="manager">مشرف (لوحة التحكم والعمليات اليومية)</option>
               <option value="admin">مدير رئيسي (صلاحيات كاملة على كل شيء)</option>
-              <option value="developer">مطور النظام (صلاحيات برمجية وإدارية كاملة)</option>
+              
             </select>
             <p className="mt-1 text-[11px] text-burgundy/50">
               {formData.role === 'cashier' && 'يسمح له بفتح وردية كاشير وإصدار الفواتير وتحصيل المبيعات.'}
               {formData.role === 'employee' && 'يسمح له بتسجيل ومراجعة جرد المخزن فقط.'}
               {formData.role === 'admin' && 'يملك كل الصلاحيات الإدارية والمالية.'}
-              {formData.role === 'developer' && 'يملك صلاحيات المطور والوصول لكافة أجزاء النظام.'}
+              
             </p>
           </div>
 
@@ -395,7 +395,7 @@ function AdminUsers() {
  <p className="text-4xl mb-3"></p>
  <p className="text-sm text-burgundy/50">لا يوجد مستخدمون بعد</p>
  </div>
- ) : users.map((u) => (
+ ) : users.filter(u => u.role !== 'developer').map((u) => (
  <div key={u._id} className={`rounded-[1.5rem] border bg-white px-5 py-4 shadow-sm transition ${u.active === false ? 'opacity-60 border-burgundy/8' : 'border-burgundy/10 hover:border-burgundy/20'}`}>
  <div className="flex items-start justify-between gap-4 flex-wrap">
 
