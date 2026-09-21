@@ -338,6 +338,20 @@ export default function AdminMonthlyReports() {
  إجمالي المشتريات والموردين: {EGP(report.supplierPurchases)}
  </div>
  </div>
+
+ {/* 6. Customer Refunds */}
+ <div className="rounded-2xl border border-rose-500/20 bg-rose-50/40 p-4 space-y-2">
+ <h4 className="font-bold text-sm text-rose-900 flex items-center gap-2">
+ <span className="h-2 w-2 rounded-full bg-rose-600" /> 6. مرتجعات العملاء المستردة (Customer Refunds)
+ </h4>
+ <p className="text-xs text-rose-950 leading-relaxed font-medium">
+ إجمالي المبالغ المستردة للزبائن نقداً من الخزنة نتيجة إرجاع بضائع مباعة، وتُخصم مباشرة من السيولة النقدية الداخلة للدرج.
+ </p>
+ <div className="text-[11px] text-rose-900 bg-rose-100/60 p-2 rounded-xl flex items-center justify-between">
+ <span>إجمالي المرتجع: -{EGP(report.refundsTotal ?? report.auditDetails?.refundsTotal ?? (((report.auditDetails?.refundsCash || 0) + (report.auditDetails?.refundsInstapay || 0))))}</span>
+ <span>{report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length ?? 0} عملية</span>
+ </div>
+ </div>
  </div>
 
   {/* Formula Summary Card */}
@@ -353,7 +367,7 @@ export default function AdminMonthlyReports() {
   <span className="font-bold">3. صافي ربح النشاط = </span> مجمل الربح التجاري - مصروفات التشغيل العمومية فقط <span className="text-emerald-700 font-bold">(المسحوبات الشخصية والجمعية مستبعدة تماماً لحماية أرباح المحل)</span>
   </p>
   <p className="text-xs text-burgundy/80">
-  <span className="font-bold">4. صافي حركة الخزنة والسيولة = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون والإيداعات) - (مصاريف التشغيل + المدفوع للموردين من الخزنة + المسحوبات الشخصية والجمعية {report.auditDetails?.personalWithdrawalsTotal ? `[${EGP(report.auditDetails.personalWithdrawalsTotal)}]` : ''})
+  <span className="font-bold">4. صافي حركة الخزنة والسيولة = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون والإيداعات) - (مرتجعات العملاء المستردة + مصاريف التشغيل + المدفوع للموردين من الخزنة + المسحوبات الشخصية والجمعية {report.auditDetails?.personalWithdrawalsTotal ? `[${EGP(report.auditDetails.personalWithdrawalsTotal)}]` : ''})
   </p>
   </div>
 
@@ -409,6 +423,46 @@ export default function AdminMonthlyReports() {
  <td className="py-2 px-3 font-semibold text-purple-800">{pw.category}</td>
  <td className="py-2 px-3 text-burgundy/70">{pw.description || '—'}</td>
  <td className="py-2 px-3 font-bold text-purple-700">{EGP(pw.amount)}</td>
+ </tr>
+ ))}
+ </tbody>
+ </table>
+ </div>
+ </div>
+ )}
+
+ {/* Itemized Customer Refunds List */}
+ {report.auditDetails?.refundsList && report.auditDetails.refundsList.length > 0 && (
+ <div className="space-y-3">
+ <div className="flex items-center justify-between">
+ <h4 className="font-bold text-sm text-rose-900 flex items-center gap-2">
+ <span> كشف حساب المرتجعات المستردة للعملاء من الخزنة:</span>
+ </h4>
+ <span className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full">
+ إجمالي المسترد: -{EGP(report.refundsTotal ?? report.auditDetails?.refundsTotal ?? 0)} ({report.auditDetails.refundsList.length} حركة)
+ </span>
+ </div>
+ <div className="max-h-60 overflow-y-auto rounded-2xl border border-rose-200 bg-white">
+ <table className="w-full text-right text-xs">
+ <thead className="bg-rose-50/60 font-bold sticky top-0">
+ <tr className="border-b border-rose-100">
+ <th className="py-2.5 px-3">التاريخ</th>
+ <th className="py-2.5 px-3">طريقة الدفع</th>
+ <th className="py-2.5 px-3">تفاصيل المرتجع والسبب</th>
+ <th className="py-2.5 px-3">المبلغ المسترد</th>
+ </tr>
+ </thead>
+ <tbody className="divide-y divide-rose-50">
+ {report.auditDetails.refundsList.map((rf, idx) => (
+ <tr key={idx} className="hover:bg-rose-50/30">
+ <td className="py-2 px-3 text-burgundy/60">{new Date(rf.date).toLocaleDateString('ar-EG')}</td>
+ <td className="py-2 px-3 font-semibold">
+ <span className={`px-2 py-0.5 rounded text-[10px] ${rf.paymentMethod === 'Cash' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+ {rf.paymentMethod === 'Cash' ? 'كاش (الدرج)' : 'إنستاباي'}
+ </span>
+ </td>
+ <td className="py-2 px-3 text-burgundy/80 font-medium">{rf.description || 'مرتجع طلب'}</td>
+ <td className="py-2 px-3 font-bold text-rose-700">-{EGP(rf.amount)}</td>
  </tr>
  ))}
  </tbody>
@@ -623,22 +677,37 @@ export default function AdminMonthlyReports() {
  </div>
  <p className="mt-2 text-2xl font-bold text-blue-800 flex items-center gap-1">
  {EGP(report.netCashFlow ?? 0)}
- <InfoPopover
- title="صافي حركة السيولة الخزينة"
- formula="(المقبوضات الكاش والبنكية) (مصاريف تشغيل + موردين + مسحوبات شخصية)"
- rows={[
- { label: 'إجمالي المقبوضات (كاش + إنستاباي)', value: EGP((report.cashRevenue || 0) + (report.instapayRevenue || 0)), highlight: true },
- { label: 'كاش المبيعات المحصل', value: EGP(report.salesCashCollected ?? report.cashRevenue ?? 0) },
- { label: 'إنستاباي المبيعات المحصل', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
- { separator: true },
- { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
- { label: 'المدفوع للموردين من الخزنة', value: `-${EGP(report.supplierPaidFromSafe ?? report.auditDetails?.supplierPaidFromSafe ?? report.supplierCashPaid ?? 0)}`, negative: true },
- { label: 'المسحوبات الشخصية والجمعية', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}`, negative: true },
- { separator: true },
- { label: '= صافي حركة الخزينة والسيولة', value: EGP(report.netCashFlow ?? 0), highlight: true },
- ]}
- note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويطابق حركة الدرج بالمليم بعد خصم المصاريف والموردين والمسحوبات الشخصية."
- />
+              <InfoPopover
+                title="صافي حركة السيولة الخزينة"
+                formula="(صافي المقبوضات النقدية بعد المرتجعات) - (مصاريف تشغيل + موردين + مسحوبات شخصية)"
+                rows={[
+                  { label: 'كاش المبيعات المحصل', value: EGP(report.salesCashCollected ?? report.cashRevenue ?? 0) },
+                  { label: 'إنستاباي المبيعات المحصل', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
+                  { label: 'إجمالي المقبوضات من المبيعات', value: EGP((report.salesCashCollected || 0) + (report.salesInstapayCollected || 0)) },
+                  ...((report.refundsTotal ?? report.auditDetails?.refundsTotal ?? (((report.auditDetails?.refundsCash || 0) + (report.auditDetails?.refundsInstapay || 0)))) > 0 ? [
+                    {
+                      label: `مرتجعات العملاء المستردة نقداً${(report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length ?? 0) > 0 ? ` (${report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length} عملية)` : ''}`,
+                      value: `-${EGP(report.refundsTotal ?? report.auditDetails?.refundsTotal ?? (((report.auditDetails?.refundsCash || 0) + (report.auditDetails?.refundsInstapay || 0))))}`,
+                      negative: true
+                    }
+                  ] : []),
+                  ...(((report.auditDetails?.debtPaymentsCash || 0) + (report.auditDetails?.debtPaymentsInstapay || 0) + (report.auditDetails?.depositsCash || 0) + (report.auditDetails?.depositsInstapay || 0)) > 0 ? [
+                    {
+                      label: 'سداد ديون عملاء وإيداعات بالخزنة',
+                      value: `+${EGP((report.auditDetails?.debtPaymentsCash || 0) + (report.auditDetails?.debtPaymentsInstapay || 0) + (report.auditDetails?.depositsCash || 0) + (report.auditDetails?.depositsInstapay || 0))}`
+                    }
+                  ] : []),
+                  { separator: true },
+                  { label: '= صافي المقبوضات الفعلية بالخزنة', value: EGP((report.cashRevenue || 0) + (report.instapayRevenue || 0)), highlight: true },
+                  { separator: true },
+                  { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
+                  { label: 'المدفوع للموردين من الخزنة', value: `-${EGP(report.supplierPaidFromSafe ?? report.auditDetails?.supplierPaidFromSafe ?? report.supplierCashPaid ?? 0)}`, negative: true },
+                  { label: 'المسحوبات الشخصية والجمعية', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}`, negative: true },
+                  { separator: true },
+                  { label: '= صافي حركة الخزينة والسيولة', value: EGP(report.netCashFlow ?? 0), highlight: true },
+                ]}
+                note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويطابق حركة الدرج بالمليم (المبيعات المحصلة منقوصاً منها المرتجعات والمصاريف والمسحوبات والموردين)."
+              />
  </p>
  <p className="mt-2 text-[11px] text-blue-900/70">
  إجمالي الداخل كاش إجمالي الخارج

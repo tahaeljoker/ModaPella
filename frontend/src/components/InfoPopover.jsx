@@ -1,115 +1,162 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
- * InfoPopover — يعرض شرح تفصيلي لأي رقم مالي عند الضغط على أيقونة ⓘ
+ * InfoPopover — يعرض نافذة مركزية وشرحاً تفصيلياً لأي رقم مالي عند الضغط على أيقونة الاستفهام (?)
  *
  * Props:
  * - title: string — اسم المقياس
  * - formula: string — المعادلة المختصرة
  * - rows: Array<{ label, value, highlight?, negative?, separator? }> — خطوات الحساب
- * - note: string? — ملاحظة اختيارية
- * - side: 'right'|'left'? — جهة ظهور الـ popover (default: 'right')
+ * - note: string? — ملاحظة توضيحية
  */
-export default function InfoPopover({ title, formula, rows = [], note, side = 'right' }) {
- const [open, setOpen] = useState(false);
- const ref = useRef(null);
+export default function InfoPopover({ title, formula, rows = [], note }) {
+  const [open, setOpen] = useState(false);
 
- useEffect(() => {
- if (!open) return;
- const handler = (e) => {
- if (ref.current && !ref.current.contains(e.target)) {
- setOpen(false);
- }
- };
- document.addEventListener('mousedown', handler);
- return () => document.removeEventListener('mousedown', handler);
- }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
 
- return (
- <span ref={ref} className="relative inline-flex items-center" style={{ verticalAlign: 'middle' }}>
- <button
- type="button"
- onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
- className={`
- ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold
- transition-all duration-150 select-none
- ${open
- ? 'bg-burgundy text-white shadow-md'
- : 'bg-burgundy/10 text-burgundy hover:bg-burgundy/20'}
- `}
- title="اضغط لمعرفة كيف جاء هذا الرقم"
- aria-label="معلومات عن حساب هذا الرقم"
- >
- ⓘ
- </button>
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        className={`
+          ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold
+          transition-all duration-200 select-none shadow-sm cursor-pointer
+          ${open
+            ? 'bg-burgundy text-white ring-2 ring-burgundy/30 scale-110'
+            : 'bg-burgundy/10 text-burgundy hover:bg-burgundy hover:text-white hover:scale-110'}
+        `}
+        title="اضغط لمعرفة كيف تم حساب هذا الرقم"
+        aria-label="تفاصيل حساب هذا الرقم"
+      >
+        ?
+      </button>
 
- {open && (
- <div
- className={`
- absolute z-50 w-72 rounded-2xl border border-burgundy/20 bg-white shadow-2xl
- text-right
- ${side === 'left' ? 'right-0' : 'left-0'}
- top-6
- `}
- onClick={(e) => e.stopPropagation()}
- >
- <div className="rounded-t-2xl bg-burgundy px-4 py-3">
- <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">كيف تم حساب هذا الرقم؟</p>
- <p className="mt-0.5 text-sm font-bold text-white">{title}</p>
- </div>
+      {open && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setOpen(false)}
+          dir="rtl"
+        >
+          {/* Modal Container */}
+          <div
+            className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-burgundy/20 overflow-hidden flex flex-col max-h-[90vh] animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-burgundy via-[#8B1A24] to-burgundy px-6 py-5 text-white flex items-start justify-between relative shadow-md">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-0.5 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
+                  <span>📊</span> كيف تم حساب هذا الرقم؟
+                </span>
+                <h3 className="mt-2 text-xl font-extrabold text-white tracking-tight">{title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-full h-8 w-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer text-sm font-bold"
+                aria-label="إغلاق"
+              >
+                ✕
+              </button>
+            </div>
 
- {formula && (
- <div className="mx-3 mt-3 rounded-xl bg-burgundy/5 px-3 py-2 text-center">
- <p className="text-[11px] font-semibold text-burgundy/80">{formula}</p>
- </div>
- )}
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto p-6 space-y-4">
+              {/* Formula Badge */}
+              {formula && (
+                <div className="rounded-2xl bg-[#F7F0EC]/80 border border-burgundy/15 p-3.5 text-center">
+                  <p className="text-[11px] font-bold text-burgundy/70 mb-1">المعادلة المحاسبية المعتمدة</p>
+                  <p className="text-xs sm:text-sm font-bold text-burgundy leading-relaxed">{formula}</p>
+                </div>
+              )}
 
- {rows.length > 0 && (
- <div className="mx-3 mt-3 mb-1 space-y-1">
- {rows.map((row, i) => {
- if (row.separator) {
- return <div key={i} className="my-2 border-t border-dashed border-burgundy/15" />;
- }
- return (
- <div
- key={i}
- className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-xs ${
- row.highlight
- ? 'bg-burgundy text-white font-bold rounded-xl'
- : 'text-burgundy/80'
- }`}
- >
- <span className={row.highlight ? 'text-white/80' : 'text-burgundy/60'}>{row.label}</span>
- <span className={`font-bold tabular-nums ${
- row.negative ? 'text-rose-400' : row.highlight ? 'text-white' : 'text-burgundy'
- }`}>
- {row.value}
- </span>
- </div>
- );
- })}
- </div>
- )}
+              {/* Breakdown Rows */}
+              {rows.length > 0 && (
+                <div className="rounded-2xl border border-burgundy/10 bg-white p-3 space-y-2 shadow-sm">
+                  {rows.map((row, i) => {
+                    if (row.separator) {
+                      return <div key={i} className="my-2 border-t border-dashed border-burgundy/20" />;
+                    }
 
- {note && (
- <div className="mx-3 mb-3 mt-2 rounded-xl bg-amber-50 px-3 py-2 border border-amber-200/60">
- <p className="text-[10px] text-amber-800 leading-relaxed">
- <span className="font-bold"> ملاحظة: </span>{note}
- </p>
- </div>
- )}
+                    if (row.highlight) {
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between rounded-xl bg-burgundy px-4 py-2.5 text-white shadow-sm font-bold text-sm"
+                        >
+                          <span className="text-white/90">{row.label}</span>
+                          <span className="text-base tabular-nums font-mono text-white tracking-wide">
+                            {row.value}
+                          </span>
+                        </div>
+                      );
+                    }
 
- <div className="border-t border-burgundy/8 px-3 pb-3 pt-2">
- <button
- type="button"
- onClick={() => setOpen(false)}
- className="w-full rounded-xl bg-burgundy/5 py-1.5 text-xs font-semibold text-burgundy hover:bg-burgundy/10 transition-colors"
- >
- إغلاق
- </button>
- </div>
- </div>
- )}
- </span>
- );
+                    return (
+                      <div
+                        key={i}
+                        className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs sm:text-sm transition-colors ${
+                          row.negative
+                            ? 'bg-rose-50/70 text-rose-900 border border-rose-100/60'
+                            : 'hover:bg-burgundy/[0.03] text-gray-700'
+                        }`}
+                      >
+                        <span className={`font-medium ${row.negative ? 'text-rose-900 font-semibold' : 'text-gray-600'}`}>
+                          {row.label}
+                        </span>
+                        <span
+                          className={`font-bold tabular-nums font-mono ${
+                            row.negative ? 'text-rose-700 text-sm' : 'text-burgundy'
+                          }`}
+                        >
+                          {row.value}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Accounting Note */}
+              {note && (
+                <div className="rounded-2xl bg-amber-50/90 border border-amber-200/80 p-4">
+                  <div className="flex items-start gap-2 text-amber-900">
+                    <span className="text-base leading-none">💡</span>
+                    <div className="text-xs leading-relaxed">
+                      <span className="font-bold text-amber-950">إيضاح مالي: </span>
+                      <span className="text-amber-900/90">{note}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-burgundy/10 bg-gray-50/60 px-6 py-3.5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="w-full sm:w-auto px-6 py-2 rounded-xl bg-burgundy text-white text-xs sm:text-sm font-bold hover:bg-burgundy/90 transition-all shadow-sm cursor-pointer"
+              >
+                إغلاق النافذة
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
 }

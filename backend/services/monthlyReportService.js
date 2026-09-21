@@ -150,6 +150,7 @@ async function calculateMonthlyData(year, month) {
   const expenseMap = {};
   const operatingExpensesList = [];
   const personalWithdrawalsList = [];
+  const refundsList = [];
 
   transactions.forEach(t => {
     const cat = (t.category || '').toLowerCase();
@@ -175,6 +176,15 @@ async function calculateMonthlyData(year, month) {
       } else {
         refundsInstapay += t.amount;
       }
+      refundsList.push({
+        id: t._id,
+        amount: t.amount,
+        paymentMethod: t.paymentMethod || 'Cash',
+        category: t.category || 'Refund',
+        description: t.description || 'مرتجع عميل',
+        referenceId: t.referenceId,
+        date: t.createdAt
+      });
     } else if (isPersonalTx(t)) {
       personalWithdrawals += t.amount;
       personalWithdrawalsList.push({
@@ -466,6 +476,9 @@ async function calculateMonthlyData(year, month) {
     depositsInstapay,
     refundsCash,
     refundsInstapay,
+    refundsTotal: Math.round((refundsCash + refundsInstapay) * 100) / 100,
+    refundsCount: refundsList.length,
+    refundsList,
     salesCashCollected,
     salesInstapayCollected,
     salesDebtRemaining,
@@ -482,7 +495,7 @@ async function calculateMonthlyData(year, month) {
       supplierPurchases: `مشتريات بضائع الموردين = إجمالي قيمة البضائع الموردة للمحل بقيمة ${supplierPurchases.toLocaleString()} ج.م (أصول بضاعة يتم تحويلها لمخزون وحساب تكلفتها عند البيع في بند COGS).`,
       personalWithdrawals: `المسحوبات الشخصية والجمعية = إجمالي المبالغ المسحوبة للمالك والشركاء والجمعيات بقيمة ${personalWithdrawals.toLocaleString()} ج.م (سُحبت من الخزنة وخفّضت رصيد الكاش، ولكنها مستبعدة من مصاريف التشغيل لحماية أرباح المحل التجارية).`,
       netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) - مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م.`,
-      netCashFlow: `صافي حركة الخزنة والسيولة = (السيولة المحصلة بالخزنة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) - (مصاريف التشغيل ${operatingExpenses.toLocaleString()} ج.م + المدفوع للموردين من الخزنة ${supplierPaidFromSafe.toLocaleString()} ج.م + المسحوبات الشخصية والجمعية ${personalWithdrawals.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
+      netCashFlow: `صافي حركة الخزنة والسيولة = (المبيعات المحصلة ${(salesCashCollected + salesInstapayCollected).toLocaleString()} ج.م - المرتجعات المستردة ${(refundsCash + refundsInstapay).toLocaleString()} ج.م${(debtPaymentsCash + debtPaymentsInstapay + depositsCash + depositsInstapay) > 0 ? ` + تحصيلات ديون وإيداعات ${(debtPaymentsCash + debtPaymentsInstapay + depositsCash + depositsInstapay).toLocaleString()} ج.م` : ''} = صافي مقبوضات الخزنة ${(cashRevenue + instapayRevenue).toLocaleString()} ج.م) - (مصاريف التشغيل ${operatingExpenses.toLocaleString()} ج.م + المدفوع للموردين من الخزنة ${supplierPaidFromSafe.toLocaleString()} ج.م + المسحوبات الشخصية والجمعية ${personalWithdrawals.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
     }
   };
 
@@ -507,6 +520,10 @@ async function calculateMonthlyData(year, month) {
     salesCashCollected,
     salesInstapayCollected,
     salesDebtRemaining,
+    refundsCash,
+    refundsInstapay,
+    refundsTotal: Math.round((refundsCash + refundsInstapay) * 100) / 100,
+    refundsCount: refundsList.length,
     cashRevenue,
     instapayRevenue,
     dailyData,
