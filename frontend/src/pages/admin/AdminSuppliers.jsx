@@ -72,11 +72,12 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
  <h3 className="mb-5 text-xl font-bold text-burgundy">تسجيل تعامل</h3>
  <form onSubmit={handleSubmit} className="space-y-4">
  {/* Type selector */}
- <div className="grid grid-cols-3 gap-2">
+ <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
  {[
- { id: 'purchase', label: ' مشتريات آجل', hint: 'يزيد الدين', cls: 'border-red-400 bg-red-50', textCls: 'text-red-500' },
- { id: 'payment', label: ' سداد دفعة', hint: 'يقلل الدين', cls: 'border-emerald-400 bg-emerald-50', textCls: 'text-emerald-600' },
- { id: 'cash_purchase', label: ' شراء نقدي فوري', hint: 'شراء كاش فوري', cls: 'border-blue-400 bg-blue-50', textCls: 'text-blue-600' }
+ { id: 'purchase', label: '🛒 مشتريات آجل', hint: 'يزيد الدين', cls: 'border-red-400 bg-red-50', textCls: 'text-red-500' },
+ { id: 'payment', label: '💵 سداد دفعة', hint: 'يقلل الدين', cls: 'border-emerald-400 bg-emerald-50', textCls: 'text-emerald-600' },
+ { id: 'cash_purchase', label: '⚡ شراء نقدي', hint: 'كاش فوري', cls: 'border-blue-400 bg-blue-50', textCls: 'text-blue-600' },
+ { id: 'return', label: '🔄 مرتجع بضاعة', hint: 'يقلل الدين/تالف', cls: 'border-amber-400 bg-amber-50', textCls: 'text-amber-600' }
  ].map(t => (
  <button key={t.id} type="button" onClick={() => setForm(p => ({ ...p, type: t.id }))}
  className={`rounded-2xl border-2 p-2 text-right transition ${form.type === t.id ? t.cls : 'border-burgundy/15 bg-white hover:border-burgundy/30'}`}>
@@ -131,6 +132,326 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
  );
 }
 
+// ─── Supplier Return Modal ─────────────────────────────────────────────────────
+function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [items, setItems] = useState([]);
+  const [selectedProdId, setSelectedProdId] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+  const [qty, setQty] = useState(1);
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [reason, setReason] = useState('تالف / عيب مصنعي');
+  const [refundMethod, setRefundMethod] = useState('DeductFromBalance');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get(`/suppliers/${supplierId}/products`)
+      .then(res => {
+        setProducts(res.data || []);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingProducts(false));
+  }, [supplierId]);
+
+  const selectedProduct = products.find(p => p._id === selectedProdId);
+
+  const handleProductChange = (prodId) => {
+    setSelectedProdId(prodId);
+    const prod = products.find(p => p._id === prodId);
+    if (prod) {
+      setUnitPrice(prod.costPrice || prod.price || 0);
+      if (prod.variants && prod.variants.length > 0) {
+        setSelectedSize(prod.variants[0].size || '');
+        setSelectedColor(prod.variants[0].color || '');
+      } else {
+        setSelectedSize('');
+        setSelectedColor('');
+      }
+    }
+  };
+
+  const handleAddItem = () => {
+    if (!selectedProduct) {
+      setError('الرجاء اختيار المنتج المراد إرجاعه');
+      return;
+    }
+    if (qty <= 0) {
+      setError('الكمية يجب أن تكون أكبر من 0');
+      return;
+    }
+    if (unitPrice < 0) {
+      setError('سعر القطعة غير صالح');
+      return;
+    }
+
+    setItems(prev => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        productId: selectedProduct._id,
+        name: selectedProduct.name,
+        size: selectedSize,
+        color: selectedColor,
+        quantity: Number(qty),
+        unitPrice: Number(unitPrice),
+        reason
+      }
+    ]);
+    setError('');
+    setSelectedProdId('');
+    setSelectedSize('');
+    setSelectedColor('');
+    setQty(1);
+    setUnitPrice(0);
+  };
+
+  const handleRemoveItem = (id) => {
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const totalReturnAmount = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (items.length === 0) {
+      setError('الرجاء إضافة صنف واحد على الأقل للمرتجع');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.post(`/suppliers/${supplierId}/return-products`, {
+        refundMethod,
+        description: notes || 'مرتجع بضاعة للمورد',
+        items: items.map(it => ({
+          productId: it.productId,
+          name: it.name,
+          size: it.size,
+          color: it.color,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          reason: it.reason
+        }))
+      });
+      onSave();
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'حدث خطأ أثناء تسجيل المرتجع');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="bg-amber-600 text-white px-6 py-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold">مرتجع بضاعة إلى المورد</h3>
+            <p className="text-xs text-amber-100">{supplierName || 'حساب المورد'}</p>
+          </div>
+          <button onClick={onClose} className="rounded-full bg-white/20 hover:bg-white/30 p-2 text-white transition text-xs">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+          {error && (
+            <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs">
+              {error}
+            </div>
+          )}
+
+          <div className="bg-[#F7F0EC] p-3.5 rounded-2xl border border-burgundy/10">
+            <label className="block text-xs font-bold text-burgundy mb-2">طريقة تسوية قيمة المرتجع:</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRefundMethod('DeductFromBalance')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${refundMethod === 'DeductFromBalance' ? 'bg-burgundy text-white border-burgundy shadow-sm' : 'bg-white text-burgundy/70 border-burgundy/20 hover:bg-burgundy/5'}`}
+              >
+                خصم من رصيد المورد (دائن)
+              </button>
+              <button
+                type="button"
+                onClick={() => setRefundMethod('CashToSafe')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${refundMethod === 'CashToSafe' ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm' : 'bg-white text-emerald-800/70 border-emerald-600/20 hover:bg-emerald-50'}`}
+              >
+                استرداد كاش لخزنة المحل
+              </button>
+            </div>
+            <p className="text-[10px] text-burgundy/50 mt-2">
+              {refundMethod === 'DeductFromBalance'
+                ? '• سيتم إنقاص رصيد المورد (تقليل الدين المستحق له) وسحب القطع من المخزن فوراً.'
+                : '• سيتم توريد المبلغ كاش لخزينة المحل، وتقييد المرتجع وسحب القطع من المخزن.'}
+            </p>
+          </div>
+
+          <div className="border border-burgundy/15 rounded-2xl p-4 bg-white space-y-3">
+            <h4 className="text-xs font-bold text-burgundy">إضافة منتج مرتجع للمورد</h4>
+
+            <div>
+              <label className="block text-[11px] font-bold text-burgundy/60 mb-1">اختر المنتج:</label>
+              <select
+                value={selectedProdId}
+                onChange={e => handleProductChange(e.target.value)}
+                className="w-full rounded-xl border border-burgundy/25 bg-white p-2.5 text-xs text-burgundy outline-none focus:border-burgundy"
+                disabled={loadingProducts}
+              >
+                <option value="">{loadingProducts ? 'جاري تحميل منتجات المورد...' : '-- اختر منتج مسجل للمورد --'}</option>
+                {products.map(p => (
+                  <option key={p._id} value={p._id}>
+                    {p.name} {p.sku ? `(${p.sku})` : ''} - مخزون: {p.stock || 0} قطعة
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedProduct && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-burgundy/60 mb-1">المقاس / اللون</label>
+                      <select
+                        value={`${selectedSize}|${selectedColor}`}
+                        onChange={e => {
+                          const [s, c] = e.target.value.split('|');
+                          setSelectedSize(s);
+                          setSelectedColor(c);
+                        }}
+                        className="w-full rounded-xl border border-burgundy/25 bg-white p-2 text-xs text-burgundy outline-none"
+                      >
+                        {selectedProduct.variants.map((v, i) => (
+                          <option key={i} value={`${v.size || ''}|${v.color || ''}`}>
+                            {v.size || 'بدون مقاس'} {v.color ? `(${v.color})` : ''} - متوفر: {v.quantity}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-burgundy/60 mb-1">سبب المرتجع</label>
+                    <input
+                      type="text"
+                      value={reason}
+                      onChange={e => setReason(e.target.value)}
+                      placeholder="تالف / عيب مصنعي"
+                      className="w-full rounded-xl border border-burgundy/25 bg-white p-2 text-xs text-burgundy outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-burgundy/60 mb-1">الكمية المرتجعة</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={qty}
+                      onChange={e => setQty(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full rounded-xl border border-burgundy/25 bg-white p-2 text-xs text-burgundy outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-burgundy/60 mb-1">سعر التكلفة للقطعة (ج.م)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={unitPrice}
+                      onChange={e => setUnitPrice(Number(e.target.value) || 0)}
+                      className="w-full rounded-xl border border-burgundy/25 bg-white p-2 text-xs text-burgundy outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                >
+                  ＋ إضافة هذا المنتج إلى قائمة المرتجع
+                </button>
+              </>
+            )}
+          </div>
+
+          {items.length > 0 ? (
+            <div className="border border-burgundy/10 rounded-2xl overflow-hidden bg-white">
+              <table className="w-full text-xs text-right text-burgundy">
+                <thead className="bg-[#F7F0EC] font-bold">
+                  <tr>
+                    <th className="p-2.5">المنتج</th>
+                    <th className="p-2.5 text-center">الكمية</th>
+                    <th className="p-2.5 text-center">سعر القطعة</th>
+                    <th className="p-2.5 text-center">الإجمالي</th>
+                    <th className="p-2.5 text-center w-8">✕</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-burgundy/5">
+                  {items.map(it => (
+                    <tr key={it.id}>
+                      <td className="p-2.5">
+                        <p className="font-semibold">{it.name}</p>
+                        <p className="text-[10px] text-burgundy/50">{[it.size, it.color, it.reason].filter(Boolean).join(' • ')}</p>
+                      </td>
+                      <td className="p-2.5 text-center font-bold">{it.quantity}</td>
+                      <td className="p-2.5 text-center">{it.unitPrice.toLocaleString('en-US')} ج.م</td>
+                      <td className="p-2.5 text-center font-bold text-amber-800">{(it.quantity * it.unitPrice).toLocaleString('en-US')} ج.م</td>
+                      <td className="p-2.5 text-center">
+                        <button type="button" onClick={() => handleRemoveItem(it.id)} className="text-red-500 hover:text-red-700">✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="p-3 bg-amber-50 border-t border-amber-200 flex justify-between items-center text-xs font-bold text-amber-900">
+                <span>إجمالي قيمة المرتجع ({items.reduce((s, i) => s + i.quantity, 0)} قطعة):</span>
+                <span className="text-base font-extrabold text-amber-800">{totalReturnAmount.toLocaleString('en-US')} ج.م</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-center text-xs text-burgundy/40 py-2">لم تقم بإضافة أي أصناف للمرتجع بعد</p>
+          )}
+
+          <div>
+            <label className="block text-[11px] font-bold text-burgundy/60 mb-1">ملاحظات إضافية:</label>
+            <input
+              type="text"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="مثال: مرتجع شحنة ملابس معيبة لشهر سبتمبر..."
+              className="w-full rounded-xl border border-burgundy/25 bg-white p-2.5 text-xs text-burgundy outline-none focus:border-burgundy"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={submitting || items.length === 0}
+              className="flex-1 rounded-full bg-amber-600 hover:bg-amber-700 py-3 text-sm font-bold text-white transition disabled:opacity-60 shadow-md"
+            >
+              {submitting ? 'جاري تسجيل المرتجع...' : `تأكيد إرجاع البضاعة (${totalReturnAmount.toLocaleString('en-US')} ج.م)`}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-burgundy/20 px-6 py-3 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Supplier Detail Modal ─────────────────────────────────────────────────────
 const CAT_AR_SUP = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP_S = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -139,6 +460,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
  const [data, setData] = useState(null);
  const [loading, setLoading] = useState(true);
  const [addTx, setAddTx] = useState(false);
+ const [addReturn, setAddReturn] = useState(false);
  const [deleteTxId, setDeleteTxId] = useState(null);
  const [activeTab, setActiveTab] = useState('account'); // 'account' | 'products' | 'po'
  const [products, setProducts] = useState([]);
@@ -314,9 +636,18 @@ function SupplierDetailModal({ supplierId, onClose }) {
  </div>
  <div className="flex gap-2">
  {activeTab === 'account' && (
+ <>
+ <button
+ onClick={() => setAddReturn(true)}
+ className="rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 px-3 py-2 text-xs font-bold transition flex items-center gap-1.5"
+ >
+ <span>↩</span>
+ <span>مرتجع للمورد (تالف)</span>
+ </button>
  <button onClick={() => setAddTx(true)} className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-bold transition">
  + تعامل جديد
  </button>
+ </>
  )}
  {activeTab === 'po' && (
  <button
@@ -349,15 +680,16 @@ function SupplierDetailModal({ supplierId, onClose }) {
 
  {/* Balance summary — only visible on account tab */}
  {!loading && data && activeTab === 'account' && (
- <div className="grid grid-cols-3 border-b border-burgundy/10">
+ <div className="grid grid-cols-4 border-b border-burgundy/10">
  {[
  { label: 'إجمالي المشتريات', value: EGP_S(data.totalPurchased), cls: 'text-red-600' },
  { label: 'إجمالي المدفوع', value: EGP_S(data.totalPaid), cls: 'text-emerald-700' },
+ { label: 'إجمالي المرتجعات', value: EGP_S(data.totalReturned || 0), cls: 'text-amber-700' },
  { label: 'الرصيد المتبقي (الدين)', value: EGP_S(data.balance), cls: data.balance > 0 ? 'text-red-600 font-extrabold' : 'text-emerald-700 font-extrabold' },
  ].map(s => (
- <div key={s.label} className="p-4 text-center border-l border-burgundy/10 last:border-0">
- <p className="text-xs text-burgundy/50">{s.label}</p>
- <p className={`text-xl font-bold mt-1 ${s.cls}`}>{s.value}</p>
+ <div key={s.label} className="p-3 text-center border-l border-burgundy/10 last:border-0">
+ <p className="text-[11px] text-burgundy/50">{s.label}</p>
+ <p className={`text-lg font-bold mt-1 ${s.cls}`}>{s.value}</p>
  </div>
  ))}
  </div>
@@ -376,11 +708,11 @@ function SupplierDetailModal({ supplierId, onClose }) {
  ) : (
  <div className="space-y-2">
  {data?.transactions?.map(tx => (
- <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+ <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50 border-red-100' : tx.type === 'return' ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-100'}`}>
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-2 flex-wrap">
- <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
- {tx.type === 'purchase' ? ' مشتريات' : ' دفعة'}
+ <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : tx.type === 'return' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+ {tx.type === 'purchase' ? ' مشتريات' : tx.type === 'return' ? ' مرتجع لمورد' : ' دفعة'}
  </span>
  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
  {tx.paymentSource === 'StoreSafe' ? ' الخزينة' : ' شخصي'}
@@ -397,10 +729,19 @@ function SupplierDetailModal({ supplierId, onClose }) {
  )}
  </div>
  {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
+                {tx.items && tx.items.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {tx.items.map((it, idx) => (
+                      <span key={idx} className="text-[10px] bg-white border border-amber-300 text-amber-900 px-1.5 py-0.5 rounded">
+                        {it.name} ({it.quantity} قطعة {it.size ? `- ${it.size}` : ''})
+                      </span>
+                    ))}
+                  </div>
+                )}
  <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(tx.date).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
  </div>
  <div className="flex items-center gap-2 mr-3">
- <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : 'text-emerald-700'}`}>
+ <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : tx.type === 'return' ? 'text-amber-700' : 'text-emerald-700'}`}>
  {tx.type === 'purchase' ? '+' : '-'} {EGP_S(tx.amount)}
  </p>
  <button onClick={() => setDeleteTxId(tx._id)} className="text-burgundy/20 hover:text-red-500 transition text-sm"></button>
@@ -547,6 +888,17 @@ function SupplierDetailModal({ supplierId, onClose }) {
  </div>
 
  {addTx && <AddTransactionModal supplierId={supplierId} onClose={() => setAddTx(false)} onSave={load} />}
+ {addReturn && (
+ <SupplierReturnModal
+ supplierId={supplierId}
+ supplierName={data?.supplier?.name}
+ onClose={() => setAddReturn(false)}
+ onSave={() => {
+ load();
+ loadProducts();
+ }}
+ />
+ )}
  <ConfirmModal isOpen={!!deleteTxId} title="حذف التعامل" message="هل أنت متأكد من حذف هذا التعامل؟" onConfirm={handleDeleteTx} onCancel={() => setDeleteTxId(null)} />
  </div>
  );

@@ -7,6 +7,8 @@ const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
 const Product = require('../models/Product');
 
+const StockHistory = require('../models/StockHistory');
+
 const router = express.Router();
 const ADMIN = ['admin'];
 
@@ -20,12 +22,14 @@ router.get('/', auth, requireRole(ADMIN), async (req, res) => {
       const products = await Product.find({ supplier: s.name, active: { $ne: false } });
       const totalPurchased = txs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
       const totalPaid      = txs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
-      const balance = totalPurchased - totalPaid; // المبلغ المستحق للمورد
+      const totalReturned  = txs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
+      const totalReturnedOnBalance = txs.filter(t => t.type === 'return' && t.paymentSource !== 'StoreSafe').reduce((sum, t) => sum + t.amount, 0);
+      const balance = totalPurchased - totalPaid - totalReturnedOnBalance; // المبلغ المستحق للمورد
       
       const productCount = products.length;
       const totalPieces = products.reduce((sum, p) => sum + (p.stock || 0), 0);
 
-      return { ...s.toObject(), totalPurchased, totalPaid, balance, productCount, totalPieces };
+      return { ...s.toObject(), totalPurchased, totalPaid, totalReturned, balance, productCount, totalPieces };
     }));
     res.json(result);
   } catch (e) {
@@ -41,7 +45,10 @@ router.get('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
     const txs = await SupplierTransaction.find({ supplier: req.params.id }).sort({ date: -1 });
     const totalPurchased = txs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
     const totalPaid      = txs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
-    res.json({ supplier, transactions: txs, totalPurchased, totalPaid, balance: totalPurchased - totalPaid });
+    const totalReturned  = txs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
+    const totalReturnedOnBalance = txs.filter(t => t.type === 'return' && t.paymentSource !== 'StoreSafe').reduce((sum, t) => sum + t.amount, 0);
+    const balance = totalPurchased - totalPaid - totalReturnedOnBalance;
+    res.json({ supplier, transactions: txs, totalPurchased, totalPaid, totalReturned, balance });
   } catch (e) {
     res.status(500).json({ message: 'Unable to load supplier transactions', error: e.message });
   }
@@ -82,11 +89,11 @@ router.delete('/:id', auth, requireRole(ADMIN), async (req, res) => {
   }
 });
 
-// POST /api/suppliers/:id/transactions — add purchase or payment
+// POST /api/suppliers/:id/transactions — add purchase, payment, or return
 router.post('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const { type, amount, description, reference, date, paymentSource = 'PersonalPocket' } = req.body;
-    if (!['purchase', 'payment', 'cash_purchase'].includes(type)) return res.status(400).json({ message: 'Invalid type' });
+    if (!['purchase', 'payment', 'cash_purchase', 'return'].includes(type)) return res.status(400).json({ message: 'Invalid type' });
     if (!amount || amount <= 0) return res.status(400).json({ message: 'Amount must be positive' });
     const supplier = await Supplier.findById(req.params.id);
     if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
@@ -143,25 +150,160 @@ router.post('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
     });
     await tx.save();
 
-    // If source is StoreSafe, sync to Cashier Safe as an expense OUT
+    // If source is StoreSafe:
+    // for payment/purchase -> expense OUT
+    // for return with cash refund -> deposit IN
     if (paymentSource === 'StoreSafe') {
       const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-      const safeTx = new Transaction({
-        amount: Number(amount),
-        type: 'OUT',
-        category: 'Expense', // Treat as cashier expense
-        description: `${type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} ${description ? `| ${description}` : ''}`,
-        paymentMethod: 'Cash',
-        user: req.user.id,
-        shift: openShift?._id,
-        referenceId: tx._id // Link to SupplierTransaction
-      });
-      await safeTx.save();
+      if (type === 'return') {
+        const safeTx = new Transaction({
+          amount: Number(amount),
+          type: 'IN',
+          category: 'Deposit',
+          description: `استرداد نقدي لمرتجع مورد - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} ${description ? `| ${description}` : ''}`,
+          paymentMethod: 'Cash',
+          user: req.user.id,
+          shift: openShift?._id,
+          referenceId: tx._id
+        });
+        await safeTx.save();
+      } else {
+        const safeTx = new Transaction({
+          amount: Number(amount),
+          type: 'OUT',
+          category: 'Expense',
+          description: `${type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} ${description ? `| ${description}` : ''}`,
+          paymentMethod: 'Cash',
+          user: req.user.id,
+          shift: openShift?._id,
+          referenceId: tx._id
+        });
+        await safeTx.save();
+      }
     }
 
     res.status(201).json(tx);
   } catch (e) {
     res.status(500).json({ message: 'Unable to add transaction', error: e.message });
+  }
+});
+
+// POST /api/suppliers/:id/return-products — Return products to supplier (damaged / return)
+router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const { items, productId, size, color, quantity, costPrice, reason = '', description = '', refundMethod = 'DeductFromBalance' } = req.body;
+
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ message: 'المورد غير موجود' });
+
+    let returnList = [];
+    if (Array.isArray(items) && items.length > 0) {
+      returnList = items;
+    } else if (productId && quantity > 0) {
+      returnList = [{ productId, size, color, quantity: Number(quantity), unitPrice: costPrice, reason }];
+    } else {
+      return res.status(400).json({ message: 'الرجاء تحديد الأصناف المراد إرجاعها' });
+    }
+
+    let totalReturnAmount = 0;
+    const processedItems = [];
+    const updatedProducts = [];
+
+    for (const item of returnList) {
+      const pId = item.productId || item.product;
+      const qty = Number(item.quantity);
+      if (!pId || !qty || qty <= 0) continue;
+
+      const product = await Product.findById(pId);
+      if (!product) continue;
+
+      const itemSize = item.size || '';
+      const itemColor = item.color || '';
+      const unitCost = Number(item.unitPrice ?? item.costPrice ?? product.costPrice ?? 0);
+      const lineTotal = qty * unitCost;
+      totalReturnAmount += lineTotal;
+
+      const prevStock = product.stock || 0;
+      if (product.variants && product.variants.length > 0 && (itemSize || itemColor)) {
+        const v = product.variants.find(it => it.size === itemSize && it.color === itemColor);
+        if (v) {
+          v.stock = Math.max(0, v.stock - qty);
+        }
+        product.stock = product.variants.reduce((sum, it) => sum + (it.stock || 0), 0);
+      } else {
+        product.stock = Math.max(0, product.stock - qty);
+      }
+
+      await product.save();
+      updatedProducts.push(product);
+
+      await StockHistory.create({
+        product: product._id,
+        productName: product.name,
+        size: itemSize,
+        color: itemColor,
+        variantKey: itemSize || itemColor ? `${itemSize}_${itemColor}` : '',
+        changeType: 'Supplier Return',
+        quantityChanged: -qty,
+        previousStock: prevStock,
+        newStock: product.stock,
+        performedBy: req.user.id,
+        performedByName: req.user.name || '',
+        notes: `مرتجع للمورد (${supplier.name}) - السبب: ${item.reason || reason || 'تالف / عيب مصنعي'}`
+      });
+
+      processedItems.push({
+        product: product._id,
+        name: product.name,
+        size: itemSize,
+        color: itemColor,
+        quantity: qty,
+        unitPrice: unitCost,
+        reason: item.reason || reason || 'تالف / عيب مصنعي'
+      });
+
+      req.app.locals.io?.emit('inventory:update', product);
+    }
+
+    if (processedItems.length === 0) {
+      return res.status(400).json({ message: 'فشل معالجة أي صنف من أصناف المرتجع' });
+    }
+
+    const itemNames = processedItems.map(i => `${i.name} (${i.quantity} قطعة)`).join('، ');
+    const tx = new SupplierTransaction({
+      supplier: supplier._id,
+      type: 'return',
+      amount: totalReturnAmount,
+      description: description || `مرتجع بضاعة للمورد (${itemNames})`,
+      paymentSource: refundMethod === 'CashToSafe' ? 'StoreSafe' : 'PersonalPocket',
+      items: processedItems,
+      date: new Date()
+    });
+    await tx.save();
+
+    if (refundMethod === 'CashToSafe' && totalReturnAmount > 0) {
+      const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+      const safeTx = new Transaction({
+        amount: totalReturnAmount,
+        type: 'IN',
+        category: 'Deposit',
+        paymentMethod: 'Cash',
+        description: `استرداد نقدي لمرتجع مورد (${supplier.name}) - ${itemNames}`,
+        user: req.user.id,
+        shift: openShift?._id,
+        referenceId: tx._id
+      });
+      await safeTx.save();
+    }
+
+    res.status(201).json({
+      message: `تم إرجاع ${processedItems.reduce((s, i) => s + i.quantity, 0)} قطعة للمورد بنجاح وتحديث المخزون والحسابات`,
+      transaction: tx,
+      products: updatedProducts
+    });
+  } catch (err) {
+    console.error('Supplier return error:', err);
+    res.status(500).json({ message: 'فشل إرجاع المنتج للمورد', error: err.message });
   }
 });
 

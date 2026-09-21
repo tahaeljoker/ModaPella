@@ -11,6 +11,7 @@ const Transaction = require('../models/Transaction');
 const StockHistory = require('../models/StockHistory');
 const InventoryTask = require('../models/InventoryTask');
 const InventoryCount = require('../models/InventoryCount');
+const Supplier = require('../models/Supplier');
 const SupplierTransaction = require('../models/SupplierTransaction');
 const { calculateMonthlyData } = require('../services/monthlyReportService');
 
@@ -70,8 +71,10 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         operatingExpenses: monthlyData.operatingExpenses,
         supplierPurchases: monthlyData.supplierPurchases,
         supplierCashPaid: monthlyData.supplierCashPaid,
+        supplierPaidFromSafe: monthlyData.supplierPaidFromSafe,
         personalWithdrawals: monthlyData.personalWithdrawals,
         personalWithdrawalsList: monthlyData.auditDetails?.personalWithdrawalsList || [],
+        netCashFlow: monthlyData.netCashFlow,
         salesCashCollected: monthlyData.salesCashCollected,
         salesInstapayCollected: monthlyData.salesInstapayCollected,
         salesDebtRemaining: monthlyData.salesDebtRemaining,
@@ -428,6 +431,104 @@ const generateSku = async () => {
   return (maxNum + 1).toString();
 };
 
+const handleSupplierProductBilling = async ({ supplierId, supplierName, product, quantity, costPrice, option, invoiceRef, userId }) => {
+  if (!option || option === 'none') return;
+  const qty = Number(quantity || 0);
+  const cost = Number(costPrice || 0);
+  if (qty <= 0 || cost <= 0) return;
+
+  let supplierDoc = null;
+  if (supplierId) {
+    supplierDoc = await Supplier.findById(supplierId);
+  }
+  if (!supplierDoc && supplierName && supplierName.trim()) {
+    supplierDoc = await Supplier.findOne({ name: supplierName.trim() });
+    if (!supplierDoc) {
+      supplierDoc = new Supplier({ name: supplierName.trim() });
+      await supplierDoc.save();
+    }
+  }
+  if (!supplierDoc) return;
+
+  const totalAmount = qty * cost;
+
+  if (option === 'credit') {
+    // آجل على المحل (دين للمورد)
+    const tx = new SupplierTransaction({
+      supplier: supplierDoc._id,
+      type: 'purchase',
+      amount: totalAmount,
+      description: `فاتورة بضاعة (شراء آجل) - ${product.name} (${qty} قطعة × ${cost} ج.م)`,
+      reference: invoiceRef || '',
+      paymentSource: 'PersonalPocket',
+      items: [{ product: product._id, name: product.name, quantity: qty, unitPrice: cost }],
+      date: new Date()
+    });
+    await tx.save();
+  } else if (option === 'cash_safe') {
+    // شراء نقدي فوري مسدد من درج الخزنة
+    const txPurchase = new SupplierTransaction({
+      supplier: supplierDoc._id,
+      type: 'purchase',
+      amount: totalAmount,
+      description: `فاتورة بضاعة (شراء نقدي) - ${product.name} (${qty} قطعة × ${cost} ج.م)`,
+      reference: invoiceRef || '',
+      paymentSource: 'StoreSafe',
+      items: [{ product: product._id, name: product.name, quantity: qty, unitPrice: cost }],
+      date: new Date()
+    });
+    await txPurchase.save();
+
+    const txPayment = new SupplierTransaction({
+      supplier: supplierDoc._id,
+      type: 'payment',
+      amount: totalAmount,
+      description: `سداد فاتورة بضاعة من درج الخزنة - ${product.name}`,
+      reference: invoiceRef || '',
+      paymentSource: 'StoreSafe',
+      date: new Date()
+    });
+    await txPayment.save();
+
+    const openShift = await Shift.findOne({ user: userId, status: 'open' });
+    const safeTx = new Transaction({
+      amount: totalAmount,
+      type: 'OUT',
+      category: 'Expense',
+      description: `سداد بضاعة مورد (كاش الخزنة) - ${supplierDoc.name} | ${product.name} (${qty} قطعة)`,
+      paymentMethod: 'Cash',
+      user: userId,
+      shift: openShift?._id,
+      referenceId: txPayment._id
+    });
+    await safeTx.save();
+  } else if (option === 'cash_personal') {
+    // مسدد كاش من جيب شخصي
+    const txPurchase = new SupplierTransaction({
+      supplier: supplierDoc._id,
+      type: 'purchase',
+      amount: totalAmount,
+      description: `فاتورة بضاعة (مسددة جيب شخصي) - ${product.name} (${qty} قطعة × ${cost} ج.م)`,
+      reference: invoiceRef || '',
+      paymentSource: 'PersonalPocket',
+      items: [{ product: product._id, name: product.name, quantity: qty, unitPrice: cost }],
+      date: new Date()
+    });
+    await txPurchase.save();
+
+    const txPayment = new SupplierTransaction({
+      supplier: supplierDoc._id,
+      type: 'payment',
+      amount: totalAmount,
+      description: `سداد فاتورة بضاعة (جيب شخصي) - ${product.name}`,
+      reference: invoiceRef || '',
+      paymentSource: 'PersonalPocket',
+      date: new Date()
+    });
+    await txPayment.save();
+  }
+};
+
 router.post('/products', auth, requireRole(['admin']), async (req, res) => {
   try {
     const productData = req.body;
@@ -469,6 +570,20 @@ router.post('/products', auth, requireRole(['admin']), async (req, res) => {
         newStock: product.stock,
         performedBy: req.user.id,
         performedByName: req.user.name
+      });
+    }
+
+    // Process Supplier Billing if selected
+    if (productData.supplierBillOption && productData.supplierBillOption !== 'none') {
+      await handleSupplierProductBilling({
+        supplierId: productData.supplierId || product.supplierId,
+        supplierName: productData.supplier || product.supplier,
+        product,
+        quantity: product.stock,
+        costPrice: product.costPrice,
+        option: productData.supplierBillOption,
+        invoiceRef: productData.supplierInvoiceRef,
+        userId: req.user.id
       });
     }
 
@@ -566,13 +681,105 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
+// POST /api/admin/products/bulk-season — Bulk update seasons or switch active season
+router.post('/products/bulk-season', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { action, productIds = [], season, targetSeason } = req.body;
+
+    if (action === 'setSeason') {
+      if (!['summer', 'winter', 'all'].includes(season)) {
+        return res.status(400).json({ message: 'موسم غير صالح' });
+      }
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: 'يرجى تحديد المنتجات المراد تعديلها' });
+      }
+      await Product.updateMany(
+        { _id: { $in: productIds } },
+        { $set: { season } }
+      );
+      return res.json({ message: `تم تحديد موسم ${productIds.length} منتج بنجاح` });
+    }
+
+    if (action === 'archiveSeason') {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: 'يرجى تحديد المنتجات المراد تخزينها' });
+      }
+      await Product.updateMany(
+        { _id: { $in: productIds } },
+        { $set: { isSeasonArchived: true } }
+      );
+      req.app.locals.io?.emit('inventory:update');
+      return res.json({ message: `تم تخزين ${productIds.length} منتج وإخفاؤها من الجرد والكاشير` });
+    }
+
+    if (action === 'activateSeason') {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: 'يرجى تحديد المنتجات المراد تنشيطها' });
+      }
+      await Product.updateMany(
+        { _id: { $in: productIds } },
+        { $set: { isSeasonArchived: false } }
+      );
+      req.app.locals.io?.emit('inventory:update');
+      return res.json({ message: `تم تنشيط وإتاحة ${productIds.length} منتج في المحل والجرد` });
+    }
+
+    if (action === 'switchActiveSeason') {
+      if (!['summer', 'winter'].includes(targetSeason)) {
+        return res.status(400).json({ message: 'يرجى تحديد الموسم المستهدف (شتوي أو صيفي)' });
+      }
+
+      let archivedCount = 0;
+      let activatedCount = 0;
+
+      if (targetSeason === 'winter') {
+        const resArch = await Product.updateMany(
+          { season: 'summer', isSeasonArchived: { $ne: true } },
+          { $set: { isSeasonArchived: true } }
+        );
+        archivedCount = resArch.modifiedCount || 0;
+
+        const resAct = await Product.updateMany(
+          { season: { $in: ['winter', 'all'] }, isSeasonArchived: true },
+          { $set: { isSeasonArchived: false } }
+        );
+        activatedCount = resAct.modifiedCount || 0;
+      } else if (targetSeason === 'summer') {
+        const resArch = await Product.updateMany(
+          { season: 'winter', isSeasonArchived: { $ne: true } },
+          { $set: { isSeasonArchived: true } }
+        );
+        archivedCount = resArch.modifiedCount || 0;
+
+        const resAct = await Product.updateMany(
+          { season: { $in: ['summer', 'all'] }, isSeasonArchived: true },
+          { $set: { isSeasonArchived: false } }
+        );
+        activatedCount = resAct.modifiedCount || 0;
+      }
+
+      req.app.locals.io?.emit('inventory:update');
+      return res.json({
+        message: `تم التحويل إلى الموسم ${targetSeason === 'winter' ? 'الشتوي' : 'الصيفي'} بنجاح (تم تخزين ${archivedCount} منتج وتنشيط ${activatedCount} منتج)`,
+        archivedCount,
+        activatedCount
+      });
+    }
+
+    return res.status(400).json({ message: 'إجراء غير معروف' });
+  } catch (error) {
+    console.error('Bulk season action failed:', error);
+    res.status(500).json({ message: 'فشل تنفيذ الإجراء الموسمي', error: error.message });
+  }
+});
+
 // POST /api/admin/products/:id/restock — Restock a product (add new incoming shipment)
 router.post('/products/:id/restock', auth, requireRole(['admin']), async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'المنتج غير موجود' });
 
-    const { additions = [], quantity = 0, costPrice, supplier, notes = '' } = req.body;
+    const { additions = [], quantity = 0, costPrice, supplier, supplierId, notes = '', supplierBillOption, supplierInvoiceRef } = req.body;
 
     let totalAdded = 0;
     const prevStock = product.stock || 0;
@@ -629,6 +836,20 @@ router.post('/products/:id/restock', auth, requireRole(['admin']), async (req, r
       performedByName: req.user.name || '',
       notes: notes ? `تزويد شحنة جديدة (+${totalAdded} قطعة) - ${notes}` : `تزويد شحنة جديدة (+${totalAdded} قطعة)`
     });
+
+    // Process Supplier Billing if selected
+    if (supplierBillOption && supplierBillOption !== 'none') {
+      await handleSupplierProductBilling({
+        supplierId: supplierId || product.supplierId,
+        supplierName: supplier || product.supplier,
+        product,
+        quantity: totalAdded,
+        costPrice: Number(costPrice ?? product.costPrice ?? 0),
+        option: supplierBillOption,
+        invoiceRef: supplierInvoiceRef,
+        userId: req.user.id
+      });
+    }
 
     req.app.locals.io?.emit('inventory:update', product);
     res.json({ message: 'تم تزويد المخزون بنجاح', product });

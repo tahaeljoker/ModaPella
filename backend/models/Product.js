@@ -26,6 +26,8 @@ const ProductSchema = new mongoose.Schema({
   supplier: { type: String, default: '' },
   supplierId: { type: require('mongoose').Schema.Types.ObjectId, ref: 'Supplier', default: null },
   active: { type: Boolean, default: true },
+  season: { type: String, enum: ['summer', 'winter', 'all'], default: 'all' },
+  isSeasonArchived: { type: Boolean, default: false },
   allowDiscount: { type: Boolean, default: true },
   discountPrice: { type: Number, default: null },
   discountStartDate: { type: Date, default: null },

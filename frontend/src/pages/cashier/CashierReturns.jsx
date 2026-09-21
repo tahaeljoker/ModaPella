@@ -159,6 +159,58 @@ function CashierReturns() {
  const newTotalAmount = Math.max(0, rawNewTotal - Number(exchangeDiscount || 0));
  const netDifference = newTotalAmount - returnCreditValue; // > 0 customer pays, < 0 store refunds
 
+  const handlePrintReturnReceipt = () => {
+    if (!order || returnItemsList.length === 0) return;
+    const now = new Date().toLocaleString('ar-EG-u-nu-latn');
+    const printDiv = document.createElement('div');
+    printDiv.id = 'invoice-print-root';
+    printDiv.innerHTML = `
+      <div style="text-align:center; font-family:Cairo,sans-serif; direction:rtl; padding:10px; width:72mm; margin:0 auto;">
+        <h2 style="margin:0; color:#7c0a12; font-size:16px;">ModaPella</h2>
+        <h4 style="margin:2px 0; font-size:13px; color:#b91c1c;">إيصال مرتجع فاتورة</h4>
+        <p style="font-size:10px; color:#666; margin:2px 0;">أصل الفاتورة: #${SHORT_ID(order._id)}</p>
+        <p style="font-size:10px; color:#666; margin:2px 0;">التاريخ: ${now}</p>
+        <hr style="border:none; border-top:1px dashed #ccc; margin:8px 0;"/>
+        <table style="width:100%; font-size:11px; border-collapse:collapse; text-align:right;">
+          <thead>
+            <tr style="border-bottom:1px solid #ddd; font-weight:bold;">
+              <th style="padding:4px 0;">الصنف</th>
+              <th style="padding:4px 0; text-align:center;">سعر القطعة</th>
+              <th style="padding:4px 0; text-align:center;">الكمية</th>
+              <th style="padding:4px 0; text-align:left;">الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${returnItemsList.map(item => `
+              <tr style="border-bottom:1px dashed #eee;">
+                <td style="padding:4px 0;">
+                  <div>${item.name}</div>
+                  <div style="font-size:9px; color:#777;">${item.size || ''} ${item.color || ''}</div>
+                </td>
+                <td style="padding:4px 0; text-align:center;">${EGP(item.price)}</td>
+                <td style="padding:4px 0; text-align:center; font-weight:bold;">${item.returnQty}</td>
+                <td style="padding:4px 0; text-align:left; font-weight:bold; color:#b91c1c;">${EGP(item.returnQty * item.price)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <hr style="border:none; border-top:1px dashed #ccc; margin:8px 0;"/>
+        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:bold; margin-top:4px;">
+          <span>إجمالي المسترد للعميل:</span>
+          <span style="color:#b91c1c;">${EGP(returnCreditValue)}</span>
+        </div>
+        ${reason ? `<p style="font-size:10px; color:#555; margin-top:6px; text-align:right;">سبب المرتجع: ${reason}</p>` : ''}
+        <hr style="border:none; border-top:1px dashed #ccc; margin:8px 0;"/>
+        <p style="font-size:9px; color:#888; margin:4px 0;">شكراً لتعاملكم معنا - ModaPella</p>
+      </div>
+    `;
+    document.body.appendChild(printDiv);
+    setTimeout(() => {
+      window.print();
+      document.body.removeChild(printDiv);
+    }, 100);
+  };
+
  const handleExchangeSubmit = async () => {
  if (!order || order.recovered) return;
  if (returnItemsList.length === 0) {
@@ -339,6 +391,7 @@ function CashierReturns() {
  </div>
  {order.items?.map((item) => {
  const maxReturnable = item.quantity - (item.returnedQuantity || 0);
+ const itemReturnQty = returnQtys[item._id] ?? 0;
  return (
  <div key={item._id} className="flex flex-wrap items-center justify-between border-b border-burgundy/5 last:border-0 px-4 py-3 text-sm gap-2">
  <div className="min-w-0 flex-1">
@@ -348,9 +401,19 @@ function CashierReturns() {
  {item.size && item.color && <span> · </span>}
  {item.color && <span>اللون: {item.color}</span>}
  </p>
- <p className="text-xs text-burgundy/40 mt-0.5">
+ <div className="flex flex-wrap items-center gap-2 mt-1">
+ <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+ سعر القطعة: {EGP(item.price)}
+ </span>
+ <span className="text-[11px] text-burgundy/40">
  المباع: {item.quantity} قطعة | تم إرجاع سابقاً: {item.returnedQuantity || 0}
- </p>
+ </span>
+ {itemReturnQty > 0 && (
+ <span className="text-xs font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+ إجمالي المرتجع للصنف ({itemReturnQty} × {EGP(item.price)}) = {EGP(itemReturnQty * item.price)}
+ </span>
+ )}
+ </div>
  </div>
  <div className="flex items-center gap-3">
  <span className="text-xs font-bold text-rose-700">كمية الإرجاع:</span>
@@ -358,7 +421,7 @@ function CashierReturns() {
  type="number"
  min="0"
  max={maxReturnable}
- value={returnQtys[item._id] ?? 0}
+ value={itemReturnQty}
  onChange={(e) => {
  const val = Math.min(maxReturnable, Math.max(0, Number(e.target.value) || 0));
  setReturnQtys(prev => ({ ...prev, [item._id]: val }));
@@ -380,7 +443,54 @@ function CashierReturns() {
  {/* Mode 1: Return Only */}
  {mode === 'return' && !order.recovered && (
  <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-4">
- <h3 className="text-lg font-bold">↩ إتمام المرتجع</h3>
+ <div className="flex items-center justify-between border-b border-burgundy/10 pb-3">
+ <h3 className="text-lg font-bold text-burgundy">↩ إتمام المرتجع</h3>
+ {returnItemsList.length > 0 && (
+ <button
+ type="button"
+ onClick={handlePrintReturnReceipt}
+ className="bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy text-xs font-bold px-3.5 py-1.5 rounded-xl transition flex items-center gap-1"
+ >
+ <span>🖨️</span>
+ <span>معاينة وطباعة إيصال المرتجع</span>
+ </button>
+ )}
+ </div>
+
+ {/* Itemized Return Summary Table */}
+ {returnItemsList.length > 0 ? (
+ <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 space-y-2">
+ <h4 className="text-xs font-bold text-rose-900 mb-1">القطع المحددة للإرجاع بالتفصيل وسعر القطعة:</h4>
+ <div className="divide-y divide-rose-200/60 text-xs">
+ {returnItemsList.map(item => (
+ <div key={item._id} className="py-2 flex items-center justify-between">
+ <div>
+ <span className="font-bold text-burgundy">{item.name}</span>
+ {(item.size || item.color) && (
+ <span className="text-[11px] text-burgundy/60 mr-1.5 font-normal">({item.size} · {item.color})</span>
+ )}
+ <span className="block text-[11px] text-emerald-800 font-semibold mt-0.5">
+ سعر القطعة الواحدة: {EGP(item.price)}
+ </span>
+ </div>
+ <div className="text-left font-bold">
+ <span className="text-burgundy/70">{item.returnQty} قطعة × {EGP(item.price)} = </span>
+ <span className="text-rose-700 font-extrabold text-sm">{EGP(item.returnQty * item.price)}</span>
+ </div>
+ </div>
+ ))}
+ </div>
+ <div className="border-t border-rose-300 pt-2 flex justify-between font-black text-sm text-rose-900">
+ <span>إجمالي الاسترداد المستحق:</span>
+ <span>{EGP(returnCreditValue)}</span>
+ </div>
+ </div>
+ ) : (
+ <p className="text-xs text-burgundy/40 text-center py-2">
+ حدد كمية إرجاع لقطعة واحدة على الأقل من الجدول أعلاه لعرض التفاصيل وإتمام المرتجع.
+ </p>
+ )}
+
  <div>
  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">سبب الإرجاع</label>
  <textarea

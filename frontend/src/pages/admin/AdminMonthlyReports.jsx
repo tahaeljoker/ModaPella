@@ -353,7 +353,7 @@ export default function AdminMonthlyReports() {
   <span className="font-bold">3. صافي ربح النشاط = </span> مجمل الربح التجاري - مصروفات التشغيل العمومية فقط <span className="text-emerald-700 font-bold">(المسحوبات الشخصية والجمعية مستبعدة تماماً لحماية أرباح المحل)</span>
   </p>
   <p className="text-xs text-burgundy/80">
-  <span className="font-bold">4. صافي حركة الخزنة والسيولة = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون) - (مصاريف التشغيل + المدفوع للموردين + المسحوبات الشخصية والجمعية {report.auditDetails?.personalWithdrawalsTotal ? `[${EGP(report.auditDetails.personalWithdrawalsTotal)}]` : ''})
+  <span className="font-bold">4. صافي حركة الخزنة والسيولة = </span> (المبيعات الكاش والإنستاباي + تحصيلات الديون والإيداعات) - (مصاريف التشغيل + المدفوع للموردين من الخزنة + المسحوبات الشخصية والجمعية {report.auditDetails?.personalWithdrawalsTotal ? `[${EGP(report.auditDetails.personalWithdrawalsTotal)}]` : ''})
   </p>
   </div>
 
@@ -632,7 +632,7 @@ export default function AdminMonthlyReports() {
  { label: 'إنستاباي المبيعات المحصل', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
  { separator: true },
  { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
- { label: 'المدفوع للموردين', value: `-${EGP(report.supplierCashPaid ?? report.supplierPurchases ?? 0)}`, negative: true },
+ { label: 'المدفوع للموردين من الخزنة', value: `-${EGP(report.supplierPaidFromSafe ?? report.auditDetails?.supplierPaidFromSafe ?? report.supplierCashPaid ?? 0)}`, negative: true },
  { label: 'المسحوبات الشخصية والجمعية', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}`, negative: true },
  { separator: true },
  { label: '= صافي حركة الخزينة والسيولة', value: EGP(report.netCashFlow ?? 0), highlight: true },

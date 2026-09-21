@@ -12,7 +12,7 @@ const ROLES = ['admin', 'manager'];
 router.post('/count/new', auth, requireRole(ROLES), async (req, res) => {
   try {
     const { label } = req.body;
-    const products = await Product.find({ active: true }).sort({ name: 1 });
+    const products = await Product.find({ active: true, isSeasonArchived: { $ne: true } }).sort({ name: 1 });
     const items = [];
     products.forEach(p => {
       if (p.variants && p.variants.length > 0) {

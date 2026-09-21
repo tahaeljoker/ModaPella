@@ -140,6 +140,8 @@ async function calculateMonthlyData(year, month) {
   // Process Safe Transactions
   let debtPaymentsCash = 0;
   let debtPaymentsInstapay = 0;
+  let depositsCash = 0;
+  let depositsInstapay = 0;
   let refundsCash = 0;
   let refundsInstapay = 0;
   let operatingExpenses = 0;
@@ -150,11 +152,22 @@ async function calculateMonthlyData(year, month) {
   const personalWithdrawalsList = [];
 
   transactions.forEach(t => {
-    if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
-      if (t.paymentMethod === 'Cash') {
-        debtPaymentsCash += t.amount;
-      } else {
-        debtPaymentsInstapay += t.amount;
+    const cat = (t.category || '').toLowerCase();
+    const desc = (t.description || '').toLowerCase();
+
+    if (t.type === 'IN') {
+      if (cat === 'debtpayment' || cat.includes('دين') || desc.includes('دين') || cat === 'سداد دين عميل') {
+        if (t.paymentMethod === 'Cash') {
+          debtPaymentsCash += t.amount;
+        } else {
+          debtPaymentsInstapay += t.amount;
+        }
+      } else if (cat === 'deposit' || cat.includes('إيداع') || cat.includes('ايداع') || desc.includes('إيداع') || desc.includes('ايداع')) {
+        if (t.paymentMethod === 'Cash') {
+          depositsCash += t.amount;
+        } else {
+          depositsInstapay += t.amount;
+        }
       }
     } else if (isRefundTx(t)) {
       if (t.paymentMethod === 'Cash') {
@@ -173,8 +186,8 @@ async function calculateMonthlyData(year, month) {
       });
     } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
       // Operating expense
-      const cat = t.category || 'أخرى';
-      expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
+      const catName = t.category || 'أخرى';
+      expenseMap[catName] = (expenseMap[catName] || 0) + t.amount;
       operatingExpenses += t.amount;
       operatingExpensesList.push({
         id: t._id,
@@ -192,6 +205,7 @@ async function calculateMonthlyData(year, month) {
   // Calculate Supplier Cash Paid & Purchases
   let supplierCashPaid = 0;
   let supplierPurchases = 0;
+  let supplierPaidFromSafe = 0;
 
   supplierTxs.forEach(st => {
     if (st.type === 'purchase') {
@@ -199,6 +213,9 @@ async function calculateMonthlyData(year, month) {
     }
     if (st.type === 'payment') {
       supplierCashPaid += st.amount;
+      if (st.paymentSource === 'StoreSafe') {
+        supplierPaidFromSafe += st.amount;
+      }
     }
   });
 
@@ -209,12 +226,14 @@ async function calculateMonthlyData(year, month) {
       if (!isAlreadyInSupplierTx) {
         supplierCashPaid += t.amount;
         supplierPurchases += t.amount;
+        supplierPaidFromSafe += t.amount;
       }
     }
   });
 
   supplierPurchases = Math.round(supplierPurchases);
   supplierCashPaid = Math.round(supplierCashPaid);
+  supplierPaidFromSafe = Math.round(supplierPaidFromSafe);
 
   if (supplierPurchases > 0) {
     expenseMap['مشتريات وبضائع موردين'] = supplierPurchases;
@@ -228,14 +247,14 @@ async function calculateMonthlyData(year, month) {
   }));
 
   // Net Cash Revenue
-  const cashRevenue = salesCashCollected + debtPaymentsCash - refundsCash;
-  const instapayRevenue = salesInstapayCollected + debtPaymentsInstapay - refundsInstapay;
+  const cashRevenue = salesCashCollected + debtPaymentsCash + depositsCash - refundsCash;
+  const instapayRevenue = salesInstapayCollected + debtPaymentsInstapay + depositsInstapay - refundsInstapay;
 
   // Net Operating Profit = Gross Profit - Operating Expenses (Airtight mathematical identity)
   const netProfit = Math.round(grossProfit - operatingExpenses);
 
-  // Net Cash Flow = Inflows - Outflows (including personal withdrawals which physically left safe)
-  const netCashFlow = Math.round((cashRevenue + instapayRevenue) - (operatingExpenses + supplierCashPaid + personalWithdrawals));
+  // Net Cash Flow = Inflows - Outflows from store safe (supplier payments only if paid from store safe)
+  const netCashFlow = Math.round((cashRevenue + instapayRevenue) - (operatingExpenses + supplierPaidFromSafe + personalWithdrawals));
 
   // Daily Breakdown
   const dailyData = [];
@@ -272,15 +291,25 @@ async function calculateMonthlyData(year, month) {
 
     let dayDebtCash = 0;
     let dayDebtInstapay = 0;
+    let dayDepositsCash = 0;
+    let dayDepositsInstapay = 0;
     let dayRefundCash = 0;
     let dayRefundInstapay = 0;
     let dayOpExpenses = 0;
     let dayPersonalWithdrawals = 0;
 
     dayTransactions.forEach(t => {
-      if (t.type === 'IN' && (t.category === 'DebtPayment' || t.category === 'سداد دين عميل')) {
-        if (t.paymentMethod === 'Cash') dayDebtCash += t.amount;
-        else dayDebtInstapay += t.amount;
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+
+      if (t.type === 'IN') {
+        if (cat === 'debtpayment' || cat.includes('دين') || desc.includes('دين') || cat === 'سداد دين عميل') {
+          if (t.paymentMethod === 'Cash') dayDebtCash += t.amount;
+          else dayDebtInstapay += t.amount;
+        } else if (cat === 'deposit' || cat.includes('إيداع') || cat.includes('ايداع') || desc.includes('إيداع') || desc.includes('ايداع')) {
+          if (t.paymentMethod === 'Cash') dayDepositsCash += t.amount;
+          else dayDepositsInstapay += t.amount;
+        }
       } else if (isRefundTx(t)) {
         if (t.paymentMethod === 'Cash') dayRefundCash += t.amount;
         else dayRefundInstapay += t.amount;
@@ -293,12 +322,16 @@ async function calculateMonthlyData(year, month) {
 
     let daySupplierPurchases = 0;
     let daySupplierCashPaid = 0;
+    let daySupplierPaidFromSafe = 0;
     daySupplierTxs.forEach(st => {
       if (st.type === 'purchase') {
         daySupplierPurchases += st.amount;
       }
       if (st.type === 'payment') {
         daySupplierCashPaid += st.amount;
+        if (st.paymentSource === 'StoreSafe') {
+          daySupplierPaidFromSafe += st.amount;
+        }
       }
     });
 
@@ -308,12 +341,13 @@ async function calculateMonthlyData(year, month) {
         if (!isAlreadyInSupplierTx) {
           daySupplierPurchases += t.amount;
           daySupplierCashPaid += t.amount;
+          daySupplierPaidFromSafe += t.amount;
         }
       }
     });
 
-    const dayCash = daySalesCash + dayDebtCash - dayRefundCash;
-    const dayInstapay = daySalesInstapay + dayDebtInstapay - dayRefundInstapay;
+    const dayCash = daySalesCash + dayDebtCash + dayDepositsCash - dayRefundCash;
+    const dayInstapay = daySalesInstapay + dayDebtInstapay + dayDepositsInstapay - dayRefundInstapay;
 
     const dayCogs = dayOrders.reduce((sum, o) => {
       if (o.isManualDebt) return sum;
@@ -425,8 +459,11 @@ async function calculateMonthlyData(year, month) {
     operatingExpensesTotal: operatingExpenses,
     supplierPurchasesTotal: supplierPurchases,
     supplierCashPaidTotal: supplierCashPaid,
+    supplierPaidFromSafe,
     debtPaymentsCash,
     debtPaymentsInstapay,
+    depositsCash,
+    depositsInstapay,
     refundsCash,
     refundsInstapay,
     salesCashCollected,
@@ -445,7 +482,7 @@ async function calculateMonthlyData(year, month) {
       supplierPurchases: `مشتريات بضائع الموردين = إجمالي قيمة البضائع الموردة للمحل بقيمة ${supplierPurchases.toLocaleString()} ج.م (أصول بضاعة يتم تحويلها لمخزون وحساب تكلفتها عند البيع في بند COGS).`,
       personalWithdrawals: `المسحوبات الشخصية والجمعية = إجمالي المبالغ المسحوبة للمالك والشركاء والجمعيات بقيمة ${personalWithdrawals.toLocaleString()} ج.م (سُحبت من الخزنة وخفّضت رصيد الكاش، ولكنها مستبعدة من مصاريف التشغيل لحماية أرباح المحل التجارية).`,
       netProfit: `صافي ربح النشاط = مجمل الربح (${grossProfit.toLocaleString()} ج.م) - مصاريف التشغيل (${operatingExpenses.toLocaleString()} ج.م) = ${netProfit.toLocaleString()} ج.م.`,
-      netCashFlow: `صافي حركة الخزنة = (السيولة المباشرة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) - (مصاريف التشغيل ${operatingExpenses.toLocaleString()} ج.م + المدفوع للموردين ${supplierCashPaid.toLocaleString()} ج.م + المسحوبات الشخصية والجمعية ${personalWithdrawals.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
+      netCashFlow: `صافي حركة الخزنة والسيولة = (السيولة المحصلة بالخزنة ${ (cashRevenue + instapayRevenue).toLocaleString() } ج.م) - (مصاريف التشغيل ${operatingExpenses.toLocaleString()} ج.م + المدفوع للموردين من الخزنة ${supplierPaidFromSafe.toLocaleString()} ج.م + المسحوبات الشخصية والجمعية ${personalWithdrawals.toLocaleString()} ج.م) = ${netCashFlow.toLocaleString()} ج.م.`
     }
   };
 
@@ -462,6 +499,7 @@ async function calculateMonthlyData(year, month) {
     operatingExpenses,
     supplierPurchases,
     supplierCashPaid,
+    supplierPaidFromSafe,
     personalWithdrawals,
     netCashFlow,
     totalDiscounts,

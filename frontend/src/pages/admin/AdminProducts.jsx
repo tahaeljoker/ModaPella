@@ -211,6 +211,8 @@ function RestockModal({ product, onClose, onRestocked }) {
  const [costPrice, setCostPrice] = useState(product?.costPrice || '');
  const [supplier, setSupplier] = useState(product?.supplier || '');
  const [notes, setNotes] = useState('');
+  const [supplierBillOption, setSupplierBillOption] = useState('none');
+  const [supplierInvoiceRef, setSupplierInvoiceRef] = useState('');
  const [submitting, setSubmitting] = useState(false);
  const [error, setError] = useState('');
 
@@ -234,7 +236,9 @@ function RestockModal({ product, onClose, onRestocked }) {
  quantity: !hasVariants ? Number(quantity) || 0 : 0,
  costPrice: costPrice ? Number(costPrice) : undefined,
  supplier: supplier ? supplier.trim() : undefined,
- notes: notes.trim()
+        supplierBillOption,
+        supplierInvoiceRef: supplierInvoiceRef ? supplierInvoiceRef.trim() : undefined,
+        notes: notes.trim()
  };
  await api.post(`/admin/products/${product._id}/restock`, payload);
  onRestocked(`تم تزويد المخزون بنجاح (+${totalAdded} قطعة) للمنتج: ${product.name}`);
@@ -343,7 +347,61 @@ function RestockModal({ product, onClose, onRestocked }) {
  />
  </div>
 
- {error && <p className="text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-xl border border-red-200">{error}</p>}
+        {/* Supplier Billing Section */}
+        <div className="bg-white/80 border border-burgundy/15 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-burgundy flex items-center gap-1.5">
+              <span>🧾 حسابات المورد والفاتورة:</span>
+            </label>
+            {supplierBillOption !== 'none' && (
+              <span className="text-xs font-extrabold text-burgundy bg-burgundy/10 px-2 py-0.5 rounded-lg">
+                إجمالي الفاتورة: {((Number(costPrice) || 0) * totalAdded).toLocaleString('en-US')} ج.م
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'none', label: 'بدون فاتورة مورد' },
+              { id: 'credit', label: 'شراء آجل (دين)' },
+              { id: 'cash_safe', label: 'شراء كاش من الخزينة' },
+              { id: 'cash_personal', label: 'شراء كاش شخصي' }
+            ].map(opt => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSupplierBillOption(opt.id)}
+                className={`py-2 px-2.5 rounded-xl text-[11px] font-bold transition border text-center ${
+                  supplierBillOption === opt.id
+                    ? 'bg-burgundy text-white border-burgundy shadow-sm'
+                    : 'bg-white text-burgundy/70 border-burgundy/15 hover:bg-burgundy/5'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {supplierBillOption !== 'none' && (
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-semibold text-burgundy/60">رقم الفاتورة / إيصال التوريد (اختياري)</label>
+              <input
+                type="text"
+                value={supplierInvoiceRef}
+                onChange={e => setSupplierInvoiceRef(e.target.value)}
+                placeholder="مثال: فاتورة توريد #4092"
+                className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
+              />
+              <p className="text-[10px] text-burgundy/50">
+                {supplierBillOption === 'credit' && '• سيتم إضافة إجمالي الفاتورة كدين مستحق للمورد في كشف حسابه.'}
+                {supplierBillOption === 'cash_safe' && '• سيتم تسجيل الشراء وسداد الدفعة فوراً وخصم المبلغ من خزنة المحل (مصروفات موردين).'}
+                {supplierBillOption === 'cash_personal' && '• سيتم تسجيل الفاتورة وسدادها كاش جيب شخصي دون خصم من خزنة المحل.'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-xl border border-red-200">{error}</p>}
 
  <div className="flex items-center justify-between pt-3 border-t border-burgundy/10">
  <div>
@@ -374,7 +432,7 @@ function RestockModal({ product, onClose, onRestocked }) {
  );
 }
 
-const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
+const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
@@ -384,18 +442,22 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  if (product) {
  return {
  ...product,
+ season: product.season || 'all',
+ isSeasonArchived: Boolean(product.isSeasonArchived),
  totalReceived: product.totalReceived !== undefined ? product.totalReceived : ((product.stock || 0) + (product.sold || 0)),
  discountPrice: product.discountPrice ?? '',
  discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
  discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().split('T')[0] : '',
  };
  }
- return emptyProduct;
+ return { ...emptyProduct, season: 'winter' };
  });
  const [loading, setLoading] = useState(false);
  const [isCalcOpen, setIsCalcOpen] = useState(false);
  const [suppliers, setSuppliers] = useState([]);
  const [isManualSupplier, setIsManualSupplier] = useState(false);
+  const [supplierBillOption, setSupplierBillOption] = useState('none');
+  const [supplierInvoiceRef, setSupplierInvoiceRef] = useState('');
 
  useEffect(() => {
  const fetchSuppliers = async () => {
@@ -476,7 +538,9 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  try {
  const finalStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
  const payload = {
- ...form,
+        ...form,
+        supplierBillOption: !form._id ? supplierBillOption : undefined,
+        supplierInvoiceRef: !form._id && supplierInvoiceRef ? supplierInvoiceRef.trim() : undefined,
  price: Number(form.price),
  discountPrice: form.discountPrice ? Number(form.discountPrice) : null,
  discountStartDate: form.discountStartDate ? new Date(form.discountStartDate) : null,
@@ -727,6 +791,63 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  </p>
  )}
  </div>
+
+          {/* Supplier Billing Section (for new products) */}
+          {!form._id && (
+            <div className="sm:col-span-2 bg-white/80 border border-burgundy/15 rounded-2xl p-4 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-burgundy flex items-center gap-1.5">
+                  <span>🧾 ربط حساب المورد بالفاتورة:</span>
+                </label>
+                {supplierBillOption !== 'none' && (
+                  <span className="text-xs font-extrabold text-burgundy bg-burgundy/10 px-2 py-0.5 rounded-lg">
+                    إجمالي الفاتورة الموردة: {((Number(form.costPrice) || 0) * (hasVariants ? totalVariantStock : Number(form.stock || 0))).toLocaleString('en-US')} ج.م
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: 'none', label: 'بدون فاتورة مورد' },
+                  { id: 'credit', label: 'شراء آجل (دين)' },
+                  { id: 'cash_safe', label: 'كاش من خزينة المحل' },
+                  { id: 'cash_personal', label: 'كاش جيب شخصي' }
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setSupplierBillOption(opt.id)}
+                    className={`py-2 px-2.5 rounded-xl text-[11px] font-bold transition border text-center ${
+                      supplierBillOption === opt.id
+                        ? 'bg-burgundy text-white border-burgundy shadow-sm'
+                        : 'bg-white text-burgundy/70 border-burgundy/15 hover:bg-burgundy/5'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {supplierBillOption !== 'none' && (
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-semibold text-burgundy/60">رقم الفاتورة / المرجع للمورد (اختياري)</label>
+                  <input
+                    type="text"
+                    value={supplierInvoiceRef}
+                    onChange={e => setSupplierInvoiceRef(e.target.value)}
+                    placeholder="مثال: فاتورة #1023"
+                    className={inp}
+                  />
+                  <p className="text-[10px] text-burgundy/50">
+                    {supplierBillOption === 'credit' && '• سيتم تسجيل الفاتورة وتثبيت المديونية في كشف حساب المورد.'}
+                    {supplierBillOption === 'cash_safe' && '• سيتم تسجيل الفاتورة وسدادها نقداً وخصم المبلغ من خزنة المحل (مصروفات موردين).'}
+                    {supplierBillOption === 'cash_personal' && '• سيتم تسجيل الفاتورة وسدادها كاش جيب شخصي دون التأثير على خزنة المحل.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
  <div className="sm:col-span-2">
  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex items-center gap-2">
  كود المنتج (SKU)
@@ -751,6 +872,83 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  </p>
  )}
  </div>
+
+ {/* Seasonal Classification */}
+ <div className="sm:col-span-2 rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50/50 via-amber-50/30 to-purple-50/40 p-4 space-y-3">
+ <div className="flex items-center justify-between">
+ <span className="text-xs font-bold uppercase tracking-wide text-burgundy flex items-center gap-1.5">
+ <span>🌤️</span> تصنيف موسم البضاعة
+ </span>
+ <span className="text-[11px] text-burgundy/70 font-bold">
+ {form.season === 'summer' ? '☀️ صيفي' : form.season === 'winter' ? '❄️ شتوي' : '🔄 طوال العام (أساسي)'}
+ </span>
+ </div>
+ 
+ <div className="grid grid-cols-3 gap-2">
+ <button
+ type="button"
+ onClick={() => setForm(p => ({ ...p, season: 'summer' }))}
+ className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition ${
+ form.season === 'summer'
+ ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/20'
+ : 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50'
+ }`}
+ >
+ <span className="text-sm">☀️</span>
+ <span>صيفي</span>
+ </button>
+
+ <button
+ type="button"
+ onClick={() => setForm(p => ({ ...p, season: 'winter' }))}
+ className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition ${
+ form.season === 'winter'
+ ? 'bg-sky-600 text-white border-sky-700 shadow-md shadow-sky-600/20'
+ : 'bg-white text-sky-800 border-sky-200 hover:bg-sky-50'
+ }`}
+ >
+ <span className="text-sm">❄️</span>
+ <span>شتوي</span>
+ </button>
+
+ <button
+ type="button"
+ onClick={() => setForm(p => ({ ...p, season: 'all' }))}
+ className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition ${
+ form.season === 'all'
+ ? 'bg-burgundy text-white border-burgundy shadow-md shadow-burgundy/20'
+ : 'bg-white text-burgundy border-burgundy/20 hover:bg-burgundy/5'
+ }`}
+ >
+ <span className="text-sm">🔄</span>
+ <span>طوال العام</span>
+ </button>
+ </div>
+
+ {/* Storage / Archival Toggle */}
+ <div className="flex items-center justify-between pt-2 border-t border-burgundy/10">
+ <div>
+ <p className="text-xs font-bold text-burgundy">حالة تداول الصنف في المحل</p>
+ <p className="text-[11px] text-burgundy/60">
+ {form.isSeasonArchived
+ ? '📦 مخزن بالمستودع (مستبعد ومخفي تلقائياً من الكاشير والجرد)'
+ : '✅ متاح ومعروض في المحل (يظهر في الكاشير وفي شاشة الجرد)'}
+ </p>
+ </div>
+ <button
+ type="button"
+ onClick={() => setForm(p => ({ ...p, isSeasonArchived: !p.isSeasonArchived }))}
+ className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+ form.isSeasonArchived
+ ? 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200'
+ : 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+ }`}
+ >
+ {form.isSeasonArchived ? '📦 مخزن موسمي' : '✅ نشط بالمعرض'}
+ </button>
+ </div>
+ </div>
+
  <div className="sm:col-span-2">
  <label className="flex items-center gap-2 cursor-pointer bg-burgundy/5 p-3 rounded-xl border border-burgundy/10 hover:bg-burgundy/10 transition">
  <input
@@ -873,12 +1071,16 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
 }
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
-function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onRestock, categories, catAr }) {
+function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onRestock, categories, catAr, onRefresh, showToast }) {
  const [filter, setFilter] = useState('All');
+ const [filterSeason, setFilterSeason] = useState('All'); // 'All' | 'summer' | 'winter' | 'all' | 'archived'
  const [search, setSearch] = useState('');
  const [filterSupplier, setFilterSupplier] = useState('الكل');
  const [filterSize, setFilterSize] = useState('الكل');
  const [activeMenuId, setActiveMenuId] = useState(null);
+ const [selectedIds, setSelectedIds] = useState([]);
+ const [bulkLoading, setBulkLoading] = useState(false);
+ const [seasonConfirmModal, setSeasonConfirmModal] = useState(null); // { targetSeason: 'winter' | 'summer' }
 
 const arabicKeyboardMap = {
  'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
@@ -910,6 +1112,15 @@ const normalizeDigits = (str) => {
  return res;
 };
 
+ const summerProducts = products.filter(p => p.season === 'summer');
+ const winterProducts = products.filter(p => p.season === 'winter');
+ const allYearProducts = products.filter(p => !p.season || p.season === 'all');
+ const archivedSummer = summerProducts.filter(p => p.isSeasonArchived).length;
+ const activeSummer = summerProducts.length - archivedSummer;
+ const archivedWinter = winterProducts.filter(p => p.isSeasonArchived).length;
+ const activeWinter = winterProducts.length - archivedWinter;
+ const totalArchived = products.filter(p => p.isSeasonArchived).length;
+
  const suppliersList = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
  const sizesList = Array.from(new Set(products.flatMap(p => p.sizes || []).filter(Boolean))).sort();
 
@@ -929,72 +1140,327 @@ const normalizeDigits = (str) => {
 
  const mSup = filterSupplier === 'الكل' || p.supplier === filterSupplier;
  const mSz = filterSize === 'الكل' || p.sizes?.includes(filterSize) || p.variants?.some(v => v.size === filterSize);
- return mc && ms && mSup && mSz;
+
+ let mSeason = true;
+ if (filterSeason === 'summer') mSeason = p.season === 'summer';
+ else if (filterSeason === 'winter') mSeason = p.season === 'winter';
+ else if (filterSeason === 'all') mSeason = (!p.season || p.season === 'all');
+ else if (filterSeason === 'archived') mSeason = Boolean(p.isSeasonArchived);
+
+ return mc && ms && mSup && mSz && mSeason;
  });
+
+ const handleBulkSeason = async (action, extra = {}) => {
+ if (selectedIds.length === 0) return;
+ try {
+ setBulkLoading(true);
+ const res = await api.post('/admin/products/bulk-season', {
+ action,
+ productIds: selectedIds,
+ ...extra
+ });
+ showToast?.(res.data?.message || 'تم تنفيذ العملية بنجاح');
+ setSelectedIds([]);
+ await onRefresh?.();
+ } catch (err) {
+ alert(err.response?.data?.message || err.message || 'فشل تنفيذ العملية');
+ } finally {
+ setBulkLoading(false);
+ }
+ };
+
+ const handleConfirmSeasonSwitch = async () => {
+ if (!seasonConfirmModal?.targetSeason) return;
+ try {
+ setBulkLoading(true);
+ const res = await api.post('/admin/products/bulk-season', {
+ action,
+ targetSeason: seasonConfirmModal.targetSeason
+ });
+ showToast?.(res.data?.message || 'تم تبديل الموسم بنجاح');
+ setSeasonConfirmModal(null);
+ setSelectedIds([]);
+ await onRefresh?.();
+ } catch (err) {
+ alert(err.response?.data?.message || err.message || 'فشل تبديل الموسم');
+ } finally {
+ setBulkLoading(false);
+ }
+ };
 
  return (
  <div className="space-y-4">
+ {/* Seasonal Switcher & Overview Header */}
+ <div className="rounded-3xl border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-amber-50/50 p-5 shadow-sm space-y-4">
+ <div className="flex flex-wrap items-center justify-between gap-4">
+ <div>
+ <div className="flex items-center gap-2">
+ <span className="text-xl">🌤️</span>
+ <h4 className="text-base font-bold text-burgundy">نظام إدارة المخزون الموسمي (صيفي / شتوي)</h4>
+ <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full border border-sky-200">ميزة حصرية</span>
+ </div>
+ <p className="text-xs text-burgundy/60 mt-1 max-w-xl leading-relaxed">
+ يمكنك هنا تحديد بضاعة الصيف لتخزينها بالمستودع بضغطة زر فتختفي فوراً من الجرد والكاشير دون أن تفقد أي كمية أو كود باركود، وإتاحة بضاعة الشتاء للبيع والجرد.
+ </p>
+ </div>
+
+ <div className="flex flex-wrap items-center gap-2">
+ <button
+ type="button"
+ onClick={() => setSeasonConfirmModal({ targetSeason: 'winter' })}
+ disabled={bulkLoading}
+ className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-600/20 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+ >
+ <span>❄️</span>
+ <span>التحويل للموسم الشتوي</span>
+ </button>
+
+ <button
+ type="button"
+ onClick={() => setSeasonConfirmModal({ targetSeason: 'summer' })}
+ disabled={bulkLoading}
+ className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+ >
+ <span>☀️</span>
+ <span>التحويل للموسم الصيفي</span>
+ </button>
+ </div>
+ </div>
+
+ {/* Stats Grid */}
+ <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-burgundy/10 text-xs">
+ <div className="bg-white/90 rounded-2xl p-3 border border-amber-200 shadow-sm">
+ <div className="flex items-center justify-between">
+ <span className="text-amber-800 font-bold flex items-center gap-1 text-xs">☀️ بضاعة صيفية</span>
+ <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full">{summerProducts.length}</span>
+ </div>
+ <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
+ معروض: <strong className="text-emerald-600">{activeSummer}</strong> | مخزن: <strong className="text-purple-700">{archivedSummer}</strong>
+ </p>
+ </div>
+
+ <div className="bg-white/90 rounded-2xl p-3 border border-sky-200 shadow-sm">
+ <div className="flex items-center justify-between">
+ <span className="text-sky-800 font-bold flex items-center gap-1 text-xs">❄️ بضاعة شتوية</span>
+ <span className="text-xs font-bold text-sky-900 bg-sky-100 px-2 py-0.5 rounded-full">{winterProducts.length}</span>
+ </div>
+ <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
+ معروض: <strong className="text-emerald-600">{activeWinter}</strong> | مخزن: <strong className="text-purple-700">{archivedWinter}</strong>
+ </p>
+ </div>
+
+ <div className="bg-white/90 rounded-2xl p-3 border border-purple-200 shadow-sm">
+ <div className="flex items-center justify-between">
+ <span className="text-purple-800 font-bold flex items-center gap-1 text-xs">🔄 طوال العام</span>
+ <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full">{allYearProducts.length}</span>
+ </div>
+ <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
+ أساسي ومستمر بكل المواسم
+ </p>
+ </div>
+
+ <div className="bg-white/90 rounded-2xl p-3 border border-slate-200 shadow-sm">
+ <div className="flex items-center justify-between">
+ <span className="text-slate-800 font-bold flex items-center gap-1 text-xs">📦 المخزن بالمستودع</span>
+ <span className="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full">{totalArchived}</span>
+ </div>
+ <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
+ مستبعد تلقائياً من الكاشير والجرد
+ </p>
+ </div>
+ </div>
+ </div>
+
  {/* Filters row */}
+ <div className="space-y-3">
+ {/* Season Filter Tabs */}
+ <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-2xl border border-burgundy/10 shadow-sm w-fit">
+ <span className="text-xs font-bold text-burgundy/40 px-2">تصفية الموسم:</span>
+ <button
+ type="button"
+ onClick={() => setFilterSeason('All')}
+ className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'All' ? 'bg-burgundy text-white shadow-sm' : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/5'}`}
+ >
+ الكل ({products.length})
+ </button>
+ <button
+ type="button"
+ onClick={() => setFilterSeason('summer')}
+ className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'summer' ? 'bg-amber-500 text-white shadow-sm' : 'text-amber-800 hover:bg-amber-50'}`}
+ >
+ ☀️ صيفي ({summerProducts.length})
+ </button>
+ <button
+ type="button"
+ onClick={() => setFilterSeason('winter')}
+ className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'winter' ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-800 hover:bg-sky-50'}`}
+ >
+ ❄️ شتوي ({winterProducts.length})
+ </button>
+ <button
+ type="button"
+ onClick={() => setFilterSeason('all')}
+ className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'all' ? 'bg-purple-700 text-white shadow-sm' : 'text-purple-800 hover:bg-purple-50'}`}
+ >
+ 🔄 طوال العام ({allYearProducts.length})
+ </button>
+ <button
+ type="button"
+ onClick={() => setFilterSeason('archived')}
+ className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'archived' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-100'}`}
+ >
+ 📦 المخزن بالمستودع ({totalArchived})
+ </button>
+ </div>
+
  <div className="flex flex-wrap items-center gap-3">
- <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+ <input
+ type="text"
+ value={search}
+ onChange={e => setSearch(e.target.value)}
  placeholder="بحث بالاسم أو الكود..."
- className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy min-w-[180px] flex-1" />
- 
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none transition focus:border-burgundy min-w-[180px] flex-1 shadow-sm"
+ />
+
  {/* Supplier Filter */}
- <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
- className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
+ <select
+ value={filterSupplier}
+ onChange={e => setFilterSupplier(e.target.value)}
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy shadow-sm"
+ >
  <option value="الكل">كل الموردين</option>
  {suppliersList.map(s => <option key={s} value={s}>{s}</option>)}
  </select>
 
  {/* Size Filter */}
- <select value={filterSize} onChange={e => setFilterSize(e.target.value)}
- className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy">
+ <select
+ value={filterSize}
+ onChange={e => setFilterSize(e.target.value)}
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy shadow-sm"
+ >
  <option value="الكل">كل المقاسات</option>
  {sizesList.map(sz => <option key={sz} value={sz}>{sz}</option>)}
  </select>
 
- <div className="flex flex-wrap gap-2">
+ <div className="flex flex-wrap gap-1.5">
  {['All', ...categories].map(c => (
- <button key={c} onClick={() => setFilter(c)}
- className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${filter === c ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}>
+ <button
+ key={c}
+ onClick={() => setFilter(c)}
+ className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${filter === c ? 'bg-burgundy text-white' : 'border border-burgundy/20 text-burgundy hover:bg-burgundy/10'}`}
+ >
  {c === 'All' ? 'الكل' : (catAr[c] || c)}
  </button>
  ))}
  </div>
+
  <div>
- <button onClick={onAdd} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
+ <button
+ onClick={onAdd}
+ className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]"
+ >
  + إضافة منتج
  </button>
+ </div>
  </div>
  </div>
 
  {/* Table */}
  {loading ? (
- <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+ <div className="flex h-40 items-center justify-center">
+ <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
+ </div>
  ) : filtered.length === 0 ? (
- <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center"><p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة</p></div>
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center">
+ <p className="text-sm text-burgundy/40">لا توجد منتجات مطابقة للتصفية الحالية</p>
+ </div>
  ) : (
  <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-x-auto">
- <div className="min-w-[900px]">
- <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50">
- <span>المنتج</span><span>الفئة</span><span>السعر</span><span>التكلفة والربح</span><span>المخزون</span><span>الإجراءات</span>
+ <div className="min-w-[950px]">
+ <div className="grid grid-cols-[2.3fr_1fr_1fr_1.2fr_0.8fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3.5 text-xs font-bold uppercase tracking-wide text-burgundy/50 items-center">
+ <div className="flex items-center gap-2.5">
+ <input
+ type="checkbox"
+ checked={filtered.length > 0 && filtered.every(p => selectedIds.includes(p._id))}
+ onChange={(e) => {
+ if (e.target.checked) {
+ setSelectedIds(Array.from(new Set([...selectedIds, ...filtered.map(p => p._id)])));
+ } else {
+ const filteredSet = new Set(filtered.map(p => p._id));
+ setSelectedIds(selectedIds.filter(id => !filteredSet.has(id)));
+ }
+ }}
+ className="w-4 h-4 accent-burgundy rounded cursor-pointer"
+ title="تحديد كل المعروض"
+ />
+ <span>المنتج ({filtered.length})</span>
  </div>
+ <span>الفئة</span>
+ <span>السعر</span>
+ <span>التكلفة والربح</span>
+ <span>المخزون</span>
+ <span>الإجراءات</span>
+ </div>
+
  <div className="divide-y divide-burgundy/6">
  {filtered.map(p => (
- <div key={p._id} className="grid grid-cols-[2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
+ <div
+ key={p._id}
+ className={`grid grid-cols-[2.3fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-4 px-6 py-4 transition ${
+ selectedIds.includes(p._id) ? 'bg-burgundy/5' : 'hover:bg-burgundy/3'
+ }`}
+ >
  {/* Product */}
  <div className="flex items-center gap-3 min-w-0">
+ <input
+ type="checkbox"
+ checked={selectedIds.includes(p._id)}
+ onChange={(e) => {
+ if (e.target.checked) {
+ setSelectedIds(prev => [...prev, p._id]);
+ } else {
+ setSelectedIds(prev => prev.filter(id => id !== p._id));
+ }
+ }}
+ className="w-4 h-4 accent-burgundy rounded cursor-pointer flex-shrink-0"
+ />
+
  <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl">
  {getProductIcon(p.category, p.name)}
  </div>
+
  <div className="min-w-0">
+ <div className="flex items-center gap-1.5 flex-wrap">
  <p className="truncate font-semibold text-sm">{p.name}</p>
+ {p.season === 'summer' && (
+ <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.2 text-[10px] font-bold">
+ ☀️ صيفي
+ </span>
+ )}
+ {p.season === 'winter' && (
+ <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.2 text-[10px] font-bold">
+ ❄️ شتوي
+ </span>
+ )}
+ {(!p.season || p.season === 'all') && (
+ <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.2 text-[10px] font-bold">
+ 🔄 طوال العام
+ </span>
+ )}
+ {p.isSeasonArchived && (
+ <span className="inline-flex items-center rounded-full bg-slate-800 text-white border border-slate-700 px-2 py-0.2 text-[10px] font-bold" title="مخزن بالمستودع ومستبعد تلقائياً من الجرد والكاشير">
+ 📦 مخزن
+ </span>
+ )}
+ </div>
+
  <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-burgundy/50 items-center">
  {p.sku && <span className="font-mono bg-burgundy/5 px-1.5 py-0.5 rounded text-burgundy">{p.sku}</span>}
  {p.supplier && <span>{p.supplier}</span>}
  </div>
+
  {p.sizes?.length > 0 && <p className="mt-0.5 text-xs text-burgundy/35">{p.sizes.join(' · ')}</p>}
+
  <button
  type="button"
  onClick={() => onShowHistory(p)}
@@ -1004,7 +1470,13 @@ const normalizeDigits = (str) => {
  </button>
  </div>
  </div>
- <span className="inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">{catAr[p.category] || p.category}</span>
+
+ {/* Category */}
+ <span className="inline-block rounded-full bg-burgundy/8 px-3 py-1 text-xs font-medium w-fit">
+ {catAr[p.category] || p.category}
+ </span>
+
+ {/* Price */}
  {isDiscountActive(p) ? (
  <div className="flex flex-col">
  <span className="block text-sm font-bold text-burgundy">{EGP(p.discountPrice)}</span>
@@ -1016,7 +1488,7 @@ const normalizeDigits = (str) => {
  ) : (
  <span className="block text-sm font-bold">{EGP(p.price)}</span>
  )}
- 
+
  {/* Cost & Profit */}
  <div className="flex flex-col text-xs space-y-0.5">
  <span className="text-burgundy/50">التكلفة: {p.costPrice ? EGP(p.costPrice) : '—'}</span>
@@ -1034,6 +1506,7 @@ const normalizeDigits = (str) => {
  )}
  </div>
 
+ {/* Stock */}
  <div className="flex items-center gap-1.5 flex-wrap">
  <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 text-xs font-bold" title="إجمالي ما دخل المحل من المنتج">
  {Math.max(p.totalReceived || 0, (p.stock || 0) + (p.sold || 0))} توريد
@@ -1047,6 +1520,8 @@ const normalizeDigits = (str) => {
  {p.stock} متبقي
  </span>
  </div>
+
+ {/* Actions */}
  <div className="flex items-center gap-2 justify-end">
  {p.stock === 0 && (
  <button
@@ -1075,7 +1550,7 @@ const normalizeDigits = (str) => {
  <>
  <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
  <div
- className="absolute left-0 mt-1 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
+ className="absolute left-0 mt-1 w-52 rounded-2xl bg-white p-1.5 shadow-2xl border border-burgundy/10 z-50 text-right space-y-0.5"
  onClick={(e) => e.stopPropagation()}
  >
  <button
@@ -1091,6 +1566,23 @@ const normalizeDigits = (str) => {
  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/5 rounded-xl transition"
  >
  تعديل بيانات المنتج
+ </button>
+ <button
+ type="button"
+ onClick={async () => {
+ setActiveMenuId(null);
+ const action = p.isSeasonArchived ? 'activateSeason' : 'archiveSeason';
+ try {
+ await api.post('/admin/products/bulk-season', { action, productIds: [p._id] });
+ showToast?.(p.isSeasonArchived ? 'تم تنشيط المنتج في المعرض' : 'تم تخزين المنتج بالمستودع');
+ await onRefresh?.();
+ } catch {
+ alert('فشل تغيير حالة الصنف');
+ }
+ }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 rounded-xl transition"
+ >
+ {p.isSeasonArchived ? '✅ تنشيط وعرض بالمعرض' : '📦 تخزين بالمستودع (إخفاء)'}
  </button>
  <button
  type="button"
@@ -1114,7 +1606,7 @@ const normalizeDigits = (str) => {
  onClick={() => { setActiveMenuId(null); onDelete(p._id); }}
  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition"
  >
- أرشفة المنتج
+ أرشفة المنتج نهائياً
  </button>
  </div>
  </>
@@ -1123,6 +1615,125 @@ const normalizeDigits = (str) => {
  </div>
  </div>
  ))}
+ </div>
+ </div>
+ </div>
+ )}
+
+ {/* Floating Bulk Action Bar */}
+ {selectedIds.length > 0 && (
+ <div className="sticky bottom-6 z-40 bg-burgundy text-white p-3.5 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 border border-burgundy/40 animate-in fade-in slide-in-from-bottom-3">
+ <div className="flex items-center gap-3">
+ <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">
+ تم تحديد {selectedIds.length} منتج
+ </span>
+ <button
+ type="button"
+ onClick={() => setSelectedIds([])}
+ className="text-white/70 hover:text-white text-xs underline"
+ >
+ إلغاء التحديد
+ </button>
+ </div>
+
+ <div className="flex flex-wrap items-center gap-2">
+ <span className="text-xs text-white/70 font-semibold">تعيين الموسم:</span>
+ <button
+ type="button"
+ onClick={() => handleBulkSeason('setSeason', { season: 'summer' })}
+ disabled={bulkLoading}
+ className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
+ >
+ ☀️ صيفي
+ </button>
+ <button
+ type="button"
+ onClick={() => handleBulkSeason('setSeason', { season: 'winter' })}
+ disabled={bulkLoading}
+ className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
+ >
+ ❄️ شتوي
+ </button>
+ <button
+ type="button"
+ onClick={() => handleBulkSeason('setSeason', { season: 'all' })}
+ disabled={bulkLoading}
+ className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
+ >
+ 🔄 طوال العام
+ </button>
+
+ <div className="h-5 w-[1px] bg-white/20 mx-1 hidden sm:block" />
+
+ <button
+ type="button"
+ onClick={() => handleBulkSeason('archiveSeason')}
+ disabled={bulkLoading}
+ className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 border border-white/20 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
+ title="إخفاء المنتجات المحددة من الكاشير والجرد"
+ >
+ 📦 تخزين بالمستودع (إخفاء)
+ </button>
+ <button
+ type="button"
+ onClick={() => handleBulkSeason('activateSeason')}
+ disabled={bulkLoading}
+ className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
+ title="تنشيط وإتاحة المنتجات في المحل والجرد"
+ >
+ ✅ تنشيط وعرض بالمعرض
+ </button>
+ </div>
+ </div>
+ )}
+
+ {/* Season Switch Confirmation Modal */}
+ {seasonConfirmModal && (
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setSeasonConfirmModal(null)}>
+ <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl space-y-4 text-burgundy" onClick={e => e.stopPropagation()}>
+ <div className="flex items-center gap-3">
+ <span className="text-3xl">{seasonConfirmModal.targetSeason === 'winter' ? '❄️' : '☀️'}</span>
+ <div>
+ <h3 className="text-lg font-bold">
+ {seasonConfirmModal.targetSeason === 'winter' ? 'تأكيد التحويل للموسم الشتوي' : 'تأكيد التحويل للموسم الصيفي'}
+ </h3>
+ <p className="text-xs text-burgundy/60 mt-0.5">
+ {seasonConfirmModal.targetSeason === 'winter'
+ ? 'سيتم تجميد وتخزين كل البضاعة الصيفية، وتنشيط كل البضاعة الشتوية.'
+ : 'سيتم تنشيط وإظهار كل البضاعة الصيفية، وتخزين البضاعة الشتوية.'}
+ </p>
+ </div>
+ </div>
+
+ <div className="p-3.5 bg-[#F7F0EC] rounded-2xl text-xs space-y-2 text-burgundy/80">
+ <p className="font-bold text-burgundy flex items-center gap-1.5">
+ <span>📌</span> ضمانات حفظ البيانات والمخزون:
+ </p>
+ <p>• لن يتم مسح أي صنف، كل الكميات وأسعار التكلفة والأكواد (SKU) محفوظة 100%.</p>
+ <p>• بضاعة الصيف ستختفي من شاشة الجرد والكاشير لتجنب التشتت أثناء جرد الشتوي.</p>
+ <p>• أصناف طوال العام (الأساسية) ستظل متاحة في كل الأحوال.</p>
+ <p>• يمكنك التبديل والرجوع في أي وقت بنقرة واحدة.</p>
+ </div>
+
+ <div className="flex gap-2.5 pt-2">
+ <button
+ type="button"
+ onClick={handleConfirmSeasonSwitch}
+ disabled={bulkLoading}
+ className={`flex-1 py-3 rounded-xl text-xs font-bold text-white transition shadow-md ${
+ seasonConfirmModal.targetSeason === 'winter' ? 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/20' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
+ }`}
+ >
+ {bulkLoading ? 'جاري التحويل...' : 'نعم، قم بالتحويل الآن'}
+ </button>
+ <button
+ type="button"
+ onClick={() => setSeasonConfirmModal(null)}
+ disabled={bulkLoading}
+ className="px-5 py-3 rounded-xl border border-burgundy/20 text-xs font-semibold text-burgundy hover:bg-burgundy/5 transition"
+ >
+ إلغاء
+ </button>
  </div>
  </div>
  </div>
@@ -1137,6 +1748,7 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  const [filterCat, setFilterCat] = useState('الكل');
  const [filterSupplier, setFilterSupplier] = useState('الكل');
  const [filterStock, setFilterStock] = useState('all');
+ const [filterSeason, setFilterSeason] = useState('All');
  const [adjusting, setAdjusting] = useState(null);
  const [adjValue, setAdjValue] = useState('');
  const [selectedVariant, setSelectedVariant] = useState('');
@@ -1186,7 +1798,14 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  const mc = filterCat === 'الكل' || p.category === filterCat;
  const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
  const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
- return ms && mc && mk && mSup;
+
+ let mSeason = true;
+ if (filterSeason === 'summer') mSeason = p.season === 'summer';
+ else if (filterSeason === 'winter') mSeason = p.season === 'winter';
+ else if (filterSeason === 'all') mSeason = (!p.season || p.season === 'all');
+ else if (filterSeason === 'archived') mSeason = Boolean(p.isSeasonArchived);
+
+ return ms && mc && mk && mSup && mSeason;
  });
 
  const totalItems = filtered.reduce((s, p) => s + p.stock, 0);
@@ -1214,20 +1833,20 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  </div>
 
  {/* Filters */}
- <div className="flex flex-wrap gap-3">
+ <div className="flex flex-wrap items-center gap-3">
  <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم أو الكود..."
- className="flex-1 min-w-[180px] rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy" />
+ className="flex-1 min-w-[180px] rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none focus:border-burgundy shadow-sm" />
  <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
- className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none shadow-sm">
  {['الكل', ...categories].map(c => <option key={c} value={c}>{c === 'الكل' ? 'كل الفئات' : (catAr[c] || c)}</option>)}
  </select>
  <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}
- className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none">
+ className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2.5 text-sm text-burgundy outline-none shadow-sm">
  <option value="الكل">كل الموردين</option>
  {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
  <option value="بدون مورد">بدون مورد</option>
  </select>
- <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden">
+ <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden shadow-sm">
  {[{ id: 'all', l: 'الكل' }, { id: 'low', l: 'منخفض' }, { id: 'out', l: 'نفد' }].map(f => (
  <button key={f.id} onClick={() => setFilterStock(f.id)}
  className={`px-4 py-2.5 text-xs font-semibold transition ${filterStock === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>
@@ -1235,7 +1854,24 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  </button>
  ))}
  </div>
- <button onClick={onRefresh} className="rounded-2xl border border-burgundy/20 px-4 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy hover:text-white transition">تحديث</button>
+
+ {/* Season filter in inventory tab */}
+ <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden shadow-sm">
+ {[
+ { id: 'All', l: 'كل المواسم' },
+ { id: 'summer', l: '☀️ صيفي' },
+ { id: 'winter', l: '❄️ شتوي' },
+ { id: 'all', l: '🔄 مستمر' },
+ { id: 'archived', l: '📦 مخزن' },
+ ].map(f => (
+ <button key={f.id} onClick={() => setFilterSeason(f.id)}
+ className={`px-3 py-2.5 text-xs font-bold transition ${filterSeason === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>
+ {f.l}
+ </button>
+ ))}
+ </div>
+
+ <button onClick={onRefresh} className="rounded-2xl border border-burgundy/20 px-4 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy hover:text-white transition shadow-sm">تحديث</button>
  </div>
 
  {/* Table */}
@@ -1258,7 +1894,13 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
  : <div className="h-12 w-12 rounded-xl bg-burgundy/8 flex items-center justify-center flex-shrink-0"><span className="text-xs text-burgundy/50 font-bold">صورة</span></div>}
  <div className="min-w-0">
+ <div className="flex items-center gap-1.5 flex-wrap">
  <p className="font-semibold text-sm truncate">{p.name}</p>
+ {p.season === 'summer' && <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded-full border border-amber-300">☀️ صيفي</span>}
+ {p.season === 'winter' && <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded-full border border-sky-300">❄️ شتوي</span>}
+ {(!p.season || p.season === 'all') && <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.2 rounded-full border border-purple-200">🔄 مستمر</span>}
+ {p.isSeasonArchived && <span className="text-[10px] bg-slate-800 text-white font-bold px-1.5 py-0.2 rounded-full border border-slate-700" title="مخزن ومستبعد من الجرد والكاشير">📦 مخزن</span>}
+ </div>
  {p.sku && <p className="text-xs text-burgundy/40 font-mono">{p.sku}</p>}
  {p.supplier && <p className="text-xs text-burgundy/40">{p.supplier}</p>}
  {p.allowDiscount === false && <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">غير مسموح بالخصم</span>}
@@ -1420,7 +2062,7 @@ function AdminProducts() {
  const loadProducts = async () => {
  try {
  setLoading(true);
- const res = await api.get('/products');
+ const res = await api.get('/products?includeOffSeason=true');
  setProducts(res.data);
  } catch (e) { console.error(e); }
  finally { setLoading(false); }
@@ -1554,6 +2196,8 @@ function AdminProducts() {
  onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
  onShowHistory={setHistoryProduct}
  onRestock={setRestockingProduct}
+ onRefresh={loadProducts}
+ showToast={showToast}
  />
  ) : (
  <InventoryTab

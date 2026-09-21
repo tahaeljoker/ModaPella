@@ -65,8 +65,16 @@ const ensureMissingSkus = async (products) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { search, category, excludeId, limit } = req.query;
+    const { search, category, excludeId, limit, includeOffSeason, season } = req.query;
     let query = { active: true };
+
+    if (includeOffSeason !== 'true') {
+      query.isSeasonArchived = { $ne: true };
+    }
+
+    if (season && ['summer', 'winter', 'all'].includes(season)) {
+      query.season = season;
+    }
     
     if (category && category.trim() !== '') {
       query.category = category.trim();
