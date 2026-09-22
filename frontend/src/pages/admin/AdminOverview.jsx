@@ -333,6 +333,28 @@ function AdminOverview() {
           }
         />
         <StatCard
+          label="رصيد إنستاباي الحالي (المفترض)"
+          value={formatSensitive('instapayBalance', EGP(overview?.currentInstapayBalance ?? 0))}
+          icon=""
+          color="bg-blue-50/70 border-blue-200/60"
+          sub={`المحصل في الفترة: ${EGP(overview?.salesInstapayCollected ?? 0)}`}
+          onClick={() => toggleCardReveal('instapayBalance')}
+          popover={
+            <InfoPopover
+              title="رصيد إنستاباي والمحافظ الإلكترونية"
+              formula="إجمالي الوارد الإلكتروني - إجمالي الصادر أو المحول إلكترونياً"
+              rows={[
+                { label: 'رصيد إنستاباي المفترض تواجده بحسابك الآن', value: EGP(overview?.currentInstapayBalance ?? 0), highlight: true },
+                { separator: true },
+                { label: 'المحصل إلكترونياً (إنستاباي) في هذه الفترة', value: EGP(overview?.salesInstapayCollected ?? 0) },
+                { label: 'المحصل كاش من المبيعات في هذه الفترة', value: EGP(overview?.salesCashCollected ?? 0) },
+                { label: 'الآجل المتبقي طرف العملاء في هذه الفترة', value: EGP(overview?.salesDebtRemaining ?? 0) },
+              ]}
+              note="ده إجمالي الأموال التي دخلت حساب إنستاباي والبنك إلكترونياً والمفروض تلاقيها موجودة في رصيد حسابك أو محفظتك البنكية الآن لمطابقتها."
+            />
+          }
+        />
+        <StatCard
           label="إجمالي الخصومات"
           value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))}
           icon=""

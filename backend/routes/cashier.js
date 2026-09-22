@@ -223,11 +223,19 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     const debtSalesRemaining = Math.max(0, totalBilledSales - (cashSalesCollected + instapaySalesCollected));
     const netCashInSafe = cashDrawer;
 
+    const allInstapayTxs = await Transaction.find({ paymentMethod: { $in: ['Instapay', 'Wallet'] } });
+    let instapayCurrentBalance = 0;
+    allInstapayTxs.forEach(t => {
+      if (t.type === 'IN') instapayCurrentBalance += t.amount;
+      if (t.type === 'OUT') instapayCurrentBalance -= t.amount;
+    });
+
     res.json({
       transactions,
       summary: {
         cashDrawer,
         instapayTotal,
+        instapayBalance: Math.round(instapayCurrentBalance),
         expenses: operatingExpensesCash,
         personalWithdrawals: personalWithdrawalsCash,
         supplierPayments: supplierPaymentsCash,
@@ -255,14 +263,14 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
 // POST /api/cashier/safe/transaction — add manual expense or deposit
 router.post('/safe/transaction', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const { amount, type, category, description } = req.body;
+    const { amount, type, category, description, paymentMethod = 'Cash' } = req.body;
     // attach to current open shift if exists
     const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
     const transaction = new Transaction({
       amount: Number(amount),
       type,
       category,
-      paymentMethod: 'Cash', // Manual safe movements are always Cash (drawer)
+      paymentMethod: paymentMethod || 'Cash',
       description,
       user: req.user.id,
       shift: openShift?._id

@@ -194,9 +194,9 @@ function CashierSafe() {
  <p className="mt-2 text-xs text-emerald-700/60">هذا هو المبلغ المفترض تواجده في الدرج الآن</p>
  </div>
  <div className="rounded-[2rem] border border-blue-600/20 bg-blue-50 p-6">
- <p className="text-sm font-bold text-blue-800/60"> إيرادات البنك (فيزا / انستا باي)</p>
- <p className="mt-2 text-3xl font-bold text-blue-700">{EGP(data.summary.instapayTotal)}</p>
- <p className="mt-2 text-xs text-blue-700/60">أموال إلكترونية (لا تؤثر على الدرج)</p>
+ <p className="text-sm font-bold text-blue-800/60"> رصيد إنستاباي الحالي (المفترض في البنك)</p>
+ <p className="mt-2 text-3xl font-bold text-blue-700">{EGP(data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0)}</p>
+ <p className="mt-2 text-xs text-blue-700/60">اليوم: {EGP(data.todaySummary?.instapaySales || 0)} | أموال إلكترونية بالبنك</p>
  </div>
  <div className="rounded-[2rem] border border-burgundy/20 bg-white p-6 shadow-sm">
  <p className="text-sm font-bold text-burgundy/60"> إجمالي المصروفات (كاش)</p>

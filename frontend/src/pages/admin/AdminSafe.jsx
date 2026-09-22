@@ -246,9 +246,9 @@ function AdminSafe() {
 
         {/* Instapay / Digital */}
         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md space-y-1">
-          <p className="text-[11px] font-bold opacity-80">إنستاباي ومحافظ</p>
-          <p className="text-xl font-black">{EGP(data.summary?.instapayTotal || 0)}</p>
-          <p className="text-[10px] opacity-75">تحويلات اليوم الإلكترونية</p>
+          <p className="text-[11px] font-bold opacity-80">رصيد إنستاباي المفترض (الآن)</p>
+          <p className="text-xl font-black">{EGP(data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0)}</p>
+          <p className="text-[10px] opacity-75">تحويلات اليوم: {EGP(data.todaySummary?.instapaySales || 0)}</p>
         </div>
 
         {/* Expenses */}
