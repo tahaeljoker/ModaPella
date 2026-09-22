@@ -658,7 +658,7 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
 // GET /api/cashier/debts — get all customers with outstanding debts
 router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const orders = await Order.find({ isDebt: true, debtAmount: { $gt: 0 } }).sort({ createdAt: -1 });
+    const orders = await Order.find({ isDebt: true, debtAmount: { $gt: 0 } }).populate('employee').sort({ createdAt: -1 });
     const debtsMap = {};
 
     for (const order of orders) {
@@ -690,8 +690,14 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
         amountPaid: order.amountPaid,
         debtAmount: Math.round(order.debtAmount * 100) / 100,
         createdAt: order.createdAt,
-        isManual: order.items && order.items.length === 0,
-        notes: order.notes
+        isManual: (order.items && order.items.length === 0) || order.isManualDebt,
+        notes: order.notes || '',
+        items: order.items || [],
+        discount: order.discount || 0,
+        paymentMethod: order.paymentMethod || 'Cash',
+        customerName: order.customerName || debtsMap[key].name,
+        customerPhone: order.customerPhone || debtsMap[key].phone,
+        employeeName: order.employeeName || (order.employee && order.employee.name) || ''
       });
 
       if (new Date(order.createdAt) > new Date(debtsMap[key].lastActivity)) {
