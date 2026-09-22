@@ -69,18 +69,25 @@ function WeeklyChart({ data }) {
  const x = gap + i * (barW + gap);
  const revH = (d.revenue / maxRevenue) * chartH;
  const profitH = (Math.max(0, d.profit || 0) / maxRevenue) * chartH;
+ const instaH = (Math.max(0, d.instapayRevenue || 0) / maxRevenue) * chartH;
+ const singleBarW = barW * 0.31;
 
  return (
  <g key={i}>
  {/* Total Revenue bar (burgundy) */}
  <rect
- x={x} y={chartH - revH} width={barW * 0.46} height={revH}
- rx={Math.min(4, barW * 0.1)} fill="#7C0A12" opacity="0.9"
+ x={x} y={chartH - revH} width={singleBarW} height={revH}
+ rx={Math.min(3, singleBarW * 0.15)} fill="#7C0A12" opacity="0.9"
+ />
+ {/* Instapay bar (blue) */}
+ <rect
+ x={x + barW * 0.34} y={chartH - instaH} width={singleBarW} height={instaH}
+ rx={Math.min(3, singleBarW * 0.15)} fill="#2563eb" opacity="0.9"
  />
  {/* Net Profit bar (emerald green) */}
  <rect
- x={x + barW * 0.5} y={chartH - profitH} width={barW * 0.46} height={profitH}
- rx={Math.min(4, barW * 0.1)} fill="#10b981" opacity="0.9"
+ x={x + barW * 0.68} y={chartH - profitH} width={singleBarW} height={profitH}
+ rx={Math.min(3, singleBarW * 0.15)} fill="#10b981" opacity="0.9"
  />
  {/* Day label */}
  <text x={x + barW / 2} y={chartH + 16} fontSize={data.length > 10 ? "7" : "10"} fill="#7C0A1299" textAnchor="middle">
@@ -88,7 +95,7 @@ function WeeklyChart({ data }) {
  </text>
  {/* Count label */}
  {d.count > 0 && data.length <= 15 && (
- <text x={x + barW / 2} y={chartH - Math.max(revH, profitH) - 4} fontSize="9" fill="#7C0A12" textAnchor="middle" fontWeight="bold">
+ <text x={x + barW / 2} y={chartH - Math.max(revH, profitH, instaH) - 4} fontSize="9" fill="#7C0A12" textAnchor="middle" fontWeight="bold">
  {d.count}
  </text>
  )}
@@ -110,6 +117,10 @@ function WeeklyChart({ data }) {
  <span className="flex items-center gap-1.5">
  <span className="h-3 w-3 rounded-sm bg-burgundy opacity-90" />
  إجمالي الإيرادات
+ </span>
+ <span className="flex items-center gap-1.5">
+ <span className="h-3 w-3 rounded-sm bg-blue-600 opacity-90" />
+ إنستاباي اليومي
  </span>
  <span className="flex items-center gap-1.5">
  <span className="h-3 w-3 rounded-sm bg-emerald-500 opacity-90" />
@@ -224,9 +235,12 @@ function AdminOverview() {
  );
  }
 
- const todayRevenue = weeklyData[weeklyData.length - 1]?.revenue || 0;
- const todayOrders = weeklyData[weeklyData.length - 1]?.count || 0;
- const weekTotal = weeklyData.reduce((s, d) => s + d.revenue, 0);
+  const todayRevenue = weeklyData[weeklyData.length - 1]?.revenue || 0;
+  const todayOrders = weeklyData[weeklyData.length - 1]?.count || 0;
+  const todayInstapay = weeklyData[weeklyData.length - 1]?.instapayRevenue || 0;
+  const todayCash = weeklyData[weeklyData.length - 1]?.cashRevenue || 0;
+  const weekTotal = weeklyData.reduce((s, d) => s + d.revenue, 0);
+  const weekInstapay = weeklyData.reduce((s, d) => s + (d.instapayRevenue || 0), 0);
 
  return (
  <div className="space-y-8 text-burgundy">
@@ -305,7 +319,9 @@ function AdminOverview() {
  <p className="mt-3 text-3xl font-bold">
  {formatSensitive('todayRevenue', EGP(todayRevenue))}
  </p>
- <p className="mt-2 text-sm opacity-70">{todayOrders} طلب اليوم</p>
+ <p className="mt-2 text-sm opacity-70">
+   {todayOrders} طلب اليوم {todayRevenue > 0 ? `(كاش: ${EGP(todayCash)} | إنستاباي: ${EGP(todayInstapay)})` : ''}
+ </p>
  </div>
         <StatCard
           label={period === 'current' ? 'صافي المبيعات' : period === 'previous' ? 'مبيعات الشهر السابق' : 'إجمالي المبيعات'}
@@ -333,24 +349,72 @@ function AdminOverview() {
           }
         />
         <StatCard
-          label="رصيد إنستاباي الحالي (المفترض)"
-          value={formatSensitive('instapayBalance', EGP(overview?.currentInstapayBalance ?? 0))}
+          label={
+            dateFrom || dateTo
+              ? 'إنستاباي (الفترة المحددة)'
+              : period === 'current'
+              ? 'إنستاباي (الشهر الجاري)'
+              : period === 'previous'
+              ? 'إنستاباي (الشهر السابق)'
+              : 'إجمالي إنستاباي'
+          }
+          value={formatSensitive('instapayPeriod', EGP(overview?.salesInstapayCollected ?? overview?.instapayRevenue ?? 0))}
           icon=""
           color="bg-blue-50/70 border-blue-200/60"
-          sub={`المحصل في الفترة: ${EGP(overview?.salesInstapayCollected ?? 0)}`}
-          onClick={() => toggleCardReveal('instapayBalance')}
+          sub={
+            period === 'current' && !dateFrom && !dateTo
+              ? `اليوم: ${EGP(todayInstapay)} | التراكمي: ${EGP(overview?.currentInstapayBalance ?? 0)}`
+              : `المحصل في الفترة | التراكمي: ${EGP(overview?.currentInstapayBalance ?? 0)}`
+          }
+          onClick={() => toggleCardReveal('instapayPeriod')}
           popover={
             <InfoPopover
-              title="رصيد إنستاباي والمحافظ الإلكترونية"
-              formula="إجمالي الوارد الإلكتروني - إجمالي الصادر أو المحول إلكترونياً"
+              title={
+                dateFrom || dateTo
+                  ? 'مقبوضات إنستاباي (الفترة المحددة)'
+                  : period === 'current'
+                  ? 'مقبوضات إنستاباي (الشهر الجاري)'
+                  : period === 'previous'
+                  ? 'مقبوضات إنستاباي (الشهر السابق)'
+                  : 'مقبوضات إنستاباي'
+              }
+              formula="إجمالي مبيعات الدفع الإلكتروني (إنستاباي) المحصلة في الفترة المحددة"
               rows={[
-                { label: 'رصيد إنستاباي المفترض تواجده بحسابك الآن', value: EGP(overview?.currentInstapayBalance ?? 0), highlight: true },
+                {
+                  label:
+                    dateFrom || dateTo
+                      ? 'محصل إنستاباي بالفترة المحددة'
+                      : period === 'current'
+                      ? 'محصل إنستاباي في الشهر الجاري'
+                      : 'محصل إنستاباي في الشهر السابق',
+                  value: EGP(overview?.salesInstapayCollected ?? overview?.instapayRevenue ?? 0),
+                  highlight: true,
+                },
+                {
+                  label: 'محصل مبيعات إنستاباي لليوم',
+                  value: EGP(todayInstapay),
+                },
                 { separator: true },
-                { label: 'المحصل إلكترونياً (إنستاباي) في هذه الفترة', value: EGP(overview?.salesInstapayCollected ?? 0) },
-                { label: 'المحصل كاش من المبيعات في هذه الفترة', value: EGP(overview?.salesCashCollected ?? 0) },
-                { label: 'الآجل المتبقي طرف العملاء في هذه الفترة', value: EGP(overview?.salesDebtRemaining ?? 0) },
+                {
+                  label: 'إجمالي رصيد إنستاباي بالبنك (كل الأوقات)',
+                  value: EGP(overview?.currentInstapayBalance ?? 0),
+                  highlight: true,
+                },
+                { separator: true },
+                {
+                  label: 'صافي مبيعات الفترة (كاش + إنستاباي + آجل)',
+                  value: EGP(overview?.totalSales ?? 0),
+                },
+                {
+                  label: 'المحصل كاش في نفس الفترة',
+                  value: EGP(overview?.salesCashCollected ?? 0),
+                },
+                {
+                  label: 'الآجل المتبقي طرف العملاء في نفس الفترة',
+                  value: EGP(overview?.salesDebtRemaining ?? 0),
+                },
               ]}
-              note="ده إجمالي الأموال التي دخلت حساب إنستاباي والبنك إلكترونياً والمفروض تلاقيها موجودة في رصيد حسابك أو محفظتك البنكية الآن لمطابقتها."
+              note="الرقم المعروض يمثل ما تم تحصيله عبر إنستاباي خلال الفترة المختارة، ويتغير تلقائياً مع اختيار الشهر الجاري أو السابق أو التصفية بالتواريخ."
             />
           }
         />
@@ -605,9 +669,14 @@ function AdminOverview() {
  )}
  </div>
 
- <span className="rounded-full bg-burgundy/8 px-3 py-1 text-xs font-semibold text-burgundy">
- إجمالي الفترة: {formatSensitive('chart', EGP(weekTotal))}
- </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-burgundy/8 px-3 py-1 text-xs font-semibold text-burgundy">
+              إجمالي الفترة: {formatSensitive('chart', EGP(weekTotal))}
+            </span>
+            <span className="rounded-full bg-blue-50 border border-blue-200/60 px-3 py-1 text-xs font-bold text-blue-800">
+              إنستاباي الفترة: {formatSensitive('chartInstapay', EGP(weekInstapay))}
+            </span>
+          </div>
  </div>
 
  <div className="relative">
