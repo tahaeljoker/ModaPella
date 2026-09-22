@@ -36,25 +36,25 @@ function AdminDebts() {
  loadDebts();
  }, []);
 
- const handleOpenPay = (cust) => {
- setSelectedCust(cust);
- setPayAmount(cust.totalDebt); // default to full payment
- setPayNotes('');
- setSuccessMsg('');
- };
+  const handleOpenPay = (cust) => {
+    setSelectedCust(cust);
+    setPayAmount(Math.round((cust.totalDebt || 0) * 100) / 100); // default to full payment
+    setPayNotes('');
+    setSuccessMsg('');
+  };
 
- const handlePaySubmit = async (e) => {
- e.preventDefault();
- if (!selectedCust || !payAmount || Number(payAmount) <= 0) return;
- setSubmitting(true);
- try {
- const res = await api.post('/cashier/debts/pay', {
- customerPhone: selectedCust.phone,
- customerName: selectedCust.name,
- amount: Number(payAmount),
- paymentMethod: payMethod,
- notes: payNotes
- });
+  const handlePaySubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCust || !payAmount || Number(payAmount) <= 0) return;
+    setSubmitting(true);
+    try {
+      const res = await api.post('/cashier/debts/pay', {
+        customerPhone: selectedCust.phone,
+        customerName: selectedCust.name,
+        amount: Math.round(Number(payAmount) * 100) / 100,
+        paymentMethod: payMethod,
+        notes: payNotes
+      });
  setSuccessMsg(` تم تسجيل السداد بنجاح! المبلغ المدفوع: ${EGP(payAmount)}`);
  setTimeout(() => {
  setSelectedCust(null);
@@ -228,22 +228,32 @@ function AdminDebts() {
  <span className="text-sm font-extrabold text-amber-700">{EGP(selectedCust.totalDebt)}</span>
  </div>
 
- {/* Pay Amount input */}
- <div>
- <label className="text-xs font-bold text-burgundy/60 block mb-1">المبلغ المراد سداده</label>
- <div className="flex items-center bg-[#F7F0EC] rounded-xl border border-burgundy/15 px-3 py-2">
- <input
- type="number"
- required
- value={payAmount}
- max={selectedCust.totalDebt}
- min={1}
- onChange={e => setPayAmount(e.target.value)}
- className="flex-1 text-sm font-bold text-burgundy bg-transparent outline-none text-left"
- />
- <span className="text-xs text-burgundy/40 mr-2">ج.م</span>
- </div>
- </div>
+  {/* Pay Amount input */}
+  <div>
+    <div className="flex justify-between items-center mb-1">
+      <label className="text-xs font-bold text-burgundy/60">المبلغ المراد سداده</label>
+      <button
+        type="button"
+        onClick={() => setPayAmount(Math.round(selectedCust.totalDebt * 100) / 100)}
+        className="text-[11px] text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
+      >
+        سداد بالكامل ({EGP(selectedCust.totalDebt)})
+      </button>
+    </div>
+    <div className="flex items-center bg-[#F7F0EC] rounded-xl border border-burgundy/15 px-3 py-2">
+      <input
+        type="number"
+        step="any"
+        required
+        value={payAmount}
+        max={Math.ceil((selectedCust.totalDebt || 0) * 100) / 100}
+        min={0.01}
+        onChange={e => setPayAmount(e.target.value)}
+        className="flex-1 text-sm font-bold text-burgundy bg-transparent outline-none text-left font-mono"
+      />
+      <span className="text-xs text-burgundy/40 mr-2">ج.م</span>
+    </div>
+  </div>
 
  {/* Payment Method */}
  <div>

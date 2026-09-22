@@ -323,11 +323,18 @@ router.post('/recover', auth, async (req, res) => {
         const returnProportion = returnedItemsValue / originalOrderTotal;
         const debtReduction = Math.round((order.debtAmount || 0) * returnProportion * 100) / 100;
         if (debtReduction > 0) {
-          order.debtAmount = Math.max(0, (order.debtAmount || 0) - debtReduction);
+          order.debtAmount = Math.max(0, Math.round(((order.debtAmount || 0) - debtReduction) * 100) / 100);
+          if (order.debtAmount < 0.5) {
+            order.debtAmount = 0;
+            order.isDebt = false;
+          }
           await order.save();
           const customer = await Customer.findById(order.customer);
           if (customer) {
-            customer.debt = Math.max(0, (customer.debt || 0) - debtReduction);
+            customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
+            if (customer.debt < 0.5) {
+              customer.debt = 0;
+            }
             await customer.save();
           }
         }

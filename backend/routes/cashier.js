@@ -653,7 +653,15 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
     const orders = await Order.find({ isDebt: true, debtAmount: { $gt: 0 } }).sort({ createdAt: -1 });
     const debtsMap = {};
 
-    orders.forEach(order => {
+    for (const order of orders) {
+      // Auto-clear negligible fractional dust (< 0.50 EGP)
+      if (order.debtAmount < 0.5) {
+        order.debtAmount = 0;
+        order.isDebt = false;
+        await order.save();
+        continue;
+      }
+
       const key = order.customerPhone || order.customerName || 'unknown';
       if (!debtsMap[key]) {
         debtsMap[key] = {
@@ -666,13 +674,13 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
         };
       }
 
-      debtsMap[key].totalDebt += order.debtAmount;
+      debtsMap[key].totalDebt = Math.round((debtsMap[key].totalDebt + order.debtAmount) * 100) / 100;
       debtsMap[key].ordersCount += 1;
       debtsMap[key].orders.push({
         _id: order._id,
         totalAmount: order.totalAmount,
         amountPaid: order.amountPaid,
-        debtAmount: order.debtAmount,
+        debtAmount: Math.round(order.debtAmount * 100) / 100,
         createdAt: order.createdAt,
         isManual: order.items && order.items.length === 0,
         notes: order.notes
@@ -681,7 +689,7 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
       if (new Date(order.createdAt) > new Date(debtsMap[key].lastActivity)) {
         debtsMap[key].lastActivity = order.createdAt;
       }
-    });
+    }
 
     res.json(Object.values(debtsMap).sort((a, b) => b.totalDebt - a.totalDebt));
   } catch (error) {
@@ -770,7 +778,7 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       return res.status(404).json({ message: 'No active debts found for this customer' });
     }
 
-    let remainingPayment = Number(amount);
+    let remainingPayment = Math.round(Number(amount) * 100) / 100;
     const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
     const updatedOrders = [];
 
@@ -778,20 +786,26 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       if (remainingPayment <= 0) break;
 
       const debtToPay = Math.min(order.debtAmount, remainingPayment);
-      order.debtAmount -= debtToPay;
-      order.amountPaid += debtToPay;
-      remainingPayment -= debtToPay;
+      order.debtAmount = Math.max(0, Math.round((order.debtAmount - debtToPay) * 100) / 100);
+      order.amountPaid = Math.round((order.amountPaid + debtToPay) * 100) / 100;
+      remainingPayment = Math.max(0, Math.round((remainingPayment - debtToPay) * 100) / 100);
+
+      // Auto-clear if negligible fractional debt remains (< 0.50 EGP)
+      if (order.debtAmount < 0.5) {
+        order.debtAmount = 0;
+        order.isDebt = false;
+      }
 
       await order.save();
       updatedOrders.push(order);
 
       // Log transaction for the safe/drawer
       const transaction = new Transaction({
-        amount: debtToPay,
+        amount: Math.round(debtToPay * 100) / 100,
         type: 'IN',
         category: 'DebtPayment',
         paymentMethod,
-        description: `سداد جزء من دين الفاتورة #${order._id.toString().slice(-6).toUpperCase()} للعميل ${customerName || customerPhone}`,
+        description: `سداد دين الفاتورة #${order._id.toString().slice(-6).toUpperCase()} للعميل ${customerName || customerPhone}`,
         referenceId: order._id,
         user: req.user.id,
         shift: openShift?._id
@@ -800,18 +814,16 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
     }
 
     // Update Customer record debt too
-    if (customerPhone && customerPhone !== 'بدون هاتف') {
-      const dbCust = await Customer.findOne({ phone: customerPhone });
-      if (dbCust) {
-        dbCust.debt = Math.max(0, dbCust.debt - Number(amount));
-        await dbCust.save();
+    const custFilter = (customerPhone && customerPhone !== 'بدون هاتف') 
+      ? { phone: customerPhone.trim() } 
+      : { name: customerName?.trim() };
+    const dbCust = await Customer.findOne(custFilter);
+    if (dbCust) {
+      dbCust.debt = Math.max(0, Math.round((dbCust.debt - Number(amount)) * 100) / 100);
+      if (dbCust.debt < 0.5) {
+        dbCust.debt = 0;
       }
-    } else if (customerName) {
-      const dbCust = await Customer.findOne({ name: customerName });
-      if (dbCust) {
-        dbCust.debt = Math.max(0, dbCust.debt - Number(amount));
-        await dbCust.save();
-      }
+      await dbCust.save();
     }
 
     res.json({ message: 'Payment recorded successfully', updatedOrders, change: remainingPayment });

@@ -252,7 +252,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     cogs = Math.round(cogs);
     salesCashCollected = Math.round(salesCashCollected);
     salesInstapayCollected = Math.round(salesInstapayCollected);
-    const salesDebtRemaining = Math.max(0, Math.round(totalSales - (salesCashCollected + salesInstapayCollected)));
+    const salesDebtRemaining = Math.round(periodOrders.reduce((sum, o) => sum + (o.isDebt ? (o.debtAmount || 0) : 0), 0));
 
     // Gross profit = Net Sales - COGS (Airtight mathematical identity)
     const grossProfit = Math.round(totalSales - cogs);

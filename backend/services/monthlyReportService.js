@@ -132,7 +132,7 @@ async function calculateMonthlyData(year, month) {
   totalCogs = Math.round(totalCogs);
   salesCashCollected = Math.round(salesCashCollected);
   salesInstapayCollected = Math.round(salesInstapayCollected);
-  const salesDebtRemaining = Math.max(0, Math.round(totalSales - (salesCashCollected + salesInstapayCollected)));
+  const salesDebtRemaining = Math.round(orders.reduce((sum, o) => sum + (o.isDebt ? (o.debtAmount || 0) : 0), 0));
 
   // Gross profit = Net Sales - COGS (Direct mathematical identity)
   const grossProfit = Math.round(totalSales - totalCogs);
