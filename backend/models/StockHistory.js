@@ -8,7 +8,7 @@ const StockHistorySchema = new mongoose.Schema({
   variantKey: { type: String, default: '' }, // size_color or empty
   changeType: { 
     type: String, 
-    enum: ['POS Sale', 'Manual Adjustment', 'Refund', 'Inventory Count', 'Initial Stock', 'Restock', 'Product Edit'], 
+    enum: ['POS Sale', 'Manual Adjustment', 'Refund', 'Inventory Count', 'Initial Stock', 'Restock', 'Product Edit', 'Supplier Return'], 
     required: true 
   },
   quantityChanged: { type: Number, required: true }, // positive or negative

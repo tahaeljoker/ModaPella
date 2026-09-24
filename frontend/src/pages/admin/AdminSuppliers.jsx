@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -134,6 +134,14 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
 }
 
 // ─── Supplier Return Modal ─────────────────────────────────────────────────────
+const QUICK_RETURN_REASONS = [
+  'تالف / عيب مصنعي',
+  'مقاس أو موديل غير مطابق',
+  'عيوب خياطة وتصنيع',
+  'بضاعة راكدة بطلب المورد',
+  'أخرى'
+];
+
 function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -160,8 +168,18 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
 
   const selectedProduct = products.find(p => p._id === selectedProdId);
 
+  const currentAvailableStock = useMemo(() => {
+    if (!selectedProduct) return 0;
+    if (selectedProduct.variants && selectedProduct.variants.length > 0) {
+      const v = selectedProduct.variants.find(it => (it.size || '') === selectedSize && (it.color || '') === selectedColor);
+      return v ? (v.stock ?? v.quantity ?? 0) : 0;
+    }
+    return selectedProduct.stock || 0;
+  }, [selectedProduct, selectedSize, selectedColor]);
+
   const handleProductChange = (prodId) => {
     setSelectedProdId(prodId);
+    setError('');
     const prod = products.find(p => p._id === prodId);
     if (prod) {
       setUnitPrice(prod.costPrice || prod.price || 0);
@@ -180,8 +198,13 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
       setError('الرجاء اختيار المنتج المراد إرجاعه');
       return;
     }
-    if (qty <= 0) {
-      setError('الكمية يجب أن تكون أكبر من 0');
+    const numQty = Number(qty);
+    if (numQty <= 0) {
+      setError('الكمية يجب أن تكون 1 على الأقل');
+      return;
+    }
+    if (currentAvailableStock > 0 && numQty > currentAvailableStock) {
+      setError(`الكمية المدخلة (${numQty}) تتجاوز المخزون المتاح بالمحل (${currentAvailableStock} قطعة)`);
       return;
     }
     if (unitPrice < 0) {
@@ -197,9 +220,9 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
         name: selectedProduct.name,
         size: selectedSize,
         color: selectedColor,
-        quantity: Number(qty),
+        quantity: numQty,
         unitPrice: Number(unitPrice),
-        reason
+        reason: (reason || 'تالف / عيب مصنعي').trim()
       }
     ]);
     setError('');
@@ -242,7 +265,7 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
       onSave();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.message || 'حدث خطأ أثناء تسجيل المرتجع');
+      setError(err?.response?.data?.message || err?.response?.data?.error || 'حدث خطأ أثناء تسجيل المرتجع');
     } finally {
       setSubmitting(false);
     }
@@ -261,8 +284,8 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
 
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
           {error && (
-            <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs">
-              {error}
+            <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs font-semibold">
+              ⚠️ {error}
             </div>
           )}
 
@@ -292,7 +315,14 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
           </div>
 
           <div className="border border-burgundy/15 rounded-2xl p-4 bg-white space-y-3">
-            <h4 className="text-xs font-bold text-burgundy">إضافة منتج مرتجع للمورد</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-burgundy">إضافة صنف مرتجع للمورد</h4>
+              {selectedProduct && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${currentAvailableStock > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}`}>
+                  المتاح بالمخزن: {currentAvailableStock} قطعة
+                </span>
+              )}
+            </div>
 
             <div>
               <label className="block text-[11px] font-bold text-burgundy/60 mb-1">اختر المنتج:</label>
@@ -328,14 +358,14 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
                       >
                         {selectedProduct.variants.map((v, i) => (
                           <option key={i} value={`${v.size || ''}|${v.color || ''}`}>
-                            {v.size || 'بدون مقاس'} {v.color ? `(${v.color})` : ''} - متوفر: {v.quantity}
+                            {v.size || 'بدون مقاس'} {v.color ? `(${v.color})` : ''} - متوفر: {v.stock ?? v.quantity ?? 0}
                           </option>
                         ))}
                       </select>
                     </div>
                   )}
 
-                  <div>
+                  <div className={selectedProduct.variants && selectedProduct.variants.length > 0 ? '' : 'col-span-2'}>
                     <label className="block text-[10px] font-bold text-burgundy/60 mb-1">سبب المرتجع</label>
                     <input
                       type="text"
@@ -344,6 +374,23 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
                       placeholder="تالف / عيب مصنعي"
                       className="w-full rounded-xl border border-burgundy/25 bg-white p-2 text-xs text-burgundy outline-none"
                     />
+                  </div>
+                </div>
+
+                {/* Quick reason chips */}
+                <div>
+                  <p className="text-[10px] font-semibold text-burgundy/50 mb-1">أسباب شائعة سريعة:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_RETURN_REASONS.map(r => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setReason(r)}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border transition font-medium ${reason === r ? 'bg-amber-600 text-white border-amber-600' : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'}`}
+                      >
+                        {r}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -398,13 +445,14 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
                     <tr key={it.id}>
                       <td className="p-2.5">
                         <p className="font-semibold">{it.name}</p>
-                        <p className="text-[10px] text-burgundy/50">{[it.size, it.color, it.reason].filter(Boolean).join(' • ')}</p>
+                        <p className="text-[10px] text-burgundy/50">{[it.size, it.color].filter(Boolean).join(' • ')}</p>
+                        <p className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">سبب: {it.reason}</p>
                       </td>
                       <td className="p-2.5 text-center font-bold">{it.quantity}</td>
                       <td className="p-2.5 text-center">{it.unitPrice.toLocaleString('en-US')} ج.م</td>
                       <td className="p-2.5 text-center font-bold text-amber-800">{(it.quantity * it.unitPrice).toLocaleString('en-US')} ج.م</td>
                       <td className="p-2.5 text-center">
-                        <button type="button" onClick={() => handleRemoveItem(it.id)} className="text-red-500 hover:text-red-700">×</button>
+                        <button type="button" onClick={() => handleRemoveItem(it.id)} className="text-red-500 hover:text-red-700 font-bold">×</button>
                       </td>
                     </tr>
                   ))}
@@ -458,451 +506,734 @@ const CAT_AR_SUP = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شم�
 const EGP_S = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 function SupplierDetailModal({ supplierId, onClose }) {
- const [data, setData] = useState(null);
- const [loading, setLoading] = useState(true);
- const [addTx, setAddTx] = useState(false);
- const [addReturn, setAddReturn] = useState(false);
- const [deleteTxId, setDeleteTxId] = useState(null);
- const [activeTab, setActiveTab] = useState('account'); // 'account' | 'products' | 'po'
- const [products, setProducts] = useState([]);
- const [productsLoading, setProductsLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [addTx, setAddTx] = useState(false);
+  const [addReturn, setAddReturn] = useState(false);
+  const [deleteTxId, setDeleteTxId] = useState(null);
+  const [activeTab, setActiveTab] = useState('account'); // 'account' | 'returns' | 'products' | 'po'
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
 
- const [poItems, setPoItems] = useState([]);
- const [poForm, setPoForm] = useState({ name: '', size: '', qty: 1 });
+  const [poItems, setPoItems] = useState([]);
+  const [poForm, setPoForm] = useState({ name: '', size: '', qty: 1 });
 
- const load = () => {
- setLoading(true);
- api.get(`/suppliers/${supplierId}/transactions`)
- .then(r => setData(r.data))
- .catch(console.error)
- .finally(() => setLoading(false));
- };
+  const load = () => {
+    setLoading(true);
+    api.get(`/suppliers/${supplierId}/transactions`)
+      .then(r => setData(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
 
- const loadProducts = () => {
- setProductsLoading(true);
- api.get(`/suppliers/${supplierId}/products`)
- .then(r => setProducts(r.data || []))
- .catch(console.error)
- .finally(() => setProductsLoading(false));
- };
+  const loadProducts = () => {
+    setProductsLoading(true);
+    api.get(`/suppliers/${supplierId}/products`)
+      .then(r => setProducts(r.data || []))
+      .catch(console.error)
+      .finally(() => setProductsLoading(false));
+  };
 
- useEffect(() => { load(); loadProducts(); }, [supplierId]);
+  useEffect(() => { load(); loadProducts(); }, [supplierId]);
 
- const supplierProducts = products;
+  const supplierProducts = products;
 
- const handleDeleteTx = async () => {
- await api.delete(`/suppliers/${supplierId}/transactions/${deleteTxId}`);
- setDeleteTxId(null);
- load();
- };
+  const returnTxs = useMemo(() => {
+    return (data?.transactions || []).filter(t => t.type === 'return');
+  }, [data?.transactions]);
 
- const handleAddPoItem = () => {
- if (!poForm.name.trim() || poForm.qty <= 0) return;
- setPoItems([...poItems, { ...poForm, id: Date.now() }]);
- setPoForm({ name: '', size: '', qty: 1 });
- };
+  const totalReturnPieces = useMemo(() => {
+    return returnTxs.reduce((sum, tx) => {
+      if (Array.isArray(tx.items) && tx.items.length > 0) {
+        return sum + tx.items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+      }
+      return sum;
+    }, 0);
+  }, [returnTxs]);
 
- const handleRemovePoItem = (id) => {
- setPoItems(poItems.filter(item => item.id !== id));
- };
+  const totalReturnMoney = useMemo(() => {
+    return returnTxs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  }, [returnTxs]);
 
- const handlePrintPO = () => {
- if (poItems.length === 0) return alert('الرجاء إضافة أصناف أولاً');
- const printDiv = document.createElement('div');
- printDiv.id = 'po-print-root';
- const itemsHTML = poItems.map((item, idx) => `
- <tr style="border-bottom:1px solid #ddd">
- <td style="padding:10px;text-align:center">${idx + 1}</td>
- <td style="padding:10px">${item.name}</td>
- <td style="padding:10px;text-align:center">${item.size || '—'}</td>
- <td style="padding:10px;text-align:center;font-weight:bold">${item.qty} قطعة</td>
- </tr>
- `).join('');
+  const handleDeleteTx = async () => {
+    await api.delete(`/suppliers/${supplierId}/transactions/${deleteTxId}`);
+    setDeleteTxId(null);
+    load();
+    loadProducts();
+  };
 
- printDiv.innerHTML = `
- <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:40px;color:#000;line-height:1.5">
- <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7C0A12;padding-bottom:20px;margin-bottom:30px">
- <div>
- <h1 style="color:#7C0A12;margin:0;font-size:28px">أمر توريد بضاعة</h1>
- <p style="margin:5px 0 0;font-size:14px;color:#666">تاريخ الطلب: ${new Date().toLocaleDateString('ar-EG-u-nu-latn')}</p>
- </div>
- <div style="text-align:left">
- <h2 style="margin:0;font-size:22px;color:#333">ModaPella</h2>
- <p style="margin:5px 0 0;font-size:12px;color:#666">إدارة المشتريات والمخازن</p>
- </div>
- </div>
+  const handleAddPoItem = () => {
+    if (!poForm.name.trim() || poForm.qty <= 0) return;
+    setPoItems([...poItems, { ...poForm, id: Date.now() }]);
+    setPoForm({ name: '', size: '', qty: 1 });
+  };
 
- <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:30px;font-size:14px">
- <p style="margin:4px 0"><strong>إلى المورد الكريم:</strong> ${data?.supplier?.name}</p>
- ${data?.supplier?.phone ? `<p style="margin:4px 0"><strong>الهاتف:</strong> ${data.supplier.phone}</p>` : ''}
- ${data?.supplier?.address ? `<p style="margin:4px 0"><strong>العنوان:</strong> ${data.supplier.address}</p>` : ''}
- </div>
+  const handleRemovePoItem = (id) => {
+    setPoItems(poItems.filter(item => item.id !== id));
+  };
 
- <p style="font-size:15px;margin-bottom:15px">يرجى توفير وتوريد البضائع المدرجة أدناه بأقرب وقت ممكن بالكميات الموضحة:</p>
+  const handlePrintPO = () => {
+    if (poItems.length === 0) return alert('الرجاء إضافة أصناف أولاً');
+    const printDiv = document.createElement('div');
+    printDiv.id = 'po-print-root';
+    const itemsHTML = poItems.map((item, idx) => `
+      <tr style="border-bottom:1px solid #ddd">
+        <td style="padding:10px;text-align:center">${idx + 1}</td>
+        <td style="padding:10px">${item.name}</td>
+        <td style="padding:10px;text-align:center">${item.size || '—'}</td>
+        <td style="padding:10px;text-align:center;font-weight:bold">${item.qty} قطعة</td>
+      </tr>
+    `).join('');
 
- <table style="width:100%;border-collapse:collapse;margin-bottom:40px;font-size:14px">
- <thead>
- <tr style="background:#7C0A12;color:#fff">
- <th style="padding:10px;border:1px solid #7C0A12;width:60px">#</th>
- <th style="padding:10px;border:1px solid #7C0A12;text-align:right">المنتج / الصنف</th>
- <th style="padding:10px;border:1px solid #7C0A12;width:100px">المقاس</th>
- <th style="padding:10px;border:1px solid #7C0A12;width:120px">الكمية المطلوبة</th>
- </tr>
- </thead>
- <tbody>
- ${itemsHTML}
- </tbody>
- </table>
+    printDiv.innerHTML = `
+      <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:40px;color:#000;line-height:1.5">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7C0A12;padding-bottom:20px;margin-bottom:30px">
+          <div>
+            <h1 style="color:#7C0A12;margin:0;font-size:28px">أمر توريد بضاعة</h1>
+            <p style="margin:5px 0 0;font-size:14px;color:#666">تاريخ الطلب: ${new Date().toLocaleDateString('ar-EG-u-nu-latn')}</p>
+          </div>
+          <div style="text-align:left">
+            <h2 style="margin:0;font-size:22px;color:#333">ModaPella</h2>
+            <p style="margin:5px 0 0;font-size:12px;color:#666">إدارة المشتريات والمخازن</p>
+          </div>
+        </div>
 
- <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:14px">
- <div>
- <p>توقيع مسؤول المشتريات:</p>
- <p style="margin-top:30px">___________________</p>
- </div>
- <div style="text-align:left">
- <p>توقيع المورد:</p>
- <p style="margin-top:30px">___________________</p>
- </div>
- </div>
- </div>
- `;
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:30px;font-size:14px">
+          <p style="margin:4px 0"><strong>إلى المورد الكريم:</strong> ${data?.supplier?.name}</p>
+          ${data?.supplier?.phone ? `<p style="margin:4px 0"><strong>الهاتف:</strong> ${data.supplier.phone}</p>` : ''}
+          ${data?.supplier?.address ? `<p style="margin:4px 0"><strong>العنوان:</strong> ${data.supplier.address}</p>` : ''}
+        </div>
 
- const style = document.createElement('style');
- style.innerHTML = `
- @media print {
- body * { visibility: hidden; }
- #po-print-root, #po-print-root * { visibility: visible; }
- #po-print-root { position: absolute; left: 0; top: 0; width: 100%; }
- }
- `;
- document.head.appendChild(style);
- document.body.appendChild(printDiv);
- window.print();
- document.body.removeChild(printDiv);
- document.head.removeChild(style);
- };
+        <p style="font-size:15px;margin-bottom:15px">يرجى توفير وتوريد البضائع المدرجة أدناه بأقرب وقت ممكن بالكميات الموضحة:</p>
 
- const printPaymentReceipt = (tx, supplier) => {
- const printDiv = document.createElement('div');
- printDiv.id = 'receipt-print-root';
- printDiv.innerHTML = `
- <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:32px;border:2px solid #7C0A1220;border-radius:24px;max-width:420px;margin:40px auto;background:#fff;box-shadow:0 10px 15px -3px rgba(0,0,0,0.05)">
- <h1 style="color:#7C0A12;text-align:center;margin:0;font-size:26px;font-weight:bold">ModaPella</h1>
- <p style="text-align:center;color:#888;font-size:12px;margin:4px 0 24px;letter-spacing:1px">إيصال سداد دفعة مورد</p>
- 
- <div style="border-bottom:1px dashed #e0c9c9;padding-bottom:16px;margin-bottom:16px;font-size:13px;line-height:2">
- <p style="margin:4px 0"><strong>اسم المورد:</strong> ${supplier.name}</p>
- ${supplier.phone ? `<p style="margin:4px 0"><strong>الهاتف:</strong> ${supplier.phone}</p>` : ''}
- <p style="margin:4px 0"><strong>تاريخ السداد:</strong> ${new Date(tx.date).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
- ${tx.reference ? `<p style="margin:4px 0"><strong>رقم المرجع/الفاتورة:</strong> ${tx.reference}</p>` : ''}
- </div>
- 
- <div style="text-align:center;background:#f7f0ec;padding:20px;border-radius:16px;margin-bottom:20px;border:1px solid #7C0A1208">
- <p style="margin:0;font-size:14px;color:#7C0A12;font-weight:bold">المبلغ المسدد</p>
- <p style="margin:8px 0 0;font-size:28px;font-weight:extrabold;color:#10b981">${Number(tx.amount).toLocaleString('en-US')} ج.م</p>
- </div>
- 
- ${tx.description ? `<p style="font-size:13px;color:#555;margin:8px 0;background:#fafafa;padding:10px 12px;border-radius:8px"><strong>ملاحظات:</strong> ${tx.description}</p>` : ''}
- 
- <div style="border-top:1px dashed #e0c9c9;padding-top:16px;margin-top:24px;text-align:center;font-size:11px;color:#b58f96;font-weight:500">
- شكراً لكم | تم السداد والتوثيق عبر ModaPella 
- </div>
- </div>
- `;
+        <table style="width:100%;border-collapse:collapse;margin-bottom:40px;font-size:14px">
+          <thead>
+            <tr style="background:#7C0A12;color:#fff">
+              <th style="padding:10px;border:1px solid #7C0A12;width:60px">#</th>
+              <th style="padding:10px;border:1px solid #7C0A12;text-align:right">المنتج / الصنف</th>
+              <th style="padding:10px;border:1px solid #7C0A12;width:100px">المقاس</th>
+              <th style="padding:10px;border:1px solid #7C0A12;width:120px">الكمية المطلوبة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHTML}
+          </tbody>
+        </table>
 
- const style = document.createElement('style');
- style.innerHTML = `
- @media print {
- body * { visibility: hidden; }
- #receipt-print-root, #receipt-print-root * { visibility: visible; }
- #receipt-print-root { position: absolute; left: 0; top: 0; width: 100%; }
- }
- `;
- document.head.appendChild(style);
- document.body.appendChild(printDiv);
- window.print();
- document.body.removeChild(printDiv);
- document.head.removeChild(style);
- };
+        <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:14px">
+          <div>
+            <p>توقيع مسؤول المشتريات:</p>
+            <p style="margin-top:30px">___________________</p>
+          </div>
+          <div style="text-align:left">
+            <p>توقيع المورد:</p>
+            <p style="margin-top:30px">___________________</p>
+          </div>
+        </div>
+      </div>
+    `;
 
- return (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
- <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
- {/* Header */}
- <div className="bg-burgundy text-white px-6 py-5 flex items-start justify-between">
- <div>
- <p className="text-xs opacity-70 tracking-widest uppercase">حساب مورد</p>
- <h3 className="text-xl font-bold mt-0.5">{data?.supplier?.name || '...'}</h3>
- {data?.supplier?.phone && <p className="text-xs opacity-60 mt-0.5">{data.supplier.phone}</p>}
- </div>
- <div className="flex gap-2">
- {activeTab === 'account' && (
- <>
- <button
- onClick={() => setAddReturn(true)}
- className="rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 px-3 py-2 text-xs font-bold transition flex items-center gap-1.5"
- >
- <span>↩</span>
- <span>مرتجع للمورد (تالف)</span>
- </button>
- <button onClick={() => setAddTx(true)} className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-bold transition">
- + تعامل جديد
- </button>
- </>
- )}
- {activeTab === 'po' && (
- <button
- onClick={handlePrintPO}
- disabled={poItems.length === 0}
- className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-xs font-bold transition disabled:opacity-50"
- >
- طباعة أمر التوريد
- </button>
- )}
- </div>
- </div>
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body * { visibility: hidden; }
+        #po-print-root, #po-print-root * { visibility: visible; }
+        #po-print-root { position: absolute; left: 0; top: 0; width: 100%; }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+    document.head.removeChild(style);
+  };
 
- {/* Tabs */}
- <div className="flex border-b border-burgundy/10 bg-[#F7F0EC]">
- {[
- { id: 'account', label: ' كشف الحساب' },
- { id: 'products', label: ` المنتجات${supplierProducts.length > 0 ? ` (${supplierProducts.length})` : ''}` },
- { id: 'po', label: ' أمر توريد' },
- ].map(tab => (
- <button
- key={tab.id}
- onClick={() => setActiveTab(tab.id)}
- className={`flex-1 py-3 text-xs font-bold transition border-b-2 ${activeTab === tab.id ? 'border-burgundy text-burgundy' : 'border-transparent text-burgundy/40 hover:text-burgundy/70'}`}
- >
- {tab.label}
- </button>
- ))}
- </div>
+  const printPaymentReceipt = (tx, supplier) => {
+    const printDiv = document.createElement('div');
+    printDiv.id = 'receipt-print-root';
+    printDiv.innerHTML = `
+      <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:32px;border:2px solid #7C0A1220;border-radius:24px;max-width:420px;margin:40px auto;background:#fff;box-shadow:0 10px 15px -3px rgba(0,0,0,0.05)">
+        <h1 style="color:#7C0A12;text-align:center;margin:0;font-size:26px;font-weight:bold">ModaPella</h1>
+        <p style="text-align:center;color:#888;font-size:12px;margin:4px 0 24px;letter-spacing:1px">إيصال سداد دفعة مورد</p>
+        
+        <div style="border-bottom:1px dashed #e0c9c9;padding-bottom:16px;margin-bottom:16px;font-size:13px;line-height:2">
+          <p style="margin:4px 0"><strong>اسم المورد:</strong> ${supplier.name}</p>
+          ${supplier.phone ? `<p style="margin:4px 0"><strong>الهاتف:</strong> ${supplier.phone}</p>` : ''}
+          <p style="margin:4px 0"><strong>تاريخ السداد:</strong> ${new Date(tx.date || tx.createdAt).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          ${tx.reference ? `<p style="margin:4px 0"><strong>رقم المرجع/الفاتورة:</strong> ${tx.reference}</p>` : ''}
+        </div>
+        
+        <div style="text-align:center;background:#f7f0ec;padding:20px;border-radius:16px;margin-bottom:20px;border:1px solid #7C0A1208">
+          <p style="margin:0;font-size:14px;color:#7C0A12;font-weight:bold">المبلغ المسدد</p>
+          <p style="margin:8px 0 0;font-size:28px;font-weight:extrabold;color:#10b981">${Number(tx.amount).toLocaleString('en-US')} ج.م</p>
+        </div>
+        
+        ${tx.description ? `<p style="font-size:13px;color:#555;margin:8px 0;background:#fafafa;padding:10px 12px;border-radius:8px"><strong>ملاحظات:</strong> ${tx.description}</p>` : ''}
+        
+        <div style="border-top:1px dashed #e0c9c9;padding-top:16px;margin-top:24px;text-align:center;font-size:11px;color:#b58f96;font-weight:500">
+          شكراً لكم | تم السداد والتوثيق عبر ModaPella
+        </div>
+      </div>
+    `;
 
- {/* Balance summary — only visible on account tab */}
- {!loading && data && activeTab === 'account' && (
- <div className="grid grid-cols-4 border-b border-burgundy/10">
- {[
- { label: 'إجمالي المشتريات', value: EGP_S(data.totalPurchased), cls: 'text-red-600' },
- { label: 'إجمالي المدفوع', value: EGP_S(data.totalPaid), cls: 'text-emerald-700' },
- { label: 'إجمالي المرتجعات', value: EGP_S(data.totalReturned || 0), cls: 'text-amber-700' },
- { label: 'الرصيد المتبقي (الدين)', value: EGP_S(data.balance), cls: data.balance > 0 ? 'text-red-600 font-extrabold' : 'text-emerald-700 font-extrabold' },
- ].map(s => (
- <div key={s.label} className="p-3 text-center border-l border-burgundy/10 last:border-0">
- <p className="text-[11px] text-burgundy/50">{s.label}</p>
- <p className={`text-lg font-bold mt-1 ${s.cls}`}>{s.value}</p>
- </div>
- ))}
- </div>
- )}
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body * { visibility: hidden; }
+        #receipt-print-root, #receipt-print-root * { visibility: visible; }
+        #receipt-print-root { position: absolute; left: 0; top: 0; width: 100%; }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+    document.head.removeChild(style);
+  };
 
- {/* Tab Content */}
- <div className="flex-1 overflow-y-auto">
+  const printReturnReceipt = (tx, supplier) => {
+    const printDiv = document.createElement('div');
+    printDiv.id = 'return-receipt-print-root';
+    
+    const itemsRows = (tx.items || []).map((it, idx) => `
+      <tr style="border-bottom:1px solid #eee">
+        <td style="padding:10px;text-align:center">${idx + 1}</td>
+        <td style="padding:10px"><strong>${it.name || 'صنف'}</strong></td>
+        <td style="padding:10px;text-align:center">${[it.size, it.color].filter(Boolean).join(' • ') || '—'}</td>
+        <td style="padding:10px;text-align:center;font-weight:bold;color:#b45309">${it.quantity}</td>
+        <td style="padding:10px;text-align:center">${Number(it.unitPrice || 0).toLocaleString('en-US')} ج.م</td>
+        <td style="padding:10px;text-align:center;font-weight:bold">${Number((it.quantity || 0) * (it.unitPrice || 0)).toLocaleString('en-US')} ج.م</td>
+        <td style="padding:10px;text-align:center;background:#fffbeb;color:#92400e;font-size:12px;font-weight:bold">${it.reason || 'تالف / عيب مصنعي'}</td>
+      </tr>
+    `).join('');
 
- {/* ── Account Tab ── */}
- {activeTab === 'account' && (
- <div className="p-5">
- {loading ? (
- <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
- ) : data?.transactions?.length === 0 ? (
- <p className="text-center text-sm text-burgundy/40 py-12">لا توجد تعاملات بعد</p>
- ) : (
- <div className="space-y-2">
- {data?.transactions?.map(tx => (
- <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50 border-red-100' : tx.type === 'return' ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-100'}`}>
- <div className="flex-1 min-w-0">
- <div className="flex items-center gap-2 flex-wrap">
- <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : tx.type === 'return' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
- {tx.type === 'purchase' ? ' مشتريات' : tx.type === 'return' ? ' مرتجع لمورد' : ' دفعة'}
- </span>
- <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
- {tx.paymentSource === 'StoreSafe' ? ' الخزينة' : ' شخصي'}
- </span>
- {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg">{tx.reference}</span>}
- {tx.type === 'payment' && (
- <button
- onClick={() => printPaymentReceipt(tx, data.supplier)}
- className="text-[10px] bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 font-bold px-2 py-0.5 rounded-lg transition"
- title="طباعة إيصال سداد"
- >
- طباعة إيصال
- </button>
- )}
- </div>
- {tx.description && <p className="text-xs text-burgundy/60 mt-1 truncate">{tx.description}</p>}
-                {tx.items && tx.items.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {tx.items.map((it, idx) => (
-                      <span key={idx} className="text-[10px] bg-white border border-amber-300 text-amber-900 px-1.5 py-0.5 rounded">
-                        {it.name} ({it.quantity} قطعة {it.size ? `- ${it.size}` : ''})
-                      </span>
-                    ))}
+    const totalQty = (tx.items || []).reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+
+    printDiv.innerHTML = `
+      <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:36px;border:2px solid #b4530930;border-radius:24px;max-width:700px;margin:30px auto;background:#fff;box-shadow:0 10px 15px -3px rgba(0,0,0,0.05)">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #b45309;padding-bottom:14px;margin-bottom:20px">
+          <div>
+            <h1 style="color:#7C0A12;margin:0;font-size:26px;font-weight:bold">ModaPella</h1>
+            <p style="color:#b45309;font-size:13px;margin:3px 0 0;font-weight:bold">إشعار مرتجع بضاعة إلى المورد</p>
+          </div>
+          <div style="text-align:left;font-size:12px;color:#555">
+            <p style="margin:2px 0"><strong>التاريخ:</strong> ${new Date(tx.date || tx.createdAt).toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            ${tx.reference ? `<p style="margin:2px 0"><strong>رقم المرجع:</strong> ${tx.reference}</p>` : ''}
+          </div>
+        </div>
+
+        <div style="background:#fef3c7;padding:12px 16px;border-radius:12px;margin-bottom:20px;font-size:13px;line-height:1.8;border:1px solid #fde68a">
+          <p style="margin:2px 0"><strong>السيد المورد المحترم:</strong> ${supplier?.name || ''}</p>
+          ${supplier?.phone ? `<p style="margin:2px 0"><strong>الهاتف:</strong> ${supplier.phone}</p>` : ''}
+          <p style="margin:2px 0"><strong>طريقة التسوية:</strong> ${tx.paymentSource === 'StoreSafe' ? 'استرداد نقدي كاش لخزينة المحل' : 'خصم من رصيد المورد (تخفيض المديونية المستحقة)'}</p>
+          ${tx.description ? `<p style="margin:2px 0"><strong>البيان / الملاحظات:</strong> ${tx.description}</p>` : ''}
+        </div>
+
+        ${tx.items && tx.items.length > 0 ? `
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px">
+            <thead>
+              <tr style="background:#b45309;color:#fff">
+                <th style="padding:10px;border:1px solid #b45309;width:35px">#</th>
+                <th style="padding:10px;border:1px solid #b45309;text-align:right">اسم الصنف</th>
+                <th style="padding:10px;border:1px solid #b45309;width:90px">المقاس / اللون</th>
+                <th style="padding:10px;border:1px solid #b45309;width:60px">الكمية</th>
+                <th style="padding:10px;border:1px solid #b45309;width:80px">سعر القطعة</th>
+                <th style="padding:10px;border:1px solid #b45309;width:90px">الإجمالي</th>
+                <th style="padding:10px;border:1px solid #b45309;width:120px">سبب الإرجاع</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+        ` : ''}
+
+        <div style="background:#f7f0ec;padding:16px 20px;border-radius:14px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            ${totalQty > 0 ? `<p style="margin:0;font-size:13px;color:#7C0A12">إجمالي عدد القطع المرتجعة: <strong>${totalQty} قطعة</strong></p>` : ''}
+          </div>
+          <div style="text-align:left">
+            <span style="font-size:13px;color:#7C0A12;margin-left:8px">إجمالي قيمة المرتجع:</span>
+            <span style="font-size:22px;font-weight:extrabold;color:#b45309">${Number(tx.amount).toLocaleString('en-US')} ج.م</span>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:40px;font-size:13px">
+          <div>
+            <p>توقيع إدارة المحل:</p>
+            <p style="margin-top:25px">___________________</p>
+          </div>
+          <div style="text-align:left">
+            <p>توقيع المستلم (المورد / المندوب):</p>
+            <p style="margin-top:25px">___________________</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body * { visibility: hidden; }
+        #return-receipt-print-root, #return-receipt-print-root * { visibility: visible; }
+        #return-receipt-print-root { position: absolute; left: 0; top: 0; width: 100%; }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(printDiv);
+    window.print();
+    document.body.removeChild(printDiv);
+    document.head.removeChild(style);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="bg-burgundy text-white px-6 py-5 flex items-start justify-between">
+          <div>
+            <p className="text-xs opacity-70 tracking-widest uppercase">حساب مورد</p>
+            <h3 className="text-xl font-bold mt-0.5">{data?.supplier?.name || '...'}</h3>
+            {data?.supplier?.phone && <p className="text-xs opacity-60 mt-0.5">{data.supplier.phone}</p>}
+          </div>
+          <div className="flex gap-2">
+            {(activeTab === 'account' || activeTab === 'returns') && (
+              <>
+                <button
+                  onClick={() => setAddReturn(true)}
+                  className="rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <span>↩</span>
+                  <span>مرتجع للمورد</span>
+                </button>
+                <button onClick={() => setAddTx(true)} className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-xs font-bold transition">
+                  + تعامل جديد
+                </button>
+              </>
+            )}
+            {activeTab === 'po' && (
+              <button
+                onClick={handlePrintPO}
+                disabled={poItems.length === 0}
+                className="rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-xs font-bold transition disabled:opacity-50"
+              >
+                طباعة أمر التوريد
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-burgundy/10 bg-[#F7F0EC]">
+          {[
+            { id: 'account', label: ' كشف الحساب' },
+            { id: 'returns', label: ` سجل المرتجعات${returnTxs.length > 0 ? ` (${returnTxs.length})` : ''}` },
+            { id: 'products', label: ` المنتجات${supplierProducts.length > 0 ? ` (${supplierProducts.length})` : ''}` },
+            { id: 'po', label: ' أمر توريد' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-3 text-xs font-bold transition border-b-2 ${activeTab === tab.id ? 'border-burgundy text-burgundy bg-white/50' : 'border-transparent text-burgundy/40 hover:text-burgundy/70'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Balance summary — only visible on account tab */}
+        {!loading && data && activeTab === 'account' && (
+          <div className="grid grid-cols-4 border-b border-burgundy/10 bg-white">
+            {[
+              { label: 'إجمالي المشتريات', value: EGP_S(data.totalPurchased), cls: 'text-red-600' },
+              { label: 'إجمالي المدفوع', value: EGP_S(data.totalPaid), cls: 'text-emerald-700' },
+              { label: 'إجمالي المرتجعات', value: EGP_S(data.totalReturned || 0), cls: 'text-amber-700' },
+              { label: 'الرصيد المتبقي (الدين)', value: EGP_S(data.balance), cls: data.balance > 0 ? 'text-red-600 font-extrabold' : 'text-emerald-700 font-extrabold' },
+            ].map(s => (
+              <div key={s.label} className="p-3 text-center border-l border-burgundy/10 last:border-0">
+                <p className="text-[11px] text-burgundy/50">{s.label}</p>
+                <p className={`text-base font-bold mt-1 ${s.cls}`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-y-auto">
+
+          {/* ── Account Tab ── */}
+          {activeTab === 'account' && (
+            <div className="p-5">
+              {loading ? (
+                <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+              ) : data?.transactions?.length === 0 ? (
+                <p className="text-center text-sm text-burgundy/40 py-12">لا توجد تعاملات بعد</p>
+              ) : (
+                <div className="space-y-2">
+                  {data?.transactions?.map(tx => (
+                    <div key={tx._id} className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${tx.type === 'purchase' ? 'bg-red-50/70 border-red-100' : tx.type === 'return' ? 'bg-amber-50/70 border-amber-200' : 'bg-emerald-50/70 border-emerald-100'}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tx.type === 'purchase' ? 'bg-red-100 text-red-700' : tx.type === 'return' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {tx.type === 'purchase' ? ' مشتريات' : tx.type === 'return' ? ' مرتجع لمورد' : ' دفعة'}
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {tx.paymentSource === 'StoreSafe' ? ' الخزينة' : ' شخصي'}
+                          </span>
+                          {tx.reference && <span className="font-mono text-xs text-burgundy/50 bg-white px-2 py-0.5 rounded-lg border border-burgundy/10">{tx.reference}</span>}
+                          {tx.type === 'payment' && (
+                            <button
+                              onClick={() => printPaymentReceipt(tx, data.supplier)}
+                              className="text-[10px] bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 font-bold px-2 py-0.5 rounded-lg transition"
+                              title="طباعة إيصال سداد"
+                            >
+                              طباعة إيصال
+                            </button>
+                          )}
+                          {tx.type === 'return' && (
+                            <button
+                              onClick={() => printReturnReceipt(tx, data.supplier)}
+                              className="text-[10px] bg-amber-600/15 hover:bg-amber-600/25 text-amber-900 font-bold px-2 py-0.5 rounded-lg transition flex items-center gap-1"
+                              title="طباعة إشعار مرتجع"
+                            >
+                              <span>🖨️</span>
+                              <span>طباعة إشعار</span>
+                            </button>
+                          )}
+                        </div>
+                        {tx.description && <p className="text-xs text-burgundy/70 mt-1 truncate font-medium">{tx.description}</p>}
+                        {tx.items && tx.items.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {tx.items.map((it, idx) => (
+                              <span key={idx} className="text-[10px] bg-white border border-amber-300 text-amber-900 px-2 py-0.5 rounded-lg shadow-2xs">
+                                <strong>{it.name}</strong> ({it.quantity} قطعة {it.size ? `• ${it.size}` : ''} {it.color ? `• ${it.color}` : ''})
+                                {it.reason && <span className="mr-1 text-[9px] bg-amber-100 text-amber-800 font-bold px-1 rounded">سبب: {it.reason}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-burgundy/40 mt-1">{new Date(tx.date || tx.createdAt).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      </div>
+                      <div className="flex items-center gap-2 mr-3">
+                        <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : tx.type === 'return' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          {tx.type === 'purchase' ? '+' : '-'} {EGP_S(tx.amount)}
+                        </p>
+                        <button onClick={() => setDeleteTxId(tx._id)} title="حذف التعامل" className="text-burgundy/30 hover:text-red-500 transition text-sm">🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Returns Tab (سجل مرتجعات المورد) ── */}
+          {activeTab === 'returns' && (
+            <div className="p-5 space-y-4">
+              {/* Return stats cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3.5 text-center">
+                  <p className="text-[11px] font-bold text-amber-800/70">إجمالي قيمة المرتجعات</p>
+                  <p className="text-lg font-extrabold text-amber-800 mt-0.5">{EGP_S(totalReturnMoney)}</p>
+                </div>
+                <div className="bg-orange-50/80 border border-orange-200/80 rounded-2xl p-3.5 text-center">
+                  <p className="text-[11px] font-bold text-orange-800/70">إجمالي القطع المرتجعة</p>
+                  <p className="text-lg font-extrabold text-orange-800 mt-0.5">{totalReturnPieces} قطعة</p>
+                </div>
+                <div className="bg-rose-50/80 border border-rose-200/80 rounded-2xl p-3.5 text-center">
+                  <p className="text-[11px] font-bold text-rose-800/70">عدد أذون الإرجاع</p>
+                  <p className="text-lg font-extrabold text-rose-800 mt-0.5">{returnTxs.length} إذن</p>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
+                </div>
+              ) : returnTxs.length === 0 ? (
+                <div className="text-center py-12 px-4 rounded-3xl bg-[#F7F0EC]/60 border border-burgundy/10 space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xl mx-auto font-bold">↩</div>
+                  <h4 className="text-sm font-bold text-burgundy">لا توجد مرتجعات مسجلة لهذا المورد حتى الآن</h4>
+                  <p className="text-xs text-burgundy/50 max-w-sm mx-auto leading-relaxed">
+                    عند إرجاع بضاعة تالفة أو معيبة أو استرجاع كميات للمورد، ستظهر هنا جميع تفاصيل الإرجاع بالتاريخ والكمية والأسعار وأسباب الإرجاع مع إمكانية طباعة إشعار رسمي.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setAddReturn(true)}
+                    className="rounded-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-5 py-2.5 transition shadow-sm"
+                  >
+                    + تسجيل أول مرتجع لهذا المورد
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {returnTxs.map(tx => (
+                    <div key={tx._id} className="rounded-2xl border border-amber-200 bg-white overflow-hidden shadow-xs">
+                      {/* Header */}
+                      <div className="bg-amber-50/80 border-b border-amber-100 p-3.5 flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="bg-amber-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                            إذن مرتجع بضاعة
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tx.paymentSource === 'StoreSafe' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                            {tx.paymentSource === 'StoreSafe' ? 'استرداد كاش لخزنة المحل' : 'خصم من رصيد المورد (تخفيض الدين)'}
+                          </span>
+                          <span className="text-[11px] text-burgundy/70 font-semibold">
+                            {new Date(tx.date || tx.createdAt).toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {tx.reference && (
+                            <span className="font-mono text-xs bg-white text-burgundy/70 border border-amber-200 px-2 py-0.5 rounded">
+                              {tx.reference}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-extrabold text-amber-700">
+                            {EGP_S(tx.amount)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => printReturnReceipt(tx, data.supplier)}
+                            className="text-xs bg-amber-600 text-white hover:bg-amber-700 px-3 py-1 rounded-xl font-bold transition flex items-center gap-1 shadow-2xs"
+                            title="طباعة إشعار مرتجع رسمي للمورد"
+                          >
+                            <span>🖨️</span>
+                            <span>طباعة إشعار</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTxId(tx._id)}
+                            className="text-burgundy/30 hover:text-red-600 p-1 transition"
+                            title="حذف المرتجع وإعادة القطع للمخزون"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Description banner if present */}
+                      {tx.description && (
+                        <div className="px-4 py-2 bg-[#F7F0EC]/50 border-b border-burgundy/5 text-xs text-burgundy/70 font-medium">
+                          <strong>البيان / الملاحظات:</strong> {tx.description}
+                        </div>
+                      )}
+
+                      {/* Items Table */}
+                      {tx.items && tx.items.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-right text-burgundy">
+                            <thead className="bg-[#FAF6F3] font-bold text-burgundy/70 border-b border-burgundy/5">
+                              <tr>
+                                <th className="p-2.5 text-center w-10">#</th>
+                                <th className="p-2.5">اسم الصنف</th>
+                                <th className="p-2.5 text-center">المقاس / اللون</th>
+                                <th className="p-2.5 text-center">الكمية</th>
+                                <th className="p-2.5 text-center">سعر القطعة</th>
+                                <th className="p-2.5 text-center">الإجمالي</th>
+                                <th className="p-2.5">سبب الإرجاع</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-burgundy/5">
+                              {tx.items.map((it, idx) => (
+                                <tr key={idx} className="hover:bg-amber-50/30 transition">
+                                  <td className="p-2.5 text-center text-burgundy/40">{idx + 1}</td>
+                                  <td className="p-2.5">
+                                    <div className="flex items-center gap-2">
+                                      {it.product?.images?.[0] ? (
+                                        <img src={it.product.images[0]} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                                      ) : null}
+                                      <div>
+                                        <p className="font-bold">{it.name}</p>
+                                        {it.product?.sku && <p className="text-[10px] font-mono text-burgundy/40">{it.product.sku}</p>}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-2.5 text-center">
+                                    <span className="font-semibold text-burgundy/70">
+                                      {[it.size, it.color].filter(Boolean).join(' • ') || '—'}
+                                    </span>
+                                  </td>
+                                  <td className="p-2.5 text-center font-extrabold text-amber-800">
+                                    {it.quantity} قطعة
+                                  </td>
+                                  <td className="p-2.5 text-center">
+                                    {Number(it.unitPrice || 0).toLocaleString('en-US')} ج.م
+                                  </td>
+                                  <td className="p-2.5 text-center font-bold text-amber-900">
+                                    {(Number(it.quantity || 0) * Number(it.unitPrice || 0)).toLocaleString('en-US')} ج.م
+                                  </td>
+                                  <td className="p-2.5">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                      ⚠️ {it.reason || 'تالف / عيب مصنعي'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="p-3 text-xs text-burgundy/60 bg-white">
+                          مرتجع مالي مباشر تم خصمه من الحساب دون تحديد أصناف.
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Products Tab ── */}
+          {activeTab === 'products' && (
+            <div className="p-5">
+              {!productsLoading && supplierProducts.length > 0 && (
+                <div className="flex items-center justify-between mb-4 text-xs font-bold text-burgundy/80 bg-white shadow-sm p-4 rounded-2xl border border-burgundy/10">
+                  <span>إجمالي الموديلات: <span className="text-burgundy text-sm">{supplierProducts.length}</span></span>
+                  <span>إجمالي القطع المتوفرة: <span className="text-emerald-700 text-sm">{supplierProducts.reduce((s, p) => s + (p.stock || 0), 0)}</span> قطعة</span>
+                </div>
+              )}
+
+              {productsLoading ? (
+                <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
+              ) : supplierProducts.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-4xl mb-3">📦</p>
+                  <p className="text-sm font-semibold text-burgundy/40">لا توجد منتجات مسجلة لهذا المورد بعد</p>
+                  <p className="text-xs text-burgundy/30 mt-1">عند إضافة منتج واختيار هذا المورد، سيظهر هنا تلقائياً</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {supplierProducts.map(p => {
+                    const stockCls = p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+                    return (
+                      <div key={p._id} className="flex items-center gap-3 rounded-2xl border border-burgundy/8 bg-[#F7F0EC]/50 px-4 py-3 hover:bg-[#F7F0EC] transition">
+                        {p.images?.[0] ? (
+                          <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
+                        ) : (
+                          <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl">🏷️</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{p.name}</p>
+                          <div className="flex flex-wrap gap-1.5 mt-0.5 items-center">
+                            {p.sku && <span className="font-mono text-[10px] bg-white border border-burgundy/10 px-1.5 py-0.5 rounded text-burgundy">{p.sku}</span>}
+                            <span className="text-[10px] bg-burgundy/8 text-burgundy px-1.5 py-0.5 rounded-full font-medium">{CAT_AR_SUP[p.category] || p.category}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${stockCls}`}>{p.stock} ق</span>
+                          <span className="text-xs font-bold text-burgundy">{EGP_S(p.price)}</span>
+                          {p.costPrice > 0 && <span className="text-[10px] text-burgundy/40">تكلفة: {EGP_S(p.costPrice)}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── PO Tab ── */}
+          {activeTab === 'po' && (
+            <div className="p-5 space-y-4">
+              <h4 className="font-bold text-sm text-burgundy"> صياغة أمر توريد بضاعة</h4>
+              <div className="bg-burgundy/3 p-4 rounded-2xl border border-burgundy/5 space-y-3">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-burgundy/60">اسم المنتج / الصنف</label>
+                    <input
+                      type="text"
+                      value={poForm.name}
+                      onChange={e => setPoForm({ ...poForm, name: e.target.value })}
+                      placeholder="مثال: بلوزة شيفون"
+                      className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
                   </div>
-                )}
- <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(tx.date).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
- </div>
- <div className="flex items-center gap-2 mr-3">
- <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : tx.type === 'return' ? 'text-amber-700' : 'text-emerald-700'}`}>
- {tx.type === 'purchase' ? '+' : '-'} {EGP_S(tx.amount)}
- </p>
- <button onClick={() => setDeleteTxId(tx._id)} className="text-burgundy/20 hover:text-red-500 transition text-sm"></button>
- </div>
- </div>
- ))}
- </div>
- )}
- </div>
- )}
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-burgundy/60">المقاس</label>
+                    <input
+                      type="text"
+                      value={poForm.size}
+                      onChange={e => setPoForm({ ...poForm, size: e.target.value })}
+                      placeholder="S, M, L, XL..."
+                      className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-burgundy/60">الكمية المطلوبة</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={poForm.qty}
+                      onChange={e => setPoForm({ ...poForm, qty: Math.max(1, Number(e.target.value) || 1) })}
+                      className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddPoItem}
+                  className="w-full rounded-xl bg-burgundy/10 hover:bg-burgundy/20 py-2 text-xs font-bold text-burgundy transition"
+                >
+                  ＋ إضافة صنف لأمر التوريد
+                </button>
+              </div>
 
- {/* ── Products Tab ── */}
- {activeTab === 'products' && (
- <div className="p-5">
- {!productsLoading && supplierProducts.length > 0 && (
- <div className="flex items-center justify-between mb-4 text-xs font-bold text-burgundy/80 bg-white shadow-sm p-4 rounded-2xl border border-burgundy/10">
- <span>إجمالي الموديلات: <span className="text-burgundy text-sm">{supplierProducts.length}</span></span>
- <span>إجمالي القطع المتوفرة: <span className="text-emerald-700 text-sm">{supplierProducts.reduce((s, p) => s + (p.stock || 0), 0)}</span> قطعة</span>
- </div>
- )}
+              {poItems.length === 0 ? (
+                <p className="text-center text-xs text-burgundy/40 py-8">الرجاء إضافة أصناف لبناء أمر التوريد</p>
+              ) : (
+                <div className="border border-burgundy/10 rounded-2xl bg-white overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-right text-burgundy">
+                    <thead className="bg-[#F7F0EC] font-bold">
+                      <tr>
+                        <th className="p-3 text-center w-12">#</th>
+                        <th className="p-3">اسم الصنف</th>
+                        <th className="p-3 text-center">المقاس</th>
+                        <th className="p-3 text-center">الكمية</th>
+                        <th className="p-3 text-center w-12">حذف</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-burgundy/5">
+                      {poItems.map((item, idx) => (
+                        <tr key={item.id}>
+                          <td className="p-3 text-center">{idx + 1}</td>
+                          <td className="p-3 font-semibold">{item.name}</td>
+                          <td className="p-3 text-center">{item.size || '—'}</td>
+                          <td className="p-3 text-center font-bold">{item.qty} قطعة</td>
+                          <td className="p-3 text-center">
+                            <button type="button" onClick={() => handleRemovePoItem(item.id)} className="text-red-500 hover:underline">×</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
- {productsLoading ? (
- <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
- ) : supplierProducts.length === 0 ? (
- <div className="text-center py-16">
- <p className="text-4xl mb-3"></p>
- <p className="text-sm font-semibold text-burgundy/40">لا توجد منتجات مسجلة لهذا المورد بعد</p>
- <p className="text-xs text-burgundy/30 mt-1">عند إضافة منتج واختيار هذا المورد، سيظهر هنا تلقائياً</p>
- </div>
- ) : (
- <div className="space-y-2">
- {supplierProducts.map(p => {
- const stockCls = p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
- return (
- <div key={p._id} className="flex items-center gap-3 rounded-2xl border border-burgundy/8 bg-[#F7F0EC]/50 px-4 py-3 hover:bg-[#F7F0EC] transition">
- {p.images?.[0] ? (
- <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
- ) : (
- <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-burgundy/8 flex items-center justify-center text-xl"></div>
- )}
- <div className="flex-1 min-w-0">
- <p className="font-semibold text-sm truncate">{p.name}</p>
- <div className="flex flex-wrap gap-1.5 mt-0.5 items-center">
- {p.sku && <span className="font-mono text-[10px] bg-white border border-burgundy/10 px-1.5 py-0.5 rounded text-burgundy">{p.sku}</span>}
- <span className="text-[10px] bg-burgundy/8 text-burgundy px-1.5 py-0.5 rounded-full font-medium">{CAT_AR_SUP[p.category] || p.category}</span>
- </div>
- </div>
- <div className="flex flex-col items-end gap-1 flex-shrink-0">
- <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${stockCls}`}>{p.stock} ق</span>
- <span className="text-xs font-bold text-burgundy">{EGP_S(p.price)}</span>
- {p.costPrice > 0 && <span className="text-[10px] text-burgundy/40">تكلفة: {EGP_S(p.costPrice)}</span>}
- </div>
- </div>
- );
- })}
- </div>
- )}
- </div>
- )}
+        <div className="p-4 bg-[#F7F0EC] border-t border-burgundy/10 flex gap-3">
+          <button onClick={onClose} className="rounded-xl border border-burgundy/20 px-6 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">إغلاق</button>
+        </div>
+      </div>
 
- {/* ── PO Tab ── */}
- {activeTab === 'po' && (
- <div className="p-5 space-y-4">
- <h4 className="font-bold text-sm text-burgundy"> صياغة أمر توريد بضاعة</h4>
- <div className="bg-burgundy/3 p-4 rounded-2xl border border-burgundy/5 space-y-3">
- <div className="grid sm:grid-cols-3 gap-3">
- <div>
- <label className="mb-1 block text-[10px] font-bold text-burgundy/60">اسم المنتج / الصنف</label>
- <input
- type="text"
- value={poForm.name}
- onChange={e => setPoForm({ ...poForm, name: e.target.value })}
- placeholder="مثال: بلوزة شيفون"
- className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
- />
- </div>
- <div>
- <label className="mb-1 block text-[10px] font-bold text-burgundy/60">المقاس</label>
- <input
- type="text"
- value={poForm.size}
- onChange={e => setPoForm({ ...poForm, size: e.target.value })}
- placeholder="S, M, L, XL..."
- className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
- />
- </div>
- <div>
- <label className="mb-1 block text-[10px] font-bold text-burgundy/60">الكمية المطلوبة</label>
- <input
- type="number"
- min="1"
- value={poForm.qty}
- onChange={e => setPoForm({ ...poForm, qty: Math.max(1, Number(e.target.value) || 1) })}
- className="w-full rounded-xl border border-burgundy/25 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
- />
- </div>
- </div>
- <button
- type="button"
- onClick={handleAddPoItem}
- className="w-full rounded-xl bg-burgundy/10 hover:bg-burgundy/20 py-2 text-xs font-bold text-burgundy transition"
- >
- ＋ إضافة صنف لأمر التوريد
- </button>
- </div>
-
- {poItems.length === 0 ? (
- <p className="text-center text-xs text-burgundy/40 py-8">الرجاء إضافة أصناف لبناء أمر التوريد</p>
- ) : (
- <div className="border border-burgundy/10 rounded-2xl bg-white overflow-hidden shadow-sm">
- <table className="w-full text-xs text-right text-burgundy">
- <thead className="bg-[#F7F0EC] font-bold">
- <tr>
- <th className="p-3 text-center w-12">#</th>
- <th className="p-3">اسم الصنف</th>
- <th className="p-3 text-center">المقاس</th>
- <th className="p-3 text-center">الكمية</th>
- <th className="p-3 text-center w-12">حذف</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-burgundy/5">
- {poItems.map((item, idx) => (
- <tr key={item.id}>
- <td className="p-3 text-center">{idx + 1}</td>
- <td className="p-3 font-semibold">{item.name}</td>
- <td className="p-3 text-center">{item.size || '—'}</td>
- <td className="p-3 text-center font-bold">{item.qty} قطعة</td>
- <td className="p-3 text-center">
- <button type="button" onClick={() => handleRemovePoItem(item.id)} className="text-red-500 hover:underline"></button>
- </td>
- </tr>
- ))}
- </tbody>
- </table>
- </div>
- )}
- </div>
- )}
- </div>
-
- <div className="p-4 bg-[#F7F0EC] border-t border-burgundy/10 flex gap-3">
- <button onClick={onClose} className="rounded-xl border border-burgundy/20 px-6 py-2.5 text-sm font-medium text-burgundy hover:bg-burgundy/10 transition">إغلاق</button>
- </div>
- </div>
-
- {addTx && <AddTransactionModal supplierId={supplierId} onClose={() => setAddTx(false)} onSave={load} />}
- {addReturn && (
- <SupplierReturnModal
- supplierId={supplierId}
- supplierName={data?.supplier?.name}
- onClose={() => setAddReturn(false)}
- onSave={() => {
- load();
- loadProducts();
- }}
- />
- )}
- <ConfirmModal isOpen={!!deleteTxId} title="حذف التعامل" message="هل أنت متأكد من حذف هذا التعامل؟" onConfirm={handleDeleteTx} onCancel={() => setDeleteTxId(null)} />
- </div>
- );
+      {addTx && <AddTransactionModal supplierId={supplierId} onClose={() => setAddTx(false)} onSave={load} />}
+      {addReturn && (
+        <SupplierReturnModal
+          supplierId={supplierId}
+          supplierName={data?.supplier?.name}
+          onClose={() => setAddReturn(false)}
+          onSave={() => {
+            load();
+            loadProducts();
+          }}
+        />
+      )}
+      <ConfirmModal isOpen={!!deleteTxId} title="حذف التعامل" message="هل أنت متأكد من حذف هذا التعامل؟ إذا كان مرتجعاً سيتم إعادة الأصناف للمخزن." onConfirm={handleDeleteTx} onCancel={() => setDeleteTxId(null)} />
+    </div>
+  );
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────

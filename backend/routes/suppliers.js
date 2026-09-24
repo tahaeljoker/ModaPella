@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const Supplier = require('../models/Supplier');
@@ -42,7 +43,9 @@ router.get('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id);
     if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
-    const txs = await SupplierTransaction.find({ supplier: req.params.id }).sort({ date: -1 });
+    const txs = await SupplierTransaction.find({ supplier: req.params.id })
+      .populate('items.product', 'name sku images')
+      .sort({ date: -1, createdAt: -1 });
     const totalPurchased = txs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
     const totalPaid      = txs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
     const totalReturned  = txs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
@@ -208,6 +211,10 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
     let totalReturnAmount = 0;
     const processedItems = [];
     const updatedProducts = [];
+    const stockHistoryRecords = [];
+
+    const userId = (req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id)) ? req.user.id : undefined;
+    const userName = req.user?.name || req.user?.email || 'Admin';
 
     for (const item of returnList) {
       const pId = item.productId || item.product;
@@ -219,15 +226,15 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
 
       const itemSize = item.size || '';
       const itemColor = item.color || '';
-      const unitCost = Number(item.unitPrice ?? item.costPrice ?? product.costPrice ?? 0);
+      const unitCost = Math.max(0, Number(item.unitPrice ?? item.costPrice ?? product.costPrice ?? 0) || 0);
       const lineTotal = qty * unitCost;
       totalReturnAmount += lineTotal;
 
       const prevStock = product.stock || 0;
       if (product.variants && product.variants.length > 0 && (itemSize || itemColor)) {
-        const v = product.variants.find(it => it.size === itemSize && it.color === itemColor);
+        const v = product.variants.find(it => (it.size || '') === itemSize && (it.color || '') === itemColor);
         if (v) {
-          v.stock = Math.max(0, v.stock - qty);
+          v.stock = Math.max(0, (v.stock || 0) - qty);
         }
         product.stock = product.variants.reduce((sum, it) => sum + (it.stock || 0), 0);
       } else {
@@ -237,7 +244,9 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
       await product.save();
       updatedProducts.push(product);
 
-      await StockHistory.create({
+      const itemReason = (item.reason || reason || 'تالف / عيب مصنعي').trim();
+
+      const sh = await StockHistory.create({
         product: product._id,
         productName: product.name,
         size: itemSize,
@@ -247,10 +256,11 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
         quantityChanged: -qty,
         previousStock: prevStock,
         newStock: product.stock,
-        performedBy: req.user.id,
-        performedByName: req.user.name || '',
-        notes: `مرتجع للمورد (${supplier.name}) - السبب: ${item.reason || reason || 'تالف / عيب مصنعي'}`
+        performedBy: userId,
+        performedByName: userName,
+        notes: `مرتجع للمورد (${supplier.name}) - السبب: ${itemReason}`
       });
+      stockHistoryRecords.push(sh);
 
       processedItems.push({
         product: product._id,
@@ -259,7 +269,7 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
         color: itemColor,
         quantity: qty,
         unitPrice: unitCost,
-        reason: item.reason || reason || 'تالف / عيب مصنعي'
+        reason: itemReason
       });
 
       req.app.locals.io?.emit('inventory:update', product);
@@ -281,6 +291,14 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
     });
     await tx.save();
 
+    // Link referenceId in stock histories to the created transaction
+    if (stockHistoryRecords.length > 0) {
+      await StockHistory.updateMany(
+        { _id: { $in: stockHistoryRecords.map(s => s._id) } },
+        { referenceId: tx._id }
+      );
+    }
+
     if (refundMethod === 'CashToSafe' && totalReturnAmount > 0) {
       const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
       const safeTx = new Transaction({
@@ -289,7 +307,7 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
         category: 'Deposit',
         paymentMethod: 'Cash',
         description: `استرداد نقدي لمرتجع مورد (${supplier.name}) - ${itemNames}`,
-        user: req.user.id,
+        user: userId,
         shift: openShift?._id,
         referenceId: tx._id
       });
@@ -310,14 +328,60 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
 // DELETE /api/suppliers/:id/transactions/:txId
 router.delete('/:id/transactions/:txId', auth, requireRole(ADMIN), async (req, res) => {
   try {
+    const tx = await SupplierTransaction.findById(req.params.txId);
+    if (!tx) return res.status(404).json({ message: 'العملية غير موجودة' });
+
+    // If it was a return that had items, restore stock back into inventory!
+    if (tx.type === 'return' && Array.isArray(tx.items) && tx.items.length > 0) {
+      const supplier = await Supplier.findById(req.params.id);
+      const userId = (req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id)) ? req.user.id : undefined;
+      const userName = req.user?.name || req.user?.email || 'Admin';
+
+      for (const item of tx.items) {
+        if (item.product && item.quantity > 0) {
+          const product = await Product.findById(item.product);
+          if (product) {
+            const prevStock = product.stock || 0;
+            const itemSize = item.size || '';
+            const itemColor = item.color || '';
+            if (product.variants && product.variants.length > 0 && (itemSize || itemColor)) {
+              const v = product.variants.find(it => (it.size || '') === itemSize && (it.color || '') === itemColor);
+              if (v) {
+                v.stock = (v.stock || 0) + item.quantity;
+              }
+              product.stock = product.variants.reduce((sum, it) => sum + (it.stock || 0), 0);
+            } else {
+              product.stock = (product.stock || 0) + item.quantity;
+            }
+            await product.save();
+
+            await StockHistory.create({
+              product: product._id,
+              productName: product.name,
+              size: itemSize,
+              color: itemColor,
+              variantKey: itemSize || itemColor ? `${itemSize}_${itemColor}` : '',
+              changeType: 'Restock',
+              quantityChanged: item.quantity,
+              previousStock: prevStock,
+              newStock: product.stock,
+              performedBy: userId,
+              performedByName: userName,
+              notes: `إلغاء مرتجع للمورد (${supplier?.name || ''}) - إعادة القطع للمخزن`
+            });
+            req.app.locals.io?.emit('inventory:update', product);
+          }
+        }
+      }
+    }
+
     await SupplierTransaction.findByIdAndDelete(req.params.txId);
-    
     // Also delete any linked cashier safe transaction
     await Transaction.deleteMany({ referenceId: req.params.txId });
     
-    res.json({ message: 'Transaction deleted' });
+    res.json({ message: 'تم حذف العملية بنجاح وتحديث الحسابات والمخزون' });
   } catch (e) {
-    res.status(500).json({ message: 'Unable to delete transaction', error: e.message });
+    res.status(500).json({ message: 'تعذر حذف العملية', error: e.message });
   }
 });
 
