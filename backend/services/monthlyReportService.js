@@ -255,7 +255,7 @@ async function calculateMonthlyData(year, month) {
 
   const totalRefunds = Math.round(refundsCash + refundsInstapay);
   // Net Sales = Gross Billed Sales - Total Refunds
-  const totalSales = Math.max(0, Math.round(grossBilledSales - totalRefunds));
+  totalSales = Math.max(0, Math.round(grossBilledSales - totalRefunds));
 
   // Net Cash Revenue
   const cashRevenue = salesCashCollected + debtPaymentsCash + depositsCash - refundsCash;
