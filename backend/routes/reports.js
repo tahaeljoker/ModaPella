@@ -384,25 +384,112 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
         });
       });
     } else if (tab === 'returns') {
-      allTransactions.filter(t => {
+      const refundTxs = allTransactions.filter(t => {
         const cat = (t.category || '').toLowerCase();
         return cat === 'refund' || cat.includes('مرتجع');
-      }).forEach(t => {
+      });
+
+      // Find referenced orders
+      const orderIds = refundTxs.map(t => t.referenceId).filter(Boolean);
+      const ordersMap = {};
+      if (orderIds.length > 0) {
+        const linkedOrders = await Order.find({ _id: { $in: orderIds } }).populate('customer seller employee');
+        linkedOrders.forEach(o => { ordersMap[o._id.toString()] = o; });
+      }
+
+      // Track matched order IDs so we can add any past returned orders that lack a transaction as fallback
+      const matchedOrderIds = new Set();
+
+      refundTxs.forEach(t => {
+        const ord = t.referenceId ? ordersMap[t.referenceId.toString()] : null;
+        if (ord) matchedOrderIds.add(ord._id.toString());
+        const originalSaleDate = ord ? ord.createdAt : null;
+        const returnDate = t.createdAt;
+        const daysDiff = originalSaleDate ? Math.max(0, Math.floor((new Date(returnDate) - new Date(originalSaleDate)) / (1000 * 60 * 60 * 24))) : null;
+
+        // Detail items returned
+        const returnedItems = ord ? (ord.items || []).filter(i => (i.returnedQuantity || 0) > 0).map(i => ({
+          name: i.name,
+          size: i.size || '',
+          color: i.color || '',
+          quantity: i.returnedQuantity || 1,
+          price: i.price,
+          costPrice: i.costPrice || 0,
+          profitLost: Math.max(0, (i.price - (i.costPrice || 0)) * (i.returnedQuantity || 1))
+        })) : [];
+
+        const totalCostRecovered = returnedItems.reduce((sum, i) => sum + i.costPrice * i.quantity, 0);
+        const totalProfitImpact = Math.max(0, t.amount - totalCostRecovered);
+
         statementItems.push({
           id: t._id,
           source: 'return',
           date: t.createdAt,
+          originalSaleDate,
+          daysSinceSale: daysDiff,
           section: 'مرتجعات عملاء',
           type: 'مرتجع مسترد',
           typeColor: 'rose',
           flow: 'OUT',
           amount: t.amount,
-          partyName: 'مرتجع عميل',
-          partyPhone: '',
+          profitImpact: totalProfitImpact,
+          costRecovered: totalCostRecovered,
+          partyName: ord?.customerName || ord?.customer?.name || 'مرتجع عميل',
+          partyPhone: ord?.customerPhone || ord?.customer?.phone || '',
           paymentMethod: t.paymentMethod === 'Cash' ? 'كاش (من الدرج)' : 'إنستاباي (إلكتروني)',
           description: t.description || 'استرداد قيمة مرتجع',
           reference: t.referenceId ? '#' + t.referenceId.toString().slice(-6).toUpperCase() : '',
+          orderCode: ord ? '#' + ord._id.toString().slice(-6).toUpperCase() : '',
+          orderTotal: ord ? ord.totalAmount : t.amount,
+          itemsCount: returnedItems.length,
+          returnedItems,
           user: t.user?.name || 'الكاشير'
+        });
+      });
+
+      // Fallback: If any returned orders in period do not have a transaction, include them
+      allOrders.filter(o => !matchedOrderIds.has(o._id.toString())).forEach(o => {
+        const returnedVal = (o.returnedAmount && o.returnedAmount > 0)
+          ? o.returnedAmount
+          : (o.items || []).reduce((sum, i) => sum + ((i.returnedQuantity || 0) * (i.price || 0)), 0);
+        if (returnedVal <= 0) return;
+
+        const returnedItems = (o.items || []).filter(i => (i.returnedQuantity || 0) > 0).map(i => ({
+          name: i.name,
+          size: i.size || '',
+          color: i.color || '',
+          quantity: i.returnedQuantity || 1,
+          price: i.price,
+          costPrice: i.costPrice || 0,
+          profitLost: Math.max(0, (i.price - (i.costPrice || 0)) * (i.returnedQuantity || 1))
+        }));
+
+        const totalCostRecovered = returnedItems.reduce((sum, i) => sum + i.costPrice * i.quantity, 0);
+        const totalProfitImpact = Math.max(0, returnedVal - totalCostRecovered);
+
+        statementItems.push({
+          id: o._id,
+          source: 'return',
+          date: o.updatedAt || o.createdAt,
+          originalSaleDate: o.createdAt,
+          daysSinceSale: Math.max(0, Math.floor((new Date(o.updatedAt || o.createdAt) - new Date(o.createdAt)) / (1000 * 60 * 60 * 24))),
+          section: 'مرتجعات عملاء',
+          type: 'مرتجع مسترد',
+          typeColor: 'rose',
+          flow: 'OUT',
+          amount: returnedVal,
+          profitImpact: totalProfitImpact,
+          costRecovered: totalCostRecovered,
+          partyName: o.customerName || o.customer?.name || 'مرتجع عميل',
+          partyPhone: o.customerPhone || o.customer?.phone || '',
+          paymentMethod: o.paymentMethod === 'Cash' ? 'كاش (من الدرج)' : 'إنستاباي (إلكتروني)',
+          description: `مرتجع طلب #${o._id.toString().slice(-6).toUpperCase()}`,
+          reference: '#' + o._id.toString().slice(-6).toUpperCase(),
+          orderCode: '#' + o._id.toString().slice(-6).toUpperCase(),
+          orderTotal: o.totalAmount,
+          itemsCount: returnedItems.length,
+          returnedItems,
+          user: o.seller?.name || o.employee?.name || 'الكاشير'
         });
       });
     } else if (tab === 'instapay') {

@@ -749,13 +749,50 @@ export default function AdminAccountStatement() {
                         </td>
 
                         {/* Description & Reference */}
-                        <td className="py-3 px-4 max-w-xs">
+                        <td className="py-3 px-4 max-w-sm">
                           <p className="font-semibold text-burgundy">{s.description}</p>
-                          {s.reference && (
-                            <span className="text-[10px] text-burgundy/40 font-mono">مرجع: {s.reference}</span>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                            {s.reference && (
+                              <span className="text-[10px] text-burgundy/50 font-mono bg-burgundy/5 px-1.5 py-0.5 rounded">مرجع: {s.reference}</span>
+                            )}
+                            {s.orderCode && s.orderCode !== s.reference && (
+                              <span className="text-[10px] text-burgundy/50 font-mono bg-burgundy/5 px-1.5 py-0.5 rounded">طلب: {s.orderCode}</span>
+                            )}
+                            {s.itemsCount > 0 && !s.returnedItems?.length && (
+                              <span className="text-[10px] text-amber-800">({s.itemsCount} صنف بضاعة)</span>
+                            )}
+                          </div>
+
+                          {/* Returns Specific: Original Sale Date & Duration */}
+                          {s.originalSaleDate && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-amber-800 bg-amber-50/80 px-2.5 py-1 rounded-xl border border-amber-200/60">
+                              <span className="font-bold">تاريخ البيع الأصلي:</span>
+                              <span className="font-semibold">{DATE(s.originalSaleDate)}</span>
+                              {s.daysSinceSale !== null && (
+                                <span className="text-amber-700 bg-amber-100/70 px-1.5 py-0.2 rounded-md font-bold">
+                                  {s.daysSinceSale === 0 ? 'في نفس اليوم' : `بعد ${s.daysSinceSale} يوم من الشراء`}
+                                </span>
+                              )}
+                            </div>
                           )}
-                          {s.itemsCount > 0 && (
-                            <span className="text-[10px] text-amber-800 block">({s.itemsCount} صنف بضاعة)</span>
+
+                          {/* Returns Specific: Item Breakdown */}
+                          {s.returnedItems && s.returnedItems.length > 0 && (
+                            <div className="mt-1.5 space-y-1">
+                              {s.returnedItems.map((item, idx) => (
+                                <div key={idx} className="text-[10px] text-rose-800 bg-rose-50/70 px-2 py-0.5 rounded-lg border border-rose-100 flex items-center justify-between">
+                                  <span>{item.name} {item.size ? `(${item.size})` : ''} {item.color ? `· ${item.color}` : ''} × {item.quantity}</span>
+                                  <span className="font-mono font-bold text-rose-700">{EGP(item.price * item.quantity)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Returns Specific: Profit Impact (Margin Only) */}
+                          {s.profitImpact !== undefined && s.profitImpact > 0 && (
+                            <span className="text-[10px] text-purple-700 font-semibold block mt-1">
+                              أثر مجمل الربح: -{EGP(s.profitImpact)} (هامش ربح القطع المرتجعة فقط)
+                            </span>
                           )}
                         </td>
 

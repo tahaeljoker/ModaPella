@@ -225,6 +225,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         }
         refundsList.push({
           id: t._id,
+          referenceId: t.referenceId,
           category: t.category || 'Refund',
           amount: t.amount,
           paymentMethod: t.paymentMethod || 'Cash',
@@ -299,8 +300,32 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     const salesInstapayCollected = Math.max(0, Math.round(grossInstapayCollected - refundsInstapay));
     const salesDebtRemaining = Math.round(periodOrders.reduce((sum, o) => sum + (o.isDebt ? (o.debtAmount || 0) : 0), 0));
 
-    // Gross profit = Net Sales - COGS (Airtight mathematical identity)
-    const grossProfit = Math.round(totalSales - cogs);
+    // Check for cross-period returns: refund transactions in this period whose original order was outside this period
+    let crossPeriodCostRecovered = 0;
+    const currentOrderIds = new Set(periodOrders.map(o => o._id.toString()));
+    const crossPeriodRefundTxs = refundsList.filter(r => r.referenceId && !currentOrderIds.has(r.referenceId.toString()));
+    if (crossPeriodRefundTxs.length > 0) {
+      const crossOrderIds = crossPeriodRefundTxs.map(r => r.referenceId);
+      const crossOrders = await Order.find({ _id: { $in: crossOrderIds } });
+      const crossOrderMap = {};
+      crossOrders.forEach(co => { crossOrderMap[co._id.toString()] = co; });
+
+      crossPeriodRefundTxs.forEach(r => {
+        const co = crossOrderMap[r.referenceId.toString()];
+        if (co && co.items) {
+          const orderOriginalTotal = (co.totalAmount || 0) + (co.discount || 0);
+          const totalOrderCost = co.items.reduce((sum, item) => sum + (item.costPrice || 0) * (item.quantity || 1), 0);
+          if (orderOriginalTotal > 0 && totalOrderCost > 0) {
+            const proportion = Math.min(1, r.amount / orderOriginalTotal);
+            crossPeriodCostRecovered += Math.round(totalOrderCost * proportion);
+          }
+        }
+      });
+    }
+
+    // Gross profit = Net Sales - COGS + Cost recovered from cross-period returns
+    // Ensures a return from a past period only reduces profit by its PROFIT MARGIN
+    const grossProfit = Math.round(totalSales - cogs + crossPeriodCostRecovered);
     operatingExpenses = Math.round(operatingExpenses);
     supplierPurchases = Math.round(supplierPurchases);
     supplierCashPaid = Math.round(supplierCashPaid);
@@ -396,6 +421,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       grossInstapayCollected,
       grossProfit,
       cogs,
+      crossPeriodCostRecovered,
       netProfit,
       operatingExpenses,
       supplierPurchases,

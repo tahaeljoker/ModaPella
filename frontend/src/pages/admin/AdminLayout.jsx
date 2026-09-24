@@ -20,6 +20,7 @@ const sections = [
       { to: '/admin/safe', label: 'الخزنة وحركة الدرج', icon: 'safe' },
       { to: '/admin/debts', label: 'ديون ومستحقات العملاء', icon: 'debts' },
       { to: '/admin/suppliers', label: 'حسابات ومشتريات الموردين', icon: 'suppliers' },
+      { to: '/admin/updates', label: 'شرح التحديثات والتسويات', icon: 'audit' },
     ]
   },
   {

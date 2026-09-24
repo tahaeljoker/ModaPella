@@ -254,6 +254,35 @@ async function calculateMonthlyData(year, month) {
   }));
 
   const totalRefunds = Math.round(refundsCash + refundsInstapay);
+
+  // Check for cross-period returns: refund transactions in this month whose original order was outside this month
+  let crossPeriodCostRecovered = 0;
+  const currentOrderIds = new Set(orders.map(o => o._id.toString()));
+  const crossPeriodRefundTxs = transactions.filter(t => {
+    const cat = (t.category || '').toLowerCase();
+    const isRet = cat === 'refund' || cat.includes('مرتجع');
+    return isRet && t.referenceId && !currentOrderIds.has(t.referenceId.toString());
+  });
+
+  if (crossPeriodRefundTxs.length > 0) {
+    const crossOrderIds = crossPeriodRefundTxs.map(t => t.referenceId);
+    const crossOrders = await Order.find({ _id: { $in: crossOrderIds } });
+    const crossOrderMap = {};
+    crossOrders.forEach(co => { crossOrderMap[co._id.toString()] = co; });
+
+    crossPeriodRefundTxs.forEach(t => {
+      const co = crossOrderMap[t.referenceId.toString()];
+      if (co && co.items) {
+        const orderOriginalTotal = (co.totalAmount || 0) + (co.discount || 0);
+        const totalOrderCost = co.items.reduce((sum, item) => sum + (item.costPrice || 0) * (item.quantity || 1), 0);
+        if (orderOriginalTotal > 0 && totalOrderCost > 0) {
+          const proportion = Math.min(1, t.amount / orderOriginalTotal);
+          crossPeriodCostRecovered += Math.round(totalOrderCost * proportion);
+        }
+      }
+    });
+  }
+
   // Net Sales = Gross Billed Sales - Total Refunds
   totalSales = Math.max(0, Math.round(grossBilledSales - totalRefunds));
 
@@ -261,8 +290,10 @@ async function calculateMonthlyData(year, month) {
   const cashRevenue = salesCashCollected + debtPaymentsCash + depositsCash - refundsCash;
   const instapayRevenue = salesInstapayCollected + debtPaymentsInstapay + depositsInstapay - refundsInstapay;
 
-  // Gross profit = Net Sales - COGS (Airtight mathematical identity)
-  const grossProfit = Math.round(totalSales - totalCogs);
+  // Gross profit = Net Sales - COGS + Cost recovered from cross-period returns
+  // This ensures a return from a previous period only reduces profit by its PROFIT MARGIN,
+  // not by the entire selling price!
+  const grossProfit = Math.round(totalSales - totalCogs + crossPeriodCostRecovered);
 
   // Net Operating Profit = Gross Profit - Operating Expenses (Airtight mathematical identity)
   const netProfit = Math.round(grossProfit - operatingExpenses);
@@ -513,6 +544,7 @@ async function calculateMonthlyData(year, month) {
     totalSales,
     grossProfit,
     cogs: totalCogs,
+    crossPeriodCostRecovered,
     netProfit,
     totalExpenses,
     operatingExpenses,
