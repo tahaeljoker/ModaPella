@@ -121,8 +121,9 @@ function AdminSafe() {
     const shiftData = shift || currentShift;
     const now = new Date().toLocaleString('ar-EG-u-nu-latn');
     const openTime = shiftData?.createdAt ? new Date(shiftData.createdAt).toLocaleString('ar-EG-u-nu-latn') : '—';
-    const cashSales = data.todaySummary?.cashSales || 0;
-    const instapaySales = data.todaySummary?.instapaySales || 0;
+    const cashSales = data.todaySummary?.grossCashSales ?? data.todaySummary?.cashSales ?? 0;
+    const refundsCash = data.todaySummary?.refundsCash ?? data.todaySummary?.refunds ?? data.summary?.refunds ?? 0;
+    const instapaySales = data.todaySummary?.grossInstapaySales ?? data.todaySummary?.instapaySales ?? 0;
     const expenses = data.todaySummary?.expenses || 0;
     const personalWithdrawals = data.todaySummary?.personalWithdrawals || data.summary?.personalWithdrawals || 0;
     const supplierPayments = data.todaySummary?.supplierPayments || data.summary?.supplierPayments || 0;
@@ -144,8 +145,8 @@ function AdminSafe() {
             <tr><td style="padding:4px 0;">وقت الفتح:</td><td style="text-align:left; font-weight:bold;">${openTime}</td></tr>
             <tr><td style="padding:4px 0;">الكاشير / المسؤول:</td><td style="text-align:left; font-weight:bold;">${shiftData?.user?.name || 'الإدارة'}</td></tr>
             <tr style="border-top:1px solid #eee;"><td style="padding:4px 0;">رصيد البداية (العهدة):</td><td style="text-align:left; font-weight:bold;">${EGP(openingBal)}</td></tr>
-            <tr><td style="padding:4px 0;">مبيعات نقدية (كاش):</td><td style="text-align:left; font-weight:bold; color:green;">+ ${EGP(cashSales)}</td></tr>
-            <tr><td style="padding:4px 0;">مرتجعات مستردة (اليوم):</td><td style="text-align:left; font-weight:bold; color:#b91c1c;">- ${EGP(data.todaySummary?.refunds || data.summary?.refunds || 0)}</td></tr>
+            <tr><td style="padding:4px 0;">مبيعات نقدية (كاش محصل):</td><td style="text-align:left; font-weight:bold; color:green;">+ ${EGP(cashSales)}</td></tr>
+            <tr><td style="padding:4px 0;">مرتجعات مستردة نقداً (اليوم):</td><td style="text-align:left; font-weight:bold; color:#b91c1c;">- ${EGP(refundsCash)}</td></tr>
             <tr><td style="padding:4px 0;">مبيعات إلكترونية (إنستاباي):</td><td style="text-align:left; font-weight:bold;">${EGP(instapaySales)}</td></tr>
             <tr><td style="padding:4px 0;">مصروفات تشغيل الخزنة:</td><td style="text-align:left; font-weight:bold; color:red;">- ${EGP(expenses)}</td></tr>
             <tr><td style="padding:4px 0;">مدفوعات الموردين من الدرج:</td><td style="text-align:left; font-weight:bold; color:red;">- ${EGP(supplierPayments)}</td></tr>

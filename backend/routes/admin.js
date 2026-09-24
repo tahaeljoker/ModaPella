@@ -366,6 +366,13 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     personalWithdrawals = Math.round(personalWithdrawals);
     const netProfit = Math.round(grossProfit - operatingExpenses);
     const totalDiscounts = Math.round(periodOrders.reduce((sum, o) => sum + (o.isManualDebt ? 0 : (o.discount || 0)), 0));
+    const salesDebtRemaining = Math.round(periodOrders.reduce((sum, o) => sum + (o.isDebt ? (o.debtAmount || 0) : 0), 0));
+
+    const salesCashCollected = Math.max(0, Math.round(grossCashCollected - refundsCash));
+    const salesInstapayCollected = Math.max(0, Math.round(grossInstapayCollected - refundsInstapay));
+    const cashRevenue = Math.max(0, Math.round(grossCashCollected - refundsCash));
+    const instapayRevenue = Math.max(0, Math.round(grossInstapayCollected - refundsInstapay));
+    const netCashFlow = Math.round((cashRevenue + instapayRevenue) - (operatingExpenses + supplierCashPaid + personalWithdrawals));
 
     // Calculate best selling products
     const productSales = {};
@@ -455,19 +462,22 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       previousRefundsCount,
       orderReturnsTotal,
       refundsList,
-      grossCashCollected,
-      grossInstapayCollected,
+      grossCashCollected: Math.round(grossCashCollected),
+      grossInstapayCollected: Math.round(grossInstapayCollected),
       grossProfit,
       cogs,
       netProfit,
       operatingExpenses,
       supplierPurchases,
       supplierCashPaid,
+      supplierPaidFromSafe: supplierCashPaid,
       personalWithdrawals,
       personalWithdrawalsList,
+      netCashFlow,
       salesCashCollected,
       salesInstapayCollected,
-      instapayRevenue: salesInstapayCollected,
+      cashRevenue,
+      instapayRevenue,
       currentInstapayBalance,
       salesDebtRemaining,
       totalExpenses: operatingExpenses + supplierCashPaid,

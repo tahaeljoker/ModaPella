@@ -329,16 +329,16 @@ function AdminOverview() {
           value={formatSensitive('totalSales', EGP(overview?.totalSales ?? 0))}
           icon=""
           color="bg-white"
-          sub={`تم خصم المرتجعات (-${EGP(overview?.totalRefunds || 0)}) والخصومات`}
+          sub={`مرتجعات فواتير الفترة (-${EGP(overview?.orderReturnsTotal ?? overview?.totalRefunds ?? 0)}) والخصومات`}
           onClick={() => toggleCardReveal('totalSales')}
           popover={
             <InfoPopover
               title="صافي المبيعات (المستحق الفعلي)"
-              formula="المبيعات قبل الخصم - الخصومات - المرتجعات"
+              formula="المبيعات قبل الخصم - الخصومات - مرتجعات فواتير هذه الفترة"
               rows={[
-                { label: 'إجمالي المبيعات قبل الخصم والمرتجع', value: EGP((overview?.grossSales ?? ((overview?.totalSales ?? 0) + (overview?.totalRefunds ?? 0))) + (overview?.totalDiscounts ?? 0)) },
+                { label: 'إجمالي المبيعات قبل الخصم والمرتجع', value: EGP((overview?.grossSales ?? ((overview?.totalSales ?? 0) + (overview?.orderReturnsTotal ?? overview?.totalRefunds ?? 0))) + (overview?.totalDiscounts ?? 0)) },
                 { label: 'الخصومات الممنوحة ف الفواتير', value: `-${EGP(overview?.totalDiscounts ?? 0)}`, negative: true },
-                { label: 'المرتجعات المستردة للعملاء', value: `-${EGP(overview?.totalRefunds ?? 0)}`, negative: true },
+                { label: 'مرتجعات فواتير هذه الفترة', value: `-${EGP(overview?.orderReturnsTotal ?? overview?.totalRefunds ?? 0)}`, negative: true },
                 { separator: true },
                 { label: '= صافي المبيعات الفعلي المستحق', value: EGP(overview?.totalSales ?? 0), highlight: true },
                 { separator: true },
@@ -346,7 +346,7 @@ function AdminOverview() {
                 { label: 'صافي المحصل إلكتروني (إنستاباي)', value: EGP(overview?.salesInstapayCollected ?? 0) },
                 { label: 'الآجل المتبقي طرف العملاء', value: EGP(overview?.salesDebtRemaining ?? 0) },
               ]}
-              note="صافي المبيعات = مجموع الكاش والإنستاباي والآجل المتبقي بالمليم بعد خصم جميع المرتجعات والخصومات."
+              note="صافي المبيعات = مجموع الكاش والإنستاباي والآجل المتبقي بالمليم بعد خصم مرتجعات الفواتير والخصومات."
             />
           }
         />
@@ -462,10 +462,10 @@ function AdminOverview() {
               title="إجمالي الخصومات"
               formula="مجموع التخفيضات المباشرة المُطبَّقة على الفواتير"
               rows={[
-                { label: 'المبيعات قبل الخصم', value: EGP((overview?.totalSales ?? 0) + (overview?.totalDiscounts ?? 0)) },
+                { label: 'المبيعات قبل الخصم والمرتجع', value: EGP((overview?.grossSales ?? ((overview?.totalSales ?? 0) + (overview?.orderReturnsTotal ?? 0))) + (overview?.totalDiscounts ?? 0)) },
                 { label: 'مجموع الخصومات الممنوحة', value: `-${EGP(overview?.totalDiscounts ?? 0)}`, negative: true },
                 { separator: true },
-                { label: '= صافي المبيعات بعد الخصم', value: EGP(overview?.totalSales ?? 0), highlight: true },
+                { label: '= إجمالي المبيعات المفوترة (قبل المرتجع)', value: EGP(overview?.grossSales ?? ((overview?.totalSales ?? 0) + (overview?.orderReturnsTotal ?? 0))), highlight: true },
               ]}
               note="الخصومات تُطرح مباشرة ف وقت إخراج الفاتورة للعميل وتخفّض الإيراد قبل حساب الأرباح."
             />

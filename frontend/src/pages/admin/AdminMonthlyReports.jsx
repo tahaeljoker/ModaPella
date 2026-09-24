@@ -485,21 +485,20 @@ export default function AdminMonthlyReports() {
  {EGP(report.totalSales)}
  <InfoPopover
  title="إجمالي المبيعات الصافية"
- formula="مجموع صافي قيمة الفواتير المكتملة بعد الخصم"
- rows={[
- { label: 'عدد الفواتير المكتملة', value: `${report.totalOrders} فاتورة` },
- { label: 'إجمالي الفواتير قبل الخصم', value: EGP((report.totalSales || 0) + (report.totalDiscounts || 0)) },
- { label: 'الخصومات الممنوحة', value: `-${EGP(report.totalDiscounts || 0)}`, negative: true },
-                { label: 'المرتجعات المستردة', value: `-${EGP(report.totalRefunds || report.auditDetails?.refundsTotal || 0)}`, negative: true },
- { separator: true },
- { label: '= إجمالي المبيعات الصافية', value: EGP(report.totalSales), highlight: true },
- { separator: true },
- { label: 'المحصل كاش من المبيعات', value: EGP(report.salesCashCollected ?? report.cashRevenue ?? 0) },
- { label: 'المحصل إلكتروني (إنستاباي)', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
- { label: 'الآجل المتبقي طرف العملاء', value: EGP(report.salesDebtRemaining ?? 0) },
- ]}
- note="صافي المبيعات = مجموع الكاش والإنستاباي والآجل المتبقي بالمليم. لا توجد أي مبالغ مفقودة."
- />
+										formula="المبيعات قبل الخصم - الخصومات - مرتجعات فواتير هذا الشهر"
+										rows={[
+											{ label: 'عدد الفواتير المكتملة', value: `${report.totalOrders} فاتورة` },
+											{ label: 'إجمالي الفواتير قبل الخصم والمرتجع', value: EGP((report.grossSales || report.totalSales || 0) + (report.totalDiscounts || 0)) },
+											{ label: 'الخصومات الممنوحة ف الفواتير', value: `-${EGP(report.totalDiscounts || 0)}`, negative: true },
+											{ label: 'مرتجعات فواتير هذا الشهر', value: `-${EGP(report.orderReturnsTotal ?? report.totalRefunds ?? report.auditDetails?.orderReturnsTotal ?? 0)}`, negative: true },
+											{ separator: true },
+											{ label: '= إجمالي المبيعات الصافية', value: EGP(report.totalSales), highlight: true },
+											{ separator: true },
+											{ label: 'صافي المحصل كاش من المبيعات', value: EGP(report.salesCashCollected ?? report.cashRevenue ?? 0) },
+											{ label: 'صافي المحصل إلكتروني (إنستاباي)', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
+											{ label: 'الآجل المتبقي طرف العملاء', value: EGP(report.salesDebtRemaining ?? 0) },
+										]}
+										note="صافي المبيعات = مجموع الكاش والإنستاباي والآجل المتبقي بالمليم بعد خصم مرتجعات فواتير هذا الشهر."/>
  </p>
  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-burgundy/60 font-medium">
  <span>كاش: {EGP(report.salesCashCollected ?? report.cashRevenue ?? 0)}</span>
@@ -680,35 +679,34 @@ export default function AdminMonthlyReports() {
  {EGP(report.netCashFlow ?? 0)}
               <InfoPopover
                 title="صافي حركة السيولة الخزينة"
-                formula="(صافي المقبوضات النقدية بعد المرتجعات) - (مصاريف تشغيل + موردين + مسحوبات شخصية)"
+                formula="(المقبوضات النقدية الفعلية) - (المرتجعات المستردة + مصاريف تشغيل + موردين + مسحوبات شخصية)"
                 rows={[
-                  { label: 'كاش المبيعات المحصل', value: EGP(report.salesCashCollected ?? report.cashRevenue ?? 0) },
-                  { label: 'إنستاباي المبيعات المحصل', value: EGP(report.salesInstapayCollected ?? report.instapayRevenue ?? 0) },
-                  { label: 'إجمالي المقبوضات من المبيعات', value: EGP((report.salesCashCollected || 0) + (report.salesInstapayCollected || 0)) },
+                  { label: 'كاش المبيعات المحصل (قبل المرتجع)', value: EGP(report.grossCashCollected ?? report.auditDetails?.grossCashCollected ?? ((report.salesCashCollected || 0) + (report.refundsCash || 0))) },
+                  { label: 'إنستاباي المبيعات المحصل', value: EGP(report.grossInstapayCollected ?? report.auditDetails?.grossInstapayCollected ?? report.salesInstapayCollected ?? 0) },
+                  { label: 'إجمالي المقبوضات من المبيعات', value: EGP((report.grossCashCollected ?? ((report.salesCashCollected || 0) + (report.refundsCash || 0))) + (report.grossInstapayCollected ?? (report.salesInstapayCollected || 0))) },
                   ...((report.refundsTotal ?? report.auditDetails?.refundsTotal ?? (((report.auditDetails?.refundsCash || 0) + (report.auditDetails?.refundsInstapay || 0)))) > 0 ? [
                     {
-                      label: `مرتجعات العملاء المستردة نقداً${(report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length ?? 0) > 0 ? ` (${report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length} عملية)` : ''}`,
+                      label: `(-) مرتجعات العملاء المستردة نقداً${(report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length ?? 0) > 0 ? ` (${report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length} عملية)` : ''}`,
                       value: `-${EGP(report.refundsTotal ?? report.auditDetails?.refundsTotal ?? (((report.auditDetails?.refundsCash || 0) + (report.auditDetails?.refundsInstapay || 0))))}`,
                       negative: true
                     }
                   ] : []),
                   ...(((report.auditDetails?.debtPaymentsCash || 0) + (report.auditDetails?.debtPaymentsInstapay || 0) + (report.auditDetails?.depositsCash || 0) + (report.auditDetails?.depositsInstapay || 0)) > 0 ? [
                     {
-                      label: 'سداد ديون عملاء وإيداعات بالخزنة',
+                      label: '(+) سداد ديون عملاء وإيداعات بالخزنة',
                       value: `+${EGP((report.auditDetails?.debtPaymentsCash || 0) + (report.auditDetails?.debtPaymentsInstapay || 0) + (report.auditDetails?.depositsCash || 0) + (report.auditDetails?.depositsInstapay || 0))}`
                     }
                   ] : []),
                   { separator: true },
                   { label: '= صافي المقبوضات الفعلية بالخزنة', value: EGP((report.cashRevenue || 0) + (report.instapayRevenue || 0)), highlight: true },
                   { separator: true },
-                  { label: 'مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
-                  { label: 'المدفوع للموردين من الخزنة', value: `-${EGP(report.supplierPaidFromSafe ?? report.auditDetails?.supplierPaidFromSafe ?? report.supplierCashPaid ?? 0)}`, negative: true },
-                  { label: 'المسحوبات الشخصية والجمعية', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}`, negative: true },
+                  { label: '(-) مصاريف التشغيل', value: `-${EGP(report.operatingExpenses || 0)}`, negative: true },
+                  { label: '(-) المدفوع للموردين من الخزنة', value: `-${EGP(report.supplierPaidFromSafe ?? report.auditDetails?.supplierPaidFromSafe ?? report.supplierCashPaid ?? 0)}`, negative: true },
+                  { label: '(-) المسحوبات الشخصية والجمعية', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}`, negative: true },
                   { separator: true },
                   { label: '= صافي حركة الخزينة والسيولة', value: EGP(report.netCashFlow ?? 0), highlight: true },
                 ]}
-                note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويطابق حركة الدرج بالمليم (المبيعات المحصلة منقوصاً منها المرتجعات والمصاريف والمسحوبات والموردين)."
-              />
+                note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويطابق حركة الدرج بالمليم (المبيعات المحصلة منقوصاً منها المرتجعات والمصاريف والمسحوبات والموردين)."/>
  </p>
  <p className="mt-2 text-[11px] text-blue-900/70">
  إجمالي الداخل كاش إجمالي الخارج

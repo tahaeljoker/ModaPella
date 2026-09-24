@@ -97,9 +97,9 @@ function CashierSafe() {
   const handlePrintZReport = (shift) => {
     const shiftData = shift || currentShift;
     const now = new Date().toLocaleString('ar-EG-u-nu-latn');
-    const openTime = shiftData?.createdAt ? new Date(shiftData.createdAt).toLocaleString('ar-EG-u-nu-latn') : '—';
-    const cashSales = data.todaySummary?.cashSales || 0;
-    const instapaySales = data.todaySummary?.instapaySales || 0;
+    const cashSales = data.todaySummary?.grossCashSales ?? data.todaySummary?.cashSales ?? 0;
+    const refundsCash = data.todaySummary?.refundsCash ?? data.todaySummary?.refunds ?? data.summary?.refunds ?? 0;
+    const instapaySales = data.todaySummary?.grossInstapaySales ?? data.todaySummary?.instapaySales ?? 0;
     const expenses = data.todaySummary?.expenses || 0;
     const personalWithdrawals = data.todaySummary?.personalWithdrawals || data.summary?.personalWithdrawals || 0;
     const supplierPayments = data.todaySummary?.supplierPayments || data.summary?.supplierPayments || 0;
@@ -121,13 +121,13 @@ function CashierSafe() {
           <tr><td>وقت الفتح</td><td style="text-align:left">${openTime}</td></tr>
           <tr><td>وقت الإغلاق</td><td style="text-align:left">${now}</td></tr>
           <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">الإيرادات والتحصيل</td></tr>
-          <tr><td>مبيعات كاش محصلة</td><td style="text-align:left;color:#15803d;font-weight:bold">+ ${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>مبيعات كاش محصلة (قبل المرتجع)</td><td style="text-align:left;color:#15803d;font-weight:bold">+ ${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
           <tr><td>مبيعات إنستاباي / بنك</td><td style="text-align:left;color:#2563eb;font-weight:bold">${Number(instapaySales).toLocaleString('en-US')} ج.م</td></tr>
           <tr><td>إجمالي المبيعات المحصلة</td><td style="text-align:left;font-weight:bold">${Number(cashSales + instapaySales).toLocaleString('en-US')} ج.م</td></tr>
           <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">حركة الدرج النقدي (الكاش)</td></tr>
           <tr><td>رصيد الافتتاح</td><td style="text-align:left">${Number(openingBal).toLocaleString('en-US')} ج.م</td></tr>
-          <tr><td>(+) كاش المبيعات</td><td style="text-align:left;color:#15803d">+ ${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
-          <tr><td>(-) مرتجعات مستردة (اليوم)</td><td style="text-align:left;color:#dc2626;font-weight:bold">- ${Number(data.todaySummary?.refunds || data.summary?.refunds || 0).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>(+) كاش المبيعات المحصل</td><td style="text-align:left;color:#15803d">+ ${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>(-) مرتجعات مستردة نقداً (اليوم)</td><td style="text-align:left;color:#dc2626;font-weight:bold">- ${Number(refundsCash).toLocaleString('en-US')} ج.م</td></tr>
           <tr><td>(-) مصاريف تشغيلية</td><td style="text-align:left;color:#dc2626">- ${Number(expenses).toLocaleString('en-US')} ج.م</td></tr>
           ${personalWithdrawals > 0 ? `<tr><td>(-) مسحوبات شخصية / جمعية</td><td style="text-align:left;color:#9333ea;font-weight:bold">- ${Number(personalWithdrawals).toLocaleString('en-US')} ج.م</td></tr>` : ''}
           ${supplierPayments > 0 ? `<tr><td>(-) مدفوع لموردين كاش</td><td style="text-align:left;color:#d97706">- ${Number(supplierPayments).toLocaleString('en-US')} ج.م</td></tr>` : ''}
@@ -222,11 +222,13 @@ function CashierSafe() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (كاش)</p>
-            <p className="mt-2 text-xl font-bold text-emerald-700">{EGP(data.todaySummary.cashSales)}</p>
+            <p className="mt-2 text-xl font-bold text-emerald-700">{EGP(data.todaySummary?.grossCashSales ?? data.todaySummary?.cashSales ?? 0)}</p>
+            <p className="text-[10px] text-emerald-800/60 mt-1">الصافي بعد المرتجع: {EGP(data.todaySummary?.cashSales || 0)}</p>
           </div>
           <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (إلكتروني)</p>
-            <p className="mt-2 text-xl font-bold text-blue-700">{EGP(data.todaySummary.instapaySales)}</p>
+            <p className="mt-2 text-xl font-bold text-blue-700">{EGP(data.todaySummary?.grossInstapaySales ?? data.todaySummary?.instapaySales ?? 0)}</p>
+            <p className="text-[10px] text-blue-800/60 mt-1">الصافي بعد المرتجع: {EGP(data.todaySummary?.instapaySales || 0)}</p>
           </div>
           <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50/60 p-4 shadow-sm">
             <div className="flex items-center justify-between">
