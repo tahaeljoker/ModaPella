@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 function AdminDebts() {
+ const navigate = useNavigate();
  const [debts, setDebts] = useState([]);
  const [loading, setLoading] = useState(true);
  const [search, setSearch] = useState('');
@@ -115,6 +117,21 @@ function AdminDebts() {
  className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-5 rounded-2xl shadow-sm transition flex items-center gap-2 text-sm"
  >
  <span></span> تسجيل دين يدوي
+ </button>
+ </div>
+
+ {/* Context Banner: Debts = management & collection, Statements = full accounting trail */}
+ <div className="flex items-center justify-between gap-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl px-4 py-3">
+ <div className="flex items-center gap-2 text-amber-800">
+ <span className="text-sm font-bold shrink-0">ديون العملاء:</span>
+ <p className="text-xs">هذه الصفحة لمتابعة ديون العملاء وتسجيل السدادات والتحصيل. لعرض حركة التحصيل ضمن كشف الحساب العام، يمكنك الانتقال لكشف الحساب.</p>
+ </div>
+ <button
+ type="button"
+ onClick={() => navigate('/admin/statements')}
+ className="shrink-0 text-xs font-bold text-amber-700 border border-amber-300 bg-white hover:bg-amber-50 px-3 py-1.5 rounded-xl transition"
+ >
+ كشف الحساب العام
  </button>
  </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
@@ -907,6 +908,7 @@ function SupplierDetailModal({ supplierId, onClose }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 function AdminSuppliers() {
+ const navigate = useNavigate();
  const [suppliers, setSuppliers] = useState([]);
  const [unassignedCount, setUnassignedCount] = useState(0);
  const [loading, setLoading] = useState(true);
@@ -960,6 +962,21 @@ function AdminSuppliers() {
  </div>
  <button onClick={() => setModal({})} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
  + إضافة مورد
+ </button>
+ </div>
+
+ {/* Context Banner: Suppliers page = management & purchases, Statement page = accounting detail */}
+ <div className="flex items-center justify-between gap-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl px-4 py-3">
+ <div className="flex items-center gap-2 text-amber-800">
+ <span className="text-sm font-bold shrink-0">حسابات الموردين:</span>
+ <p className="text-xs">هذه الصفحة لإدارة بيانات الموردين وتسجيل المشتريات والسدادات. لكشف الحساب التفصيلي والرصيد التراكمي لكل مورد، اضغط كشف الحساب.</p>
+ </div>
+ <button
+ type="button"
+ onClick={() => navigate('/admin/statements?tab=suppliers')}
+ className="shrink-0 text-xs font-bold text-amber-700 border border-amber-300 bg-white hover:bg-amber-50 px-3 py-1.5 rounded-xl transition"
+ >
+ كشف حساب الموردين
  </button>
  </div>
 

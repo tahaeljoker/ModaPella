@@ -718,45 +718,102 @@ function AdminOverview() {
  </div>
  </div>
 
- {/* Expense Breakdown */}
- <div 
- onClick={() => toggleCardReveal('expensesBreakdown')}
- className={`rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm flex flex-col justify-between select-none transition-all duration-300 ${
- !showSensitive && !revealedCards['expensesBreakdown'] ? 'cursor-pointer hover:shadow-md' : ''
- }`}
- >
- <div>
- <h3 className="text-xl font-semibold mb-5"> تحليل المصروفات</h3>
- {overview?.expenseBreakdown?.length > 0 ? (
- <div className="space-y-4">
- {overview.expenseBreakdown.map((exp, idx) => {
- const totalExpenses = overview.expenseBreakdown.reduce((sum, e) => sum + e.amount, 0);
- const percent = totalExpenses > 0 ? ((exp.amount / totalExpenses) * 100).toFixed(0) : 0;
- return (
- <div key={idx} className="space-y-1">
- <div className="flex justify-between text-sm">
- <span className="font-semibold">{exp.category === 'Refund' ? 'مرتجعات' : exp.category}</span>
- <span className="text-burgundy/80 font-bold">{formatSensitive('expensesBreakdown', `${EGP(exp.amount)} (${percent}%)`)}</span>
- </div>
- <div className="w-full bg-burgundy/5 rounded-full h-2">
- <div className="bg-burgundy h-2 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
- </div>
- </div>
- );
- })}
- <div className="border-t border-burgundy/10 pt-4 mt-2 flex justify-between font-bold text-sm">
- <span>إجمالي المصروفات</span>
- <span className="text-burgundy">{formatSensitive('expensesBreakdown', EGP(overview.expenseBreakdown.reduce((sum, e) => sum + e.amount, 0)))}</span>
- </div>
- </div>
- ) : (
- <p className="text-center text-sm text-burgundy/50 py-12">لا توجد مصروفات مسجلة</p>
- )}
- </div>
- </div>
- </div>
+  {/* Quick Financial Navigation - links to dedicated detail pages */}
+  <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
+    <div className="mb-4">
+      <h3 className="text-base font-bold text-burgundy">الحسابات المالية</h3>
+      <p className="text-xs text-burgundy/50 mt-0.5">اضغط للانتقال للتفاصيل الكاملة</p>
+    </div>
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => navigate('/admin/statements')}
+        className="w-full flex items-center justify-between rounded-2xl bg-burgundy/5 hover:bg-burgundy/10 border border-burgundy/10 px-4 py-3 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-burgundy/10 flex items-center justify-center">
+            <Icon name="statement" className="w-4 h-4 text-burgundy" />
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-burgundy">كشف حساب شامل</p>
+            <p className="text-[10px] text-burgundy/50">كل الحركات والتفاصيل المحاسبية</p>
+          </div>
+        </div>
+        <Icon name="chevronLeft" className="w-4 h-4 text-burgundy/30 group-hover:text-burgundy transition" />
+      </button>
 
- {/* Analytics Grid: Low Stock & Best Sellers */}
+      <button
+        type="button"
+        onClick={() => navigate('/admin/safe')}
+        className="w-full flex items-center justify-between rounded-2xl bg-emerald-50/60 hover:bg-emerald-50 border border-emerald-200/60 px-4 py-3 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-emerald-100/80 flex items-center justify-center">
+            <Icon name="safe" className="w-4 h-4 text-emerald-700" />
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-emerald-900">الخزنة وحركة الدرج</p>
+            <p className="text-[10px] text-emerald-700/60">{formatSensitive('safeNav', EGP(overview?.cashDrawer ?? 0))} نقدية فعلية</p>
+          </div>
+        </div>
+        <Icon name="chevronLeft" className="w-4 h-4 text-emerald-400 group-hover:text-emerald-700 transition" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => navigate('/admin/suppliers')}
+        className="w-full flex items-center justify-between rounded-2xl bg-amber-50/60 hover:bg-amber-50 border border-amber-200/60 px-4 py-3 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-amber-100/80 flex items-center justify-center">
+            <Icon name="suppliers" className="w-4 h-4 text-amber-700" />
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-amber-900">حسابات الموردين</p>
+            <p className="text-[10px] text-amber-700/60">{formatSensitive('suppliersNav', EGP(overview?.supplierPurchases ?? 0))} مشتريات الفترة</p>
+          </div>
+        </div>
+        <Icon name="chevronLeft" className="w-4 h-4 text-amber-400 group-hover:text-amber-700 transition" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => navigate('/admin/debts')}
+        className="w-full flex items-center justify-between rounded-2xl bg-rose-50/60 hover:bg-rose-50 border border-rose-200/60 px-4 py-3 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-rose-100/80 flex items-center justify-center">
+            <Icon name="debts" className="w-4 h-4 text-rose-700" />
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-rose-900">ديون ومستحقات العملاء</p>
+            <p className="text-[10px] text-rose-700/60">{formatSensitive('debtsNav', EGP(overview?.salesDebtRemaining ?? 0))} مستحق حد الآن</p>
+          </div>
+        </div>
+        <Icon name="chevronLeft" className="w-4 h-4 text-rose-400 group-hover:text-rose-700 transition" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => navigate('/admin/reports')}
+        className="w-full flex items-center justify-between rounded-2xl bg-purple-50/50 hover:bg-purple-50 border border-purple-200/60 px-4 py-3 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-purple-100/60 flex items-center justify-center">
+            <Icon name="reports" className="w-4 h-4 text-purple-700" />
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-purple-900">التقارير الشهرية والأرشيف</p>
+            <p className="text-[10px] text-purple-700/60">سجلات مغلقة ومتراكمة شهرياً</p>
+          </div>
+        </div>
+        <Icon name="chevronLeft" className="w-4 h-4 text-purple-400 group-hover:text-purple-700 transition" />
+      </button>
+    </div>
+  </div>
+  </div>
+
+   {/* Analytics Grid: Low Stock & Best Sellers */}
  <div className="grid gap-6 md:grid-cols-2">
  {/* Best Sellers */}
  {overview?.bestSellers?.length > 0 ? (

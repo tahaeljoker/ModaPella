@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import { Icon } from '../../components/Icon';
@@ -19,6 +20,7 @@ const EXPENSE_CATEGORIES = [
 ];
 
 function AdminSafe() {
+  const navigate = useNavigate();
   const [data, setData] = useState({
     transactions: [],
     summary: { cashDrawer: 0, instapayTotal: 0, expenses: 0, personalWithdrawals: 0, supplierPayments: 0, refunds: 0, debtCollections: 0, expectedCash: 0 },
@@ -235,6 +237,22 @@ function AdminSafe() {
             <Icon name="refresh" className="w-4 h-4" />
           </button>
         </div>
+      </div>
+
+      {/* Context Banner: this page = CRUD operations, statements page = detail view */}
+      <div className="flex items-center justify-between gap-3 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-2 text-emerald-800">
+          <Icon name="safe" className="w-4 h-4 shrink-0" />
+          <p className="text-xs font-semibold">هذه الصفحة لإدارة الخزنة (إضافة مصروف، فتح/تقفيل وردية، إيداع). للتفاصيل المحاسبية الكاملة لحركة الدرج، اضغط كشف الحساب.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/admin/statements?tab=safe')}
+          className="shrink-0 text-xs font-bold text-emerald-700 border border-emerald-300 bg-white hover:bg-emerald-50 px-3 py-1.5 rounded-xl transition flex items-center gap-1"
+        >
+          <Icon name="statement" className="w-3.5 h-3.5" />
+          <span>كشف حساب الدرج</span>
+        </button>
       </div>
 
       {/* Primary KPI Cards */}
