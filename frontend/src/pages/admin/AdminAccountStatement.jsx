@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../services/api';
 import { exportToCSV } from '../../services/export';
 import { Icon } from '../../components/Icon';
+
+const PAGE_SIZE = 50;
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const SHORT_ID = (id) => id?.slice(-6).toUpperCase() || '------';
@@ -9,14 +11,16 @@ const TIME = (d) => new Date(d).toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2
 const DATE = (d) => new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'short', day: 'numeric' });
 
 export default function AdminAccountStatement() {
-  const [tab, setTab] = useState('all'); // 'all' | 'suppliers' | 'returns' | 'instapay' | 'safe' | 'expenses'
-  const [period, setPeriod] = useState('current'); // 'today' | 'current' | 'previous' | 'all' | 'custom'
+  const [tab, setTab] = useState('all');
+  const [period, setPeriod] = useState('current');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [cardDetailModal, setCardDetailModal] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [data, setData] = useState({
     summary: {},
     suppliersList: [],
@@ -24,8 +28,16 @@ export default function AdminAccountStatement() {
     statements: []
   });
 
+  // Inline notes: { [id]: string }
+  const [notes, setNotes] = useState({});
+  const [editingNote, setEditingNote] = useState(null);
+  const [noteInput, setNoteInput] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const noteInputRef = useRef(null);
+
   const loadStatements = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const params = new URLSearchParams();
       params.append('tab', tab);
@@ -60,6 +72,15 @@ export default function AdminAccountStatement() {
 
       const res = await api.get(`/reports/statements?${params.toString()}`);
       setData(res.data);
+
+      // Load notes for fetched items (non-critical)
+      try {
+        const ids = (res.data.statements || []).map(s => s.id).filter(Boolean);
+        if (ids.length > 0) {
+          const nr = await api.get(`/reports/statement-notes?ids=${ids.join(',')}`);
+          if (nr.data) setNotes(nr.data);
+        }
+      } catch (_) { /* notes are optional */ }
     } catch (err) {
       console.error('Failed to load statements:', err);
     } finally {
@@ -75,6 +96,70 @@ export default function AdminAccountStatement() {
     e?.preventDefault();
     loadStatements();
   };
+
+  // Unique types for filter dropdown
+  const uniqueTypes = useMemo(() => {
+    const types = new Set((data.statements || []).map(s => s.type).filter(Boolean));
+    return Array.from(types).sort();
+  }, [data.statements]);
+
+  // Apply type filter
+  const filteredStatements = useMemo(() => {
+    if (!typeFilter) return data.statements || [];
+    return (data.statements || []).filter(s => s.type === typeFilter);
+  }, [data.statements, typeFilter]);
+
+  // Compute running balance: oldest-to-newest then reverse back
+  const statementsWithBalance = useMemo(() => {
+    const ordered = [...filteredStatements].reverse();
+    let running = 0;
+    const withBal = ordered.map(s => {
+      const isOut = s.flow === 'OUT' || s.flow === 'DEBT_INCREASE';
+      if (isOut) running -= s.amount;
+      else running += s.amount;
+      return { ...s, runningBalance: running };
+    });
+    return withBal.reverse();
+  }, [filteredStatements]);
+
+  // Pagination
+  const totalPages = Math.ceil(statementsWithBalance.length / PAGE_SIZE);
+  const pagedStatements = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return statementsWithBalance.slice(start, start + PAGE_SIZE);
+  }, [statementsWithBalance, currentPage]);
+
+  // Footer totals
+  const totals = useMemo(() => {
+    let totalIn = 0, totalOut = 0;
+    filteredStatements.forEach(s => {
+      const isOut = s.flow === 'OUT' || s.flow === 'DEBT_INCREASE';
+      if (isOut) totalOut += s.amount;
+      else totalIn += s.amount;
+    });
+    return { totalIn, totalOut, net: totalIn - totalOut };
+  }, [filteredStatements]);
+
+  // Note helpers
+  const startEditNote = (id) => {
+    setEditingNote(id);
+    setNoteInput(notes[id] || '');
+    setTimeout(() => noteInputRef.current?.focus(), 50);
+  };
+
+  const saveNote = async (id) => {
+    if (savingNote) return;
+    setSavingNote(true);
+    try {
+      await api.post('/reports/statement-notes', { id, note: noteInput.trim() });
+      setNotes(prev => ({ ...prev, [id]: noteInput.trim() }));
+    } catch (_) { /* silent */ } finally {
+      setSavingNote(false);
+      setEditingNote(null);
+    }
+  };
+
+  const cancelNote = () => { setEditingNote(null); setNoteInput(''); };
 
 
   const openCardDetail = (type) => {
@@ -163,9 +248,9 @@ export default function AdminAccountStatement() {
   };
 
   const handleExportCSV = () => {
-    if (!data.statements || data.statements.length === 0) return;
-    const headers = ['التاريخ', 'القسم', 'نوع الحركة', 'البيان', 'الجهة / الطرف', 'وسيلة الدفع', 'المبلغ (ج.م)', 'رقم الإشارة'];
-    const rows = data.statements.map(s => [
+    if (!statementsWithBalance || statementsWithBalance.length === 0) return;
+    const headers = ['التاريخ', 'القسم', 'نوع الحركة', 'البيان', 'الجهة / الطرف', 'وسيلة الدفع', 'المبلغ (ج.م)', 'الرصيد التراكمي', 'رقم الإشارة', 'ملاحظة'];
+    const rows = statementsWithBalance.map(s => [
       new Date(s.date).toLocaleString('ar-EG-u-nu-latn'),
       s.section,
       s.type,
@@ -173,7 +258,9 @@ export default function AdminAccountStatement() {
       s.partyName,
       s.paymentMethod,
       s.amount,
-      s.reference
+      s.runningBalance,
+      s.reference,
+      notes[s.id?.toString()] || ''
     ]);
     exportToCSV(`كشف_حساب_${tab}_${new Date().toISOString().split('T')[0]}`, headers, rows);
   };
@@ -219,10 +306,12 @@ export default function AdminAccountStatement() {
               <th style="padding:6px; border:1px solid #ddd;">الطرف</th>
               <th style="padding:6px; border:1px solid #ddd;">طريقة الدفع</th>
               <th style="padding:6px; border:1px solid #ddd; text-align:left;">المبلغ (ج.م)</th>
+              <th style="padding:6px; border:1px solid #ddd; text-align:left;">الرصيد التراكمي</th>
+              <th style="padding:6px; border:1px solid #ddd;">ملاحظة</th>
             </tr>
           </thead>
           <tbody>
-            ${data.statements.map((s, idx) => `
+            ${statementsWithBalance.map((s, idx) => `
               <tr style="background:${idx % 2 === 0 ? '#fff' : '#fcf9f8'};">
                 <td style="padding:6px; border:1px solid #eee; text-align:center;">${idx + 1}</td>
                 <td style="padding:6px; border:1px solid #eee;">${new Date(s.date).toLocaleDateString('ar-EG-u-nu-latn')} ${new Date(s.date).toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' })}</td>
@@ -230,17 +319,31 @@ export default function AdminAccountStatement() {
                 <td style="padding:6px; border:1px solid #eee;">${s.description} ${s.reference ? `(${s.reference})` : ''}</td>
                 <td style="padding:6px; border:1px solid #eee;">${s.partyName || '—'}</td>
                 <td style="padding:6px; border:1px solid #eee;">${s.paymentMethod || '—'}</td>
-                <td style="padding:6px; border:1px solid #eee; text-align:left; font-weight:bold; color:${s.flow === 'OUT' || s.flow === 'DEBT_DECREASE' ? '#b91c1c' : '#15803d'};">
+                <td style="padding:6px; border:1px solid #eee; text-align:left; font-weight:bold; color:${s.flow === 'OUT' || s.flow === 'DEBT_INCREASE' ? '#b91c1c' : '#15803d'};">
                   ${Number(s.amount).toLocaleString('en-US')} ج.م
                 </td>
+                <td style="padding:6px; border:1px solid #eee; text-align:left; font-weight:bold; color:${s.runningBalance >= 0 ? '#15803d' : '#b91c1c'};">
+                  ${Number(s.runningBalance).toLocaleString('en-US')} ج.م
+                </td>
+                <td style="padding:6px; border:1px solid #eee; font-size:10px; color:#555;">${notes[s.id?.toString()] || ''}</td>
               </tr>
             `).join('')}
           </tbody>
+          <tfoot>
+            <tr style="background:#f5f0ef; font-weight:bold; border-top:2px solid #7c0a12;">
+              <td colspan="6" style="padding:6px; border:1px solid #ddd; text-align:right;">الإجمالي (${statementsWithBalance.length} حركة)</td>
+              <td style="padding:6px; border:1px solid #ddd; text-align:left; font-size:10px;">
+                داخل: +${EGP(totals.totalIn)}<br/>خارج: -${EGP(totals.totalOut)}
+              </td>
+              <td style="padding:6px; border:1px solid #ddd; text-align:left; color:${totals.net >= 0 ? '#15803d' : '#b91c1c'};">صافي: ${EGP(totals.net)}</td>
+              <td style="padding:6px; border:1px solid #ddd;"></td>
+            </tr>
+          </tfoot>
         </table>
 
         <div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px; display:flex; justify-content:space-between; font-size:12px; font-weight:bold;">
-          <span>إجمالي الحركات في الكشف: ${data.statements.length} حركة</span>
-          <span>إجمالي المبالغ: ${EGP(data.statements.reduce((sum, s) => sum + s.amount, 0))}</span>
+          <span>إجمالي الحركات في الكشف: ${statementsWithBalance.length} حركة</span>
+          <span>صافي الحركة: ${EGP(totals.net)}</span>
         </div>
         <div style="margin-top:30px; text-align:center; font-size:10px; color:#aaa;">
           تم استخراج هذا الكشف آلياً بواسطة نظام ModaPella للمحاسبة
@@ -549,115 +652,292 @@ export default function AdminAccountStatement() {
 
       {/* Statements Table */}
       <div className="overflow-hidden rounded-[2rem] border border-burgundy/10 bg-white shadow-sm">
-        <div className="p-4 border-b border-burgundy/10 flex items-center justify-between">
-          <h3 className="font-bold text-sm text-burgundy">
-            سجل المعاملات والحركات ({data.statements?.length || 0})
-          </h3>
-          <span className="text-xs text-burgundy/50">مرتب من الأحدث للأقدم</span>
+        {/* Table Header with Type Filter */}
+        <div className="p-4 border-b border-burgundy/10 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-sm text-burgundy">
+              سجل المعاملات والحركات
+            </h3>
+            <span className="text-xs bg-burgundy/10 text-burgundy font-bold px-2 py-0.5 rounded-full">
+              {filteredStatements.length} حركة
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {uniqueTypes.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Icon name="filter" className="w-3.5 h-3.5 text-burgundy/50" />
+                <select
+                  value={typeFilter}
+                  onChange={e => { setTypeFilter(e.target.value); setCurrentPage(1); }}
+                  className="rounded-xl border border-burgundy/20 bg-[#fcf9f8] px-2.5 py-1 text-xs font-bold text-burgundy outline-none focus:border-burgundy"
+                >
+                  <option value="">كل الأنواع</option>
+                  {uniqueTypes.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <span className="text-xs text-burgundy/50">مرتب من الأحدث للأقدم</span>
+          </div>
         </div>
 
         {loading ? (
           <div className="flex h-48 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
           </div>
-        ) : !data.statements || data.statements.length === 0 ? (
+        ) : !statementsWithBalance || statementsWithBalance.length === 0 ? (
           <div className="py-16 text-center text-burgundy/40 space-y-2">
             <Icon name="statement" className="w-12 h-12 mx-auto text-burgundy/30 mb-2" />
             <p className="text-sm font-bold">لا توجد حركات مسجلة مطابقة للبحث أو الفترة المختارة</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
-              <thead className="bg-burgundy/5 text-burgundy font-bold text-[11px] border-b border-burgundy/10">
-                <tr>
-                  <th className="py-3 px-4">التاريخ والوقت</th>
-                  <th className="py-3 px-4">القسم</th>
-                  <th className="py-3 px-4">نوع الحركة</th>
-                  <th className="py-3 px-4">البيان والتفاصيل</th>
-                  <th className="py-3 px-4">الجهة / الطرف</th>
-                  <th className="py-3 px-4">وسيلة الدفع / القناة</th>
-                  <th className="py-3 px-4 text-left">المبلغ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-burgundy/5">
-                {data.statements.map(s => {
-                  const isOut = s.flow === 'OUT' || s.flow === 'DEBT_DECREASE';
-                  const isSupplierPurchase = s.type === 'مشتريات بضاعة';
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs">
+                <thead className="bg-burgundy/5 text-burgundy font-bold text-[11px] border-b border-burgundy/10">
+                  <tr>
+                    <th className="py-3 px-4">التاريخ والوقت</th>
+                    <th className="py-3 px-4">القسم</th>
+                    <th className="py-3 px-4">نوع الحركة</th>
+                    <th className="py-3 px-4">البيان والتفاصيل</th>
+                    <th className="py-3 px-4">الجهة / الطرف</th>
+                    <th className="py-3 px-4">وسيلة الدفع</th>
+                    <th className="py-3 px-4 text-left">المبلغ</th>
+                    <th className="py-3 px-4 text-left">الرصيد التراكمي</th>
+                    <th className="py-3 px-4 text-center">ملاحظة</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-burgundy/5">
+                  {pagedStatements.map(s => {
+                    const isOut = s.flow === 'OUT' || s.flow === 'DEBT_INCREASE';
+                    const isBalanceNeg = s.runningBalance < 0;
+                    const rowId = s.id?.toString();
+                    const hasNote = notes[rowId] && notes[rowId].trim();
+                    const isEditing = editingNote === rowId;
 
-                  return (
-                    <tr key={s.id} className="hover:bg-burgundy/[0.02] transition">
-                      {/* Date & Time */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-bold block text-burgundy">{DATE(s.date)}</span>
-                        <span className="text-[10px] text-burgundy/50">{TIME(s.date)}</span>
-                      </td>
+                    return (
+                      <tr key={rowId} className="hover:bg-burgundy/[0.02] transition group/row">
+                        {/* Date & Time */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="font-bold block text-burgundy">{DATE(s.date)}</span>
+                          <span className="text-[10px] text-burgundy/50">{TIME(s.date)}</span>
+                        </td>
 
-                      {/* Section */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-semibold text-burgundy/70 bg-burgundy/5 px-2 py-0.5 rounded-lg text-[10px]">
-                          {s.section}
-                        </span>
-                      </td>
-
-                      {/* Type Badge */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className={`font-bold px-2.5 py-1 rounded-xl text-[10px] ${
-                          s.typeColor === 'emerald'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : s.typeColor === 'rose'
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                            : s.typeColor === 'amber'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-blue-50 text-blue-700 border border-blue-200'
-                        }`}>
-                          {s.type}
-                        </span>
-                      </td>
-
-                      {/* Description & Reference */}
-                      <td className="py-3 px-4 max-w-xs">
-                        <p className="font-semibold text-burgundy">{s.description}</p>
-                        {s.reference && (
-                          <span className="text-[10px] text-burgundy/40 font-mono">مرجع: {s.reference}</span>
-                        )}
-                        {s.itemsCount > 0 && (
-                          <span className="text-[10px] text-amber-800 block">
-                            ({s.itemsCount} صنف بضاعة)
+                        {/* Section */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="font-semibold text-burgundy/70 bg-burgundy/5 px-2 py-0.5 rounded-lg text-[10px]">
+                            {s.section}
                           </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* Party */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-bold text-burgundy block">{s.partyName || '—'}</span>
-                        {s.partyPhone && (
-                          <span className="text-[10px] text-burgundy/40 block font-mono">{s.partyPhone}</span>
-                        )}
-                      </td>
+                        {/* Type Badge */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className={`font-bold px-2.5 py-1 rounded-xl text-[10px] ${
+                            s.typeColor === 'emerald'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : s.typeColor === 'rose'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : s.typeColor === 'amber'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : s.typeColor === 'purple'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}>
+                            {s.type}
+                          </span>
+                        </td>
 
-                      {/* Payment Method */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="text-[11px] text-burgundy/80 font-medium">{s.paymentMethod || '—'}</span>
-                      </td>
+                        {/* Description & Reference */}
+                        <td className="py-3 px-4 max-w-xs">
+                          <p className="font-semibold text-burgundy">{s.description}</p>
+                          {s.reference && (
+                            <span className="text-[10px] text-burgundy/40 font-mono">مرجع: {s.reference}</span>
+                          )}
+                          {s.itemsCount > 0 && (
+                            <span className="text-[10px] text-amber-800 block">({s.itemsCount} صنف بضاعة)</span>
+                          )}
+                        </td>
 
-                      {/* Amount */}
-                      <td className="py-3 px-4 text-left whitespace-nowrap">
-                        <span className={`text-sm font-black ${
-                          isOut
-                            ? 'text-rose-600'
-                            : isSupplierPurchase
-                            ? 'text-amber-700'
-                            : 'text-emerald-700'
-                        }`}>
-                          {isOut ? '-' : '+'} {EGP(s.amount)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {/* Party */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="font-bold text-burgundy block">{s.partyName || '—'}</span>
+                          {s.partyPhone && (
+                            <span className="text-[10px] text-burgundy/40 block font-mono">{s.partyPhone}</span>
+                          )}
+                        </td>
+
+                        {/* Payment Method */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="text-[11px] text-burgundy/80 font-medium">{s.paymentMethod || '—'}</span>
+                        </td>
+
+                        {/* Amount */}
+                        <td className="py-3 px-4 text-left whitespace-nowrap">
+                          <span className={`text-sm font-black ${isOut ? 'text-rose-600' : 'text-emerald-700'}`}>
+                            {isOut ? '-' : '+'} {EGP(s.amount)}
+                          </span>
+                        </td>
+
+                        {/* Running Balance */}
+                        <td className="py-3 px-4 text-left whitespace-nowrap">
+                          <span className={`text-xs font-bold tabular-nums font-mono ${
+                            isBalanceNeg ? 'text-rose-600' : 'text-emerald-700'
+                          }`}>
+                            {EGP(s.runningBalance)}
+                          </span>
+                        </td>
+
+                        {/* Inline Note */}
+                        <td className="py-3 px-4 min-w-[140px]">
+                          {isEditing ? (
+                            <div className="flex flex-col gap-1">
+                              <textarea
+                                ref={noteInputRef}
+                                value={noteInput}
+                                onChange={e => setNoteInput(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveNote(rowId); }
+                                  if (e.key === 'Escape') cancelNote();
+                                }}
+                                rows={2}
+                                placeholder="اكتب ملاحظة..."
+                                className="w-full rounded-lg border border-burgundy/30 bg-white px-2 py-1 text-[11px] text-burgundy outline-none focus:border-burgundy resize-none"
+                              />
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => saveNote(rowId)}
+                                  disabled={savingNote}
+                                  className="flex-1 text-[10px] font-bold bg-burgundy text-white rounded-lg py-0.5 hover:bg-burgundy/90 transition"
+                                >
+                                  {savingNote ? '...' : 'حفظ'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelNote}
+                                  className="flex-1 text-[10px] font-bold bg-gray-100 text-gray-600 rounded-lg py-0.5 hover:bg-gray-200 transition"
+                                >
+                                  إلغاء
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => startEditNote(rowId)}
+                              className="flex items-start gap-1 cursor-pointer group/note"
+                              title="اضغط لإضافة أو تعديل ملاحظة"
+                            >
+                              {hasNote ? (
+                                <p className="text-[11px] text-burgundy/70 leading-snug flex-1 line-clamp-2 group-hover/note:text-burgundy transition">
+                                  {notes[rowId]}
+                                </p>
+                              ) : (
+                                <span className="text-[10px] text-burgundy/25 group-hover/note:text-burgundy/50 transition italic">
+                                  + ملاحظة
+                                </span>
+                              )}
+                              <Icon name="edit" className="w-3 h-3 text-burgundy/20 group-hover/note:text-burgundy/50 transition shrink-0 mt-0.5" />
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+
+                {/* Summary Footer Row */}
+                <tfoot>
+                  <tr className="bg-burgundy/5 border-t-2 border-burgundy/20">
+                    <td colSpan={6} className="py-3 px-4 text-xs font-black text-burgundy text-left">
+                      الإجمالي ({filteredStatements.length} حركة)
+                    </td>
+                    <td className="py-3 px-4 text-left whitespace-nowrap">
+                      <div className="space-y-0.5">
+                        <div className="text-[10px] text-emerald-700 font-bold">داخل: +{EGP(totals.totalIn)}</div>
+                        <div className="text-[10px] text-rose-600 font-bold">خارج: -{EGP(totals.totalOut)}</div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-left whitespace-nowrap">
+                      <span className={`text-sm font-black tabular-nums font-mono ${
+                        totals.net >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                      }`}>
+                        {EGP(totals.net)}
+                      </span>
+                      <div className="text-[10px] text-burgundy/50 font-medium">صافي الحركة</div>
+                    </td>
+                    <td className="py-3 px-4" />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-burgundy/10 px-5 py-3 bg-gray-50/50">
+                <span className="text-xs text-burgundy/60 font-medium">
+                  الصفحة {currentPage} من {totalPages} ({filteredStatements.length} حركة إجمالاً)
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="px-2 py-1 text-xs font-bold text-burgundy border border-burgundy/20 rounded-lg hover:bg-burgundy/5 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-2 py-1 text-xs font-bold text-burgundy border border-burgundy/20 rounded-lg hover:bg-burgundy/5 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                  </button>
+
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let page;
+                    if (totalPages <= 5) page = i + 1;
+                    else if (currentPage <= 3) page = i + 1;
+                    else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
+                    else page = currentPage - 2 + i;
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${
+                          page === currentPage
+                            ? 'bg-burgundy text-white shadow-sm'
+                            : 'text-burgundy border border-burgundy/20 hover:bg-burgundy/5'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-2 py-1 text-xs font-bold text-burgundy border border-burgundy/20 rounded-lg hover:bg-burgundy/5 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <Icon name="chevronLeft" className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="px-2 py-1 text-xs font-bold text-burgundy border border-burgundy/20 rounded-lg hover:bg-burgundy/5 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

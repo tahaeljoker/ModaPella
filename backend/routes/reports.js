@@ -12,6 +12,7 @@ const {
   generateAndSaveReport,
   ARABIC_MONTHS
 } = require('../services/monthlyReportService');
+const StatementNote = require('../models/StatementNote');
 
 const router = express.Router();
 
@@ -538,6 +539,36 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
   } catch (error) {
     console.error('Statements error:', error);
     res.status(500).json({ message: 'Unable to fetch statements', error: error.message });
+  }
+});
+
+// GET /api/reports/statement-notes?ids=id1,id2,id3 — Fetch notes for a set of transaction IDs
+router.get('/statement-notes', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const ids = (req.query.ids || '').split(',').map(id => id.trim()).filter(Boolean);
+    if (!ids.length) return res.json({});
+    const found = await StatementNote.find({ transactionId: { $in: ids } }).lean();
+    const result = {};
+    found.forEach(n => { result[n.transactionId] = n.note; });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch notes', error: error.message });
+  }
+});
+
+// POST /api/reports/statement-notes — Create or update a note for a transaction
+router.post('/statement-notes', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id, note } = req.body;
+    if (!id) return res.status(400).json({ message: 'id is required' });
+    await StatementNote.findOneAndUpdate(
+      { transactionId: id },
+      { note: note || '', updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to save note', error: error.message });
   }
 });
 
