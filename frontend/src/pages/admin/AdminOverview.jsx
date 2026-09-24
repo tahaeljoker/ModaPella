@@ -355,34 +355,28 @@ function AdminOverview() {
           value={formatSensitive('totalRefunds', EGP(overview?.totalRefunds ?? 0))}
           icon={<Icon name="returns" className="w-6 h-6 text-rose-600" />}
           color="bg-rose-50/70 border-rose-200/80 text-rose-900"
-          sub={
-            <div className="space-y-1">
-              <div>كاش: {EGP(overview?.refundsCash || 0)} | إنستاباي: {EGP(overview?.refundsInstapay || 0)}</div>
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-100/90 text-rose-800 text-[11px] font-semibold border border-rose-200/80 mt-0.5">
-                <span>الشهور السابقة: {EGP(overview?.previousRefundsAmount || 0)}</span>
-                <span className="opacity-60">·</span>
-                <span>{overview?.previousRefundsCount || 0} مرتجع</span>
-              </div>
-            </div>
-          }
+          sub={`الشهور السابقة: ${EGP(overview?.previousRefundsAmount || 0)} (${overview?.previousRefundsCount || 0} مرتجع)`}
           onClick={() => toggleCardReveal('totalRefunds')}
           popover={
             <InfoPopover
-              title="إجمالي المرتجعات وتفاصيل الشهور"
-              formula="مرتجعات هذا الشهر (كاش + إنستاباي) + مرتجعات الشهور السابقة"
+              title="تفاصيل وتوزيع المرتجعات"
+              formula="مرتجعات الشهر الجاري (كاش + إنستاباي) | مرتجعات الشهور السابقة"
               rows={[
-                { label: 'مرتجعات نقدية (خرجت من الدرج هذا الشهر)', value: EGP(overview?.refundsCash || 0) },
-                { label: 'مرتجعات إلكترونية (إنستاباي هذا الشهر)', value: EGP(overview?.refundsInstapay || 0) },
+                { label: 'مرتجعات نقدية من الدرج (هذا الشهر)', value: EGP(overview?.refundsCash || 0) },
+                { label: 'مرتجعات إلكترونية إنستاباي (هذا الشهر)', value: EGP(overview?.refundsInstapay || 0) },
                 { separator: true },
                 { label: '= إجمالي مرتجعات هذا الشهر', value: EGP(overview?.totalRefunds || 0), highlight: true },
                 { separator: true },
-                { label: 'مرتجعات الشهور السابقة (المستردة سابقاً)', value: `${EGP(overview?.previousRefundsAmount || 0)} (${overview?.previousRefundsCount || 0} مرتجع)` },
+                { label: 'مرتجعات الشهور السابقة', value: EGP(overview?.previousRefundsAmount || 0) },
+                { label: 'عدد مرتجعات الشهور السابقة', value: `${overview?.previousRefundsCount || 0} مرتجع` },
                 { separator: true },
-                { label: 'الأثر على مبيعات هذا الشهر', value: `خصم مرتجعات فواتير هذا الشهر (-${EGP(overview?.orderReturnsTotal || overview?.totalRefunds || 0)})` },
-                { label: 'أثر فواتير الشهور السابقة', value: 'تُخصم من شهر فاتورتها الأصلية لحماية أرباح الشهر الجاري من التسليب' },
-                { label: 'أثر حركة الخزنة والسيولة', value: 'يخرج الكاش من حركة اليوم/الشهر الذي تم فيه الصرف الفعلي' }
+                { label: '= إجمالي كل المرتجعات التراكمية', value: EGP((overview?.totalRefunds || 0) + (overview?.previousRefundsAmount || 0)), highlight: true },
+                { separator: true },
+                { label: 'الأثر على مبيعات وأرباح هذا الشهر', value: `خصم مرتجعات فواتير هذا الشهر (-${EGP(overview?.orderReturnsTotal || overview?.totalRefunds || 0)})` },
+                { label: 'أثر فواتير الشهور السابقة', value: 'تُخصم من شهر فاتورتها الأصلي لحماية أرباح الشهر الجاري من التسليب' },
+                { label: 'حركة الخزنة والسيولة', value: 'يخرج الكاش من حركة اليوم/الشهر الذي تم فيه الصرف الفعلي' }
               ]}
-              note="تم تطبيق مبدأ مطابقة الفترات: الفواتير المرتجعة من شهور سابقة يُخصم إيرادها وربحها من شهرها الأصلي بينما تخرج السيولة من تاريخ استردادها، مما يمنع تسليب أرباح الشهر الجاري."
+              note="مبدأ مطابقة الفترات: تفاصيل الكاش والإنستاباي مفصلة هنا بالكامل، والمرتجعات السابقة مفصولة لتظل لوحة التحكم منظمة ودقيقة 100%."
             />
           }
         />
