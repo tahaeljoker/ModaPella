@@ -253,53 +253,75 @@ async function calculateMonthlyData(year, month) {
     amount
   }));
 
-  const totalRefunds = Math.round(refundsCash + refundsInstapay);
+  const totalRefundTxs = Math.round(refundsCash + refundsInstapay);
 
-  // Check for cross-period returns: refund transactions in this month whose original order was outside this month
-  let crossPeriodCostRecovered = 0;
-  const currentOrderIds = new Set(orders.map(o => o._id.toString()));
-  const crossPeriodRefundTxs = transactions.filter(t => {
-    const cat = (t.category || '').toLowerCase();
-    const isRet = cat === 'refund' || cat.includes('مرتجع');
-    return isRet && t.referenceId && !currentOrderIds.has(t.referenceId.toString());
+  // Compute returns specifically tied to this month's billed orders
+  let orderReturnsTotal = 0;
+  orders.forEach(o => {
+    if (o.isManualDebt) return;
+    if (o.returnedAmount && o.returnedAmount > 0) {
+      orderReturnsTotal += o.returnedAmount;
+    } else if (o.status === 'Returned') {
+      orderReturnsTotal += (o.totalAmount || 0);
+    } else if (Array.isArray(o.items)) {
+      const retSum = o.items.reduce((s, it) => s + (it.price || 0) * (it.returnedQuantity || 0), 0);
+      if (retSum > 0) orderReturnsTotal += Math.min(o.totalAmount || 0, retSum);
+    }
   });
+  orderReturnsTotal = Math.round(orderReturnsTotal);
 
-  if (crossPeriodRefundTxs.length > 0) {
-    const crossOrderIds = crossPeriodRefundTxs.map(t => t.referenceId);
-    const crossOrders = await Order.find({ _id: { $in: crossOrderIds } });
-    const crossOrderMap = {};
-    crossOrders.forEach(co => { crossOrderMap[co._id.toString()] = co; });
+  // Total refunds belonging to this month: max of cash refunded and order returns
+  const totalRefunds = Math.max(totalRefundTxs, orderReturnsTotal);
 
-    crossPeriodRefundTxs.forEach(t => {
-      const co = crossOrderMap[t.referenceId.toString()];
-      if (co && co.items) {
-        const orderOriginalTotal = (co.totalAmount || 0) + (co.discount || 0);
-        const totalOrderCost = co.items.reduce((sum, item) => sum + (item.costPrice || 0) * (item.quantity || 1), 0);
-        if (orderOriginalTotal > 0 && totalOrderCost > 0) {
-          const proportion = Math.min(1, t.amount / orderOriginalTotal);
-          crossPeriodCostRecovered += Math.round(totalOrderCost * proportion);
-        }
-      }
-    });
-  }
+  // Net Sales = Gross Billed Sales - Returns belonging to this month's invoices
+  // This guarantees that an old invoice returned today will NOT wipe out or negative-flip this month's sales/profit!
+  totalSales = Math.max(0, Math.round(grossBilledSales - orderReturnsTotal));
 
-  // Net Sales = Gross Billed Sales - Total Refunds
-  totalSales = Math.max(0, Math.round(grossBilledSales - totalRefunds));
-
-  // Net Cash Revenue
+  // Net Cash Revenue: cash outflows happen on the date cash physically leaves
   const cashRevenue = salesCashCollected + debtPaymentsCash + depositsCash - refundsCash;
   const instapayRevenue = salesInstapayCollected + debtPaymentsInstapay + depositsInstapay - refundsInstapay;
 
-  // Gross profit = Net Sales - COGS + Cost recovered from cross-period returns
-  // This ensures a return from a previous period only reduces profit by its PROFIT MARGIN,
-  // not by the entire selling price!
-  const grossProfit = Math.round(totalSales - totalCogs + crossPeriodCostRecovered);
+  // Gross profit = Net Sales - COGS (COGS already only accounts for net items sold)
+  const grossProfit = Math.round(totalSales - totalCogs);
 
   // Net Operating Profit = Gross Profit - Operating Expenses (Airtight mathematical identity)
   const netProfit = Math.round(grossProfit - operatingExpenses);
 
   // Net Cash Flow = Inflows - Outflows from store safe (supplier payments only if paid from store safe)
   const netCashFlow = Math.round((cashRevenue + instapayRevenue) - (operatingExpenses + supplierPaidFromSafe + personalWithdrawals));
+
+  // Query all refunds from previous months (prior to startDate)
+  const allPastRefundTxs = await Transaction.find({
+    type: 'OUT',
+    createdAt: { $lt: startDate },
+    $or: [
+      { category: { $in: ['Refund', 'مرتجع'] } },
+      { description: { $regex: 'مرتجع', $options: 'i' } }
+    ]
+  });
+
+  let previousRefundsAmount = Math.round(allPastRefundTxs.reduce((sum, t) => sum + (t.amount || 0), 0));
+  let previousRefundsCount = allPastRefundTxs.length;
+
+  const pastReturnedOrders = await Order.find({
+    createdAt: { $lt: startDate },
+    $or: [
+      { status: 'Returned' },
+      { returnedAmount: { $gt: 0 } },
+      { 'items.returnedQuantity': { $gt: 0 } }
+    ]
+  });
+  const pastTxOrderIds = new Set(allPastRefundTxs.map(t => t.referenceId?.toString()).filter(Boolean));
+  pastReturnedOrders.forEach(o => {
+    if (!pastTxOrderIds.has(o._id.toString())) {
+      const amt = o.returnedAmount || (o.status === 'Returned' ? o.totalAmount : 0);
+      if (amt > 0) {
+        previousRefundsAmount += amt;
+        previousRefundsCount += 1;
+      }
+    }
+  });
+  previousRefundsAmount = Math.round(previousRefundsAmount);
 
   // Daily Breakdown
   const dailyData = [];
@@ -514,6 +536,9 @@ async function calculateMonthlyData(year, month) {
     refundsTotal: Math.round((refundsCash + refundsInstapay) * 100) / 100,
     refundsCount: refundsList.length,
     refundsList,
+    orderReturnsTotal,
+    previousRefundsAmount,
+    previousRefundsCount,
     salesCashCollected,
     salesInstapayCollected,
     salesDebtRemaining,
@@ -522,8 +547,8 @@ async function calculateMonthlyData(year, month) {
     personalWithdrawalsList,
     supplierPaymentsList,
     explanations: {
-      totalSales: `إجمالي المبيعات الصافية = مجموع الفواتير المكتملة (${orders.length} فاتورة بقيمة ${grossBilledSales.toLocaleString()} ج.م) مخصوماً منها إجمالي المرتجعات المستردة (${totalRefunds.toLocaleString()} ج.م) = ${totalSales.toLocaleString()} ج.م. المبيعات الإجمالية قبل الخصم كانت ${(grossBilledSales + totalDiscounts).toLocaleString()} ج.م. منها كاش محصل صافي (${Math.max(0, salesCashCollected - refundsCash).toLocaleString()} ج.م) وإنستاباي صافي (${Math.max(0, salesInstapayCollected - refundsInstapay).toLocaleString()} ج.م)${salesDebtRemaining > 0 ? ` ومتبقي آجل طرف العملاء (${salesDebtRemaining.toLocaleString()} ج.م)` : ''}.`,
-      refunds: `إجمالي المرتجعات المستردة = ${totalRefunds.toLocaleString()} ج.م (عدد ${refundsList.length} حركة مرتجع) منها كاش من الدرج (${refundsCash.toLocaleString()} ج.م) وإنستاباي إلكتروني (${refundsInstapay.toLocaleString()} ج.م). تم خصمها بالكامل وتلقائياً من إجمالي المبيعات ومن مجمل وصافي الأرباح.`,
+      totalSales: `إجمالي المبيعات الصافية = مجموع الفواتير المكتملة (${orders.length} فاتورة بقيمة ${grossBilledSales.toLocaleString()} ج.م) مخصوماً منها مرتجعات فواتير هذا الشهر (${orderReturnsTotal.toLocaleString()} ج.م) = ${totalSales.toLocaleString()} ج.م. المبيعات الإجمالية قبل الخصم كانت ${(grossBilledSales + totalDiscounts).toLocaleString()} ج.م. منها كاش محصل صافي (${Math.max(0, salesCashCollected - refundsCash).toLocaleString()} ج.م) وإنستاباي صافي (${Math.max(0, salesInstapayCollected - refundsInstapay).toLocaleString()} ج.م)${salesDebtRemaining > 0 ? ` ومتبقي آجل طرف العملاء (${salesDebtRemaining.toLocaleString()} ج.م)` : ''}.`,
+      refunds: `إجمالي المرتجعات لهذا الشهر = ${totalRefunds.toLocaleString()} ج.م (كاش: ${refundsCash.toLocaleString()} ج.م | إنستاباي: ${refundsInstapay.toLocaleString()} ج.م). مرتجعات الشهور السابقة: ${previousRefundsAmount.toLocaleString()} ج.م (عدد ${previousRefundsCount} مرتجع). تم ربط خصم إيراد وربح كل مرتجع بشهر فاتورته الأصلية مع تسجيل خروج الكاش في تاريخ استرداده لضمان عدم تسليب أرباح الشهر الجاري.`,
       totalDiscounts: `إجمالي الخصومات الممنوحة = مجموع التخفيضات التي تم تنزيلها للعملاء في الفواتير بقيمة ${totalDiscounts.toLocaleString()} ج.م. (خصم مباشر تم تنزيله من المبيعات قبل الوصول لصافي الربح).`,
       cogs: `تكلفة البضاعة المباعة (COGS) = مجموع تكلفة شراء الأجناس المباعة بأسعار الجملة/الشراء (إجمالي ${totalCogs.toLocaleString()} ج.م).`,
       grossProfit: `مجمل الربح التجاري = صافي المبيعات بعد المرتجع (${totalSales.toLocaleString()} ج.م) - تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م (ربح تجارة البضاعة).`,
@@ -544,7 +569,9 @@ async function calculateMonthlyData(year, month) {
     totalSales,
     grossProfit,
     cogs: totalCogs,
-    crossPeriodCostRecovered,
+    orderReturnsTotal,
+    previousRefundsAmount,
+    previousRefundsCount,
     netProfit,
     totalExpenses,
     operatingExpenses,

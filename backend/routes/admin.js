@@ -72,7 +72,16 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         products: products.length,
         totalStock,
         totalValue,
+        grossSales: monthlyData.grossSales,
         totalSales: monthlyData.totalSales,
+        totalRefunds: monthlyData.totalRefunds ?? 0,
+        refundsCash: monthlyData.refundsCash ?? 0,
+        refundsInstapay: monthlyData.refundsInstapay ?? 0,
+        refundsCount: monthlyData.refundsCount ?? 0,
+        previousRefundsAmount: monthlyData.previousRefundsAmount ?? 0,
+        previousRefundsCount: monthlyData.previousRefundsCount ?? 0,
+        orderReturnsTotal: monthlyData.orderReturnsTotal ?? 0,
+        refundsList: monthlyData.auditDetails?.refundsList || [],
         grossProfit: monthlyData.grossProfit,
         cogs: monthlyData.cogs,
         netProfit: monthlyData.netProfit,
@@ -292,40 +301,65 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     refundsCash = Math.round(refundsCash);
     refundsInstapay = Math.round(refundsInstapay);
 
-    // Net Sales = Gross Billed Sales - Total Refunds
-    const totalSales = Math.max(0, Math.round(grossBilledSales - totalRefunds));
+    // Compute returns specifically tied to this period's billed orders
+    let orderReturnsTotal = 0;
+    periodOrders.forEach(o => {
+      if (o.isManualDebt) return;
+      if (o.returnedAmount && o.returnedAmount > 0) {
+        orderReturnsTotal += o.returnedAmount;
+      } else if (o.status === 'Returned') {
+        orderReturnsTotal += (o.totalAmount || 0);
+      } else if (Array.isArray(o.items)) {
+        const retSum = o.items.reduce((s, it) => s + (it.price || 0) * (it.returnedQuantity || 0), 0);
+        if (retSum > 0) orderReturnsTotal += Math.min(o.totalAmount || 0, retSum);
+      }
+    });
+    orderReturnsTotal = Math.round(orderReturnsTotal);
 
-    // Net collections by channel after refunds
-    const salesCashCollected = Math.max(0, Math.round(grossCashCollected - refundsCash));
-    const salesInstapayCollected = Math.max(0, Math.round(grossInstapayCollected - refundsInstapay));
-    const salesDebtRemaining = Math.round(periodOrders.reduce((sum, o) => sum + (o.isDebt ? (o.debtAmount || 0) : 0), 0));
+    // Total refunds: max of cash/instapay transactions and order returns in this period
+    totalRefunds = Math.max(totalRefunds, orderReturnsTotal);
 
-    // Check for cross-period returns: refund transactions in this period whose original order was outside this period
-    let crossPeriodCostRecovered = 0;
-    const currentOrderIds = new Set(periodOrders.map(o => o._id.toString()));
-    const crossPeriodRefundTxs = refundsList.filter(r => r.referenceId && !currentOrderIds.has(r.referenceId.toString()));
-    if (crossPeriodRefundTxs.length > 0) {
-      const crossOrderIds = crossPeriodRefundTxs.map(r => r.referenceId);
-      const crossOrders = await Order.find({ _id: { $in: crossOrderIds } });
-      const crossOrderMap = {};
-      crossOrders.forEach(co => { crossOrderMap[co._id.toString()] = co; });
+    // Net Sales = Gross Billed Sales - Returns belonging to this period's invoices
+    const totalSales = Math.max(0, Math.round(grossBilledSales - orderReturnsTotal));
 
-      crossPeriodRefundTxs.forEach(r => {
-        const co = crossOrderMap[r.referenceId.toString()];
-        if (co && co.items) {
-          const orderOriginalTotal = (co.totalAmount || 0) + (co.discount || 0);
-          const totalOrderCost = co.items.reduce((sum, item) => sum + (item.costPrice || 0) * (item.quantity || 1), 0);
-          if (orderOriginalTotal > 0 && totalOrderCost > 0) {
-            const proportion = Math.min(1, r.amount / orderOriginalTotal);
-            crossPeriodCostRecovered += Math.round(totalOrderCost * proportion);
+    // Gross profit = Net Sales - COGS
+    const grossProfit = Math.round(totalSales - cogs);
+
+    // Query past refunds before startDate
+    let previousRefundsAmount = 0;
+    let previousRefundsCount = 0;
+    if (period !== 'all') {
+      const pastRefundTxs = await Transaction.find({
+        type: 'OUT',
+        createdAt: { $lt: startDate },
+        $or: [
+          { category: { $in: ['Refund', 'مرتجع'] } },
+          { description: { $regex: 'مرتجع', $options: 'i' } }
+        ]
+      });
+      previousRefundsAmount = Math.round(pastRefundTxs.reduce((sum, t) => sum + (t.amount || 0), 0));
+      previousRefundsCount = pastRefundTxs.length;
+
+      const pastReturnedOrders = await Order.find({
+        createdAt: { $lt: startDate },
+        $or: [
+          { status: 'Returned' },
+          { returnedAmount: { $gt: 0 } },
+          { 'items.returnedQuantity': { $gt: 0 } }
+        ]
+      });
+      const pastTxOrderIds = new Set(pastRefundTxs.map(t => t.referenceId?.toString()).filter(Boolean));
+      pastReturnedOrders.forEach(o => {
+        if (!pastTxOrderIds.has(o._id.toString())) {
+          const amt = o.returnedAmount || (o.status === 'Returned' ? o.totalAmount : 0);
+          if (amt > 0) {
+            previousRefundsAmount += amt;
+            previousRefundsCount += 1;
           }
         }
       });
+      previousRefundsAmount = Math.round(previousRefundsAmount);
     }
-
-    // Gross profit = Net Sales - COGS + Cost recovered from cross-period returns
-    // Ensures a return from a past period only reduces profit by its PROFIT MARGIN
-    const grossProfit = Math.round(totalSales - cogs + crossPeriodCostRecovered);
     operatingExpenses = Math.round(operatingExpenses);
     supplierPurchases = Math.round(supplierPurchases);
     supplierCashPaid = Math.round(supplierCashPaid);
@@ -416,12 +450,15 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       totalRefunds,
       refundsCash,
       refundsInstapay,
+      refundsCount: refundsList.length,
+      previousRefundsAmount,
+      previousRefundsCount,
+      orderReturnsTotal,
       refundsList,
       grossCashCollected,
       grossInstapayCollected,
       grossProfit,
       cogs,
-      crossPeriodCostRecovered,
       netProfit,
       operatingExpenses,
       supplierPurchases,

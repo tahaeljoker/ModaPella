@@ -18,22 +18,22 @@ const ACT_CONFIG = {
 };
 
 function StatCard({ label, value, sub, color = 'bg-white', icon, onClick, popover }) {
- return (
- <div
- onClick={onClick}
- className={`rounded-[1.75rem] border border-burgundy/10 ${color} p-6 shadow-sm transition-all duration-300 ${
- onClick ? 'cursor-pointer hover:shadow-md hover:border-burgundy/20' : ''
- }`}
- >
- {icon && <div className="mb-3 text-2xl">{icon}</div>}
- <p className="text-sm font-medium text-burgundy/60">{label}</p>
- <p className="mt-2 text-3xl font-bold text-burgundy flex items-center gap-1">
- {value}
- {popover && <span onClick={e => e.stopPropagation()}>{popover}</span>}
- </p>
- {sub && <p className="mt-1 text-xs text-burgundy/50">{sub}</p>}
- </div>
- );
+  return (
+    <div
+      onClick={onClick}
+      className={`rounded-[1.75rem] border border-burgundy/10 ${color} p-6 shadow-sm transition-all duration-300 ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-burgundy/20' : ''
+      }`}
+    >
+      {icon && <div className="mb-3 text-2xl">{icon}</div>}
+      <p className="text-sm font-medium text-burgundy/60">{label}</p>
+      <div className="mt-2 text-3xl font-bold text-burgundy flex items-center gap-1">
+        {value}
+        {popover && <span onClick={e => e.stopPropagation()}>{popover}</span>}
+      </div>
+      {sub && <div className="mt-1 text-xs text-burgundy/60 leading-relaxed">{sub}</div>}
+    </div>
+  );
 }
 
 // ─── Pure SVG Bar Chart ───────────────────────────────────────────────────────
@@ -355,23 +355,34 @@ function AdminOverview() {
           value={formatSensitive('totalRefunds', EGP(overview?.totalRefunds ?? 0))}
           icon={<Icon name="returns" className="w-6 h-6 text-rose-600" />}
           color="bg-rose-50/70 border-rose-200/80 text-rose-900"
-          sub={`كاش: ${EGP(overview?.refundsCash || 0)} | إنستاباي: ${EGP(overview?.refundsInstapay || 0)}`}
+          sub={
+            <div className="space-y-1">
+              <div>كاش: {EGP(overview?.refundsCash || 0)} | إنستاباي: {EGP(overview?.refundsInstapay || 0)}</div>
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-100/90 text-rose-800 text-[11px] font-semibold border border-rose-200/80 mt-0.5">
+                <span>الشهور السابقة: {EGP(overview?.previousRefundsAmount || 0)}</span>
+                <span className="opacity-60">·</span>
+                <span>{overview?.previousRefundsCount || 0} مرتجع</span>
+              </div>
+            </div>
+          }
           onClick={() => toggleCardReveal('totalRefunds')}
           popover={
             <InfoPopover
-              title="إجمالي المرتجعات المستردة"
-              formula="مرتجعات كاش (من الدرج) + مرتجعات إنستاباي (إلكترونية)"
+              title="إجمالي المرتجعات وتفاصيل الشهور"
+              formula="مرتجعات هذا الشهر (كاش + إنستاباي) + مرتجعات الشهور السابقة"
               rows={[
-                { label: 'مرتجعات نقدية (خرجت من الدرج كاش)', value: EGP(overview?.refundsCash || 0) },
-                { label: 'مرتجعات إلكترونية (إنستاباي)', value: EGP(overview?.refundsInstapay || 0) },
+                { label: 'مرتجعات نقدية (خرجت من الدرج هذا الشهر)', value: EGP(overview?.refundsCash || 0) },
+                { label: 'مرتجعات إلكترونية (إنستاباي هذا الشهر)', value: EGP(overview?.refundsInstapay || 0) },
                 { separator: true },
-                { label: '= إجمالي قيمة المرتجعات المستردة', value: EGP(overview?.totalRefunds || 0), highlight: true },
+                { label: '= إجمالي مرتجعات هذا الشهر', value: EGP(overview?.totalRefunds || 0), highlight: true },
                 { separator: true },
-                { label: 'الأثر على المبيعات', value: `تم خصمها بالكامل (-${EGP(overview?.totalRefunds || 0)}) من إجمالي المبيعات` },
-                { label: 'الأثر على الأرباح', value: 'تم خصمها بالكامل من مجمل وصافي ربح النشاط' },
-                { label: 'أثر المخزون', value: 'عادت كافة القطع للمخزن وزاد الرصيد المتاح للبيع تلقائياً' }
+                { label: 'مرتجعات الشهور السابقة (المستردة سابقاً)', value: `${EGP(overview?.previousRefundsAmount || 0)} (${overview?.previousRefundsCount || 0} مرتجع)` },
+                { separator: true },
+                { label: 'الأثر على مبيعات هذا الشهر', value: `خصم مرتجعات فواتير هذا الشهر (-${EGP(overview?.orderReturnsTotal || overview?.totalRefunds || 0)})` },
+                { label: 'أثر فواتير الشهور السابقة', value: 'تُخصم من شهر فاتورتها الأصلية لحماية أرباح الشهر الجاري من التسليب' },
+                { label: 'أثر حركة الخزنة والسيولة', value: 'يخرج الكاش من حركة اليوم/الشهر الذي تم فيه الصرف الفعلي' }
               ]}
-              note="المرتجعات تُطرح فوراً وتلقائياً من إجمالي المبيعات والأرباح ورصيد الدرج/إنستاباي لضمان دقة الحسابات 100%."
+              note="تم تطبيق مبدأ مطابقة الفترات: الفواتير المرتجعة من شهور سابقة يُخصم إيرادها وربحها من شهرها الأصلي بينما تخرج السيولة من تاريخ استردادها، مما يمنع تسليب أرباح الشهر الجاري."
             />
           }
         />
