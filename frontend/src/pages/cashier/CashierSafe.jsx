@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import { exportToCSV } from '../../services/export';
+import { Icon } from '../../components/Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -126,6 +127,7 @@ function CashierSafe() {
           <tr><td colspan="2" style="padding-top:8px;font-weight:bold;background:#f7f0ec">حركة الدرج النقدي (الكاش)</td></tr>
           <tr><td>رصيد الافتتاح</td><td style="text-align:left">${Number(openingBal).toLocaleString('en-US')} ج.م</td></tr>
           <tr><td>(+) كاش المبيعات</td><td style="text-align:left;color:#15803d">+ ${Number(cashSales).toLocaleString('en-US')} ج.م</td></tr>
+          <tr><td>(-) مرتجعات مستردة (اليوم)</td><td style="text-align:left;color:#dc2626;font-weight:bold">- ${Number(data.todaySummary?.refunds || data.summary?.refunds || 0).toLocaleString('en-US')} ج.م</td></tr>
           <tr><td>(-) مصاريف تشغيلية</td><td style="text-align:left;color:#dc2626">- ${Number(expenses).toLocaleString('en-US')} ج.م</td></tr>
           ${personalWithdrawals > 0 ? `<tr><td>(-) مسحوبات شخصية / جمعية</td><td style="text-align:left;color:#9333ea;font-weight:bold">- ${Number(personalWithdrawals).toLocaleString('en-US')} ج.م</td></tr>` : ''}
           ${supplierPayments > 0 ? `<tr><td>(-) مدفوع لموردين كاش</td><td style="text-align:left;color:#d97706">- ${Number(supplierPayments).toLocaleString('en-US')} ج.م</td></tr>` : ''}
@@ -217,7 +219,7 @@ function CashierSafe() {
  </div>
  </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (كاش)</p>
             <p className="mt-2 text-xl font-bold text-emerald-700">{EGP(data.todaySummary.cashSales)}</p>
@@ -225,6 +227,14 @@ function CashierSafe() {
           <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold text-burgundy/60">مبيعات اليوم (إلكتروني)</p>
             <p className="mt-2 text-xl font-bold text-blue-700">{EGP(data.todaySummary.instapaySales)}</p>
+          </div>
+          <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50/60 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-rose-900/70">مرتجعات اليوم</p>
+              <Icon name="returns" className="w-4 h-4 text-rose-500" />
+            </div>
+            <p className="mt-2 text-xl font-bold text-rose-700">{EGP(data.todaySummary?.refunds || data.summary?.refunds || 0)}</p>
+            <p className="text-[10px] text-rose-800/60 mt-1">كاش: {EGP(data.todaySummary?.refundsCash || 0)} | إنستاباي: {EGP(data.todaySummary?.refundsInstapay || 0)}</p>
           </div>
           <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold text-burgundy/60">مصروفات التشغيل اليوم</p>

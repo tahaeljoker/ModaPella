@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { Icon } from '../../components/Icon';
 import { exportToCSV } from '../../services/export';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -142,6 +143,7 @@ function AdminSafe() {
             <tr><td style="padding:4px 0;">الكاشير / المسؤول:</td><td style="text-align:left; font-weight:bold;">${shiftData?.user?.name || 'الإدارة'}</td></tr>
             <tr style="border-top:1px solid #eee;"><td style="padding:4px 0;">رصيد البداية (العهدة):</td><td style="text-align:left; font-weight:bold;">${EGP(openingBal)}</td></tr>
             <tr><td style="padding:4px 0;">مبيعات نقدية (كاش):</td><td style="text-align:left; font-weight:bold; color:green;">+ ${EGP(cashSales)}</td></tr>
+            <tr><td style="padding:4px 0;">مرتجعات مستردة (اليوم):</td><td style="text-align:left; font-weight:bold; color:#b91c1c;">- ${EGP(data.todaySummary?.refunds || data.summary?.refunds || 0)}</td></tr>
             <tr><td style="padding:4px 0;">مبيعات إلكترونية (إنستاباي):</td><td style="text-align:left; font-weight:bold;">${EGP(instapaySales)}</td></tr>
             <tr><td style="padding:4px 0;">مصروفات تشغيل الخزنة:</td><td style="text-align:left; font-weight:bold; color:red;">- ${EGP(expenses)}</td></tr>
             <tr><td style="padding:4px 0;">مدفوعات الموردين من الدرج:</td><td style="text-align:left; font-weight:bold; color:red;">- ${EGP(supplierPayments)}</td></tr>
@@ -230,13 +232,13 @@ function AdminSafe() {
             className="border border-burgundy/20 bg-white hover:bg-burgundy/5 text-burgundy font-bold text-xs p-2 rounded-xl transition shadow-sm"
             title="تحديث البيانات"
           >
-            🔄
+            <Icon name="refresh" className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* Primary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {/* Cash Drawer */}
         <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-4 rounded-2xl shadow-md space-y-1">
           <p className="text-[11px] font-bold opacity-80">نقدية الدرج الحالية</p>
@@ -272,6 +274,16 @@ function AdminSafe() {
           <p className="text-[10px] text-amber-900/40">خرجت من نقدية المحل</p>
         </div>
 
+                {/* Returns / Refunds */}
+        <div className="bg-rose-50 border border-rose-200/80 text-rose-900 p-4 rounded-2xl shadow-sm space-y-1">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-rose-800">مرتجعات اليوم</p>
+            <Icon name="returns" className="w-4 h-4 text-rose-500" />
+          </div>
+          <p className="text-xl font-black text-rose-700">{EGP(data.todaySummary?.refunds ?? data.summary?.refunds ?? 0)}</p>
+          <p className="text-[10px] text-rose-800/70">كاش: {EGP(data.todaySummary?.refundsCash || 0)} | إنستاباي: {EGP(data.todaySummary?.refundsInstapay || 0)}</p>
+        </div>
+
         {/* Debt Collections */}
         <div className="bg-white border border-burgundy/10 p-4 rounded-2xl shadow-sm space-y-1">
           <p className="text-[11px] font-bold text-emerald-900/70">تحصيلات ديون</p>
@@ -288,7 +300,7 @@ function AdminSafe() {
           onClick={() => { setForm({ amount: '', category: 'ضيافة', description: '' }); setModalType('EXPENSE'); }}
           className="bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
         >
-          <span>💸</span>
+          <Icon name="expenses" className="w-4 h-4" />
           <span>صرف مصروف</span>
         </button>
 
@@ -297,7 +309,7 @@ function AdminSafe() {
           onClick={() => { setForm({ amount: '', category: 'Deposit', description: '' }); setModalType('DEPOSIT'); }}
           className="bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
         >
-          <span>📥</span>
+          <Icon name="cash" className="w-4 h-4" />
           <span>إيداع نقدية بالدرج</span>
         </button>
 
@@ -306,7 +318,7 @@ function AdminSafe() {
           onClick={() => { setForm({ amount: '', category: 'Safe Transfer', description: '' }); setModalType('TRANSFER'); }}
           className="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
         >
-          <span>🔄</span>
+          <Icon name="refresh" className="w-4 h-4" />
           <span>تحويل للخزينة الرئيسية</span>
         </button>
       </div>
@@ -332,7 +344,7 @@ function AdminSafe() {
           onClick={() => { setActiveTab('audit'); if (!auditData) loadSmartAudit(); }}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 ${activeTab === 'audit' ? 'bg-burgundy text-white shadow-sm' : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/5'}`}
         >
-          <span>🔍</span>
+          <Icon name="search" className="w-4 h-4" />
           <span>التدقيق المحاسبي الذكي</span>
         </button>
       </div>
@@ -488,7 +500,7 @@ function AdminSafe() {
             <div className="py-12 text-center text-burgundy/40 text-sm">جاري تدقيق حركات الخزنة...</div>
           ) : !auditData || auditData.warnings?.length === 0 ? (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-8 rounded-2xl text-center">
-              <span className="text-4xl block mb-2">✅</span>
+              <Icon name="check" className="w-12 h-12 text-emerald-600 mx-auto mb-2" />
               <p className="font-bold text-sm">الخزنة مطابقة محاسبياً 100%!</p>
               <p className="text-xs text-emerald-700/80 mt-1">لم يتم العثور على أي مصروفات مصنفة بشكل خاطئ أو تؤثر سلباً على أرباح المحل.</p>
             </div>
@@ -540,14 +552,14 @@ function AdminSafe() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setModalType(null)}>
           <div className="w-full max-w-md rounded-[2rem] bg-[#F7F0EC] p-7 shadow-2xl text-burgundy" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-3 border-b border-burgundy/10">
-              <h3 className="text-lg font-bold">
-                {modalType === 'EXPENSE' && '💸 صرف مصروف من الدرج'}
-                {modalType === 'DEPOSIT' && '📥 إيداع نقدية في الدرج'}
-                {modalType === 'TRANSFER' && '🔄 تحويل نقدية للخزينة الرئيسية'}
-                {modalType === 'OPEN' && '🔓 فتح وردية جديدة'}
-                {modalType === 'CLOSE' && '🔒 تقفيل الوردية الحالية'}
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                {modalType === 'EXPENSE' && <><Icon name="expenses" className="w-5 h-5 text-rose-600" /><span>صرف مصروف من الدرج</span></>}
+                {modalType === 'DEPOSIT' && <><Icon name="cash" className="w-5 h-5 text-emerald-600" /><span>إيداع نقدية في الدرج</span></>}
+                {modalType === 'TRANSFER' && <><Icon name="refresh" className="w-5 h-5 text-blue-600" /><span>تحويل نقدية للخزينة الرئيسية</span></>}
+                {modalType === 'OPEN' && <><Icon name="unlock" className="w-5 h-5 text-emerald-600" /><span>فتح وردية جديدة</span></>}
+                {modalType === 'CLOSE' && <><Icon name="lock" className="w-5 h-5 text-rose-600" /><span>تقفيل الوردية الحالية</span></>}
               </h3>
-              <button onClick={() => setModalType(null)} className="text-burgundy/40 hover:text-burgundy font-bold text-sm">✕</button>
+              <button onClick={() => setModalType(null)} className="text-burgundy/40 hover:text-burgundy font-bold text-sm"><Icon name="close" className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleTransactionSubmit} className="mt-4 space-y-4">

@@ -4,40 +4,42 @@ import api from '../../services/api';
 import { Icon } from '../../components/Icon';
 
 const sections = [
- {
- title: 'الرئيسية والتحليلات',
- items: [
- { to: '/admin', label: 'لوحة التحكم', icon: 'dashboard', end: true },
- { to: '/admin/safe', label: 'الخزنة والدرج', icon: 'safe' },
- { to: '/admin/reports', label: 'التقارير الشهرية والأرشيف', icon: 'reports' },
- { to: '/admin/activities', label: 'سجل حركات النظام', icon: 'activities' },
- ]
- },
- {
- title: 'إدارة المبيعات',
- items: [
- { to: '/admin/orders', label: 'الطلبات والفواتير', icon: 'orders' },
- { to: '/admin/debts', label: 'ديون العملاء', icon: 'debts' },
- { to: '/admin/employees', label: 'الموظفون والعمولات', icon: 'employee' },
- { to: '/admin/customers', label: 'العملاء والولاء', icon: 'customers' },
- ]
- },
- {
- title: 'المخزون والمشتريات',
- items: [
- { to: '/admin/products', label: 'المنتجات والمخزن', icon: 'products' },
- { to: '/admin/inventory-count', label: 'جرد المخزون', icon: 'inventory' },
- { to: '/admin/suppliers', label: 'حسابات الموردين', icon: 'suppliers' },
- { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: 'barcodes' },
- ]
- },
- {
- title: 'النظام والموقع',
- items: [
- { to: '/admin/site', label: 'إعدادات الموقع', icon: 'site' },
- { to: '/admin/users', label: 'مستخدمو النظام', icon: 'users' },
- ]
- }
+  {
+    title: 'الرئيسية والمبيعات',
+    items: [
+      { to: '/admin', label: 'لوحة التحكم', icon: 'dashboard', end: true },
+      { to: '/admin/orders', label: 'الطلبات وفواتير البيع', icon: 'orders' },
+      { to: '/admin/customers', label: 'العملاء وبرامج الولاء', icon: 'customers' },
+      { to: '/cashier', label: 'شاشة الكاشير السريعة', icon: 'cart' },
+    ]
+  },
+  {
+    title: 'المالية والحسابات',
+    items: [
+      { to: '/admin/statements', label: 'كشف حساب شامل', icon: 'statement' },
+      { to: '/admin/safe', label: 'الخزنة وحركة الدرج', icon: 'safe' },
+      { to: '/admin/debts', label: 'ديون ومستحقات العملاء', icon: 'debts' },
+      { to: '/admin/suppliers', label: 'حسابات ومشتريات الموردين', icon: 'suppliers' },
+    ]
+  },
+  {
+    title: 'المخزون والمنتجات',
+    items: [
+      { to: '/admin/products', label: 'المنتجات والمخزن', icon: 'products' },
+      { to: '/admin/inventory-count', label: 'جرد ومطابقة المخزون', icon: 'inventory' },
+      { to: '/admin/barcodes', label: 'طباعة ملصقات الباركود', icon: 'barcodes' },
+    ]
+  },
+  {
+    title: 'التقارير والإدارة',
+    items: [
+      { to: '/admin/reports', label: 'التقارير الشهرية والأرشيف', icon: 'reports' },
+      { to: '/admin/employees', label: 'الموظفون والعمولات', icon: 'employee' },
+      { to: '/admin/activities', label: 'سجل حركات النظام', icon: 'activities' },
+      { to: '/admin/site', label: 'إعدادات الموقع', icon: 'site' },
+      { to: '/admin/users', label: 'مستخدمو النظام والصلاحيات', icon: 'users' },
+    ]
+  }
 ];
 
 function AdminLayout({ children }) {

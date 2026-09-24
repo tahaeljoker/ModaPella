@@ -142,7 +142,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
     const totalValue = Math.round(products.reduce((sum, item) => sum + item.stock * item.price, 0));
-    const totalSales = Math.round(periodOrders.reduce((sum, order) => sum + (order.isManualDebt ? 0 : order.totalAmount), 0));
+    const grossBilledSales = Math.round(periodOrders.reduce((sum, order) => sum + (order.isManualDebt ? 0 : order.totalAmount), 0));
     const lowStock = products.filter((item) => item.stock <= 5);
 
     const isInternalMovement = (t) => {
@@ -198,9 +198,13 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     let supplierPurchases = 0;
     let supplierCashPaid = 0;
     let personalWithdrawals = 0;
+    let refundsCash = 0;
+    let refundsInstapay = 0;
+    let totalRefunds = 0;
     const expenseMap = {};
     const operatingExpensesList = [];
     const personalWithdrawalsList = [];
+    const refundsList = [];
 
     outTransactions.forEach(t => {
       if (isPersonalTx(t)) {
@@ -212,7 +216,22 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
           description: t.description || 'مسحوبات شخصية / جمعية',
           date: t.createdAt
         });
-      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t) && !isRefundTx(t)) {
+      } else if (isRefundTx(t)) {
+        totalRefunds += t.amount;
+        if (t.paymentMethod === 'Cash') {
+          refundsCash += t.amount;
+        } else {
+          refundsInstapay += t.amount;
+        }
+        refundsList.push({
+          id: t._id,
+          category: t.category || 'Refund',
+          amount: t.amount,
+          paymentMethod: t.paymentMethod || 'Cash',
+          description: t.description || 'مرتجع عميل',
+          date: t.createdAt
+        });
+      } else if (t.type === 'OUT' && !isSupplierTx(t) && !isInternalMovement(t)) {
         const cat = t.category || 'أخرى';
         expenseMap[cat] = (expenseMap[cat] || 0) + t.amount;
         operatingExpenses += t.amount;
@@ -246,17 +265,17 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     });
 
     let cogs = 0;
-    let salesCashCollected = 0;
-    let salesInstapayCollected = 0;
+    let grossCashCollected = 0;
+    let grossInstapayCollected = 0;
 
     periodOrders.forEach(order => {
       if (order.isManualDebt) return;
 
       const paidAmount = order.isDebt ? (order.amountPaid || 0) : order.totalAmount;
       if (order.paymentMethod === 'Cash') {
-        salesCashCollected += paidAmount;
+        grossCashCollected += paidAmount;
       } else {
-        salesInstapayCollected += paidAmount;
+        grossInstapayCollected += paidAmount;
       }
 
       const orderCost = order.items.reduce((s, item) => {
@@ -268,8 +287,16 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     });
 
     cogs = Math.round(cogs);
-    salesCashCollected = Math.round(salesCashCollected);
-    salesInstapayCollected = Math.round(salesInstapayCollected);
+    totalRefunds = Math.round(totalRefunds);
+    refundsCash = Math.round(refundsCash);
+    refundsInstapay = Math.round(refundsInstapay);
+
+    // Net Sales = Gross Billed Sales - Total Refunds
+    const totalSales = Math.max(0, Math.round(grossBilledSales - totalRefunds));
+
+    // Net collections by channel after refunds
+    const salesCashCollected = Math.max(0, Math.round(grossCashCollected - refundsCash));
+    const salesInstapayCollected = Math.max(0, Math.round(grossInstapayCollected - refundsInstapay));
     const salesDebtRemaining = Math.round(periodOrders.reduce((sum, o) => sum + (o.isDebt ? (o.debtAmount || 0) : 0), 0));
 
     // Gross profit = Net Sales - COGS (Airtight mathematical identity)
@@ -359,7 +386,14 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       products: products.length,
       totalStock,
       totalValue,
+      grossSales: grossBilledSales,
       totalSales,
+      totalRefunds,
+      refundsCash,
+      refundsInstapay,
+      refundsList,
+      grossCashCollected,
+      grossInstapayCollected,
       grossProfit,
       cogs,
       netProfit,

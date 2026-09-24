@@ -74,10 +74,10 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
  {/* Type selector */}
  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
  {[
- { id: 'purchase', label: '🛒 مشتريات آجل', hint: 'يزيد الدين', cls: 'border-red-400 bg-red-50', textCls: 'text-red-500' },
- { id: 'payment', label: '💵 سداد دفعة', hint: 'يقلل الدين', cls: 'border-emerald-400 bg-emerald-50', textCls: 'text-emerald-600' },
- { id: 'cash_purchase', label: '⚡ شراء نقدي', hint: 'كاش فوري', cls: 'border-blue-400 bg-blue-50', textCls: 'text-blue-600' },
- { id: 'return', label: '🔄 مرتجع بضاعة', hint: 'يقلل الدين/تالف', cls: 'border-amber-400 bg-amber-50', textCls: 'text-amber-600' }
+ { id: 'purchase', label: 'مشتريات آجل', hint: 'يزيد الدين', cls: 'border-red-400 bg-red-50', textCls: 'text-red-500' },
+ { id: 'payment', label: 'سداد دفعة', hint: 'يقلل الدين', cls: 'border-emerald-400 bg-emerald-50', textCls: 'text-emerald-600' },
+ { id: 'cash_purchase', label: 'شراء نقدي', hint: 'كاش فوري', cls: 'border-blue-400 bg-blue-50', textCls: 'text-blue-600' },
+ { id: 'return', label: 'مرتجع بضاعة', hint: 'يقلل الدين/تالف', cls: 'border-amber-400 bg-amber-50', textCls: 'text-amber-600' }
  ].map(t => (
  <button key={t.id} type="button" onClick={() => setForm(p => ({ ...p, type: t.id }))}
  className={`rounded-2xl border-2 p-2 text-right transition ${form.type === t.id ? t.cls : 'border-burgundy/15 bg-white hover:border-burgundy/30'}`}>
@@ -255,7 +255,7 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
             <h3 className="text-lg font-bold">مرتجع بضاعة إلى المورد</h3>
             <p className="text-xs text-amber-100">{supplierName || 'حساب المورد'}</p>
           </div>
-          <button onClick={onClose} className="rounded-full bg-white/20 hover:bg-white/30 p-2 text-white transition text-xs">✕</button>
+          <button onClick={onClose} className="rounded-full bg-white/20 hover:bg-white/30 p-2 text-white transition text-xs">×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
@@ -389,7 +389,7 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
                     <th className="p-2.5 text-center">الكمية</th>
                     <th className="p-2.5 text-center">سعر القطعة</th>
                     <th className="p-2.5 text-center">الإجمالي</th>
-                    <th className="p-2.5 text-center w-8">✕</th>
+                    <th className="p-2.5 text-center w-8">×</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-burgundy/5">
@@ -403,7 +403,7 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
                       <td className="p-2.5 text-center">{it.unitPrice.toLocaleString('en-US')} ج.م</td>
                       <td className="p-2.5 text-center font-bold text-amber-800">{(it.quantity * it.unitPrice).toLocaleString('en-US')} ج.م</td>
                       <td className="p-2.5 text-center">
-                        <button type="button" onClick={() => handleRemoveItem(it.id)} className="text-red-500 hover:text-red-700">✕</button>
+                        <button type="button" onClick={() => handleRemoveItem(it.id)} className="text-red-500 hover:text-red-700">×</button>
                       </td>
                     </tr>
                   ))}

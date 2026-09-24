@@ -223,7 +223,7 @@ function AdminDebts() {
               }}
               className="text-[10px] bg-white border border-burgundy/15 group-hover:border-amber-400 group-hover:bg-amber-100 text-burgundy px-2 py-0.5 rounded-lg font-bold transition shadow-xs whitespace-nowrap"
             >
-              تفاصيل الفاتورة 🔍
+              تفاصيل الفاتورة
             </button>
           </div>
         </div>
@@ -376,7 +376,7 @@ function AdminDebts() {
      }}
      className="text-[10px] bg-white border border-burgundy/15 group-hover:border-amber-400 group-hover:bg-amber-100 text-burgundy px-2 py-0.5 rounded-lg font-bold transition shadow-xs whitespace-nowrap"
    >
-     تفاصيل الفاتورة 🔍
+     تفاصيل الفاتورة
    </button>
  </div>
  </div>
@@ -497,7 +497,7 @@ function AdminDebts() {
                 onClick={() => setSelectedOrderDetails(null)}
                 className="text-white/60 hover:text-white text-lg font-bold transition p-1"
               >
-                ✕
+                ×
               </button>
             </div>
 
@@ -637,7 +637,7 @@ function AdminDebts() {
                   }}
                   className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-700 py-2.5 text-xs font-bold text-white transition shadow-sm"
                 >
-                  سداد هذا الدين 💰
+                  سداد هذا الدين
                 </button>
               </div>
             </div>

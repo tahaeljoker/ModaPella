@@ -127,15 +127,12 @@ async function calculateMonthlyData(year, month) {
     totalCogs += orderCost;
   });
 
-  totalSales = Math.round(totalSales);
+  const grossBilledSales = Math.round(totalSales);
   totalDiscounts = Math.round(totalDiscounts);
   totalCogs = Math.round(totalCogs);
   salesCashCollected = Math.round(salesCashCollected);
   salesInstapayCollected = Math.round(salesInstapayCollected);
   const salesDebtRemaining = Math.round(orders.reduce((sum, o) => sum + (o.isDebt ? (o.debtAmount || 0) : 0), 0));
-
-  // Gross profit = Net Sales - COGS (Direct mathematical identity)
-  const grossProfit = Math.round(totalSales - totalCogs);
 
   // Process Safe Transactions
   let debtPaymentsCash = 0;
@@ -256,9 +253,16 @@ async function calculateMonthlyData(year, month) {
     amount
   }));
 
+  const totalRefunds = Math.round(refundsCash + refundsInstapay);
+  // Net Sales = Gross Billed Sales - Total Refunds
+  const totalSales = Math.max(0, Math.round(grossBilledSales - totalRefunds));
+
   // Net Cash Revenue
   const cashRevenue = salesCashCollected + debtPaymentsCash + depositsCash - refundsCash;
   const instapayRevenue = salesInstapayCollected + debtPaymentsInstapay + depositsInstapay - refundsInstapay;
+
+  // Gross profit = Net Sales - COGS (Airtight mathematical identity)
+  const grossProfit = Math.round(totalSales - totalCogs);
 
   // Net Operating Profit = Gross Profit - Operating Expenses (Airtight mathematical identity)
   const netProfit = Math.round(grossProfit - operatingExpenses);
@@ -487,10 +491,11 @@ async function calculateMonthlyData(year, month) {
     personalWithdrawalsList,
     supplierPaymentsList,
     explanations: {
-      totalSales: `إجمالي المبيعات الصافية = مجموع الفواتير المكتملة بعد الخصم المباشر (عدد ${orders.length} فاتورة بقيمة إجمالية ${totalSales.toLocaleString()} ج.م). المبيعات الإجمالية قبل الخصم كانت ${(totalSales + totalDiscounts).toLocaleString()} ج.م. منها كاش محصل (${salesCashCollected.toLocaleString()} ج.م) وإنستاباي (${salesInstapayCollected.toLocaleString()} ج.م)${salesDebtRemaining > 0 ? ` ومتبقي آجل طرف العملاء (${salesDebtRemaining.toLocaleString()} ج.م)` : ''}.`,
+      totalSales: `إجمالي المبيعات الصافية = مجموع الفواتير المكتملة (${orders.length} فاتورة بقيمة ${grossBilledSales.toLocaleString()} ج.م) مخصوماً منها إجمالي المرتجعات المستردة (${totalRefunds.toLocaleString()} ج.م) = ${totalSales.toLocaleString()} ج.م. المبيعات الإجمالية قبل الخصم كانت ${(grossBilledSales + totalDiscounts).toLocaleString()} ج.م. منها كاش محصل صافي (${Math.max(0, salesCashCollected - refundsCash).toLocaleString()} ج.م) وإنستاباي صافي (${Math.max(0, salesInstapayCollected - refundsInstapay).toLocaleString()} ج.م)${salesDebtRemaining > 0 ? ` ومتبقي آجل طرف العملاء (${salesDebtRemaining.toLocaleString()} ج.م)` : ''}.`,
+      refunds: `إجمالي المرتجعات المستردة = ${totalRefunds.toLocaleString()} ج.م (عدد ${refundsList.length} حركة مرتجع) منها كاش من الدرج (${refundsCash.toLocaleString()} ج.م) وإنستاباي إلكتروني (${refundsInstapay.toLocaleString()} ج.م). تم خصمها بالكامل وتلقائياً من إجمالي المبيعات ومن مجمل وصافي الأرباح.`,
       totalDiscounts: `إجمالي الخصومات الممنوحة = مجموع التخفيضات التي تم تنزيلها للعملاء في الفواتير بقيمة ${totalDiscounts.toLocaleString()} ج.م. (خصم مباشر تم تنزيله من المبيعات قبل الوصول لصافي الربح).`,
       cogs: `تكلفة البضاعة المباعة (COGS) = مجموع تكلفة شراء الأجناس المباعة بأسعار الجملة/الشراء (إجمالي ${totalCogs.toLocaleString()} ج.م).`,
-      grossProfit: `مجمل الربح التجاري = صافي المبيعات (${totalSales.toLocaleString()} ج.م) - تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م (ربح تجارة البضاعة).`,
+      grossProfit: `مجمل الربح التجاري = صافي المبيعات بعد المرتجع (${totalSales.toLocaleString()} ج.م) - تكلفة البضاعة (${totalCogs.toLocaleString()} ج.م) = ${grossProfit.toLocaleString()} ج.م (ربح تجارة البضاعة).`,
       operatingExpenses: `مصاريف التشغيل = إجمالي المصاريف الإدارية والعمومية (عدد ${operatingExpensesList.length} حركة بقيمة ${operatingExpenses.toLocaleString()} ج.م) كالإيجار والمرتبات والكهرباء (مستبعد منها الموردين والمسحوبات الشخصية).`,
       supplierPurchases: `مشتريات بضائع الموردين = إجمالي قيمة البضائع الموردة للمحل بقيمة ${supplierPurchases.toLocaleString()} ج.م (أصول بضاعة يتم تحويلها لمخزون وحساب تكلفتها عند البيع في بند COGS).`,
       personalWithdrawals: `المسحوبات الشخصية والجمعية = إجمالي المبالغ المسحوبة للمالك والشركاء والجمعيات بقيمة ${personalWithdrawals.toLocaleString()} ج.م (سُحبت من الخزنة وخفّضت رصيد الكاش، ولكنها مستبعدة من مصاريف التشغيل لحماية أرباح المحل التجارية).`,
@@ -504,6 +509,7 @@ async function calculateMonthlyData(year, month) {
     month: numMonth,
     yearMonth,
     monthName,
+    grossSales: grossBilledSales,
     totalSales,
     grossProfit,
     cogs: totalCogs,
@@ -517,9 +523,12 @@ async function calculateMonthlyData(year, month) {
     netCashFlow,
     totalDiscounts,
     totalOrders: orders.length,
-    salesCashCollected,
-    salesInstapayCollected,
+    salesCashCollected: Math.max(0, salesCashCollected - refundsCash),
+    salesInstapayCollected: Math.max(0, salesInstapayCollected - refundsInstapay),
+    grossCashCollected: salesCashCollected,
+    grossInstapayCollected: salesInstapayCollected,
     salesDebtRemaining,
+    totalRefunds,
     refundsCash,
     refundsInstapay,
     refundsTotal: Math.round((refundsCash + refundsInstapay) * 100) / 100,

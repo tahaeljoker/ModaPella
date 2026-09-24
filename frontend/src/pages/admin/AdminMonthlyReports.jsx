@@ -490,6 +490,7 @@ export default function AdminMonthlyReports() {
  { label: 'عدد الفواتير المكتملة', value: `${report.totalOrders} فاتورة` },
  { label: 'إجمالي الفواتير قبل الخصم', value: EGP((report.totalSales || 0) + (report.totalDiscounts || 0)) },
  { label: 'الخصومات الممنوحة', value: `-${EGP(report.totalDiscounts || 0)}`, negative: true },
+                { label: 'المرتجعات المستردة', value: `-${EGP(report.totalRefunds || report.auditDetails?.refundsTotal || 0)}`, negative: true },
  { separator: true },
  { label: '= إجمالي المبيعات الصافية', value: EGP(report.totalSales), highlight: true },
  { separator: true },

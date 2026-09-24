@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Icon } from './Icon';
 
 /**
  * InfoPopover — يعرض نافذة مركزية وشرحاً تفصيلياً لأي رقم مالي عند الضغط على أيقونة الاستفهام (?)
@@ -58,17 +59,18 @@ export default function InfoPopover({ title, formula, rows = [], note }) {
             <div className="bg-gradient-to-r from-burgundy via-[#8B1A24] to-burgundy px-6 py-5 text-white flex items-start justify-between relative shadow-md">
               <div>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-0.5 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
-                  <span>📊</span> كيف تم حساب هذا الرقم؟
+                  <Icon name="reports" className="w-3.5 h-3.5" />
+                  <span>كيف تم حساب هذا الرقم؟</span>
                 </span>
                 <h3 className="mt-2 text-xl font-extrabold text-white tracking-tight">{title}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-full h-8 w-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer text-sm font-bold"
+                className="rounded-full h-8 w-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
                 aria-label="إغلاق"
               >
-                ✕
+                <Icon name="close" className="w-4 h-4" />
               </button>
             </div>
 
@@ -133,7 +135,7 @@ export default function InfoPopover({ title, formula, rows = [], note }) {
               {note && (
                 <div className="rounded-2xl bg-amber-50/90 border border-amber-200/80 p-4">
                   <div className="flex items-start gap-2 text-amber-900">
-                    <span className="text-base leading-none">💡</span>
+                    <Icon name="lightbulb" className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div className="text-xs leading-relaxed">
                       <span className="font-bold text-amber-950">إيضاح مالي: </span>
                       <span className="text-amber-900/90">{note}</span>

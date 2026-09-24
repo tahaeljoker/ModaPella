@@ -21,11 +21,38 @@ router.get('/today', auth, requireRole(['admin', 'cashier', 'manager']), async (
       createdAt: { $gte: startOfDay, $lte: endOfDay }
     }).sort({ createdAt: -1 });
 
-    const totalRevenue = orders
+    const todayRefundTxs = await Transaction.find({
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      type: 'OUT',
+      category: { $in: ['Refund', 'مرتجع'] }
+    });
+
+    let refundsCash = 0;
+    let refundsInstapay = 0;
+    let totalRefunds = 0;
+    todayRefundTxs.forEach(t => {
+      totalRefunds += t.amount;
+      if (t.paymentMethod === 'Cash') refundsCash += t.amount;
+      else refundsInstapay += t.amount;
+    });
+
+    const grossRevenue = orders
       .filter((o) => o.status === 'Completed')
       .reduce((sum, o) => sum + o.totalAmount, 0);
 
-    res.json({ orders, totalRevenue, count: orders.length });
+    const netRevenue = Math.max(0, Math.round(grossRevenue - totalRefunds));
+
+    res.json({
+      orders,
+      grossRevenue,
+      totalRevenue: netRevenue,
+      netRevenue,
+      totalRefunds,
+      refundsCash,
+      refundsInstapay,
+      refundsCount: todayRefundTxs.length,
+      count: orders.length
+    });
   } catch (error) {
     res.status(500).json({ message: 'Unable to load today\'s sales', error: error.message });
   }
@@ -200,7 +227,13 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         }
       } else if (t.paymentMethod === 'Instapay' || t.paymentMethod === 'Wallet') {
         if (t.type === 'IN') instapayTotal += t.amount;
-        if (t.type === 'OUT') instapayTotal -= t.amount;
+        if (t.type === 'OUT') {
+          instapayTotal -= t.amount;
+          const cat = (t.category || '').toLowerCase();
+          if (cat === 'refund' || cat.includes('مرتجع')) {
+            refundsInstapay += t.amount;
+          }
+        }
       }
     });
 
@@ -220,6 +253,10 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
       }
     });
 
+    const todayRefunds = refundsCash + refundsInstapay;
+    const netCashSales = Math.max(0, cashSalesCollected - refundsCash);
+    const netInstapaySales = Math.max(0, instapaySalesCollected - refundsInstapay);
+    const netTotalSales = Math.max(0, totalBilledSales - todayRefunds);
     const debtSalesRemaining = Math.max(0, totalBilledSales - (cashSalesCollected + instapaySalesCollected));
     const netCashInSafe = cashDrawer;
 
@@ -239,15 +276,23 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         expenses: operatingExpensesCash,
         personalWithdrawals: personalWithdrawalsCash,
         supplierPayments: supplierPaymentsCash,
-        refunds: refundsCash,
+        refunds: todayRefunds,
+        refundsCash,
+        refundsInstapay,
         debtCollections: debtCollectionsCash,
         expectedCash: cashDrawer
       },
       todaySummary: {
-        cashSales: cashSalesCollected,
-        instapaySales: instapaySalesCollected,
+        cashSales: netCashSales,
+        grossCashSales: cashSalesCollected,
+        instapaySales: netInstapaySales,
+        grossInstapaySales: instapaySalesCollected,
         debtSalesRemaining,
-        totalSales: totalBilledSales,
+        totalSales: netTotalSales,
+        grossSales: totalBilledSales,
+        refunds: todayRefunds,
+        refundsCash,
+        refundsInstapay,
         expenses: operatingExpensesCash,
         personalWithdrawals: personalWithdrawalsCash,
         supplierPayments: supplierPaymentsCash,

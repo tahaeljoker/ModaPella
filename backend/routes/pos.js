@@ -188,7 +188,7 @@ router.get('/orders', auth, async (req, res) => {
 
 router.post('/recover', auth, async (req, res) => {
   try {
-    const { orderId, reason, returnItems } = req.body;
+    const { orderId, reason, returnItems, refundPaymentMethod } = req.body;
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (order.recovered) return res.status(400).json({ message: 'Order already recovered' });
@@ -246,8 +246,6 @@ router.post('/recover', auth, async (req, res) => {
       order.recovered = true;
     }
 
-    await order.save();
-
     // Revert inventory stocks
     await Promise.all(itemsToReturn.map(async (item) => {
       const product = await Product.findById(item.product);
@@ -302,15 +300,23 @@ router.post('/recover', auth, async (req, res) => {
       refundAmount = Math.round((effectivePaidForRefund * refundProportion) * 100) / 100;
     }
 
+    order.returnedAmount = Math.round(((order.returnedAmount || 0) + refundAmount) * 100) / 100;
+    await order.save();
+
+    // Determine refund payment method (defaulting to the original order's payment method)
+    const effectivePaymentMethod = refundPaymentMethod || order.paymentMethod || 'Cash';
+    const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+
     // Log the refund transaction
     const transaction = new Transaction({
       amount: refundAmount,
       type: 'OUT',
       category: 'Refund',
-      paymentMethod: order.paymentMethod,
-      description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'}`,
+      paymentMethod: effectivePaymentMethod,
+      description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'} (${effectivePaymentMethod === 'Cash' ? 'كاش' : 'إنستاباي'})`,
       referenceId: order._id,
-      user: req.user.id
+      user: req.user.id,
+      shift: openShift?._id
     });
     await transaction.save();
 

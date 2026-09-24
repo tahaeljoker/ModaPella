@@ -239,6 +239,7 @@ function AdminOverview() {
   const todayOrders = weeklyData[weeklyData.length - 1]?.count || 0;
   const todayInstapay = weeklyData[weeklyData.length - 1]?.instapayRevenue || 0;
   const todayCash = weeklyData[weeklyData.length - 1]?.cashRevenue || 0;
+  const todayRefunds = weeklyData[weeklyData.length - 1]?.refunds || 0;
   const weekTotal = weeklyData.reduce((s, d) => s + d.revenue, 0);
   const weekInstapay = weeklyData.reduce((s, d) => s + (d.instapayRevenue || 0), 0);
 
@@ -315,12 +316,12 @@ function AdminOverview() {
  !showSensitive && !revealedCards['todayRevenue'] ? 'cursor-pointer hover:shadow-xl hover:opacity-95' : ''
  }`}
  >
- <p className="text-xs font-semibold uppercase tracking-widest opacity-70">مبيعات اليوم</p>
+ <p className="text-xs font-semibold uppercase tracking-widest opacity-70">صافي مبيعات اليوم</p>
  <p className="mt-3 text-3xl font-bold">
  {formatSensitive('todayRevenue', EGP(todayRevenue))}
  </p>
  <p className="mt-2 text-sm opacity-70">
-   {todayOrders} طلب اليوم {todayRevenue > 0 ? `(كاش: ${EGP(todayCash)} | إنستاباي: ${EGP(todayInstapay)})` : ''}
+   {todayOrders} طلب اليوم {todayRevenue > 0 ? `(كاش: ${EGP(todayCash)} | إنستاباي: ${EGP(todayInstapay)})` : ''}{todayRefunds > 0 ? ` · مرتجع: -${EGP(todayRefunds)}` : ''}
  </p>
  </div>
         <StatCard
@@ -328,23 +329,49 @@ function AdminOverview() {
           value={formatSensitive('totalSales', EGP(overview?.totalSales ?? 0))}
           icon=""
           color="bg-white"
-          sub={`${overview?.totalOrders || 0} طلب مكتمل (بعد الخصم)`}
+          sub={`تم خصم المرتجعات (-${EGP(overview?.totalRefunds || 0)}) والخصومات`}
           onClick={() => toggleCardReveal('totalSales')}
           popover={
             <InfoPopover
-              title="صافي المبيعات (المستحق)"
-              formula="المبيعات الإجمالية الخصومات الممنوحة"
+              title="صافي المبيعات (المستحق الفعلي)"
+              formula="المبيعات قبل الخصم - الخصومات - المرتجعات"
               rows={[
-                { label: 'إجمالي المبيعات قبل الخصم', value: EGP((overview?.totalSales ?? 0) + (overview?.totalDiscounts ?? 0)) },
+                { label: 'إجمالي المبيعات قبل الخصم والمرتجع', value: EGP((overview?.grossSales ?? ((overview?.totalSales ?? 0) + (overview?.totalRefunds ?? 0))) + (overview?.totalDiscounts ?? 0)) },
                 { label: 'الخصومات الممنوحة ف الفواتير', value: `-${EGP(overview?.totalDiscounts ?? 0)}`, negative: true },
+                { label: 'المرتجعات المستردة للعملاء', value: `-${EGP(overview?.totalRefunds ?? 0)}`, negative: true },
                 { separator: true },
-                { label: '= صافي المبيعات المستحقة', value: EGP(overview?.totalSales ?? 0), highlight: true },
+                { label: '= صافي المبيعات الفعلي المستحق', value: EGP(overview?.totalSales ?? 0), highlight: true },
                 { separator: true },
-                { label: 'المحصل كاش من المبيعات', value: EGP(overview?.salesCashCollected ?? 0) },
-                { label: 'المحصل إلكتروني (إنستاباي)', value: EGP(overview?.salesInstapayCollected ?? 0) },
+                { label: 'صافي المحصل كاش (بعد خصم المرتجع)', value: EGP(overview?.salesCashCollected ?? 0) },
+                { label: 'صافي المحصل إلكتروني (إنستاباي)', value: EGP(overview?.salesInstapayCollected ?? 0) },
                 { label: 'الآجل المتبقي طرف العملاء', value: EGP(overview?.salesDebtRemaining ?? 0) },
               ]}
-              note="صافي المبيعات = مجموع الكاش والإنستاباي والآجل المتبقي بالمليم. لا توجد أي مبالغ مفقودة."
+              note="صافي المبيعات = مجموع الكاش والإنستاباي والآجل المتبقي بالمليم بعد خصم جميع المرتجعات والخصومات."
+            />
+          }
+        />
+        <StatCard
+          label={dateFrom || dateTo ? 'المرتجعات (الفترة)' : period === 'current' ? 'مرتجعات الشهر' : 'إجمالي المرتجعات'}
+          value={formatSensitive('totalRefunds', EGP(overview?.totalRefunds ?? 0))}
+          icon={<Icon name="returns" className="w-6 h-6 text-rose-600" />}
+          color="bg-rose-50/70 border-rose-200/80 text-rose-900"
+          sub={`كاش: ${EGP(overview?.refundsCash || 0)} | إنستاباي: ${EGP(overview?.refundsInstapay || 0)}`}
+          onClick={() => toggleCardReveal('totalRefunds')}
+          popover={
+            <InfoPopover
+              title="إجمالي المرتجعات المستردة"
+              formula="مرتجعات كاش (من الدرج) + مرتجعات إنستاباي (إلكترونية)"
+              rows={[
+                { label: 'مرتجعات نقدية (خرجت من الدرج كاش)', value: EGP(overview?.refundsCash || 0) },
+                { label: 'مرتجعات إلكترونية (إنستاباي)', value: EGP(overview?.refundsInstapay || 0) },
+                { separator: true },
+                { label: '= إجمالي قيمة المرتجعات المستردة', value: EGP(overview?.totalRefunds || 0), highlight: true },
+                { separator: true },
+                { label: 'الأثر على المبيعات', value: `تم خصمها بالكامل (-${EGP(overview?.totalRefunds || 0)}) من إجمالي المبيعات` },
+                { label: 'الأثر على الأرباح', value: 'تم خصمها بالكامل من مجمل وصافي ربح النشاط' },
+                { label: 'أثر المخزون', value: 'عادت كافة القطع للمخزن وزاد الرصيد المتاح للبيع تلقائياً' }
+              ]}
+              note="المرتجعات تُطرح فوراً وتلقائياً من إجمالي المبيعات والأرباح ورصيد الدرج/إنستاباي لضمان دقة الحسابات 100%."
             />
           }
         />

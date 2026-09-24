@@ -2,6 +2,7 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const Transaction = require('../models/Transaction');
 
 const router = express.Router();
 
@@ -47,10 +48,22 @@ router.get('/summary', auth, async (req, res) => {
       if (to)   query.createdAt.$lte = new Date(to   + 'T23:59:59');
     }
     const orders = await Order.find(query);
-    const totalRevenue = orders.filter(o => o.status === 'Completed').reduce((sum, order) => sum + order.totalAmount, 0);
+
+    const refundQuery = { type: 'OUT', category: { $in: ['Refund', 'مرتجع'] } };
+    if (from || to) {
+      refundQuery.createdAt = {};
+      if (from) refundQuery.createdAt.$gte = new Date(from + 'T00:00:00');
+      if (to)   refundQuery.createdAt.$lte = new Date(to   + 'T23:59:59');
+    }
+    const refundTxs = await Transaction.find(refundQuery);
+    const totalRefunds = refundTxs.reduce((sum, t) => sum + t.amount, 0);
+
+    const grossRevenue = orders.filter(o => o.status === 'Completed').reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalRevenue = Math.max(0, Math.round(grossRevenue - totalRefunds));
     const completed = orders.filter((order) => order.status === 'Completed').length;
-    const returned = orders.filter((order) => order.status === 'Returned').length;
-    res.json({ totalRevenue, completed, returned });
+    const returned = orders.filter((order) => order.status === 'Returned' || (order.items && order.items.some(i => (i.returnedQuantity || 0) > 0))).length;
+
+    res.json({ totalRevenue, grossRevenue, totalRefunds, completed, returned });
   } catch (error) {
     res.status(500).json({ message: 'Unable to fetch order summary', error: error.message });
   }
@@ -78,6 +91,12 @@ router.get('/weekly', auth, async (req, res) => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const limitDays = Math.min(diffDays, 31); // Cap at 31 days to prevent performance issues
 
+    const allRefundTxs = await Transaction.find({
+      createdAt: { $gte: startDate, $lte: endDate },
+      type: 'OUT',
+      category: { $in: ['Refund', 'مرتجع'] }
+    });
+
     const days = [];
     for (let i = limitDays - 1; i >= 0; i--) {
       const d = new Date(endDate);
@@ -87,18 +106,37 @@ router.get('/weekly', auth, async (req, res) => {
       end.setHours(23, 59, 59, 999);
 
       const orders = await Order.find({ createdAt: { $gte: d, $lte: end }, status: 'Completed' });
-      const revenue = orders.reduce((s, o) => s + o.totalAmount, 0);
-      const cashRevenue = orders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
-      const instapayRevenue = orders.filter(o => o.paymentMethod === 'Instapay' || o.paymentMethod === 'Wallet').reduce((s, o) => s + o.totalAmount, 0);
-      
-      const profit = orders.reduce((sum, order) => {
-        const orderCost = order.items.reduce((cSum, item) => cSum + (item.costPrice || 0) * item.quantity, 0);
+      const rawRevenue = orders.reduce((s, o) => s + o.totalAmount, 0);
+      const rawCash = orders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
+      const rawInstapay = orders.filter(o => o.paymentMethod === 'Instapay' || o.paymentMethod === 'Wallet').reduce((s, o) => s + o.totalAmount, 0);
+
+      const dayRefunds = allRefundTxs.filter(t => {
+        const time = new Date(t.createdAt).getTime();
+        return time >= d.getTime() && time <= end.getTime();
+      });
+      const dayRefundCash = dayRefunds.filter(t => t.paymentMethod === 'Cash').reduce((s, t) => s + t.amount, 0);
+      const dayRefundInstapay = dayRefunds.filter(t => t.paymentMethod !== 'Cash').reduce((s, t) => s + t.amount, 0);
+      const totalDayRefund = dayRefundCash + dayRefundInstapay;
+
+      const revenue = Math.max(0, Math.round(rawRevenue - totalDayRefund));
+      const cashRevenue = Math.max(0, Math.round(rawCash - dayRefundCash));
+      const instapayRevenue = Math.max(0, Math.round(rawInstapay - dayRefundInstapay));
+
+      const profit = Math.round(orders.reduce((sum, order) => {
+        const orderCost = order.items.reduce((cSum, item) => {
+          const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+          return cSum + (item.costPrice || 0) * netQty;
+        }, 0);
         return sum + (order.totalAmount - orderCost);
-      }, 0);
+      }, 0) - totalDayRefund);
 
       days.push({
         date: d.toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'short', month: 'numeric', day: 'numeric' }),
         revenue,
+        grossRevenue: rawRevenue,
+        refunds: totalDayRefund,
+        refundsCash: dayRefundCash,
+        refundsInstapay: dayRefundInstapay,
         cashRevenue,
         instapayRevenue,
         profit,

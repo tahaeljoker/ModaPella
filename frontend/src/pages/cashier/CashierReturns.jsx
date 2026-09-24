@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { isDiscountActive } from '../../utils/discount';
+import { Icon } from '../../components/Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const SHORT_ID = (id) => id?.slice(-6).toUpperCase() || '------';
 
 function CashierReturns() {
  const [mode, setMode] = useState('return'); // 'return' | 'exchange'
+  const [refundMethod, setRefundMethod] = useState('Cash');
  const [orderId, setOrderId] = useState('');
  const [order, setOrder] = useState(null);
  const [reason, setReason] = useState('');
@@ -55,6 +57,7 @@ function CashierReturns() {
     try {
       const res = await api.get(`/cashier/orders/${encodeURIComponent(query)}`);
       setOrder(res.data);
+      setRefundMethod(res.data.paymentMethod === 'Instapay' ? 'Instapay' : 'Cash');
       
       const initial = {};
       res.data.items?.forEach(item => {
@@ -80,7 +83,7 @@ function CashierReturns() {
 
  setProcessing(true);
  try {
- await api.post('/pos/recover', { orderId: order._id, reason, returnItems: itemsToReturn });
+ await api.post('/pos/recover', { orderId: order._id, reason, returnItems: itemsToReturn, refundPaymentMethod: refundMethod });
  showToast('تم استرداد القطع وإعادة المخزون بنجاح ');
  setOrder(null);
  setOrderId('');
@@ -444,14 +447,14 @@ function CashierReturns() {
  {mode === 'return' && !order.recovered && (
  <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-4">
  <div className="flex items-center justify-between border-b border-burgundy/10 pb-3">
- <h3 className="text-lg font-bold text-burgundy">↩ إتمام المرتجع</h3>
+ <h3 className="text-lg font-bold text-burgundy flex items-center gap-2"><Icon name="returns" className="w-5 h-5 text-burgundy" /><span>إتمام المرتجع</span></h3>
  {returnItemsList.length > 0 && (
  <button
  type="button"
  onClick={handlePrintReturnReceipt}
  className="bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy text-xs font-bold px-3.5 py-1.5 rounded-xl transition flex items-center gap-1"
  >
- <span>🖨️</span>
+ <Icon name="print" className="w-4 h-4" />
  <span>معاينة وطباعة إيصال المرتجع</span>
  </button>
  )}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { Icon } from '../../components/Icon';
 import { isDiscountActive } from '../../utils/discount';
 import { renderBarcodeDataUrl } from '../../utils/barcode';
 
@@ -351,7 +352,7 @@ function RestockModal({ product, onClose, onRestocked }) {
         <div className="bg-white/80 border border-burgundy/15 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-burgundy flex items-center gap-1.5">
-              <span>🧾 حسابات المورد والفاتورة:</span>
+              <span>حسابات المورد والفاتورة:</span>
             </label>
             {supplierBillOption !== 'none' && (
               <span className="text-xs font-extrabold text-burgundy bg-burgundy/10 px-2 py-0.5 rounded-lg">
@@ -797,7 +798,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
             <div className="sm:col-span-2 bg-white/80 border border-burgundy/15 rounded-2xl p-4 space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-burgundy flex items-center gap-1.5">
-                  <span>🧾 ربط حساب المورد بالفاتورة:</span>
+                  <span>ربط حساب المورد بالفاتورة:</span>
                 </label>
                 {supplierBillOption !== 'none' && (
                   <span className="text-xs font-extrabold text-burgundy bg-burgundy/10 px-2 py-0.5 rounded-lg">
@@ -877,10 +878,10 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  <div className="sm:col-span-2 rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50/50 via-amber-50/30 to-purple-50/40 p-4 space-y-3">
  <div className="flex items-center justify-between">
  <span className="text-xs font-bold uppercase tracking-wide text-burgundy flex items-center gap-1.5">
- <span>🌤️</span> تصنيف موسم البضاعة
+ <Icon name="cloud" className="w-4 h-4" /><span>تصنيف موسم البضاعة</span>
  </span>
  <span className="text-[11px] text-burgundy/70 font-bold">
- {form.season === 'summer' ? '☀️ صيفي' : form.season === 'winter' ? '❄️ شتوي' : '🔄 طوال العام (أساسي)'}
+ {form.season === 'summer' ? 'صيفي' : form.season === 'winter' ? 'شتوي' : 'طوال العام (أساسي)'}
  </span>
  </div>
  
@@ -894,7 +895,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  : 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50'
  }`}
  >
- <span className="text-sm">☀️</span>
+ <Icon name="sun" className="w-4 h-4" />
  <span>صيفي</span>
  </button>
 
@@ -907,7 +908,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  : 'bg-white text-sky-800 border-sky-200 hover:bg-sky-50'
  }`}
  >
- <span className="text-sm">❄️</span>
+ <Icon name="snowflake" className="w-4 h-4" />
  <span>شتوي</span>
  </button>
 
@@ -920,7 +921,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  : 'bg-white text-burgundy border-burgundy/20 hover:bg-burgundy/5'
  }`}
  >
- <span className="text-sm">🔄</span>
+ <Icon name="refresh" className="w-4 h-4" />
  <span>طوال العام</span>
  </button>
  </div>
@@ -931,8 +932,8 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  <p className="text-xs font-bold text-burgundy">حالة تداول الصنف في المحل</p>
  <p className="text-[11px] text-burgundy/60">
  {form.isSeasonArchived
- ? '📦 مخزن بالمستودع (مستبعد ومخفي تلقائياً من الكاشير والجرد)'
- : '✅ متاح ومعروض في المحل (يظهر في الكاشير وفي شاشة الجرد)'}
+ ? 'مخزن بالمستودع (مستبعد ومخفي تلقائياً من الكاشير والجرد)'
+ : 'متاح ومعروض في المحل (يظهر في الكاشير وفي شاشة الجرد)'}
  </p>
  </div>
  <button
@@ -944,7 +945,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  : 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
  }`}
  >
- {form.isSeasonArchived ? '📦 مخزن موسمي' : '✅ نشط بالمعرض'}
+ {form.isSeasonArchived ? 'مخزن موسمي' : 'نشط بالمعرض'}
  </button>
  </div>
  </div>
@@ -1195,7 +1196,7 @@ const normalizeDigits = (str) => {
  <div className="flex flex-wrap items-center justify-between gap-4">
  <div>
  <div className="flex items-center gap-2">
- <span className="text-xl">🌤️</span>
+ <Icon name="cloud" className="w-5 h-5 text-sky-600" />
  <h4 className="text-base font-bold text-burgundy">نظام إدارة المخزون الموسمي (صيفي / شتوي)</h4>
  <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full border border-sky-200">ميزة حصرية</span>
  </div>
@@ -1211,7 +1212,7 @@ const normalizeDigits = (str) => {
  disabled={bulkLoading}
  className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-600/20 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
  >
- <span>❄️</span>
+ <Icon name="snowflake" className="w-4 h-4 text-sky-600" />
  <span>التحويل للموسم الشتوي</span>
  </button>
 
@@ -1221,7 +1222,7 @@ const normalizeDigits = (str) => {
  disabled={bulkLoading}
  className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
  >
- <span>☀️</span>
+ <Icon name="sun" className="w-4 h-4 text-amber-500" />
  <span>التحويل للموسم الصيفي</span>
  </button>
  </div>
@@ -1231,7 +1232,7 @@ const normalizeDigits = (str) => {
  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-burgundy/10 text-xs">
  <div className="bg-white/90 rounded-2xl p-3 border border-amber-200 shadow-sm">
  <div className="flex items-center justify-between">
- <span className="text-amber-800 font-bold flex items-center gap-1 text-xs">☀️ بضاعة صيفية</span>
+ <span className="text-amber-800 font-bold flex items-center gap-1 text-xs">بضاعة صيفية</span>
  <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full">{summerProducts.length}</span>
  </div>
  <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
@@ -1241,7 +1242,7 @@ const normalizeDigits = (str) => {
 
  <div className="bg-white/90 rounded-2xl p-3 border border-sky-200 shadow-sm">
  <div className="flex items-center justify-between">
- <span className="text-sky-800 font-bold flex items-center gap-1 text-xs">❄️ بضاعة شتوية</span>
+ <span className="text-sky-800 font-bold flex items-center gap-1 text-xs">بضاعة شتوية</span>
  <span className="text-xs font-bold text-sky-900 bg-sky-100 px-2 py-0.5 rounded-full">{winterProducts.length}</span>
  </div>
  <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
@@ -1251,7 +1252,7 @@ const normalizeDigits = (str) => {
 
  <div className="bg-white/90 rounded-2xl p-3 border border-purple-200 shadow-sm">
  <div className="flex items-center justify-between">
- <span className="text-purple-800 font-bold flex items-center gap-1 text-xs">🔄 طوال العام</span>
+ <span className="text-purple-800 font-bold flex items-center gap-1 text-xs">طوال العام</span>
  <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full">{allYearProducts.length}</span>
  </div>
  <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
@@ -1261,7 +1262,7 @@ const normalizeDigits = (str) => {
 
  <div className="bg-white/90 rounded-2xl p-3 border border-slate-200 shadow-sm">
  <div className="flex items-center justify-between">
- <span className="text-slate-800 font-bold flex items-center gap-1 text-xs">📦 المخزن بالمستودع</span>
+ <span className="text-slate-800 font-bold flex items-center gap-1 text-xs">المخزن بالمستودع</span>
  <span className="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full">{totalArchived}</span>
  </div>
  <p className="text-[11px] text-burgundy/60 mt-1.5 font-medium">
@@ -1288,28 +1289,28 @@ const normalizeDigits = (str) => {
  onClick={() => setFilterSeason('summer')}
  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'summer' ? 'bg-amber-500 text-white shadow-sm' : 'text-amber-800 hover:bg-amber-50'}`}
  >
- ☀️ صيفي ({summerProducts.length})
+ صيفي ({summerProducts.length})
  </button>
  <button
  type="button"
  onClick={() => setFilterSeason('winter')}
  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'winter' ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-800 hover:bg-sky-50'}`}
  >
- ❄️ شتوي ({winterProducts.length})
+ شتوي ({winterProducts.length})
  </button>
  <button
  type="button"
  onClick={() => setFilterSeason('all')}
  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'all' ? 'bg-purple-700 text-white shadow-sm' : 'text-purple-800 hover:bg-purple-50'}`}
  >
- 🔄 طوال العام ({allYearProducts.length})
+ طوال العام ({allYearProducts.length})
  </button>
  <button
  type="button"
  onClick={() => setFilterSeason('archived')}
  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'archived' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-100'}`}
  >
- 📦 المخزن بالمستودع ({totalArchived})
+ المخزن بالمستودع ({totalArchived})
  </button>
  </div>
 
@@ -1434,22 +1435,22 @@ const normalizeDigits = (str) => {
  <p className="truncate font-semibold text-sm">{p.name}</p>
  {p.season === 'summer' && (
  <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.2 text-[10px] font-bold">
- ☀️ صيفي
+ صيفي
  </span>
  )}
  {p.season === 'winter' && (
  <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.2 text-[10px] font-bold">
- ❄️ شتوي
+ شتوي
  </span>
  )}
  {(!p.season || p.season === 'all') && (
  <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.2 text-[10px] font-bold">
- 🔄 طوال العام
+ طوال العام
  </span>
  )}
  {p.isSeasonArchived && (
  <span className="inline-flex items-center rounded-full bg-slate-800 text-white border border-slate-700 px-2 py-0.2 text-[10px] font-bold" title="مخزن بالمستودع ومستبعد تلقائياً من الجرد والكاشير">
- 📦 مخزن
+ مخزن
  </span>
  )}
  </div>
@@ -1582,7 +1583,7 @@ const normalizeDigits = (str) => {
  }}
  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 rounded-xl transition"
  >
- {p.isSeasonArchived ? '✅ تنشيط وعرض بالمعرض' : '📦 تخزين بالمستودع (إخفاء)'}
+ {p.isSeasonArchived ? 'تنشيط وعرض بالمعرض' : 'تخزين بالمستودع (إخفاء)'}
  </button>
  <button
  type="button"
@@ -1644,7 +1645,7 @@ const normalizeDigits = (str) => {
  disabled={bulkLoading}
  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
  >
- ☀️ صيفي
+ صيفي
  </button>
  <button
  type="button"
@@ -1652,7 +1653,7 @@ const normalizeDigits = (str) => {
  disabled={bulkLoading}
  className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
  >
- ❄️ شتوي
+ شتوي
  </button>
  <button
  type="button"
@@ -1660,7 +1661,7 @@ const normalizeDigits = (str) => {
  disabled={bulkLoading}
  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
  >
- 🔄 طوال العام
+ طوال العام
  </button>
 
  <div className="h-5 w-[1px] bg-white/20 mx-1 hidden sm:block" />
@@ -1672,7 +1673,7 @@ const normalizeDigits = (str) => {
  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 border border-white/20 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
  title="إخفاء المنتجات المحددة من الكاشير والجرد"
  >
- 📦 تخزين بالمستودع (إخفاء)
+ تخزين بالمستودع (إخفاء)
  </button>
  <button
  type="button"
@@ -1681,7 +1682,7 @@ const normalizeDigits = (str) => {
  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
  title="تنشيط وإتاحة المنتجات في المحل والجرد"
  >
- ✅ تنشيط وعرض بالمعرض
+ تنشيط وعرض بالمعرض
  </button>
  </div>
  </div>
@@ -1692,7 +1693,7 @@ const normalizeDigits = (str) => {
  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setSeasonConfirmModal(null)}>
  <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl space-y-4 text-burgundy" onClick={e => e.stopPropagation()}>
  <div className="flex items-center gap-3">
- <span className="text-3xl">{seasonConfirmModal.targetSeason === 'winter' ? '❄️' : '☀️'}</span>
+ <div className="w-10 h-10 flex items-center justify-center rounded-full bg-burgundy/10 text-burgundy"><Icon name={seasonConfirmModal.targetSeason === "winter" ? "snowflake" : "sun"} className="w-6 h-6" /></div>
  <div>
  <h3 className="text-lg font-bold">
  {seasonConfirmModal.targetSeason === 'winter' ? 'تأكيد التحويل للموسم الشتوي' : 'تأكيد التحويل للموسم الصيفي'}
@@ -1707,7 +1708,7 @@ const normalizeDigits = (str) => {
 
  <div className="p-3.5 bg-[#F7F0EC] rounded-2xl text-xs space-y-2 text-burgundy/80">
  <p className="font-bold text-burgundy flex items-center gap-1.5">
- <span>📌</span> ضمانات حفظ البيانات والمخزون:
+ <span>ضمانات حفظ البيانات والمخزون:</span>
  </p>
  <p>• لن يتم مسح أي صنف، كل الكميات وأسعار التكلفة والأكواد (SKU) محفوظة 100%.</p>
  <p>• بضاعة الصيف ستختفي من شاشة الجرد والكاشير لتجنب التشتت أثناء جرد الشتوي.</p>
@@ -1859,10 +1860,10 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  <div className="flex rounded-2xl border border-burgundy/20 bg-white overflow-hidden shadow-sm">
  {[
  { id: 'All', l: 'كل المواسم' },
- { id: 'summer', l: '☀️ صيفي' },
- { id: 'winter', l: '❄️ شتوي' },
- { id: 'all', l: '🔄 مستمر' },
- { id: 'archived', l: '📦 مخزن' },
+ { id: 'summer', l: 'صيفي' },
+ { id: 'winter', l: 'شتوي' },
+ { id: 'all', l: 'مستمر' },
+ { id: 'archived', l: 'مخزن' },
  ].map(f => (
  <button key={f.id} onClick={() => setFilterSeason(f.id)}
  className={`px-3 py-2.5 text-xs font-bold transition ${filterSeason === f.id ? 'bg-burgundy text-white' : 'text-burgundy/60 hover:bg-burgundy/8'}`}>
@@ -1896,10 +1897,10 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  <div className="min-w-0">
  <div className="flex items-center gap-1.5 flex-wrap">
  <p className="font-semibold text-sm truncate">{p.name}</p>
- {p.season === 'summer' && <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded-full border border-amber-300">☀️ صيفي</span>}
- {p.season === 'winter' && <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded-full border border-sky-300">❄️ شتوي</span>}
- {(!p.season || p.season === 'all') && <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.2 rounded-full border border-purple-200">🔄 مستمر</span>}
- {p.isSeasonArchived && <span className="text-[10px] bg-slate-800 text-white font-bold px-1.5 py-0.2 rounded-full border border-slate-700" title="مخزن ومستبعد من الجرد والكاشير">📦 مخزن</span>}
+ {p.season === 'summer' && <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded-full border border-amber-300">صيفي</span>}
+ {p.season === 'winter' && <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded-full border border-sky-300">شتوي</span>}
+ {(!p.season || p.season === 'all') && <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.2 rounded-full border border-purple-200">مستمر</span>}
+ {p.isSeasonArchived && <span className="text-[10px] bg-slate-800 text-white font-bold px-1.5 py-0.2 rounded-full border border-slate-700" title="مخزن ومستبعد من الجرد والكاشير">مخزن</span>}
  </div>
  {p.sku && <p className="text-xs text-burgundy/40 font-mono">{p.sku}</p>}
  {p.supplier && <p className="text-xs text-burgundy/40">{p.supplier}</p>}

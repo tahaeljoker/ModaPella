@@ -133,7 +133,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
             <p className="text-xs opacity-70 uppercase tracking-widest">تعديل بيانات وصلاحيات المستخدم</p>
             <p className="font-bold text-lg">{user.name}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-white/70 hover:text-white text-xl">✕</button>
+          <button type="button" onClick={onClose} className="text-white/70 hover:text-white text-xl">×</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
