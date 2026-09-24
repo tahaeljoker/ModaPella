@@ -269,8 +269,97 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
     // Build unified Statement Items based on selected Tab
     let statementItems = [];
 
-    // 1. Suppliers Tab or All
-    if (tab === 'all' || tab === 'suppliers') {
+    if (tab === 'all') {
+      // 1. All Supplier Transactions
+      allSupplierTxs.forEach(st => {
+        statementItems.push({
+          id: st._id,
+          source: 'supplier',
+          date: st.date || st.createdAt,
+          section: 'موردين',
+          type: st.type === 'purchase' ? 'مشتريات بضاعة' : st.type === 'payment' ? 'سداد دفعة' : 'مرتجع لمورد',
+          typeColor: st.type === 'purchase' ? 'amber' : st.type === 'payment' ? 'emerald' : 'rose',
+          flow: st.type === 'purchase' ? 'DEBT_INCREASE' : 'DEBT_DECREASE',
+          amount: st.amount,
+          partyName: st.supplier?.name || 'مورد',
+          partyPhone: st.supplier?.phone || '',
+          paymentMethod: st.paymentSource === 'StoreSafe' ? 'خزينة المحل' : 'خارج الخزينة',
+          description: st.description || (st.type === 'purchase' ? 'فاتورة مشتريات' : st.type === 'payment' ? 'سداد لمورد' : 'مرتجع بضاعة معيبة'),
+          reference: st.reference || '',
+          itemsCount: st.items?.length || 0,
+          items: st.items || []
+        });
+      });
+
+      // 2. All Store Transactions (mapped uniquely without duplicates)
+      const supplierTxIds = new Set(allSupplierTxs.map(s => s._id.toString()));
+      allTransactions.forEach(t => {
+        const cat = (t.category || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+        const isRet = cat === 'refund' || cat.includes('مرتجع');
+        const isPersonal = cat === 'personalwithdrawal' || desc.includes('شخصي') || desc.includes('جمعية') || cat.includes('شخصي');
+        const isSupplier = cat.includes('مورد') || desc.includes('مورد') || cat === 'supplierpayment';
+
+        // Avoid duplicating supplier payments that already exist in allSupplierTxs
+        if (isSupplier && t.referenceId && supplierTxIds.has(t.referenceId.toString())) {
+          return;
+        }
+
+        let section = 'نقدية الدرج';
+        let type = t.category || 'حركة خزينة';
+        let typeColor = 'blue';
+
+        if (isRet) {
+          section = 'مرتجعات عملاء';
+          type = 'مرتجع مسترد';
+          typeColor = 'rose';
+        } else if (isPersonal) {
+          section = 'مسحوبات شخصية';
+          type = 'مسحوبات شخصية / جمعية';
+          typeColor = 'purple';
+        } else if (isSupplier) {
+          section = 'سداد موردين';
+          type = 'سداد لمورد';
+          typeColor = 'amber';
+        } else if (t.type === 'OUT') {
+          section = 'مصروفات تشغيل';
+          type = t.category || 'مصروف تشغيل';
+          typeColor = 'rose';
+        } else if (t.type === 'IN') {
+          typeColor = 'emerald';
+          if (cat.includes('دين')) {
+            section = 'تحصيل ديون';
+            type = 'تحصيل دين';
+          } else if (cat.includes('إيداع')) {
+            section = 'إيداع بالخزينة';
+            type = 'إيداع نقدية';
+          } else if (t.paymentMethod === 'Instapay' || t.paymentMethod === 'Wallet') {
+            section = 'إنستاباي';
+            type = 'مبيعات إنستاباي';
+          } else {
+            section = 'مبيعات كاش';
+            type = 'مبيعات كاش';
+          }
+        }
+
+        statementItems.push({
+          id: t._id,
+          source: isRet ? 'return' : isPersonal || (t.type === 'OUT' && !isSupplier) ? 'expense' : t.paymentMethod === 'Cash' ? 'safe' : 'instapay',
+          date: t.createdAt,
+          section,
+          type,
+          typeColor,
+          flow: t.type,
+          amount: t.amount,
+          partyName: isRet ? 'مرتجع عميل' : isPersonal ? 'المالك / الشركاء' : isSupplier ? (t.description || 'مورد') : t.paymentMethod === 'Instapay' ? 'دفع إلكتروني' : 'الدرج النقدي',
+          partyPhone: '',
+          paymentMethod: t.paymentMethod === 'Instapay' ? 'إنستاباي' : 'كاش',
+          description: t.description || t.category || '',
+          reference: t.referenceId ? '#' + t.referenceId.toString().slice(-6).toUpperCase() : '',
+          user: t.user?.name || ''
+        });
+      });
+    } else if (tab === 'suppliers') {
       allSupplierTxs.forEach(st => {
         if (supplierId && st.supplier?._id?.toString() !== supplierId && st.supplier?.toString() !== supplierId) {
           return;
@@ -293,10 +382,7 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
           items: st.items || []
         });
       });
-    }
-
-    // 2. Returns Tab or All
-    if (tab === 'all' || tab === 'returns') {
+    } else if (tab === 'returns') {
       allTransactions.filter(t => {
         const cat = (t.category || '').toLowerCase();
         return cat === 'refund' || cat.includes('مرتجع');
@@ -318,10 +404,7 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
           user: t.user?.name || 'الكاشير'
         });
       });
-    }
-
-    // 3. Instapay Tab or All
-    if (tab === 'all' || tab === 'instapay') {
+    } else if (tab === 'instapay') {
       allTransactions.filter(t => t.paymentMethod === 'Instapay' || t.paymentMethod === 'Wallet').forEach(t => {
         const isRet = (t.category || '').toLowerCase() === 'refund';
         statementItems.push({
@@ -341,10 +424,7 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
           user: t.user?.name || ''
         });
       });
-    }
-
-    // 4. Safe / Cash Tab or All
-    if (tab === 'all' || tab === 'safe') {
+    } else if (tab === 'safe') {
       allTransactions.filter(t => t.paymentMethod === 'Cash').forEach(t => {
         const cat = (t.category || '').toLowerCase();
         statementItems.push({
@@ -360,6 +440,39 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
           partyPhone: '',
           paymentMethod: 'كاش',
           description: t.description || t.category || '',
+          reference: t.referenceId ? '#' + t.referenceId.toString().slice(-6).toUpperCase() : '',
+          user: t.user?.name || ''
+        });
+      });
+    } else if (tab === 'expenses') {
+      allTransactions.filter(t => {
+        if (t.type !== 'OUT') return false;
+        const cat = (t.category || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+        const isRet = cat === 'refund' || cat.includes('مرتجع');
+        if (isRet || cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer') {
+          return false;
+        }
+        return true;
+      }).forEach(t => {
+        const cat = (t.category || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+        const isPersonal = cat === 'personalwithdrawal' || desc.includes('شخصي') || desc.includes('جمعية') || cat.includes('شخصي') || cat.includes('جمعية');
+        const isSupplier = cat.includes('مورد') || desc.includes('مورد') || cat === 'supplierpayment';
+
+        statementItems.push({
+          id: t._id,
+          source: 'expense',
+          date: t.createdAt,
+          section: isPersonal ? 'مسحوبات شخصية' : isSupplier ? 'سداد موردين' : 'مصروفات تشغيل',
+          type: isPersonal ? 'مسحوبات شخصية / جمعية' : isSupplier ? 'سداد لمورد' : (t.category || 'مصروف تشغيل'),
+          typeColor: isPersonal ? 'purple' : isSupplier ? 'amber' : 'rose',
+          flow: 'OUT',
+          amount: t.amount,
+          partyName: isPersonal ? 'المالك / الشركاء' : isSupplier ? (t.description || 'مورد') : (t.category || 'مصاريف عامة'),
+          partyPhone: '',
+          paymentMethod: t.paymentMethod === 'Instapay' ? 'إنستاباي' : 'خزينة المحل (كاش)',
+          description: t.description || t.category || 'صرف مصروف',
           reference: t.referenceId ? '#' + t.referenceId.toString().slice(-6).toUpperCase() : '',
           user: t.user?.name || ''
         });
