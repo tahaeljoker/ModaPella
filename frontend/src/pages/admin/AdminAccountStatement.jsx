@@ -417,7 +417,7 @@ export default function AdminAccountStatement() {
                 </div>
                 <div className="flex justify-between text-xs font-bold pt-1 border-t border-rose-100">
                   <span className="text-rose-800">طريقة الاسترداد: {o.paymentMethod === 'Instapay' ? 'إنستاباي' : 'كاش'}</span>
-                  <span className="text-rose-700">{EGP(o.returnedAmount)}</span>
+                  <span className="text-rose-700">{EGP(o.returnedAmount || o.items?.reduce((sum, it) => sum + ((it.returnedQuantity || 0) * (it.price || 0)), 0))}</span>
                 </div>
               </div>
             ))}

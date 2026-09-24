@@ -402,18 +402,24 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
         totalPersonalWithdrawals
       },
       suppliersList: Object.values(supplierBalances),
-      returnedOrders: allOrders.map(o => ({
-        id: o._id,
-        code: '#' + o._id.toString().slice(-6).toUpperCase(),
-        date: o.createdAt,
-        customerName: o.customerName || o.customer?.name || 'عميل',
-        customerPhone: o.customerPhone || o.customer?.phone || '',
-        totalAmount: o.totalAmount,
-        returnedAmount: o.returnedAmount || 0,
-        paymentMethod: o.paymentMethod,
-        status: o.status,
-        items: o.items.filter(i => (i.returnedQuantity || 0) > 0)
-      })),
+      returnedOrders: allOrders.map(o => {
+        const returnedVal = (o.returnedAmount && o.returnedAmount > 0)
+          ? o.returnedAmount
+          : (o.items || []).reduce((sum, i) => sum + ((i.returnedQuantity || 0) * (i.price || 0)), 0);
+
+        return {
+          id: o._id,
+          code: '#' + o._id.toString().slice(-6).toUpperCase(),
+          date: o.createdAt,
+          customerName: o.customerName || o.customer?.name || 'عميل',
+          customerPhone: o.customerPhone || o.customer?.phone || '',
+          totalAmount: o.totalAmount,
+          returnedAmount: returnedVal,
+          paymentMethod: o.paymentMethod,
+          status: o.status,
+          items: o.items.filter(i => (i.returnedQuantity || 0) > 0)
+        };
+      }),
       statements: statementItems
     });
   } catch (error) {
