@@ -16,6 +16,7 @@ export default function AdminAccountStatement() {
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cardDetailModal, setCardDetailModal] = useState(null);
   const [data, setData] = useState({
     summary: {},
     suppliersList: [],
@@ -73,6 +74,92 @@ export default function AdminAccountStatement() {
   const handleSearchSubmit = (e) => {
     e?.preventDefault();
     loadStatements();
+  };
+
+
+  const openCardDetail = (type) => {
+    const s = data.summary || {};
+    if (type === 'suppliers') {
+      const purchases = s.totalSuppliersPurchases || 0;
+      const payments = s.totalSuppliersPayments || 0;
+      const returns = s.totalSuppliersReturns || 0;
+      const netChange = purchases - (payments + returns);
+      setCardDetailModal({
+        title: 'كيف تم حساب مشتريات الموردين؟',
+        formula: 'إجمالي فواتير البضائع الموردة للمتجر خلال الفترة المحددة',
+        rows: [
+          { label: 'إجمالي فواتير مشتريات البضاعة الواردة', value: EGP(purchases) },
+          { label: 'المدفوعات المسددة للموردين (دفعات نقدية/تحويلات)', value: `-${EGP(payments)}`, negative: true },
+          { label: 'مرتجعات البضاعة المعيبة للموردين', value: `-${EGP(returns)}`, negative: true },
+          { separator: true },
+          { label: '= صافي التغير في التزامات الموردين للفترة', value: EGP(netChange), highlight: true }
+        ],
+        note: 'مشتريات البضاعة تزيد من الالتزام المالي على المحل وتتحول لمخزون بضاعة، ويتم احتساب تكلفتها عند بيع القطع للعملاء في بند COGS.'
+      });
+    } else if (type === 'returns') {
+      const cash = s.returnsCash || 0;
+      const insta = s.returnsInstapay || 0;
+      const total = s.totalReturnsAmount || 0;
+      setCardDetailModal({
+        title: 'كيف تم حساب المرتجعات المستردة؟',
+        formula: 'مرتجعات نقدية (من الدرج) + مرتجعات إلكترونية (إنستاباي)',
+        rows: [
+          { label: 'مرتجعات نقدية (خرجت كاش من درج الكاشير)', value: EGP(cash) },
+          { label: 'مرتجعات إلكترونية (خرجت عبر إنستاباي)', value: EGP(insta) },
+          { separator: true },
+          { label: '= إجمالي قيمة المرتجعات المستردة للزبائن', value: EGP(total), highlight: true },
+          { label: 'إجمالي عدد حركات المرتجع في الفترة', value: `${s.returnsCount || 0} حركة` },
+          { separator: true },
+          { label: 'الأثر على المبيعات والأرباح', value: `تم خصمها بالكامل (-${EGP(total)}) من إجمالي المبيعات ومن الأرباح` }
+        ],
+        note: 'كل مليم تم رده للعملاء تم خصمه تلقائياً من إجمالي المبيعات ومن الأرباح ومن نقدية الدرج أو محفظة إنستاباي لضمان مطابقة الحسابات بالمليم.'
+      });
+    } else if (type === 'instapay') {
+      const inVal = s.totalInstapayIn || 0;
+      const outVal = s.totalInstapayOut || 0;
+      const net = s.netInstapay || (inVal - outVal);
+      setCardDetailModal({
+        title: 'كيف تم حساب صافي حركة إنستاباي؟',
+        formula: 'مقبوضات إنستاباي الداخلة - مرتجعات ومصروفات إنستاباي الخارجة',
+        rows: [
+          { label: 'إجمالي مقبوضات إنستاباي (مبيعات وإيداعات)', value: EGP(inVal) },
+          { label: 'إجمالي الخارج من إنستاباي (مرتجعات ومصروفات)', value: `-${EGP(outVal)}`, negative: true },
+          { separator: true },
+          { label: '= صافي التدفق المالي لإنستاباي', value: EGP(net), highlight: true }
+        ],
+        note: 'يمثل صافي النقدية الإلكترونية المضافة إلى حسابك البنكي أو محفظة إنستاباي عن هذه الفترة بعد خصم ما تم رده أو سحبه منها.'
+      });
+    } else if (type === 'safe') {
+      const inVal = s.totalSafeCashIn || 0;
+      const outVal = s.totalSafeCashOut || 0;
+      const net = s.netSafeCash || (inVal - outVal);
+      setCardDetailModal({
+        title: 'كيف تم حساب صافي نقدية الدرج (الكاش)؟',
+        formula: 'إجمالي النقدية الداخلة للدرج - إجمالي النقدية الصادرة من الدرج',
+        rows: [
+          { label: 'إجمالي الكاش الداخل (مبيعات كاش + سداد ديون + إيداعات)', value: EGP(inVal) },
+          { label: 'إجمالي الكاش الخارج (مرتجعات كاش + مصروفات + مسحوبات)', value: `-${EGP(outVal)}`, negative: true },
+          { separator: true },
+          { label: '= صافي حركة النقدية الفعلية بالدرج', value: EGP(net), highlight: true }
+        ],
+        note: 'هذا الرقم يوضح حركة الكاش الفعلي في درج الكاشير بالمليم عن الفترة المحددة، ويمكن مطابقته مع جرد الدرج الفعلي.'
+      });
+    } else if (type === 'expenses') {
+      const exp = s.totalExpenses || 0;
+      const pWith = s.totalPersonalWithdrawals || 0;
+      const total = exp + pWith;
+      setCardDetailModal({
+        title: 'كيف تم حساب المصروفات والمسحوبات؟',
+        formula: 'مصاريف التشغيل والنشاط + مسحوبات شخصية وجمعيات',
+        rows: [
+          { label: 'مصاريف تشغيل المتجر (مرافق، كهرباء، صيانة، ضيافة، نظافة)', value: EGP(exp) },
+          { label: 'مسحوبات شخصية وجمعية للمالك والشركاء', value: EGP(pWith) },
+          { separator: true },
+          { label: '= إجمالي المبالغ المنصرفة من أموال المحل', value: EGP(total), highlight: true }
+        ],
+        note: 'المسحوبات الشخصية للشركاء تخرج من الخزينة لكنها مستبعدة محاسبياً من مصاريف التشغيل حتى تظهر أرباح المحل التجارية بدقة دون نقص.'
+      });
+    }
   };
 
   const handleExportCSV = () => {
@@ -286,11 +373,18 @@ export default function AdminAccountStatement() {
         </form>
       </div>
 
-      {/* Primary KPI Overview Cards */}
+      {/* Primary KPI Overview Cards with interactive calculation popup */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Suppliers Balance */}
-        <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[11px] font-bold text-amber-900/70">مشتريات الموردين (الفترة)</p>
+        <div
+          onClick={() => openCardDetail('suppliers')}
+          className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl shadow-sm space-y-1 cursor-pointer hover:shadow-md hover:border-amber-300 transition-all select-none group"
+          title="اضغط لمعرفة كيف تم حساب هذا الرقم"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-amber-900/70">مشتريات الموردين (الفترة)</p>
+            <span className="text-[10px] text-amber-800/60 group-hover:text-amber-800 font-bold underline">الحسبة</span>
+          </div>
           <p className="text-xl font-black text-amber-800">{EGP(data.summary?.totalSuppliersPurchases || 0)}</p>
           <p className="text-[10px] text-amber-900/60">
             مسدد: {EGP(data.summary?.totalSuppliersPayments || 0)} | مرتجع: {EGP(data.summary?.totalSuppliersReturns || 0)}
@@ -298,10 +392,17 @@ export default function AdminAccountStatement() {
         </div>
 
         {/* Returns */}
-        <div className="bg-rose-50/80 border border-rose-200 p-4 rounded-2xl shadow-sm space-y-1">
+        <div
+          onClick={() => openCardDetail('returns')}
+          className="bg-rose-50/80 border border-rose-200 p-4 rounded-2xl shadow-sm space-y-1 cursor-pointer hover:shadow-md hover:border-rose-300 transition-all select-none group"
+          title="اضغط لمعرفة كيف تم حساب هذا الرقم"
+        >
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-bold text-rose-900/70">المرتجعات المستردة</p>
-            <Icon name="returns" className="w-4 h-4 text-rose-500" />
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-rose-800/60 group-hover:text-rose-800 font-bold underline">الحسبة</span>
+              <Icon name="returns" className="w-4 h-4 text-rose-500" />
+            </div>
           </div>
           <p className="text-xl font-black text-rose-700">{EGP(data.summary?.totalReturnsAmount || 0)}</p>
           <p className="text-[10px] text-rose-900/60">
@@ -310,8 +411,15 @@ export default function AdminAccountStatement() {
         </div>
 
         {/* Instapay Net */}
-        <div className="bg-blue-50/70 border border-blue-200 p-4 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[11px] font-bold text-blue-900/70">صافي حركة إنستاباي</p>
+        <div
+          onClick={() => openCardDetail('instapay')}
+          className="bg-blue-50/70 border border-blue-200 p-4 rounded-2xl shadow-sm space-y-1 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all select-none group"
+          title="اضغط لمعرفة كيف تم حساب هذا الرقم"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-blue-900/70">صافي حركة إنستاباي</p>
+            <span className="text-[10px] text-blue-800/60 group-hover:text-blue-800 font-bold underline">الحسبة</span>
+          </div>
           <p className="text-xl font-black text-blue-800">{EGP(data.summary?.netInstapay || 0)}</p>
           <p className="text-[10px] text-blue-900/60">
             مقبوضات: {EGP(data.summary?.totalInstapayIn || 0)} | خارج: -{EGP(data.summary?.totalInstapayOut || 0)}
@@ -319,8 +427,15 @@ export default function AdminAccountStatement() {
         </div>
 
         {/* Cash Safe Drawer */}
-        <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[11px] font-bold text-emerald-900/70">صافي نقدية الدرج (الكاش)</p>
+        <div
+          onClick={() => openCardDetail('safe')}
+          className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl shadow-sm space-y-1 cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all select-none group"
+          title="اضغط لمعرفة كيف تم حساب هذا الرقم"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-emerald-900/70">صافي نقدية الدرج (الكاش)</p>
+            <span className="text-[10px] text-emerald-800/60 group-hover:text-emerald-800 font-bold underline">الحسبة</span>
+          </div>
           <p className="text-xl font-black text-emerald-800">{EGP(data.summary?.netSafeCash || 0)}</p>
           <p className="text-[10px] text-emerald-900/60">
             داخل كاش: {EGP(data.summary?.totalSafeCashIn || 0)} | خارج كاش: -{EGP(data.summary?.totalSafeCashOut || 0)}
@@ -328,8 +443,15 @@ export default function AdminAccountStatement() {
         </div>
 
         {/* Expenses & Withdrawals */}
-        <div className="bg-purple-50/60 border border-purple-200 p-4 rounded-2xl shadow-sm space-y-1">
-          <p className="text-[11px] font-bold text-purple-900/70">المصروفات والمسحوبات</p>
+        <div
+          onClick={() => openCardDetail('expenses')}
+          className="bg-purple-50/60 border border-purple-200 p-4 rounded-2xl shadow-sm space-y-1 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all select-none group"
+          title="اضغط لمعرفة كيف تم حساب هذا الرقم"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-purple-900/70">المصروفات والمسحوبات</p>
+            <span className="text-[10px] text-purple-800/60 group-hover:text-purple-800 font-bold underline">الحسبة</span>
+          </div>
           <p className="text-xl font-black text-purple-800">{EGP((data.summary?.totalExpenses || 0) + (data.summary?.totalPersonalWithdrawals || 0))}</p>
           <p className="text-[10px] text-purple-900/60">
             تشغيل: {EGP(data.summary?.totalExpenses || 0)} | مسحوبات: {EGP(data.summary?.totalPersonalWithdrawals || 0)}
@@ -538,6 +660,117 @@ export default function AdminAccountStatement() {
           </div>
         )}
       </div>
+
+      {/* Interactive Calculation Detail Modal */}
+      {cardDetailModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          onClick={() => setCardDetailModal(null)}
+          dir="rtl"
+        >
+          <div
+            className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-burgundy/20 overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-burgundy via-[#8B1A24] to-burgundy px-6 py-4 text-white flex items-start justify-between">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-0.5 text-[11px] font-semibold text-white/90">
+                  <Icon name="reports" className="w-3.5 h-3.5" />
+                  <span>تفاصيل الحسبة المحاسبية</span>
+                </span>
+                <h3 className="mt-1.5 text-lg font-bold text-white">{cardDetailModal.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCardDetailModal(null)}
+                className="rounded-full h-8 w-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                aria-label="إغلاق"
+              >
+                <Icon name="close" className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="overflow-y-auto p-5 space-y-4">
+              {/* Formula */}
+              {cardDetailModal.formula && (
+                <div className="rounded-2xl bg-[#F7F0EC]/80 border border-burgundy/15 p-3 text-center">
+                  <p className="text-[11px] font-bold text-burgundy/70 mb-1">المعادلة المحاسبية المعتمدة</p>
+                  <p className="text-xs sm:text-sm font-bold text-burgundy leading-relaxed">{cardDetailModal.formula}</p>
+                </div>
+              )}
+
+              {/* Rows */}
+              {cardDetailModal.rows?.length > 0 && (
+                <div className="rounded-2xl border border-burgundy/10 bg-white p-3 space-y-2 shadow-xs">
+                  {cardDetailModal.rows.map((row, i) => {
+                    if (row.separator) {
+                      return <div key={i} className="my-1.5 border-t border-dashed border-burgundy/20" />;
+                    }
+                    if (row.highlight) {
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between rounded-xl bg-burgundy px-3.5 py-2.5 text-white shadow-xs font-bold text-xs sm:text-sm"
+                        >
+                          <span className="text-white/95">{row.label}</span>
+                          <span className="text-base tabular-nums font-mono text-white">{row.value}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        key={i}
+                        className={`flex items-center justify-between rounded-xl px-3 py-1.5 text-xs transition ${
+                          row.negative
+                            ? 'bg-rose-50/70 text-rose-900 border border-rose-100/60'
+                            : 'hover:bg-burgundy/[0.03] text-gray-700'
+                        }`}
+                      >
+                        <span className={`font-medium ${row.negative ? 'text-rose-900 font-semibold' : 'text-gray-600'}`}>
+                          {row.label}
+                        </span>
+                        <span
+                          className={`font-bold tabular-nums font-mono ${
+                            row.negative ? 'text-rose-700 text-sm' : 'text-burgundy'
+                          }`}
+                        >
+                          {row.value}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Note */}
+              {cardDetailModal.note && (
+                <div className="rounded-2xl bg-amber-50/90 border border-amber-200/80 p-3.5">
+                  <div className="flex items-start gap-2 text-amber-900">
+                    <Icon name="lightbulb" className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-xs leading-relaxed">
+                      <span className="font-bold text-amber-950">إيضاح مالي: </span>
+                      <span className="text-amber-900/90">{cardDetailModal.note}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-burgundy/10 bg-gray-50/60 px-5 py-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setCardDetailModal(null)}
+                className="w-full sm:w-auto px-5 py-1.5 rounded-xl bg-burgundy text-white text-xs font-bold hover:bg-burgundy/90 transition shadow-xs cursor-pointer"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
