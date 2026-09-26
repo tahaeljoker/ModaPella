@@ -538,8 +538,19 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  e.preventDefault(); setLoading(true);
  try {
  const finalStock = hasVariants ? totalVariantStock : Number(form.stock || 0);
+
+ let resolvedSupplierId = form.supplierId;
+ if (form.supplier && form.supplier.trim()) {
+   const rawTrim = form.supplier.trim().toLowerCase();
+   const foundSup = suppliers.find(s => s.name?.trim().toLowerCase() === rawTrim);
+   if (foundSup) {
+     resolvedSupplierId = foundSup._id;
+   }
+ }
+
  const payload = {
         ...form,
+        supplierId: resolvedSupplierId,
         supplierBillOption: !form._id ? supplierBillOption : undefined,
         supplierInvoiceRef: !form._id && supplierInvoiceRef ? supplierInvoiceRef.trim() : undefined,
  price: Number(form.price),
@@ -966,48 +977,6 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  </label>
  </div>
  
- {form.allowDiscount !== false && (
- <div className="sm:col-span-2 bg-burgundy/5 p-4 rounded-xl border border-burgundy/10 space-y-3">
- <h4 className="text-sm font-bold text-burgundy">إعدادات الخصم المؤقت (اختياري)</h4>
- <div className="grid gap-3 sm:grid-cols-3">
- <div>
- <label className="mb-1 block text-xs font-semibold text-burgundy/60">سعر الخصم الجديد (ج.م)</label>
- <input
- type="number"
- name="discountPrice"
- value={form.discountPrice ?? ''}
- onChange={handleChange}
- placeholder="مثال: 350"
- className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
- min="0"
- />
- </div>
- <div>
- <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ بدء الخصم</label>
- <input
- type="date"
- name="discountStartDate"
- value={form.discountStartDate ?? ''}
- onChange={handleChange}
- className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
- />
- </div>
- <div>
- <label className="mb-1 block text-xs font-semibold text-burgundy/60">تاريخ انتهاء الخصم</label>
- <input
- type="date"
- name="discountEndDate"
- value={form.discountEndDate ?? ''}
- onChange={handleChange}
- className="w-full rounded-lg border border-burgundy/20 bg-white px-3 py-1.5 text-xs text-burgundy outline-none focus:border-burgundy"
- />
- </div>
- </div>
- <p className="text-[10px] text-burgundy/40 leading-relaxed">
- * لو سبت التواريخ فاضية، الخصم هيطبق فوراً وبشكل مستمر. لو حددت التواريخ، الخصم هيتوقف تلقائياً بعد انتهاء الفترة.
- </p>
- </div>
- )}
  </div>
  <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الوصف</label><textarea name="description" value={form.description} onChange={handleChange} className={`${inp} min-h-[80px]`} /></div>
  <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">روابط الصور (سطر لكل رابط)</label>

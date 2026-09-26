@@ -20,7 +20,13 @@ router.get('/', auth, requireRole(ADMIN), async (req, res) => {
     // compute balance for each
     const result = await Promise.all(suppliers.map(async (s) => {
       const txs = await SupplierTransaction.find({ supplier: s._id });
-      const products = await Product.find({ supplier: s.name, active: { $ne: false } });
+      const products = await Product.find({
+        active: { $ne: false },
+        $or: [
+          { supplierId: s._id },
+          { supplier: s.name }
+        ]
+      });
       const totalPurchased = txs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
       const totalPaid      = txs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
       const totalReturned  = txs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);

@@ -68,7 +68,7 @@ router.get('/', async (req, res) => {
     const { search, category, excludeId, limit, includeOffSeason, season } = req.query;
     let query = { active: true };
 
-    if (includeOffSeason !== 'true') {
+    if (includeOffSeason !== 'true' && (!search || search.trim() === '')) {
       query.isSeasonArchived = { $ne: true };
     }
 
@@ -159,10 +159,22 @@ router.get('/lookup-barcode', async (req, res) => {
       });
     }
 
+    // Fallback: match by product name containing the code (e.g. "شميز مشجر 148")
+    if (!matched && (codeDigits.length >= 3 || codeClean.length >= 3)) {
+      matched = allProducts.find(p => {
+        const pName = (p.name || '').toLowerCase();
+        return pName.includes(code.toLowerCase()) || (normCode && pName.includes(normCode.toLowerCase())) || (codeDigits && pName.includes(codeDigits));
+      });
+    }
+
     if (matched) {
       let modified = false;
       if (matched.active === false) {
         matched.active = true;
+        modified = true;
+      }
+      if (matched.isSeasonArchived === true) {
+        matched.isSeasonArchived = false;
         modified = true;
       }
       if (!matched.oldSku || (matched.oldSku !== code && matched.oldSku !== normCode)) {

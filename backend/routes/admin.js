@@ -560,22 +560,38 @@ const generateSku = async () => {
 
 const handleSupplierProductBilling = async ({ supplierId, supplierName, product, quantity, costPrice, option, invoiceRef, userId }) => {
   if (!option || option === 'none') return;
-  const qty = Number(quantity || 0);
-  const cost = Number(costPrice || 0);
+  const qty = Number(quantity || product?.stock || 0);
+  const cost = Number(costPrice || product?.costPrice || 0);
   if (qty <= 0 || cost <= 0) return;
 
   let supplierDoc = null;
-  if (supplierId) {
+  if (supplierId && mongoose.Types.ObjectId.isValid(supplierId)) {
     supplierDoc = await Supplier.findById(supplierId);
   }
   if (!supplierDoc && supplierName && supplierName.trim()) {
-    supplierDoc = await Supplier.findOne({ name: supplierName.trim() });
+    const rawName = supplierName.trim();
+    supplierDoc = await Supplier.findOne({ name: rawName });
     if (!supplierDoc) {
-      supplierDoc = new Supplier({ name: supplierName.trim() });
+      const escaped = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+        .replace(/[أإآا]/g, '[أإآا]')
+        .replace(/[ةه]/g, '[ةه]')
+        .replace(/[ىي]/g, '[ىي]')
+        .replace(/\s+/g, '\\s+');
+      supplierDoc = await Supplier.findOne({ name: { $regex: new RegExp(`^${escaped}$`, 'i') } });
+    }
+    if (!supplierDoc) {
+      supplierDoc = new Supplier({ name: rawName });
       await supplierDoc.save();
     }
   }
   if (!supplierDoc) return;
+
+  // Ensure product is explicitly linked to this supplier
+  if (product && (!product.supplierId || product.supplierId.toString() !== supplierDoc._id.toString() || product.supplier !== supplierDoc.name)) {
+    product.supplierId = supplierDoc._id;
+    product.supplier = supplierDoc.name;
+    await product.save();
+  }
 
   const totalAmount = qty * cost;
 
