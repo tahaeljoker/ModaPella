@@ -11,7 +11,7 @@ export default function AdminUpdates() {
   const [healing, setHealing] = useState(false);
 
   const handleHealRecords = async () => {
-    if (!window.confirm('هل تريد تشغيل المعالجة الذكية الآن؟\n• ستتم معالجة وتثبيت فاتورة الشميز في حساب المورد.\n• حذف تكرار مصروف زجاج المحل (350 ج.م) الزائد وتصحيحه كمصروف تشغيلي.\n• فك أرشفة الموديل 148 وتنشيطه للبيع.')) return;
+    if (!window.confirm('هل تريد تشغيل المعالجة الذكية الآن؟\n• ستتم معالجة وتثبيت فاتورة الشميز وصرفها من الخزنة وحساب المورد كاش.\n• حذف تكرار مصروف زجاج المحل (350 ج.م) الزائد وتصحيحه كمصروف تشغيلي.\n• فك أرشفة الموديل 148 وتنشيطه للبيع.')) return;
     setHealing(true);
     try {
       const res = await api.post('/admin/heal-records');
@@ -20,7 +20,7 @@ export default function AdminUpdates() {
         `• حركات فواتير الشميزات القديمة المحذوفة لمنع التكرار: ${r.oldChemiseTransactionsCleaned || 0}\n` +
         `• حركات مصروفات مكررة تم حذفها (زجاج المحل): ${r.duplicateGlassExpensesCleaned || 0}\n` +
         `• حركات تم تصحيح تصنيفها لمصروفات تشغيل: ${r.expensesReclassified || 0}\n` +
-        `• فاتورة الشميز 148 تم تثبيتها في حساب المورد: ${r.chemiseBillsLinked || 0}\n` +
+        `• فاتورة الشميز 148 تم تثبيتها وصرفها من الخزنة والمورد: ${r.chemiseBillsLinked || 0}\n` +
         `• تنشيط وفك أرشفة الشميز 148: ${r.chemiseActivated || 0}`);
     } catch (err) {
       alert(`فشلت عملية المعالجة: ${err.response?.data?.message || err.response?.data?.error || err.message}`);

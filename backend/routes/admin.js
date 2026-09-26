@@ -1330,12 +1330,20 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
     };
 
     // 1. Fix duplicate glass cleaning / 350 EGP transactions
-    // Find all OUT transactions with amount 350 or description matching glass / cleaning
+    // Find all OUT transactions with description matching glass or amount 350 with cleaning category
     const glassTxs = await Transaction.find({
       type: 'OUT',
       $or: [
-        { amount: 350 },
-        { description: /زجاج|نضاف/i }
+        { description: /زجاج/i },
+        {
+          amount: 350,
+          $or: [
+            { category: /نظافة|نضاف/i },
+            { description: /زجاج|نضاف|تنظيف|واجهة/i },
+            { description: { $exists: false } },
+            { description: '' }
+          ]
+        }
       ]
     }).sort({ createdAt: 1 });
 
@@ -1344,7 +1352,7 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
       const firstTx = glassTxs[0];
       firstTx.category = 'نظافة';
       if (!firstTx.description || firstTx.description.trim() === '') {
-        firstTx.description = 'نظافة زجاج محل';
+        firstTx.description = 'نظافة وتلميع زجاج المحل';
       }
       await firstTx.save();
       report.expensesReclassified++;
@@ -1390,13 +1398,18 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
       report.oldChemiseTransactionsCleaned = (report.oldChemiseTransactionsCleaned || 0) + 1;
     }
 
-    // 4. Specifically find and handle ONLY the target product: "شميز مشجر 148" (or matching 148)
-    const targetProduct = await Product.findOne({
+    // 4. Specifically find and handle ONLY the target product: "شميز مشجر 148" (or matching 148 / مشجر)
+    let targetProduct = await Product.findOne({
       $or: [
         { name: /148/i },
-        { name: /مشجر.*148|148.*مشجر/i }
+        { barcode: /148/i },
+        { sku: /148/i },
+        { name: /شميز.*مشجر|مشجر.*شميز/i }
       ]
     });
+    if (!targetProduct) {
+      targetProduct = await Product.findOne({ name: /مشجر/i });
+    }
 
     if (targetProduct) {
       if (targetProduct.isSeasonArchived) {
@@ -1434,83 +1447,124 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
         }
 
         const safeName = (targetProduct.name || '').replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-        // Check if SupplierTransaction exists specifically for targetProduct
-        const existingSuppTx = await SupplierTransaction.findOne({
-          supplier: supplierDoc._id,
+        const qty = Number(targetProduct.stock || 0) > 0 ? Number(targetProduct.stock) : 4;
+        let cost = Number(targetProduct.costPrice || 0);
+        if (cost <= 0) {
+          const price = Number(targetProduct.price || 0);
+          cost = price > 0 ? Math.round(price * 0.7) : 300;
+        }
+
+        // Check if there is an existing purchase or payment transaction with the real amount
+        const existingSupplierTxs = await SupplierTransaction.find({
           $or: [
             { 'items.product': targetProduct._id },
             { description: new RegExp(safeName, 'i') },
-            { description: /148/i }
+            { description: /148/i },
+            { description: /مشجر/i }
+          ]
+        }).sort({ createdAt: -1 });
+
+        let totalAmount = qty * cost;
+        const txWithValidAmount = existingSupplierTxs.find(t => Number(t.amount || 0) > 0);
+        if (txWithValidAmount && txWithValidAmount.amount > 0) {
+          totalAmount = txWithValidAmount.amount;
+          if (txWithValidAmount.items?.length && txWithValidAmount.items[0]?.unitPrice) {
+            cost = txWithValidAmount.items[0].unitPrice;
+          }
+        }
+        if (!totalAmount || totalAmount <= 0) totalAmount = 1200;
+
+        // 1. Ensure Purchase exists and is StoreSafe
+        let txPurchase = existingSupplierTxs.find(t => t.type === 'purchase');
+        if (!txPurchase) {
+          txPurchase = new SupplierTransaction({
+            supplier: supplierDoc._id,
+            type: 'purchase',
+            amount: totalAmount,
+            description: `فاتورة بضاعة (شراء نقدي) - ${targetProduct.name} (${qty} قطعة × ${cost} ج.م)`,
+            paymentSource: 'StoreSafe',
+            items: [{ product: targetProduct._id, name: targetProduct.name, quantity: qty, unitPrice: cost }],
+            date: targetProduct.createdAt || new Date()
+          });
+          await txPurchase.save();
+        } else {
+          txPurchase.supplier = supplierDoc._id;
+          txPurchase.amount = totalAmount;
+          txPurchase.paymentSource = 'StoreSafe';
+          txPurchase.description = `فاتورة بضاعة (شراء نقدي) - ${targetProduct.name} (${qty} قطعة × ${cost} ج.م)`;
+          if (!txPurchase.items || txPurchase.items.length === 0) {
+            txPurchase.items = [{ product: targetProduct._id, name: targetProduct.name, quantity: qty, unitPrice: cost }];
+          }
+          await txPurchase.save();
+        }
+
+        // 2. Ensure Payment exists and is StoreSafe
+        let txPayment = existingSupplierTxs.find(t => t.type === 'payment');
+        if (!txPayment) {
+          txPayment = new SupplierTransaction({
+            supplier: supplierDoc._id,
+            type: 'payment',
+            amount: totalAmount,
+            description: `سداد فاتورة بضاعة من درج الخزنة - ${targetProduct.name}`,
+            paymentSource: 'StoreSafe',
+            date: txPurchase.date || targetProduct.createdAt || new Date()
+          });
+          await txPayment.save();
+        } else {
+          txPayment.supplier = supplierDoc._id;
+          txPayment.amount = totalAmount;
+          txPayment.paymentSource = 'StoreSafe';
+          txPayment.description = `سداد فاتورة بضاعة من درج الخزنة - ${targetProduct.name}`;
+          await txPayment.save();
+        }
+
+        // 3. Ensure Transaction exists in Safe (OUT) so it shows up in Account Statements / Expenses & Safe register!
+        let safeTx = await Transaction.findOne({
+          type: 'OUT',
+          $or: [
+            { referenceId: txPayment._id },
+            { description: new RegExp(`سداد بضاعة مورد.*${safeName}`, 'i') },
+            { description: new RegExp(safeName, 'i') },
+            { description: /سداد بضاعة مورد.*148/i },
+            { description: /148.*مشجر|مشجر.*148/i }
           ]
         });
 
-        if (!existingSuppTx) {
-          // Look for recent safe transaction from the last 7 days
-          const recentSafeTx = await Transaction.findOne({
+        if (!safeTx) {
+          const openShift = await Shift.findOne({ status: 'open' });
+          safeTx = new Transaction({
+            amount: totalAmount,
             type: 'OUT',
-            createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-            $or: [
-              { description: new RegExp(safeName, 'i') },
-              { description: /148/i },
-              { description: /سداد بضاعة مورد/i },
-              { description: /مشجر/i }
-            ]
-          }).sort({ createdAt: -1 });
-
-          const qty = Number(targetProduct.stock || 0) || 1;
-          const cost = Number(targetProduct.costPrice || 0);
-          let totalAmount = qty * cost;
-          if (!totalAmount || isNaN(totalAmount) || totalAmount <= 0) {
-            totalAmount = recentSafeTx ? Number(recentSafeTx.amount || 0) : 0;
+            category: 'Expense',
+            description: `سداد بضاعة مورد (كاش الخزنة) - ${supplierDoc.name} | ${targetProduct.name} (${qty} قطعة)`,
+            paymentMethod: 'Cash',
+            shift: openShift?._id,
+            referenceId: txPayment._id,
+            createdAt: txPurchase.date || targetProduct.createdAt || new Date()
+          });
+          await safeTx.save();
+          report.chemiseSafeTxCreated = 1;
+        } else {
+          safeTx.amount = totalAmount;
+          safeTx.type = 'OUT';
+          safeTx.category = 'Expense';
+          safeTx.paymentMethod = 'Cash';
+          safeTx.description = `سداد بضاعة مورد (كاش الخزنة) - ${supplierDoc.name} | ${targetProduct.name} (${qty} قطعة)`;
+          safeTx.referenceId = txPayment._id;
+          if (!safeTx.createdAt) {
+            safeTx.createdAt = txPurchase.date || targetProduct.createdAt || new Date();
           }
-          if (totalAmount <= 0) totalAmount = 100;
-
-          if (recentSafeTx) {
-            const txPurchase = new SupplierTransaction({
-              supplier: supplierDoc._id,
-              type: 'purchase',
-              amount: totalAmount,
-              description: `فاتورة بضاعة (شراء نقدي) - ${targetProduct.name} (${qty} قطعة)`,
-              paymentSource: 'StoreSafe',
-              items: [{ product: targetProduct._id, name: targetProduct.name, quantity: qty, unitPrice: cost }],
-              date: recentSafeTx.createdAt || new Date()
-            });
-            await txPurchase.save();
-
-            const txPayment = new SupplierTransaction({
-              supplier: supplierDoc._id,
-              type: 'payment',
-              amount: totalAmount,
-              description: `سداد فاتورة بضاعة من درج الخزنة - ${targetProduct.name}`,
-              paymentSource: 'StoreSafe',
-              date: recentSafeTx.createdAt || new Date()
-            });
-            await txPayment.save();
-
-            recentSafeTx.referenceId = txPayment._id;
-            await recentSafeTx.save();
-            report.chemiseBillsLinked++;
-          } else {
-            const txPurchase = new SupplierTransaction({
-              supplier: supplierDoc._id,
-              type: 'purchase',
-              amount: totalAmount,
-              description: `فاتورة بضاعة (شراء آجل) - ${targetProduct.name} (${qty} قطعة × ${cost} ج.م)`,
-              paymentSource: 'PersonalPocket',
-              items: [{ product: targetProduct._id, name: targetProduct.name, quantity: qty, unitPrice: cost }],
-              date: targetProduct.createdAt || new Date()
-            });
-            await txPurchase.save();
-            report.chemiseBillsLinked++;
-          }
+          await safeTx.save();
+          report.chemiseSafeTxCreated = 1;
         }
+        report.chemiseBillsLinked++;
       }
     }
 
     req.app.locals.io?.emit('inventory:update');
     res.json({
       success: true,
-      message: 'تمت معالجة فواتير الموردين وحذف حركات الشميزات القديمة لمنع التكرار بنجاح',
+      message: 'تمت معالجة فواتير الموردين وحذف حركات الشميزات القديمة لمنع التكرار وتثبيت حركة الخزنة بنجاح',
       report
     });
   } catch (error) {
