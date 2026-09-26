@@ -124,7 +124,7 @@ function AdminSafe() {
       loadSafe();
       loadShift();
     } catch (err) {
-      alert(err.response?.data?.message || 'فشلت عملية المعالجة');
+      alert(`فشلت عملية المعالجة: ${err.response?.data?.message || err.response?.data?.error || err.message}`);
     } finally {
       setHealing(false);
     }

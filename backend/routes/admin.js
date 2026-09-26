@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const bcrypt = require('bcryptjs');
@@ -1420,12 +1421,13 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
           await cp.save();
         }
 
+        const safeName = (cp.name || '').replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
         // Check if a SupplierTransaction exists for this product
         const existingSuppTx = await SupplierTransaction.findOne({
           supplier: supplierDoc._id,
           $or: [
             { 'items.product': cp._id },
-            { description: new RegExp(cp.name, 'i') }
+            { description: new RegExp(safeName, 'i') }
           ]
         });
 
@@ -1434,21 +1436,27 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
           const safeTx = await Transaction.findOne({
             type: 'OUT',
             $or: [
-              { description: new RegExp(cp.name, 'i') },
-              { description: /سداد بضاعة مورد/i }
+              { description: new RegExp(safeName, 'i') },
+              { description: /سداد بضاعة مورد/i },
+              { description: /148/i },
+              { description: /شميز/i }
             ]
-          });
+          }).sort({ createdAt: -1 });
 
-          const qty = cp.stock || 1;
-          const cost = cp.costPrice || 0;
-          const totalAmount = qty * cost;
+          const qty = Number(cp.stock || 0) || 1;
+          const cost = Number(cp.costPrice || 0);
+          let totalAmount = qty * cost;
+          if (!totalAmount || isNaN(totalAmount) || totalAmount <= 0) {
+            totalAmount = safeTx ? Number(safeTx.amount || 0) : 0;
+          }
+          if (totalAmount <= 0) totalAmount = 100;
 
           if (safeTx) {
             // It was paid from safe! Create purchase + payment
             const txPurchase = new SupplierTransaction({
               supplier: supplierDoc._id,
               type: 'purchase',
-              amount: totalAmount || safeTx.amount,
+              amount: totalAmount,
               description: `فاتورة بضاعة (شراء نقدي) - ${cp.name} (${qty} قطعة)`,
               paymentSource: 'StoreSafe',
               items: [{ product: cp._id, name: cp.name, quantity: qty, unitPrice: cost }],
@@ -1459,7 +1467,7 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
             const txPayment = new SupplierTransaction({
               supplier: supplierDoc._id,
               type: 'payment',
-              amount: totalAmount || safeTx.amount,
+              amount: totalAmount,
               description: `سداد فاتورة بضاعة من درج الخزنة - ${cp.name}`,
               paymentSource: 'StoreSafe',
               date: safeTx.createdAt || new Date()
