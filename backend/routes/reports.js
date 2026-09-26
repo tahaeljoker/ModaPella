@@ -299,7 +299,19 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
         const desc = (t.description || '').toLowerCase();
         const isRet = cat === 'refund' || cat.includes('مرتجع');
         const isPersonal = cat === 'personalwithdrawal' || desc.includes('شخصي') || desc.includes('جمعية') || cat.includes('شخصي');
-        const isSupplier = cat.includes('مورد') || desc.includes('مورد') || cat === 'supplierpayment';
+        const isSupplier = cat === 'supplierpayment' ||
+                           cat === 'supplierpurchase' ||
+                           cat.includes('مورد') ||
+                           desc.includes('مورد') ||
+                           cat.includes('بضاعة') ||
+                           desc.includes('بضاعة') ||
+                           cat.includes('بضائع') ||
+                           desc.includes('بضائع') ||
+                           cat.includes('مشتريات') ||
+                           desc.includes('مشتريات') ||
+                           desc.includes('شميز') ||
+                           desc.includes('كارفن') ||
+                           (t.referenceId && supplierTxIds.has(t.referenceId.toString()));
 
         // Avoid duplicating supplier payments that already exist in allSupplierTxs
         if (isSupplier && t.referenceId && supplierTxIds.has(t.referenceId.toString())) {
@@ -515,16 +527,32 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
     } else if (tab === 'safe') {
       allTransactions.filter(t => t.paymentMethod === 'Cash').forEach(t => {
         const cat = (t.category || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+        const isSupplier = cat === 'supplierpayment' ||
+                           cat === 'supplierpurchase' ||
+                           cat.includes('مورد') ||
+                           desc.includes('مورد') ||
+                           cat.includes('بضاعة') ||
+                           desc.includes('بضاعة') ||
+                           cat.includes('بضائع') ||
+                           desc.includes('بضائع') ||
+                           cat.includes('مشتريات') ||
+                           desc.includes('مشتريات') ||
+                           desc.includes('شميز') ||
+                           desc.includes('كارفن') ||
+                           !!t.referenceId;
+        const isPersonal = cat.includes('شخصي') || cat.includes('جمعية') || desc.includes('شخصي') || desc.includes('جمعية');
+
         statementItems.push({
           id: t._id,
           source: 'safe',
           date: t.createdAt,
-          section: 'نقدية الدرج',
-          type: t.type === 'IN' ? (cat.includes('دين') ? 'تحصيل دين' : cat.includes('إيداع') ? 'إيداع' : 'مبيعات كاش') : (cat.includes('مرتجع') ? 'مرتجع كاش' : cat.includes('مورد') ? 'سداد مورد' : cat.includes('شخصي') ? 'مسحوبات شخصية' : 'مصروف تشغيل'),
-          typeColor: t.type === 'IN' ? 'emerald' : 'rose',
+          section: t.type === 'IN' ? 'نقدية الدرج' : isSupplier ? 'سداد موردين' : isPersonal ? 'مسحوبات شخصية' : 'مصروفات تشغيل',
+          type: t.type === 'IN' ? (cat.includes('دين') ? 'تحصيل دين' : cat.includes('إيداع') ? 'إيداع' : 'مبيعات كاش') : (cat.includes('مرتجع') ? 'مرتجع كاش' : isSupplier ? 'سداد لمورد' : isPersonal ? 'مسحوبات شخصية' : 'مصروف تشغيل'),
+          typeColor: t.type === 'IN' ? 'emerald' : isSupplier ? 'amber' : isPersonal ? 'purple' : 'rose',
           flow: t.type,
           amount: t.amount,
-          partyName: 'الدرج النقدي',
+          partyName: isSupplier ? (t.description || 'مورد') : 'الدرج النقدي',
           partyPhone: '',
           paymentMethod: 'كاش',
           description: t.description || t.category || '',
@@ -546,7 +574,19 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
         const cat = (t.category || '').toLowerCase();
         const desc = (t.description || '').toLowerCase();
         const isPersonal = cat === 'personalwithdrawal' || desc.includes('شخصي') || desc.includes('جمعية') || cat.includes('شخصي') || cat.includes('جمعية');
-        const isSupplier = cat.includes('مورد') || desc.includes('مورد') || cat === 'supplierpayment';
+        const isSupplier = cat === 'supplierpayment' ||
+                           cat === 'supplierpurchase' ||
+                           cat.includes('مورد') ||
+                           desc.includes('مورد') ||
+                           cat.includes('بضاعة') ||
+                           desc.includes('بضاعة') ||
+                           cat.includes('بضائع') ||
+                           desc.includes('بضائع') ||
+                           cat.includes('مشتريات') ||
+                           desc.includes('مشتريات') ||
+                           desc.includes('شميز') ||
+                           desc.includes('كارفن') ||
+                           !!t.referenceId;
 
         statementItems.push({
           id: t._id,

@@ -6,6 +6,7 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const TYPE_CONFIG = {
   sale: { label: 'مبيعات', icon: '', color: 'border-emerald-500 bg-emerald-50 text-emerald-800 node-bg-emerald' },
+  supplier_payment: { label: 'سداد موردين / بضائع', icon: '', color: 'border-amber-500 bg-amber-50 text-amber-900 node-bg-amber' },
   expense: { label: 'مصروفات تشغيل', icon: '', color: 'border-rose-500 bg-rose-50 text-rose-800 node-bg-rose' },
   personal_withdrawal: { label: 'مسحوبات شخصية / جمعية', icon: '', color: 'border-amber-500 bg-amber-50 text-amber-900 node-bg-amber' },
   refund: { label: 'مرتجع', icon: '', color: 'border-amber-500 bg-amber-50 text-amber-800 node-bg-amber' },

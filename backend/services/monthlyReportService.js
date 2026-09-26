@@ -41,8 +41,15 @@ const isSupplierTx = (t) => {
     cat === 'supplierpurchase' ||
     cat.includes('مورد') ||
     cat.includes('بضاعة') ||
+    cat.includes('بضائع') ||
+    cat.includes('مشتريات') ||
     desc.includes('مورد') ||
-    desc.includes('بضاعة')
+    desc.includes('بضاعة') ||
+    desc.includes('بضائع') ||
+    desc.includes('مشتريات') ||
+    desc.includes('شميز') ||
+    desc.includes('كارفن') ||
+    !!t.referenceId
   );
 };
 

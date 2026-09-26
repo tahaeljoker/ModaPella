@@ -1371,11 +1371,14 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
       }
     }
 
-    // 2. Fix all transactions misclassified because of 'ادمن' or 'ادم'
+    // 2. Fix all transactions misclassified because of 'ادمن' or 'ادم' (excluding any goods/suppliers/chemise)
     const misclassifiedAdminTxs = await Transaction.find({
       type: 'OUT',
       description: /ادمن|الادمن/i,
-      category: { $in: ['personalwithdrawal', 'مسحوبات شخصية', 'مسحوبات شخصية / جمعية'] }
+      category: { $in: ['personalwithdrawal', 'مسحوبات شخصية', 'مسحوبات شخصية / جمعية'] },
+      $and: [
+        { description: { $not: /شميز|بضاعة|مورد|148|كارفن|جيبة/i } }
+      ]
     });
     for (const mTx of misclassifiedAdminTxs) {
       mTx.category = 'مصروف تشغيل';
@@ -1410,6 +1413,9 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
     if (!targetProduct) {
       targetProduct = await Product.findOne({ name: /مشجر/i });
     }
+    if (!targetProduct) {
+      targetProduct = await Product.findOne({ name: /شميز/i });
+    }
 
     if (targetProduct) {
       if (targetProduct.isSeasonArchived) {
@@ -1436,7 +1442,13 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
         }
       }
       if (!supplierDoc) {
+        supplierDoc = await Supplier.findOne({ name: /كارفن/i });
+      }
+      if (!supplierDoc) {
         supplierDoc = await Supplier.findOne({ active: { $ne: false } }).sort({ createdAt: 1 });
+      }
+      if (!supplierDoc) {
+        supplierDoc = await Supplier.findOne().sort({ createdAt: 1 });
       }
 
       if (supplierDoc) {
@@ -1518,42 +1530,50 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
           await txPayment.save();
         }
 
-        // 3. Ensure Transaction exists in Safe (OUT) so it shows up in Account Statements / Expenses & Safe register!
-        let safeTx = await Transaction.findOne({
+        // 3. Ensure Transaction exists in Safe (OUT) with category 'SupplierPayment' so it shows up as Goods / Supplier Payment!
+        const chemiseSafeTxs = await Transaction.find({
           type: 'OUT',
           $or: [
             { referenceId: txPayment._id },
             { description: new RegExp(`سداد بضاعة مورد.*${safeName}`, 'i') },
             { description: new RegExp(safeName, 'i') },
-            { description: /سداد بضاعة مورد.*148/i },
-            { description: /148.*مشجر|مشجر.*148/i }
+            { description: /شميز.*مشجر|مشجر.*شميز/i },
+            { description: /148/i }
           ]
-        });
+        }).sort({ createdAt: 1 });
 
-        if (!safeTx) {
-          const openShift = await Shift.findOne({ status: 'open' });
-          safeTx = new Transaction({
-            amount: totalAmount,
-            type: 'OUT',
-            category: 'Expense',
-            description: `سداد بضاعة مورد (كاش الخزنة) - ${supplierDoc.name} | ${targetProduct.name} (${qty} قطعة)`,
-            paymentMethod: 'Cash',
-            shift: openShift?._id,
-            referenceId: txPayment._id,
-            createdAt: txPurchase.date || targetProduct.createdAt || new Date()
-          });
-          await safeTx.save();
-          report.chemiseSafeTxCreated = 1;
-        } else {
+        let safeTx = null;
+        if (chemiseSafeTxs.length > 0) {
+          safeTx = chemiseSafeTxs[0];
           safeTx.amount = totalAmount;
           safeTx.type = 'OUT';
-          safeTx.category = 'Expense';
+          safeTx.category = 'SupplierPayment';
           safeTx.paymentMethod = 'Cash';
           safeTx.description = `سداد بضاعة مورد (كاش الخزنة) - ${supplierDoc.name} | ${targetProduct.name} (${qty} قطعة)`;
           safeTx.referenceId = txPayment._id;
           if (!safeTx.createdAt) {
             safeTx.createdAt = txPurchase.date || targetProduct.createdAt || new Date();
           }
+          await safeTx.save();
+          report.chemiseSafeTxCreated = 1;
+
+          // Delete any extra duplicate transactions
+          for (let i = 1; i < chemiseSafeTxs.length; i++) {
+            await Transaction.findByIdAndDelete(chemiseSafeTxs[i]._id);
+            report.duplicateChemiseTxsDeleted = (report.duplicateChemiseTxsDeleted || 0) + 1;
+          }
+        } else {
+          const openShift = await Shift.findOne({ status: 'open' });
+          safeTx = new Transaction({
+            amount: totalAmount,
+            type: 'OUT',
+            category: 'SupplierPayment',
+            description: `سداد بضاعة مورد (كاش الخزنة) - ${supplierDoc.name} | ${targetProduct.name} (${qty} قطعة)`,
+            paymentMethod: 'Cash',
+            shift: openShift?._id,
+            referenceId: txPayment._id,
+            createdAt: txPurchase.date || targetProduct.createdAt || new Date()
+          });
           await safeTx.save();
           report.chemiseSafeTxCreated = 1;
         }

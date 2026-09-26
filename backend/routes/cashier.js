@@ -199,8 +199,15 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         cat === 'supplierpurchase' ||
         cat.includes('مورد') ||
         cat.includes('بضاعة') ||
+        cat.includes('بضائع') ||
+        cat.includes('مشتريات') ||
         desc.includes('مورد') ||
-        desc.includes('بضاعة')
+        desc.includes('بضاعة') ||
+        desc.includes('بضائع') ||
+        desc.includes('مشتريات') ||
+        desc.includes('شميز') ||
+        desc.includes('كارفن') ||
+        !!t.referenceId
       );
     };
 
@@ -625,6 +632,9 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
       if (isPersonal) {
         actType = 'personal_withdrawal';
         typeLabel = 'مسحوبات شخصية / جمعية (تؤثر على الخزنة فقط - مستبعدة من الربح)';
+      } else if (isSupplierTx(t)) {
+        actType = 'supplier_payment';
+        typeLabel = 'سداد بضاعة مورد (كاش الخزنة)';
       } else if (catLower === 'expense') {
         actType = 'expense';
       } else if (catLower === 'refund') {
