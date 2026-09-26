@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 import { Icon } from '../../components/Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -7,6 +8,25 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 export default function AdminUpdates() {
   const navigate = useNavigate();
   const [selectedCase, setSelectedCase] = useState('returns');
+  const [healing, setHealing] = useState(false);
+
+  const handleHealRecords = async () => {
+    if (!window.confirm('هل تريد تشغيل المعالجة الذكية الآن؟\n• ستتم معالجة وتثبيت فاتورة الشميز في حساب المورد.\n• حذف تكرار مصروف زجاج المحل (350 ج.م) الزائد وتصحيحه كمصروف تشغيلي.\n• فك أرشفة الموديل 148 وتنشيطه للبيع.')) return;
+    setHealing(true);
+    try {
+      const res = await api.post('/admin/heal-records');
+      const r = res.data.report || {};
+      alert(`تمت المعالجة بنجاح!\n` +
+        `• حركات مصروفات مكررة تم حذفها: ${r.duplicateGlassExpensesCleaned || 0}\n` +
+        `• حركات تم تصحيح تصنيفها لمصروفات تشغيل: ${r.expensesReclassified || 0}\n` +
+        `• فواتير موردين تم ربطها وتحديثها: ${r.chemiseBillsLinked || 0}\n` +
+        `• منتجات تم تنشيطها وفك أرشفتها: ${r.chemiseActivated || 0}`);
+    } catch (err) {
+      alert(err.response?.data?.message || 'فشلت عملية المعالجة');
+    } finally {
+      setHealing(false);
+    }
+  };
 
   const updatesList = [
     {
@@ -234,6 +254,16 @@ export default function AdminUpdates() {
 
         {/* Quick Nav Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleHealRecords}
+            disabled={healing}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+            title="تسوية فورية لقاعدة البيانات"
+          >
+            <Icon name="check" className="w-4 h-4" />
+            <span>{healing ? 'جاري المعالجة الفورية...' : 'تسوية فواتير الموردين ومصروف الزجاج بنقرة واحدة'}</span>
+          </button>
           <button
             type="button"
             onClick={() => navigate('/admin/statements?tab=returns')}

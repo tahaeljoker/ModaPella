@@ -38,6 +38,8 @@ function AdminSafe() {
   // Smart audit state
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditData, setAuditData] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [healing, setHealing] = useState(false);
 
   const loadSafe = () => {
     setLoading(true);
@@ -72,6 +74,8 @@ function AdminSafe() {
 
   const handleTransactionSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       if (modalType === 'EXPENSE') {
         await api.post('/cashier/safe/transaction', { ...form, type: 'OUT' });
@@ -98,8 +102,31 @@ function AdminSafe() {
       setForm({ amount: '', category: 'ضيافة', description: '' });
       loadSafe();
       loadShift();
+      alert('تم تنفيذ وتسجيل العملية بنجاح في الخزنة!');
     } catch (error) {
       alert(error.response?.data?.message || 'حدث خطأ أثناء تنفيذ العملية');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleHealRecords = async () => {
+    if (!window.confirm('هل تريد تشغيل المعالجة الذكية لإصلاح وتحديث فواتير الموردين ومصروفات الخزنة وحذف أي حركات مكررة؟')) return;
+    setHealing(true);
+    try {
+      const res = await api.post('/admin/heal-records');
+      const r = res.data.report || {};
+      alert(`تمت المعالجة المحاسبية بنجاح!\n` +
+        `• حركات مصروفات مكررة تم حذفها: ${r.duplicateGlassExpensesCleaned || 0}\n` +
+        `• حركات تم تصحيح تصنيفها لمصروفات تشغيل: ${r.expensesReclassified || 0}\n` +
+        `• فواتير موردين تم ربطها وتحديثها: ${r.chemiseBillsLinked || 0}\n` +
+        `• منتجات تم تنشيطها وفك أرشفتها: ${r.chemiseActivated || 0}`);
+      loadSafe();
+      loadShift();
+    } catch (err) {
+      alert(err.response?.data?.message || 'فشلت عملية المعالجة');
+    } finally {
+      setHealing(false);
     }
   };
 
@@ -228,6 +255,16 @@ function AdminSafe() {
             className="border border-burgundy/20 bg-white hover:bg-burgundy/5 text-burgundy font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-sm"
           >
             تصدير CSV
+          </button>
+          <button
+            type="button"
+            onClick={handleHealRecords}
+            disabled={healing}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+            title="إصلاح فواتير الموردين وحذف أي تكرار للمصروفات"
+          >
+            <Icon name="check" className="w-4 h-4" />
+            <span>{healing ? 'جاري المعالجة...' : 'تسوية ذكية للخزنة والموردين'}</span>
           </button>
           <button
             type="button"
@@ -628,9 +665,10 @@ function AdminSafe() {
               <div className="flex gap-2.5 pt-3 border-t border-burgundy/10">
                 <button
                   type="submit"
-                  className="flex-1 rounded-full bg-burgundy py-2.5 text-xs font-bold text-white transition hover:bg-[#650018]"
+                  disabled={submitting}
+                  className="flex-1 rounded-full bg-burgundy py-2.5 text-xs font-bold text-white transition hover:bg-[#650018] disabled:opacity-50"
                 >
-                  {modalType === 'CLOSE' ? 'تأكيد التقفيل' : 'تأكيد وحفظ'}
+                  {submitting ? 'جاري الحفظ...' : (modalType === 'CLOSE' ? 'تأكيد التقفيل' : 'تأكيد وحفظ')}
                 </button>
                 <button
                   type="button"

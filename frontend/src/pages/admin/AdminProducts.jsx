@@ -551,8 +551,8 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  const payload = {
         ...form,
         supplierId: resolvedSupplierId,
-        supplierBillOption: !form._id ? supplierBillOption : undefined,
-        supplierInvoiceRef: !form._id && supplierInvoiceRef ? supplierInvoiceRef.trim() : undefined,
+        supplierBillOption: supplierBillOption !== 'none' ? supplierBillOption : undefined,
+        supplierInvoiceRef: supplierBillOption !== 'none' && supplierInvoiceRef ? supplierInvoiceRef.trim() : undefined,
  price: Number(form.price),
  discountPrice: form.discountPrice ? Number(form.discountPrice) : null,
  discountStartDate: form.discountStartDate ? new Date(form.discountStartDate) : null,
@@ -804,13 +804,12 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  )}
  </div>
 
-          {/* Supplier Billing Section (for new products) */}
-          {!form._id && (
-            <div className="sm:col-span-2 bg-white/80 border border-burgundy/15 rounded-2xl p-4 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-burgundy flex items-center gap-1.5">
-                  <span>ربط حساب المورد بالفاتورة:</span>
-                </label>
+          {/* Supplier Billing Section */}
+          <div className="sm:col-span-2 bg-white/80 border border-burgundy/15 rounded-2xl p-4 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-burgundy flex items-center gap-1.5">
+                <span>{form._id ? 'ربط / تسجيل فاتورة مورد لهذا المنتج:' : 'ربط حساب المورد بالفاتورة:'}</span>
+              </label>
                 {supplierBillOption !== 'none' && (
                   <span className="text-xs font-extrabold text-burgundy bg-burgundy/10 px-2 py-0.5 rounded-lg">
                     إجمالي الفاتورة الموردة: {((Number(form.costPrice) || 0) * (hasVariants ? totalVariantStock : Number(form.stock || 0))).toLocaleString('en-US')} ج.م
@@ -858,7 +857,6 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
                 </div>
               )}
             </div>
-          )}
 
  <div className="sm:col-span-2">
  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex items-center gap-2">

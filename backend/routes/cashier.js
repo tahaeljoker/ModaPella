@@ -135,10 +135,13 @@ router.get('/orders/:id', auth, requireRole(['admin', 'cashier', 'manager']), as
 // GET /api/cashier/safe — get today's safe transactions and totals
 router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const now = new Date();
+    const cairoNow = new Date(now.toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
+    const diffMs = cairoNow.getTime() - now.getTime();
+    const cairoStart = new Date(cairoNow.getFullYear(), cairoNow.getMonth(), cairoNow.getDate(), 0, 0, 0, 0);
+    const cairoEnd = new Date(cairoNow.getFullYear(), cairoNow.getMonth(), cairoNow.getDate(), 23, 59, 59, 999);
+    const startOfDay = new Date(cairoStart.getTime() - diffMs);
+    const endOfDay = new Date(cairoEnd.getTime() - diffMs);
 
     const transactions = await Transaction.find({
       createdAt: { $gte: startOfDay, $lte: endOfDay }

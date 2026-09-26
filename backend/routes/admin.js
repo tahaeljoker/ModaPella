@@ -199,7 +199,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         desc.includes('جمعيه') ||
         desc.includes('سلفة') ||
         desc.includes('سلفه') ||
-        desc.includes('ادم')
+        (/(?:^|\s)(?:آدم|ادم)(?:$|\s)/.test(desc) && !desc.includes('ادمن'))
       );
     };
 
@@ -817,6 +817,20 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
       });
     }
 
+    // Process Supplier Billing if selected during edit
+    if (req.body.supplierBillOption && req.body.supplierBillOption !== 'none') {
+      await handleSupplierProductBilling({
+        supplierId: req.body.supplierId || product.supplierId,
+        supplierName: req.body.supplier || product.supplier,
+        product,
+        quantity: Number(product.stock || 0),
+        costPrice: Number(product.costPrice || 0),
+        option: req.body.supplierBillOption,
+        invoiceRef: req.body.supplierInvoiceRef,
+        userId: req.user.id
+      });
+    }
+
     req.app.locals.io?.emit('inventory:update', product);
     res.json(product);
   } catch (error) {
@@ -1300,6 +1314,188 @@ router.delete('/reset-inventory-tasks', auth, requireRole(['admin']), async (req
     });
   } catch (e) {
     res.status(500).json({ message: 'Failed', error: e.message });
+  }
+});
+
+// POST /api/admin/heal-records — One-click sync & heal past supplier bills and misclassified/duplicate expenses
+router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const report = {
+      suppliersMerged: 0,
+      chemiseBillsLinked: 0,
+      chemiseActivated: 0,
+      duplicateGlassExpensesCleaned: 0,
+      expensesReclassified: 0
+    };
+
+    // 1. Fix duplicate glass cleaning / 350 EGP transactions
+    // Find all OUT transactions with amount 350 or description matching glass / cleaning
+    const glassTxs = await Transaction.find({
+      type: 'OUT',
+      $or: [
+        { amount: 350 },
+        { description: /زجاج|نضاف/i }
+      ]
+    }).sort({ createdAt: 1 });
+
+    if (glassTxs.length > 1) {
+      // Keep the first one, delete duplicate identical ones
+      const firstTx = glassTxs[0];
+      firstTx.category = 'نظافة';
+      if (!firstTx.description || firstTx.description.trim() === '') {
+        firstTx.description = 'نظافة زجاج محل';
+      }
+      await firstTx.save();
+      report.expensesReclassified++;
+
+      for (let i = 1; i < glassTxs.length; i++) {
+        const dup = glassTxs[i];
+        await Transaction.findByIdAndDelete(dup._id);
+        report.duplicateGlassExpensesCleaned++;
+      }
+    } else if (glassTxs.length === 1) {
+      const tx = glassTxs[0];
+      if (tx.category !== 'نظافة') {
+        tx.category = 'نظافة';
+        await tx.save();
+        report.expensesReclassified++;
+      }
+    }
+
+    // 2. Fix all transactions misclassified because of 'ادمن' or 'ادم'
+    const misclassifiedAdminTxs = await Transaction.find({
+      type: 'OUT',
+      description: /ادمن|الادمن/i,
+      category: { $in: ['personalwithdrawal', 'مسحوبات شخصية', 'مسحوبات شخصية / جمعية'] }
+    });
+    for (const mTx of misclassifiedAdminTxs) {
+      mTx.category = 'مصروف تشغيل';
+      await mTx.save();
+      report.expensesReclassified++;
+    }
+
+    // 3. Find Chemise / 148 products and link to their supplier
+    const chemiseProducts = await Product.find({
+      $or: [
+        { name: /148/i },
+        { name: /شميز/i }
+      ]
+    });
+
+    for (const cp of chemiseProducts) {
+      // Ensure it is not archived
+      if (cp.isSeasonArchived) {
+        cp.isSeasonArchived = false;
+        await cp.save();
+        report.chemiseActivated++;
+      }
+
+      // Check if product has a supplier assigned
+      let supplierDoc = null;
+      if (cp.supplierId && mongoose.Types.ObjectId.isValid(cp.supplierId)) {
+        supplierDoc = await Supplier.findById(cp.supplierId);
+      }
+      if (!supplierDoc && cp.supplier && cp.supplier.trim()) {
+        const rawName = cp.supplier.trim();
+        supplierDoc = await Supplier.findOne({ name: rawName });
+        if (!supplierDoc) {
+          const escaped = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+            .replace(/[أإآا]/g, '[أإآا]')
+            .replace(/[ةه]/g, '[ةه]')
+            .replace(/[ىي]/g, '[ىي]')
+            .replace(/\s+/g, '\\s+');
+          supplierDoc = await Supplier.findOne({ name: { $regex: new RegExp(`^${escaped}$`, 'i') } });
+        }
+      }
+
+      // If still no supplierDoc, try to find the first supplier in DB as fallback
+      if (!supplierDoc) {
+        supplierDoc = await Supplier.findOne({ active: { $ne: false } }).sort({ createdAt: 1 });
+      }
+
+      if (supplierDoc) {
+        if (!cp.supplierId || cp.supplierId.toString() !== supplierDoc._id.toString() || cp.supplier !== supplierDoc.name) {
+          cp.supplierId = supplierDoc._id;
+          cp.supplier = supplierDoc.name;
+          await cp.save();
+        }
+
+        // Check if a SupplierTransaction exists for this product
+        const existingSuppTx = await SupplierTransaction.findOne({
+          supplier: supplierDoc._id,
+          $or: [
+            { 'items.product': cp._id },
+            { description: new RegExp(cp.name, 'i') }
+          ]
+        });
+
+        if (!existingSuppTx) {
+          // Check if there was a Transaction in Transaction (safe) for this product
+          const safeTx = await Transaction.findOne({
+            type: 'OUT',
+            $or: [
+              { description: new RegExp(cp.name, 'i') },
+              { description: /سداد بضاعة مورد/i }
+            ]
+          });
+
+          const qty = cp.stock || 1;
+          const cost = cp.costPrice || 0;
+          const totalAmount = qty * cost;
+
+          if (safeTx) {
+            // It was paid from safe! Create purchase + payment
+            const txPurchase = new SupplierTransaction({
+              supplier: supplierDoc._id,
+              type: 'purchase',
+              amount: totalAmount || safeTx.amount,
+              description: `فاتورة بضاعة (شراء نقدي) - ${cp.name} (${qty} قطعة)`,
+              paymentSource: 'StoreSafe',
+              items: [{ product: cp._id, name: cp.name, quantity: qty, unitPrice: cost }],
+              date: safeTx.createdAt || new Date()
+            });
+            await txPurchase.save();
+
+            const txPayment = new SupplierTransaction({
+              supplier: supplierDoc._id,
+              type: 'payment',
+              amount: totalAmount || safeTx.amount,
+              description: `سداد فاتورة بضاعة من درج الخزنة - ${cp.name}`,
+              paymentSource: 'StoreSafe',
+              date: safeTx.createdAt || new Date()
+            });
+            await txPayment.save();
+
+            safeTx.referenceId = txPayment._id;
+            await safeTx.save();
+            report.chemiseBillsLinked++;
+          } else {
+            // Create purchase on credit if no safe tx found
+            const txPurchase = new SupplierTransaction({
+              supplier: supplierDoc._id,
+              type: 'purchase',
+              amount: totalAmount,
+              description: `فاتورة بضاعة (شراء آجل) - ${cp.name} (${qty} قطعة × ${cost} ج.م)`,
+              paymentSource: 'PersonalPocket',
+              items: [{ product: cp._id, name: cp.name, quantity: qty, unitPrice: cost }],
+              date: cp.createdAt || new Date()
+            });
+            await txPurchase.save();
+            report.chemiseBillsLinked++;
+          }
+        }
+      }
+    }
+
+    req.app.locals.io?.emit('inventory:update');
+    res.json({
+      success: true,
+      message: 'تمت معالجة ومزامنة البيانات المحاسبية وفواتير الموردين بنجاح',
+      report
+    });
+  } catch (error) {
+    console.error('Heal records failed:', error);
+    res.status(500).json({ message: 'فشلت عملية المعالجة والتسوية', error: error.message });
   }
 });
 

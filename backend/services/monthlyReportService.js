@@ -64,7 +64,7 @@ const isPersonalTx = (t) => {
     desc.includes('جمعيه') ||
     desc.includes('سلفة') ||
     desc.includes('سلفه') ||
-    desc.includes('ادم')
+    (/(?:^|\s)(?:آدم|ادم)(?:$|\s)/.test(desc) && !desc.includes('ادمن'))
   );
 };
 
