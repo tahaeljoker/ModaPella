@@ -1375,29 +1375,43 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
       report.expensesReclassified++;
     }
 
-    // 3. Find Chemise / 148 products and link to their supplier
-    const chemiseProducts = await Product.find({
+    // 3. Clean up any auto-generated supplier transactions for OLD chemises (not 148)
+    const oldChemiseSupplierTxs = await SupplierTransaction.find({
+      $or: [
+        { description: /فاتورة بضاعة.*شميز/i },
+        { description: /سداد فاتورة بضاعة.*شميز/i }
+      ],
+      description: { $not: /148/ }
+    });
+
+    for (const ost of oldChemiseSupplierTxs) {
+      await Transaction.updateMany({ referenceId: ost._id }, { $unset: { referenceId: 1 } });
+      await SupplierTransaction.findByIdAndDelete(ost._id);
+      report.oldChemiseTransactionsCleaned = (report.oldChemiseTransactionsCleaned || 0) + 1;
+    }
+
+    // 4. Specifically find and handle ONLY the target product: "شميز مشجر 148" (or matching 148)
+    const targetProduct = await Product.findOne({
       $or: [
         { name: /148/i },
-        { name: /شميز/i }
+        { name: /مشجر.*148|148.*مشجر/i }
       ]
     });
 
-    for (const cp of chemiseProducts) {
-      // Ensure it is not archived
-      if (cp.isSeasonArchived) {
-        cp.isSeasonArchived = false;
-        await cp.save();
+    if (targetProduct) {
+      if (targetProduct.isSeasonArchived) {
+        targetProduct.isSeasonArchived = false;
+        await targetProduct.save();
         report.chemiseActivated++;
       }
 
-      // Check if product has a supplier assigned
+      // Check supplier for this product
       let supplierDoc = null;
-      if (cp.supplierId && mongoose.Types.ObjectId.isValid(cp.supplierId)) {
-        supplierDoc = await Supplier.findById(cp.supplierId);
+      if (targetProduct.supplierId && mongoose.Types.ObjectId.isValid(targetProduct.supplierId)) {
+        supplierDoc = await Supplier.findById(targetProduct.supplierId);
       }
-      if (!supplierDoc && cp.supplier && cp.supplier.trim()) {
-        const rawName = cp.supplier.trim();
+      if (!supplierDoc && targetProduct.supplier && targetProduct.supplier.trim()) {
+        const rawName = targetProduct.supplier.trim();
         supplierDoc = await Supplier.findOne({ name: rawName });
         if (!supplierDoc) {
           const escaped = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
@@ -1408,59 +1422,58 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
           supplierDoc = await Supplier.findOne({ name: { $regex: new RegExp(`^${escaped}$`, 'i') } });
         }
       }
-
-      // If still no supplierDoc, try to find the first supplier in DB as fallback
       if (!supplierDoc) {
         supplierDoc = await Supplier.findOne({ active: { $ne: false } }).sort({ createdAt: 1 });
       }
 
       if (supplierDoc) {
-        if (!cp.supplierId || cp.supplierId.toString() !== supplierDoc._id.toString() || cp.supplier !== supplierDoc.name) {
-          cp.supplierId = supplierDoc._id;
-          cp.supplier = supplierDoc.name;
-          await cp.save();
+        if (!targetProduct.supplierId || targetProduct.supplierId.toString() !== supplierDoc._id.toString() || targetProduct.supplier !== supplierDoc.name) {
+          targetProduct.supplierId = supplierDoc._id;
+          targetProduct.supplier = supplierDoc.name;
+          await targetProduct.save();
         }
 
-        const safeName = (cp.name || '').replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-        // Check if a SupplierTransaction exists for this product
+        const safeName = (targetProduct.name || '').replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        // Check if SupplierTransaction exists specifically for targetProduct
         const existingSuppTx = await SupplierTransaction.findOne({
           supplier: supplierDoc._id,
           $or: [
-            { 'items.product': cp._id },
-            { description: new RegExp(safeName, 'i') }
+            { 'items.product': targetProduct._id },
+            { description: new RegExp(safeName, 'i') },
+            { description: /148/i }
           ]
         });
 
         if (!existingSuppTx) {
-          // Check if there was a Transaction in Transaction (safe) for this product
-          const safeTx = await Transaction.findOne({
+          // Look for recent safe transaction from the last 7 days
+          const recentSafeTx = await Transaction.findOne({
             type: 'OUT',
+            createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
             $or: [
               { description: new RegExp(safeName, 'i') },
-              { description: /سداد بضاعة مورد/i },
               { description: /148/i },
-              { description: /شميز/i }
+              { description: /سداد بضاعة مورد/i },
+              { description: /مشجر/i }
             ]
           }).sort({ createdAt: -1 });
 
-          const qty = Number(cp.stock || 0) || 1;
-          const cost = Number(cp.costPrice || 0);
+          const qty = Number(targetProduct.stock || 0) || 1;
+          const cost = Number(targetProduct.costPrice || 0);
           let totalAmount = qty * cost;
           if (!totalAmount || isNaN(totalAmount) || totalAmount <= 0) {
-            totalAmount = safeTx ? Number(safeTx.amount || 0) : 0;
+            totalAmount = recentSafeTx ? Number(recentSafeTx.amount || 0) : 0;
           }
           if (totalAmount <= 0) totalAmount = 100;
 
-          if (safeTx) {
-            // It was paid from safe! Create purchase + payment
+          if (recentSafeTx) {
             const txPurchase = new SupplierTransaction({
               supplier: supplierDoc._id,
               type: 'purchase',
               amount: totalAmount,
-              description: `فاتورة بضاعة (شراء نقدي) - ${cp.name} (${qty} قطعة)`,
+              description: `فاتورة بضاعة (شراء نقدي) - ${targetProduct.name} (${qty} قطعة)`,
               paymentSource: 'StoreSafe',
-              items: [{ product: cp._id, name: cp.name, quantity: qty, unitPrice: cost }],
-              date: safeTx.createdAt || new Date()
+              items: [{ product: targetProduct._id, name: targetProduct.name, quantity: qty, unitPrice: cost }],
+              date: recentSafeTx.createdAt || new Date()
             });
             await txPurchase.save();
 
@@ -1468,25 +1481,24 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
               supplier: supplierDoc._id,
               type: 'payment',
               amount: totalAmount,
-              description: `سداد فاتورة بضاعة من درج الخزنة - ${cp.name}`,
+              description: `سداد فاتورة بضاعة من درج الخزنة - ${targetProduct.name}`,
               paymentSource: 'StoreSafe',
-              date: safeTx.createdAt || new Date()
+              date: recentSafeTx.createdAt || new Date()
             });
             await txPayment.save();
 
-            safeTx.referenceId = txPayment._id;
-            await safeTx.save();
+            recentSafeTx.referenceId = txPayment._id;
+            await recentSafeTx.save();
             report.chemiseBillsLinked++;
           } else {
-            // Create purchase on credit if no safe tx found
             const txPurchase = new SupplierTransaction({
               supplier: supplierDoc._id,
               type: 'purchase',
               amount: totalAmount,
-              description: `فاتورة بضاعة (شراء آجل) - ${cp.name} (${qty} قطعة × ${cost} ج.م)`,
+              description: `فاتورة بضاعة (شراء آجل) - ${targetProduct.name} (${qty} قطعة × ${cost} ج.م)`,
               paymentSource: 'PersonalPocket',
-              items: [{ product: cp._id, name: cp.name, quantity: qty, unitPrice: cost }],
-              date: cp.createdAt || new Date()
+              items: [{ product: targetProduct._id, name: targetProduct.name, quantity: qty, unitPrice: cost }],
+              date: targetProduct.createdAt || new Date()
             });
             await txPurchase.save();
             report.chemiseBillsLinked++;
@@ -1498,12 +1510,12 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
     req.app.locals.io?.emit('inventory:update');
     res.json({
       success: true,
-      message: 'تمت معالجة ومزامنة البيانات المحاسبية وفواتير الموردين بنجاح',
+      message: 'تمت معالجة فواتير الموردين وحذف حركات الشميزات القديمة لمنع التكرار بنجاح',
       report
     });
   } catch (error) {
     console.error('Heal records failed:', error);
-    res.status(500).json({ message: 'فشلت عملية المعالجة والتسوية', error: error.message });
+    res.status(500).json({ message: error.message || 'فشلت عملية المعالجة والتسوية', error: error.stack });
   }
 });
 

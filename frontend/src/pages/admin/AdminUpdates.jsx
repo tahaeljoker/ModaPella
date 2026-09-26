@@ -16,11 +16,12 @@ export default function AdminUpdates() {
     try {
       const res = await api.post('/admin/heal-records');
       const r = res.data.report || {};
-      alert(`تمت المعالجة بنجاح!\n` +
-        `• حركات مصروفات مكررة تم حذفها: ${r.duplicateGlassExpensesCleaned || 0}\n` +
+      alert(`تمت المعالجة المحاسبية بنجاح!\n` +
+        `• حركات فواتير الشميزات القديمة المحذوفة لمنع التكرار: ${r.oldChemiseTransactionsCleaned || 0}\n` +
+        `• حركات مصروفات مكررة تم حذفها (زجاج المحل): ${r.duplicateGlassExpensesCleaned || 0}\n` +
         `• حركات تم تصحيح تصنيفها لمصروفات تشغيل: ${r.expensesReclassified || 0}\n` +
-        `• فواتير موردين تم ربطها وتحديثها: ${r.chemiseBillsLinked || 0}\n` +
-        `• منتجات تم تنشيطها وفك أرشفتها: ${r.chemiseActivated || 0}`);
+        `• فاتورة الشميز 148 تم تثبيتها في حساب المورد: ${r.chemiseBillsLinked || 0}\n` +
+        `• تنشيط وفك أرشفة الشميز 148: ${r.chemiseActivated || 0}`);
     } catch (err) {
       alert(`فشلت عملية المعالجة: ${err.response?.data?.message || err.response?.data?.error || err.message}`);
     } finally {
