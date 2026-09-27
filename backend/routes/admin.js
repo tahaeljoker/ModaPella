@@ -48,12 +48,13 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         if (targetMonth < 1) { targetMonth = 12; targetYear -= 1; }
       }
 
-      const [products, recentOrders, siteConfig, monthlyData, allInstapayTxs] = await Promise.all([
+      const [products, recentOrders, siteConfig, monthlyData, allInstapayTxs, allCashTxs] = await Promise.all([
         Product.find({ active: true }),
         Order.find().sort({ createdAt: -1 }).limit(10),
         getSiteConfig(),
         calculateMonthlyData(targetYear, targetMonth),
-        Transaction.find({ paymentMethod: { $in: ['Instapay', 'Wallet'] } })
+        Transaction.find({ paymentMethod: { $in: ['Instapay', 'Wallet'] } }),
+        Transaction.find({ paymentMethod: 'Cash' })
       ]);
 
       let currentInstapayBalance = 0;
@@ -62,6 +63,13 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         if (t.type === 'OUT') currentInstapayBalance -= t.amount;
       });
       currentInstapayBalance = Math.round(currentInstapayBalance);
+
+      let cashDrawer = 0;
+      allCashTxs.forEach(t => {
+        if (t.type === 'IN') cashDrawer += t.amount;
+        if (t.type === 'OUT') cashDrawer -= t.amount;
+      });
+      cashDrawer = Math.round(cashDrawer);
 
       const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
       const totalValue = Math.round(products.reduce((sum, item) => sum + item.stock * item.price, 0));
@@ -97,6 +105,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         salesInstapayCollected: monthlyData.salesInstapayCollected,
         instapayRevenue: monthlyData.instapayRevenue ?? monthlyData.salesInstapayCollected,
         currentInstapayBalance,
+        cashDrawer,
         salesDebtRemaining: monthlyData.salesDebtRemaining,
         totalExpenses: monthlyData.totalExpenses,
         totalDiscounts: monthlyData.totalDiscounts,
@@ -130,7 +139,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
     }
 
-    const [products, recentOrders, siteConfig, outTransactions, supplierTxs, periodOrders, allInstapayTxs] = await Promise.all([
+    const [products, recentOrders, siteConfig, outTransactions, supplierTxs, periodOrders, allInstapayTxs, allCashTxs] = await Promise.all([
       Product.find({ active: true }),
       Order.find().sort({ createdAt: -1 }).limit(10),
       getSiteConfig(),
@@ -140,7 +149,8 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
         createdAt: { $gte: startDate, $lte: endDate },
         status: { $in: ['Completed', 'Returned'] }
       }).populate('employee'),
-      Transaction.find({ paymentMethod: { $in: ['Instapay', 'Wallet'] } })
+      Transaction.find({ paymentMethod: { $in: ['Instapay', 'Wallet'] } }),
+      Transaction.find({ paymentMethod: 'Cash' })
     ]);
 
     let currentInstapayBalance = 0;
@@ -149,6 +159,13 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       if (t.type === 'OUT') currentInstapayBalance -= t.amount;
     });
     currentInstapayBalance = Math.round(currentInstapayBalance);
+
+    let cashDrawer = 0;
+    allCashTxs.forEach(t => {
+      if (t.type === 'IN') cashDrawer += t.amount;
+      if (t.type === 'OUT') cashDrawer -= t.amount;
+    });
+    cashDrawer = Math.round(cashDrawer);
 
     const totalStock = products.reduce((sum, item) => sum + item.stock, 0);
     const totalValue = Math.round(products.reduce((sum, item) => sum + item.stock * item.price, 0));
@@ -480,6 +497,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       cashRevenue,
       instapayRevenue,
       currentInstapayBalance,
+      cashDrawer,
       salesDebtRemaining,
       totalExpenses: operatingExpenses + supplierCashPaid,
       totalDiscounts,

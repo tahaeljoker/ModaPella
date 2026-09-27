@@ -147,14 +147,18 @@ function AdminOverview() {
  const [dateTo, setDateTo] = useState('');
  const [filterLoading, setFilterLoading] = useState(false);
 
- // Sensitive data visibility states
+ // Sensitive data visibility states - default to TRUE so numbers are always visible
  const [showSensitive, setShowSensitive] = useState(() => {
- return localStorage.getItem('showSensitiveData') === 'true';
+ const val = localStorage.getItem('showSensitiveData_v2');
+ if (val !== null) return val === 'true';
+ return true; // Numbers always visible by default
  });
  const [revealedCards, setRevealedCards] = useState({});
 
  useEffect(() => {
- localStorage.setItem('showSensitiveData', showSensitive ? 'true' : 'false');
+ localStorage.setItem('showSensitiveData_v2', showSensitive ? 'true' : 'false');
+ // Clear out old key that forced 'false' on users
+ localStorage.removeItem('showSensitiveData');
  }, [showSensitive]);
 
  const toggleCardReveal = (cardKey) => {
@@ -181,7 +185,7 @@ function AdminOverview() {
  return (
  <span
  className={`inline-block transition-all duration-300 ${
- !isRevealed ? 'blur-md select-none' : ''
+ !isRevealed ? 'blur-sm select-none' : ''
  }`}
  >
  {valStr}
@@ -189,23 +193,46 @@ function AdminOverview() {
  );
  };
 
+ const loadFiltered = async (from = dateFrom, to = dateTo) => {
+ setFilterLoading(true);
+ try {
+ const params = new URLSearchParams();
+ if (from) params.append('from', from);
+ if (to) params.append('to', to);
+ const queryStr = params.toString() ? `?${params.toString()}` : '';
+
+ const [overviewRes, summaryRes, weeklyRes] = await Promise.allSettled([
+ api.get(`/admin/overview${queryStr}`),
+ api.get(`/orders/summary${queryStr}`),
+ api.get(`/orders/weekly${queryStr}`),
+ ]);
+ if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data);
+ if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
+ if (weeklyRes.status === 'fulfilled') setWeeklyData(weeklyRes.value.data);
+ } catch (e) {
+ console.error('Failed to load filtered overview data:', e);
+ } finally {
+ setFilterLoading(false);
+ }
+ };
+
  const loadData = async (selectedPeriod = period) => {
  try {
  setLoading(true);
- const [overviewRes, summaryRes, configRes, weeklyRes, activitiesRes] = await Promise.all([
+ const [overviewRes, summaryRes, configRes, weeklyRes, activitiesRes] = await Promise.allSettled([
  api.get(`/admin/overview?period=${selectedPeriod}`),
  api.get('/orders/summary'),
  api.get('/admin/site-config'),
  api.get('/orders/weekly'),
  api.get('/cashier/activities')
  ]);
- setOverview(overviewRes.data);
- setSummary(summaryRes.data);
- setSiteConfig(configRes.data);
- setWeeklyData(weeklyRes.data);
- setRecentActivities(activitiesRes.data.slice(0, 5));
+ if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data);
+ if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
+ if (configRes.status === 'fulfilled') setSiteConfig(configRes.value.data);
+ if (weeklyRes.status === 'fulfilled') setWeeklyData(weeklyRes.value.data);
+ if (activitiesRes.status === 'fulfilled') setRecentActivities((activitiesRes.value.data || []).slice(0, 5));
  } catch (e) {
- console.error(e);
+ console.error('Failed to load dashboard data:', e);
  } finally {
  setLoading(false);
  }
@@ -717,7 +744,7 @@ function AdminOverview() {
  <div className="h-6 w-6 animate-spin rounded-full border-2 border-burgundy/20 border-t-burgundy" />
  </div>
  )}
- <div className={!showSensitive && !revealedCards['chart'] ? 'blur-md select-none pointer-events-none' : ''}>
+ <div className={!showSensitive && !revealedCards['chart'] ? 'blur-sm select-none pointer-events-none' : ''}>
  <WeeklyChart data={weeklyData} />
  </div>
  </div>
@@ -957,7 +984,7 @@ function AdminOverview() {
  </p>
  </div>
  </div>
- <div className={`text-left font-bold text-sm transition-all duration-300 ${!isAmountRevealed ? 'blur-md select-none' : ''}`}>
+ <div className={`text-left font-bold text-sm transition-all duration-300 ${!isAmountRevealed ? 'blur-sm select-none' : ''}`}>
  {act.amount != null && (
  <span className={act.type === 'expense' || act.direction === 'OUT' || (act.type === 'stock_adjustment' && act.amount < 0) ? 'text-red-600' : 'text-emerald-700'}>
  {act.type === 'stock_adjustment'
@@ -1018,7 +1045,7 @@ function CategoryPieChart({ breakdown, showValues = true }) {
  return (
  <div className="flex flex-col md:flex-row items-center gap-6" dir="rtl">
  <div className="relative w-40 h-40 flex-shrink-0 mx-auto md:mx-0">
- <svg viewBox="-1 -1 2 2" className={`w-full h-full -rotate-90 transition-all duration-300 ${!showValues ? 'blur-md select-none' : ''}`}>
+ <svg viewBox="-1 -1 2 2" className={`w-full h-full -rotate-90 transition-all duration-300 ${!showValues ? 'blur-sm select-none' : ''}`}>
  {slices.map((slice, idx) => (
  <path key={idx} d={slice.pathData} fill={slice.color} />
  ))}
@@ -1026,7 +1053,7 @@ function CategoryPieChart({ breakdown, showValues = true }) {
  </svg>
  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
  <p className="text-[10px] text-burgundy/50 font-semibold">إجمالي المبيعات</p>
- <p className={`text-xs font-extrabold text-burgundy transition-all duration-300 ${!showValues ? 'blur-md select-none' : ''}`}>
+ <p className={`text-xs font-extrabold text-burgundy transition-all duration-300 ${!showValues ? 'blur-sm select-none' : ''}`}>
  {Number(total).toLocaleString('en-US')} ج.م
  </p>
  </div>
@@ -1071,7 +1098,7 @@ function EmployeeLeaderboard({ leaderboard, showValues = true }) {
  <span>{rankColor}</span>
  <span>{emp.name}</span>
  </span>
- <span className={`transition-all duration-300 ${!showValues ? 'blur-md select-none' : ''}`}>
+ <span className={`transition-all duration-300 ${!showValues ? 'blur-sm select-none' : ''}`}>
  {Number(emp.amount).toLocaleString('en-US')} ج.م
  </span>
  </div>
