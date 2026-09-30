@@ -478,6 +478,29 @@ function AdminOverview() {
           }
         />
         <StatCard
+          label="نقدية الخزنة والدرج"
+          value={formatSensitive('cashDrawer', EGP(overview?.cashDrawer ?? 0))}
+          icon={<Icon name="safe" className="w-6 h-6 text-emerald-600" />}
+          color="bg-emerald-50/70 border-emerald-200/60"
+          sub={`المحصل كاش: ${EGP(overview?.salesCashCollected ?? 0)} | رصيد البنك: ${EGP(overview?.currentInstapayBalance ?? 0)}`}
+          onClick={() => toggleCardReveal('cashDrawer')}
+          popover={
+            <InfoPopover
+              title="نقدية الخزنة والدرج (الكاش الفعلي)"
+              formula="إجمالي المقبوضات النقدية - المصروفات والمسحوبات والمرتجعات"
+              rows={[
+                { label: 'الرصيد الفعلي المتواجد في الدرج الآن', value: EGP(overview?.cashDrawer ?? 0), highlight: true },
+                { separator: true },
+                { label: 'صافي كاش المبيعات المحصل في الفترة', value: EGP(overview?.salesCashCollected ?? 0) },
+                { label: 'رصيد حساب إنستاباي في البنك', value: EGP(overview?.currentInstapayBalance ?? 0) },
+                { separator: true },
+                { label: '= إجمالي السيولة المتاحة (كاش + بنك)', value: EGP((overview?.cashDrawer ?? 0) + (overview?.currentInstapayBalance ?? 0)), highlight: true },
+              ]}
+              note="ده الرصيد النقدي الحقيقي المتواجد في درج الكاشير الآن بعد خصم أي مصاريف أو سلف أو مرتجعات كاش."
+            />
+          }
+        />
+        <StatCard
           label="إجمالي الخصومات"
           value={formatSensitive('totalDiscounts', EGP(overview?.totalDiscounts ?? 0))}
           icon=""

@@ -153,7 +153,10 @@ router.post('/sell', auth, async (req, res) => {
     }));
 
     if (finalAmountPaid > 0) {
-      const openShift = await Shift.findOne({ user: sellerId || req.user.id, status: 'open' });
+      let openShift = await Shift.findOne({ user: sellerId || req.user.id, status: 'open' });
+      if (!openShift) {
+        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+      }
       const transaction = new Transaction({
         amount: finalAmountPaid,
         type: 'IN',
@@ -305,7 +308,10 @@ router.post('/recover', auth, async (req, res) => {
 
     // Determine refund payment method (defaulting to the original order's payment method)
     const effectivePaymentMethod = refundPaymentMethod || order.paymentMethod || 'Cash';
-    const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    if (!openShift) {
+      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+    }
 
     // Log the refund transaction
     const transaction = new Transaction({
@@ -534,39 +540,46 @@ router.post('/exchange', auth, async (req, res) => {
       paymentMethod,
       notes: `استبدال مباشر عن الفاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()} ${notes ? `(${notes})` : ''}`
     });
-    await newOrder.save();
+    // Update original order returnedAmount for accurate monthly sales and returns reports
+    originalOrder.returnedAmount = Math.round(((originalOrder.returnedAmount || 0) + returnCreditValue) * 100) / 100;
+    await originalOrder.save();
 
     // 5. Handle Transaction accounting entry
-    const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    if (!openShift) {
+      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+    }
     const origCode = originalOrder._id.toString().slice(-6).toUpperCase();
+    const newCode = newOrder._id.toString().slice(-6).toUpperCase();
 
-    if (netDifference > 0) {
-      // Customer paid net difference (Cash IN)
-      const transaction = new Transaction({
-        amount: netDifference,
-        type: 'IN',
-        category: 'Sale',
-        paymentMethod,
-        description: `فرق استبدال موجب (تحصيل) عن الفاتورة #${origCode} ➔ فاتورة جديدة #${newOrder._id.toString().slice(-6).toUpperCase()}`,
-        referenceId: newOrder._id,
-        user: req.user.id,
-        shift: openShift?._id
-      });
-      await transaction.save();
-    } else if (netDifference < 0) {
-      // Store refunded net difference (Cash OUT)
-      const refundAmt = Math.abs(netDifference);
-      const transaction = new Transaction({
-        amount: refundAmt,
+    // Log the return portion so it appears in audit & statements
+    if (returnCreditValue > 0) {
+      const refundTx = new Transaction({
+        amount: returnCreditValue,
         type: 'OUT',
         category: 'Refund',
         paymentMethod,
-        description: `فرق استبدال سالب (استرداد) عن الفاتورة #${origCode} ➔ فاتورة جديدة #${newOrder._id.toString().slice(-6).toUpperCase()}`,
+        description: `مرتجع استبدال عن الفاتورة #${origCode} (استبدلت بطلب #${newCode})`,
+        referenceId: originalOrder._id,
+        user: req.user.id,
+        shift: openShift?._id
+      });
+      await refundTx.save();
+    }
+
+    // Log the new sale portion
+    if (newTotalAmount > 0) {
+      const saleTx = new Transaction({
+        amount: newTotalAmount,
+        type: 'IN',
+        category: 'Sale',
+        paymentMethod,
+        description: `مبيعات استبدال فاتورة جديدة #${newCode} (عن الفاتورة #${origCode})`,
         referenceId: newOrder._id,
         user: req.user.id,
         shift: openShift?._id
       });
-      await transaction.save();
+      await saleTx.save();
     }
 
     res.json({

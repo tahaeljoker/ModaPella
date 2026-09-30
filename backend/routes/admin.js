@@ -66,6 +66,8 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
       let cashDrawer = 0;
       allCashTxs.forEach(t => {
+        const cat = (t.category || '').toLowerCase();
+        if (cat === 'shiftclose') return;
         if (t.type === 'IN') cashDrawer += t.amount;
         if (t.type === 'OUT') cashDrawer -= t.amount;
       });
@@ -162,6 +164,8 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
 
     let cashDrawer = 0;
     allCashTxs.forEach(t => {
+      const cat = (t.category || '').toLowerCase();
+      if (cat === 'shiftclose') return;
       if (t.type === 'IN') cashDrawer += t.amount;
       if (t.type === 'OUT') cashDrawer -= t.amount;
     });
@@ -1417,6 +1421,13 @@ router.post('/heal-records', auth, requireRole(['admin']), async (req, res) => {
       await Transaction.updateMany({ referenceId: ost._id }, { $unset: { referenceId: 1 } });
       await SupplierTransaction.findByIdAndDelete(ost._id);
       report.oldChemiseTransactionsCleaned = (report.oldChemiseTransactionsCleaned || 0) + 1;
+    }
+
+    // 3.5. Clean up phantom ShiftClose OUT transactions that drained the safe drawer into negative numbers
+    const shiftCloseTxs = await Transaction.find({ category: 'ShiftClose' });
+    if (shiftCloseTxs.length > 0) {
+      report.shiftCloseTransactionsCleaned = shiftCloseTxs.length;
+      await Transaction.deleteMany({ category: 'ShiftClose' });
     }
 
     // 4. Specifically find and handle ONLY the target product: "شميز مشجر 148" (or matching 148 / مشجر)

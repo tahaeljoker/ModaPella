@@ -167,6 +167,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     let personalWithdrawalsCash = 0;
     let supplierPaymentsCash = 0;
     let refundsCash = 0;
+    let refundsInstapay = 0;
     let debtCollectionsCash = 0;
 
     const isPersonalTx = (t) => {
@@ -217,11 +218,13 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     };
 
     transactions.forEach(t => {
+      const cat = (t.category || '').toLowerCase();
+      if (cat === 'shiftclose') return;
+
       if (t.paymentMethod === 'Cash') {
         if (t.type === 'IN') cashDrawer += t.amount;
         if (t.type === 'OUT') cashDrawer -= t.amount;
 
-        const cat = (t.category || '').toLowerCase();
         if (t.type === 'IN' && (cat === 'debtpayment' || cat.includes('دين'))) {
           debtCollectionsCash += t.amount;
         } else if (t.type === 'OUT') {
@@ -239,7 +242,6 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         if (t.type === 'IN') instapayTotal += t.amount;
         if (t.type === 'OUT') {
           instapayTotal -= t.amount;
-          const cat = (t.category || '').toLowerCase();
           if (cat === 'refund' || cat.includes('مرتجع')) {
             refundsInstapay += t.amount;
           }
@@ -268,19 +270,34 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     const netInstapaySales = Math.max(0, instapaySalesCollected - refundsInstapay);
     const netTotalSales = Math.max(0, totalBilledSales - todayRefunds);
     const debtSalesRemaining = Math.max(0, totalBilledSales - (cashSalesCollected + instapaySalesCollected));
-    const netCashInSafe = cashDrawer;
 
-    const allInstapayTxs = await Transaction.find({ paymentMethod: { $in: ['Instapay', 'Wallet'] } });
+    // Calculate all-time physical cash in drawer and instapay balance (excluding ShiftClose)
+    const [allCashTxs, allInstapayTxs] = await Promise.all([
+      Transaction.find({ paymentMethod: 'Cash' }),
+      Transaction.find({ paymentMethod: { $in: ['Instapay', 'Wallet'] } })
+    ]);
+
+    let allTimeCashDrawer = 0;
+    allCashTxs.forEach(t => {
+      const cat = (t.category || '').toLowerCase();
+      if (cat === 'shiftclose') return;
+      if (t.type === 'IN') allTimeCashDrawer += t.amount;
+      if (t.type === 'OUT') allTimeCashDrawer -= t.amount;
+    });
+
     let instapayCurrentBalance = 0;
     allInstapayTxs.forEach(t => {
       if (t.type === 'IN') instapayCurrentBalance += t.amount;
       if (t.type === 'OUT') instapayCurrentBalance -= t.amount;
     });
 
+    const netCashInSafe = Math.round(allTimeCashDrawer);
+
     res.json({
       transactions,
       summary: {
-        cashDrawer,
+        cashDrawer: Math.round(allTimeCashDrawer),
+        todayNetCash: Math.round(cashDrawer),
         instapayTotal,
         instapayBalance: Math.round(instapayCurrentBalance),
         expenses: operatingExpensesCash,
@@ -290,7 +307,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         refundsCash,
         refundsInstapay,
         debtCollections: debtCollectionsCash,
-        expectedCash: cashDrawer
+        expectedCash: Math.round(allTimeCashDrawer)
       },
       todaySummary: {
         cashSales: netCashSales,
@@ -320,7 +337,10 @@ router.post('/safe/transaction', auth, requireRole(['admin', 'cashier', 'manager
   try {
     const { amount, type, category, description, paymentMethod = 'Cash' } = req.body;
     // attach to current open shift if exists
-    const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    if (!openShift) {
+      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+    }
     const transaction = new Transaction({
       amount: Number(amount),
       type,
@@ -447,18 +467,6 @@ router.get('/safe/smart-audit', auth, requireRole(['admin']), async (req, res) =
 // POST /api/cashier/safe/close-shift — clear the safe (End of Shift)
 router.post('/safe/close-shift', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const { amount } = req.body; // Expected amount to withdraw
-    if (amount > 0) {
-      const transaction = new Transaction({
-        amount: Number(amount),
-        type: 'OUT',
-        category: 'ShiftClose', // Fixed: was 'Other' which caused this to appear as an operating expense in reports
-        paymentMethod: 'Cash',
-        description: 'تقفيل وردية - تصفية الدرج',
-        user: req.user.id
-      });
-      await transaction.save();
-    }
     res.json({ message: 'Shift closed successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Unable to close shift', error: error.message });
@@ -470,9 +478,13 @@ router.post('/safe/close-shift', auth, requireRole(['admin', 'cashier', 'manager
 router.post('/shift/open', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
     const { openingBalance = 0 } = req.body;
-    // prevent opening if one already open for this user
-    const existing = await Shift.findOne({ user: req.user.id, status: 'open' });
-    if (existing) return res.status(400).json({ message: 'Shift already open' });
+    // prevent opening if one is already open in the store
+    const existing = await Shift.findOne({ status: 'open' }).populate('user', 'name');
+    if (existing) {
+      return res.status(400).json({ 
+        message: `هناك وردية مفتوحة بالفعل حالياً للمستخدم (${existing.user?.name || 'كاشير'}). يرجى إغلاقها أولاً.` 
+      });
+    }
     const shift = new Shift({ user: req.user.id, openingBalance: Number(openingBalance) });
     await shift.save();
     // if opening balance provided, log it as an IN transaction (cash deposit)
@@ -497,7 +509,11 @@ router.post('/shift/open', auth, requireRole(['admin', 'cashier', 'manager']), a
 // GET /api/cashier/shift/current
 router.get('/shift/current', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const shift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    let shift = await Shift.findOne({ user: req.user.id, status: 'open' }).populate('user', 'name');
+    // If admin or manager, allow seeing the store's currently active shift opened by any cashier
+    if (!shift && (req.user.role === 'admin' || req.user.role === 'manager' || req.user.role === 'developer')) {
+      shift = await Shift.findOne({ status: 'open' }).populate('user', 'name').sort({ createdAt: -1 });
+    }
     if (!shift) return res.json({ shift: null });
 
     // compute expected cash for current shift
@@ -524,7 +540,10 @@ router.get('/shift/current', auth, requireRole(['admin', 'cashier', 'manager']),
 router.post('/shift/close', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
     const { countedCash = 0 } = req.body;
-    const shift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    let shift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    if (!shift && (req.user.role === 'admin' || req.user.role === 'manager' || req.user.role === 'developer')) {
+      shift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+    }
     if (!shift) return res.status(400).json({ message: 'No open shift' });
 
     const txs = await Transaction.find({ shift: shift._id });
@@ -544,19 +563,8 @@ router.post('/shift/close', auth, requireRole(['admin', 'cashier', 'manager']), 
     shift.status = 'closed';
     await shift.save();
 
-    // optionally log a transaction for the cash removal (OUT)
-    if (Number(countedCash) > 0) {
-      const closingTx = new Transaction({
-        amount: Number(countedCash),
-        type: 'OUT',
-        category: 'ShiftClose',
-        paymentMethod: 'Cash',
-        description: `تقفيل وردية - سحب نقدي ${shift._id}`,
-        user: req.user.id,
-        shift: shift._id
-      });
-      await closingTx.save();
-    }
+    // Note: Counting the drawer cash at shift close is an audit balance checkpoint,
+    // NOT an expense or cash drain from the store. We do not deduct countedCash as an OUT transaction.
 
     res.json({ shift, expectedCash: expected, variance: shift.variance, message: 'Shift closed' });
   } catch (error) {
