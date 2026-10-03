@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon';
 import { isDiscountActive } from '../../utils/discount';
 import { renderBarcodeDataUrl } from '../../utils/barcode';
 import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
+import CategoryAnalyticsModal from '../../components/CategoryAnalyticsModal';
 
 
 const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
@@ -1040,7 +1041,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
 }
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
-function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onShowAnalytics, onRestock, categories, catAr, onRefresh, showToast }) {
+function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onShowAnalytics, onRestock, categories, catAr, onRefresh, showToast, onOpenCategoryAnalytics }) {
  const [filter, setFilter] = useState('All');
  const [filterSeason, setFilterSeason] = useState('All'); // 'All' | 'summer' | 'winter' | 'all' | 'archived'
  const [search, setSearch] = useState('');
@@ -1321,6 +1322,17 @@ const normalizeDigits = (str) => {
  {c === 'All' ? 'الكل' : (catAr[c] || c)}
  </button>
  ))}
+ {filter !== 'All' && onOpenCategoryAnalytics && (
+ <button
+ type="button"
+ onClick={() => onOpenCategoryAnalytics(filter)}
+ className="rounded-full px-3.5 py-1.5 text-xs font-bold bg-amber-500/15 text-amber-900 border border-amber-500/30 hover:bg-amber-500/25 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+ title={`تحليل نشاط ومبيعات قسم ${catAr[filter] || filter} بالكامل`}
+ >
+ <span>📊</span>
+ <span>نشاط قسم {catAr[filter] || filter}</span>
+ </button>
+ )}
  </div>
 
  <div>
@@ -2044,6 +2056,7 @@ function AdminProducts() {
  const [catAr, setCatAr] = useState(DEFAULT_CAT_AR);
  const [historyProduct, setHistoryProduct] = useState(null);
  const [analyticsProduct, setAnalyticsProduct] = useState(null);
+  const [categoryAnalyticsTarget, setCategoryAnalyticsTarget] = useState(null);
  const [toast, setToast] = useState('');
 
  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
@@ -2150,9 +2163,21 @@ function AdminProducts() {
  )}
 
  {/* Header */}
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
  <div>
  <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
  <h2 className="text-2xl font-bold">المنتجات والمخزون</h2>
+ </div>
+ <button
+ type="button"
+ onClick={() => setCategoryAnalyticsTarget('all')}
+ className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-burgundy via-[#681E2E] to-[#4A1521] text-white font-bold text-sm shadow-md shadow-burgundy/20 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all self-start sm:self-auto cursor-pointer"
+ title="تتبع حركة كل صنف/قسم بالكامل (شميزات، دريسات، بلوزات...)"
+ >
+ <span className="text-lg">📊</span>
+ <span>تتبع نشاط الفئات والأقسام (شميزات، دريسات...)</span>
+ <span className="bg-white/20 text-white text-[11px] px-2 py-0.5 rounded-full font-bold">جديد</span>
+ </button>
  </div>
 
  {/* Tabs */}
@@ -2185,6 +2210,7 @@ function AdminProducts() {
  onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
  onShowHistory={setHistoryProduct}
  onShowAnalytics={setAnalyticsProduct}
+ onOpenCategoryAnalytics={(cat) => setCategoryAnalyticsTarget(cat || 'all')}
  onRestock={setRestockingProduct}
  onRefresh={loadProducts}
  showToast={showToast}
@@ -2240,6 +2266,19 @@ function AdminProducts() {
  <ProductAnalyticsModal
  product={analyticsProduct}
  onClose={() => setAnalyticsProduct(null)}
+ onOpenCategoryAnalytics={(cat) => setCategoryAnalyticsTarget(cat || 'all')}
+ />
+ )}
+
+ {/* Category Performance & Analytics Modal */}
+ {categoryAnalyticsTarget && (
+ <CategoryAnalyticsModal
+ initialCategory={categoryAnalyticsTarget}
+ onClose={() => setCategoryAnalyticsTarget(null)}
+ onSelectProduct={(p) => {
+ setCategoryAnalyticsTarget(null);
+ setAnalyticsProduct(p);
+ }}
  />
  )}
 

@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { Icon } from '../../components/Icon';
 import InfoPopover from '../../components/InfoPopover';
 import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
+import CategoryAnalyticsModal from '../../components/CategoryAnalyticsModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -141,6 +142,7 @@ function AdminOverview() {
  const [recentActivities, setRecentActivities] = useState([]);
  const [productPerformance, setProductPerformance] = useState(null);
  const [selectedAnalyticsProduct, setSelectedAnalyticsProduct] = useState(null);
+  const [selectedCategoryAnalytics, setSelectedCategoryAnalytics] = useState(null);
  const [loading, setLoading] = useState(true);
  const [period, setPeriod] = useState('current');
  const navigate = useNavigate();
@@ -987,14 +989,25 @@ function AdminOverview() {
  متابعة فورية للأصناف الأكثر توليداً للأرباح، مع تنبيهات البضاعة الراكدة التي تحتاج تصفية
  </p>
  </div>
+ <div className="flex items-center gap-2">
+ <button
+ type="button"
+ onClick={() => setSelectedCategoryAnalytics('all')}
+ className="text-xs font-bold text-white bg-gradient-to-r from-burgundy via-[#681E2E] to-[#4A1521] px-4 py-2 rounded-xl transition shadow-sm hover:shadow hover:scale-[1.02] flex items-center gap-1.5 cursor-pointer"
+ title="تتبع نشاط وأداء كل قسم وصنف بالكامل (شميزات، دريسات...)"
+ >
+ <span>📊</span>
+ <span>نشاط الأقسام والأصناف (شميزات، دريسات...)</span>
+ </button>
  <button
  type="button"
  onClick={() => navigate('/admin/products')}
- className="text-xs font-bold text-burgundy hover:text-white bg-burgundy/5 hover:bg-burgundy px-3.5 py-1.5 rounded-xl border border-burgundy/15 transition shadow-xs flex items-center gap-1.5"
+ className="text-xs font-bold text-burgundy hover:text-white bg-burgundy/5 hover:bg-burgundy px-3.5 py-2 rounded-xl border border-burgundy/15 transition shadow-xs flex items-center gap-1.5"
  >
  <span>🛍️</span>
  <span>إدارة كل المنتجات</span>
  </button>
+ </div>
  </div>
 
  <div className="grid gap-6 md:grid-cols-3">
@@ -1235,6 +1248,19 @@ function AdminOverview() {
  <ProductAnalyticsModal
  product={selectedAnalyticsProduct}
  onClose={() => setSelectedAnalyticsProduct(null)}
+ onOpenCategoryAnalytics={(cat) => setSelectedCategoryAnalytics(cat || 'all')}
+ />
+ )}
+
+ {/* Category Analytics Modal */}
+ {selectedCategoryAnalytics && (
+ <CategoryAnalyticsModal
+ initialCategory={selectedCategoryAnalytics}
+ onClose={() => setSelectedCategoryAnalytics(null)}
+ onSelectProduct={(p) => {
+ setSelectedCategoryAnalytics(null);
+ setSelectedAnalyticsProduct(p);
+ }}
  />
  )}
  </div>

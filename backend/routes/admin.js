@@ -712,6 +712,274 @@ router.get('/products-performance-summary', auth, requireRole(['admin']), async 
   }
 });
 
+// GET /api/admin/categories/analytics — Aggregated activity & performance for whole product categories / families
+router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+  try {
+    const { category, from, to } = req.query;
+
+    const CAT_AR = {
+      Blazer: 'بليزر',
+      Blouse: 'بلوزة',
+      Chemise: 'شميز',
+      Skirt: 'جيبة',
+      Dress: 'فستان',
+      Pantalon: 'بنطلون',
+      'T-shirt': 'تيشيرت',
+      Bag: 'شنطة',
+      Cardigan: 'كاردن',
+      Suit: 'سوت',
+      Tonic: 'تونيك',
+      Takem: 'طقم'
+    };
+
+    const products = await Product.find({ active: { $ne: false } }).lean();
+    const productMap = {};
+    products.forEach(p => { productMap[p._id.toString()] = p; });
+
+    const orderQuery = { status: { $in: ['Completed', 'Returned'] } };
+    if (from && to) {
+      orderQuery.createdAt = {
+        $gte: new Date(from),
+        $lte: new Date(new Date(to).setHours(23, 59, 59, 999))
+      };
+    }
+    const orders = await Order.find(orderQuery).sort({ createdAt: -1 }).lean();
+
+    // Discover all categories from products and orders
+    const categorySet = new Set(products.map(p => p.category).filter(Boolean));
+    orders.forEach(o => {
+      (o.items || []).forEach(item => {
+        if (item.category) categorySet.add(item.category);
+        else if (item.product && productMap[item.product.toString()]?.category) {
+          categorySet.add(productMap[item.product.toString()].category);
+        }
+      });
+    });
+    const allCategoriesList = Array.from(categorySet);
+
+    // Compute metrics per category
+    const categoriesData = allCategoriesList.map(catName => {
+      const catProducts = products.filter(p => (p.category || '').toLowerCase() === catName.toLowerCase());
+      const catProductIds = new Set(catProducts.map(p => p._id.toString()));
+
+      let totalStock = 0;
+      let stockValueCost = 0;
+      let stockValueRetail = 0;
+
+      catProducts.forEach(p => {
+        const stk = Number(p.stock || 0);
+        totalStock += stk;
+        stockValueCost += stk * Number(p.costPrice || 0);
+        stockValueRetail += stk * Number(p.price || 0);
+      });
+
+      let unitsSoldGross = 0;
+      let unitsReturned = 0;
+      let totalRevenue = 0;
+      let totalCost = 0;
+
+      const sizesMap = {};
+      const colorsMap = {};
+      const catRecentOrders = [];
+      const productSalesMap = {};
+
+      orders.forEach(order => {
+        let orderHasCatItem = false;
+        (order.items || []).forEach(item => {
+          const itemCat = item.category || (item.product ? productMap[item.product.toString()]?.category : '');
+          const matchesCat = (itemCat || '').toLowerCase() === catName.toLowerCase() ||
+                             (item.product && catProductIds.has(item.product.toString()));
+
+          if (matchesCat) {
+            orderHasCatItem = true;
+            const qty = Number(item.quantity || 0);
+            const retQty = Number(item.returnedQuantity || 0);
+            const netQty = Math.max(0, qty - retQty);
+
+            unitsSoldGross += qty;
+            unitsReturned += retQty;
+
+            const unitPrice = Number(item.price || (item.product ? productMap[item.product.toString()]?.price : 0) || 0);
+            const unitCost = Number(item.costPrice || (item.product ? productMap[item.product.toString()]?.costPrice : 0) || 0);
+
+            totalRevenue += netQty * unitPrice;
+            totalCost += netQty * unitCost;
+
+            if (item.size && item.size !== '-') {
+              sizesMap[item.size] = (sizesMap[item.size] || 0) + netQty;
+            }
+            if (item.color && item.color !== '-') {
+              colorsMap[item.color] = (colorsMap[item.color] || 0) + netQty;
+            }
+
+            const pId = item.product?.toString() || item.name;
+            if (!productSalesMap[pId]) {
+              productSalesMap[pId] = { soldQty: 0, returnedQty: 0, revenue: 0, cost: 0 };
+            }
+            productSalesMap[pId].soldQty += qty;
+            productSalesMap[pId].returnedQty += retQty;
+            productSalesMap[pId].revenue += netQty * unitPrice;
+            productSalesMap[pId].cost += netQty * unitCost;
+          }
+        });
+
+        if (orderHasCatItem && catRecentOrders.length < 25) {
+          catRecentOrders.push({
+            orderId: order._id,
+            date: order.createdAt,
+            customerName: order.customerName || 'عميل نقدي',
+            customerPhone: order.customerPhone || '',
+            status: order.status,
+            paymentMethod: order.paymentMethod,
+            items: (order.items || [])
+              .filter(i => {
+                const iCat = i.category || (i.product ? productMap[i.product.toString()]?.category : '');
+                return (iCat || '').toLowerCase() === catName.toLowerCase() || (i.product && catProductIds.has(i.product.toString()));
+              })
+              .map(i => ({
+                name: i.name,
+                size: i.size || '-',
+                color: i.color || '-',
+                quantity: i.quantity,
+                returnedQuantity: i.returnedQuantity || 0,
+                price: i.price
+              }))
+          });
+        }
+      });
+
+      const netSold = Math.max(0, unitsSoldGross - unitsReturned);
+      const grossProfit = Math.round(totalRevenue - totalCost);
+      const profitMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 1000) / 10 : 0;
+      const totalReceived = Math.max(0, totalStock + netSold);
+      const sellThroughRate = totalReceived > 0 ? Math.round((netSold / totalReceived) * 1000) / 10 : 0;
+
+      let velocity = {
+        status: 'normal',
+        badge: '⚖️ نشاط منتظم',
+        color: 'amber',
+        label: 'حركة بيعية طبيعية ومستقرة'
+      };
+
+      if (sellThroughRate >= 45 || netSold >= 25) {
+        velocity = {
+          status: 'fast',
+          badge: '🚀 سريع البيع (طلب قوي)',
+          color: 'emerald',
+          label: 'إقبال ممتاز ومعدل دوران مرتفع جداً'
+        };
+      } else if (sellThroughRate < 15 && totalStock > 0) {
+        velocity = {
+          status: 'dead',
+          badge: '🛑 بضاعة راكدة (Dead Stock)',
+          color: 'rose',
+          label: 'سحب ضعيف — يُنصح بعمل عروض ترويجية لتصريف المخزون وتوفير سيولة'
+        };
+      }
+
+      // Enriched products under this category
+      const enrichedProducts = catProducts.map(p => {
+        const pId = p._id.toString();
+        const s = productSalesMap[pId] || { soldQty: 0, returnedQty: 0, revenue: 0, cost: 0 };
+        const pNetSold = Math.max(0, s.soldQty - s.returnedQty);
+        const pRev = Math.round(s.revenue);
+        const pCost = Math.round(pNetSold * Number(p.costPrice || 0));
+        const pProfit = Math.round(pRev - pCost);
+        const pRec = Math.max(Number(p.totalReceived || 0), Number(p.stock || 0) + pNetSold);
+        const pSellThrough = pRec > 0 ? Math.round((pNetSold / pRec) * 1000) / 10 : 0;
+
+        return {
+          id: p._id,
+          name: p.name,
+          sku: p.sku || '',
+          price: p.price,
+          costPrice: p.costPrice || 0,
+          stock: p.stock,
+          netSold: pNetSold,
+          totalRevenue: pRev,
+          grossProfit: pProfit,
+          profitMargin: pRev > 0 ? Math.round((pProfit / pRev) * 1000) / 10 : 0,
+          sellThroughRate: pSellThrough,
+          isDead: p.stock > 0 && pSellThrough < 15
+        };
+      });
+
+      const topProducts = [...enrichedProducts].sort((a, b) => b.netSold - a.netSold).slice(0, 6);
+      const slowProducts = [...enrichedProducts].filter(p => p.isDead).sort((a, b) => b.stock - a.stock).slice(0, 6);
+
+      return {
+        category: catName,
+        labelAr: CAT_AR[catName] || catName,
+        productsCount: catProducts.length,
+        totalStock,
+        stockValueCost: Math.round(stockValueCost),
+        stockValueRetail: Math.round(stockValueRetail),
+        unitsSoldGross,
+        unitsReturned,
+        netSold,
+        totalReceived,
+        sellThroughRate,
+        totalRevenue: Math.round(totalRevenue),
+        totalCost: Math.round(totalCost),
+        grossProfit,
+        profitMargin,
+        velocity,
+        sizesBreakdown: sizesMap,
+        colorsBreakdown: colorsMap,
+        productsList: enrichedProducts,
+        topProducts,
+        slowProducts,
+        recentOrders: catRecentOrders
+      };
+    });
+
+    // Sort categories by total revenue descending
+    categoriesData.sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    // If user specified a specific category, return detailed target + list
+    if (category && category !== 'all') {
+      const selected = categoriesData.find(c => c.category.toLowerCase() === category.toLowerCase()) ||
+                       categoriesData.find(c => c.labelAr === category);
+      return res.json({
+        selectedCategory: selected || null,
+        categories: categoriesData.map(c => ({
+          category: c.category,
+          labelAr: c.labelAr,
+          productsCount: c.productsCount,
+          totalStock: c.totalStock,
+          netSold: c.netSold,
+          totalRevenue: c.totalRevenue,
+          grossProfit: c.grossProfit,
+          profitMargin: c.profitMargin,
+          sellThroughRate: c.sellThroughRate,
+          velocity: c.velocity
+        }))
+      });
+    }
+
+    // Default: Return all categories + overall aggregated summary
+    const storeSummary = {
+      totalCategories: categoriesData.length,
+      totalStock: categoriesData.reduce((s, c) => s + c.totalStock, 0),
+      stockValueCost: categoriesData.reduce((s, c) => s + c.stockValueCost, 0),
+      stockValueRetail: categoriesData.reduce((s, c) => s + c.stockValueRetail, 0),
+      netSold: categoriesData.reduce((s, c) => s + c.netSold, 0),
+      totalRevenue: categoriesData.reduce((s, c) => s + c.totalRevenue, 0),
+      grossProfit: categoriesData.reduce((s, c) => s + c.grossProfit, 0),
+    };
+    storeSummary.profitMargin = storeSummary.totalRevenue > 0
+      ? Math.round((storeSummary.grossProfit / storeSummary.totalRevenue) * 1000) / 10
+      : 0;
+
+    res.json({
+      storeSummary,
+      categories: categoriesData
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'تعذر جلب تقرير نشاط الفئات', error: error.message });
+  }
+});
+
 // GET /site-config is public so visitors can load landing page configuration
 router.get('/site-config', async (req, res) => {
   try {

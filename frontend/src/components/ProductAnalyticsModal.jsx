@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
-export default function ProductAnalyticsModal({ product, onClose }) {
+export default function ProductAnalyticsModal({ product, onClose, onOpenCategoryAnalytics }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'history'
@@ -49,12 +49,27 @@ export default function ProductAnalyticsModal({ product, onClose }) {
               </p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="w-9 h-9 rounded-full bg-burgundy/5 hover:bg-burgundy/15 flex items-center justify-center text-burgundy/60 hover:text-burgundy transition font-bold"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-3">
+            {onOpenCategoryAnalytics && p?.category && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenCategoryAnalytics(p.category);
+                }}
+                className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                title="عرض أداء ومبيعات هذا القسم بالكامل"
+              >
+                <span>📊</span>
+                <span>نشاط قسم {p.category} بالكامل ←</span>
+              </button>
+            )}
+            <button 
+              onClick={onClose} 
+              className="w-9 h-9 rounded-full bg-burgundy/5 hover:bg-burgundy/15 flex items-center justify-center text-burgundy/60 hover:text-burgundy transition font-bold"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Content */}
