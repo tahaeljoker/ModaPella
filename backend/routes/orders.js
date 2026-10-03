@@ -122,17 +122,20 @@ router.get('/weekly', auth, async (req, res) => {
       const cashRevenue = Math.max(0, Math.round(rawCash - dayRefundCash));
       const instapayRevenue = Math.max(0, Math.round(rawInstapay - dayRefundInstapay));
 
-      // Deduct profit margin lost on returned orders rather than the entire gross revenue
-      const estimatedMarginRate = 0.35;
-      const dayRefundMarginLost = Math.round(totalDayRefund * estimatedMarginRate);
-
+      // Calculate actual profit based on real cost price (COGS) and net non-returned quantities
       const profit = Math.round(orders.reduce((sum, order) => {
+        const orderNetRevenue = order.items.reduce((rSum, item) => {
+          const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+          return rSum + (item.price || 0) * netQty;
+        }, 0) - (order.discount || 0);
+
         const orderCost = order.items.reduce((cSum, item) => {
           const netQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
           return cSum + (item.costPrice || 0) * netQty;
         }, 0);
-        return sum + (order.totalAmount - orderCost);
-      }, 0) - dayRefundMarginLost);
+
+        return sum + Math.max(0, orderNetRevenue - orderCost);
+      }, 0));
 
       days.push({
         date: d.toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'short', month: 'numeric', day: 'numeric' }),

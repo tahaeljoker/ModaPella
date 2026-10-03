@@ -31,6 +31,46 @@ router.get('/monthly', auth, requireRole(['admin']), async (req, res) => {
     const reportMap = new Map();
     reports.forEach(r => reportMap.set(r.yearMonth, r));
 
+    // Discover any past months that have orders, transactions or supplier transactions
+    const [orderDates, txDates, supplierDates] = await Promise.all([
+      Order.aggregate([
+        { $project: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } } },
+        { $group: { _id: { year: '$year', month: '$month' } } }
+      ]),
+      Transaction.aggregate([
+        { $project: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } } },
+        { $group: { _id: { year: '$year', month: '$month' } } }
+      ]),
+      SupplierTransaction.aggregate([
+        { $project: { date: { $ifNull: ['$date', '$createdAt'] } } },
+        { $project: { year: { $year: '$date' }, month: { $month: '$date' } } },
+        { $group: { _id: { year: '$year', month: '$month' } } }
+      ])
+    ]);
+
+    const activePeriods = new Set();
+    orderDates.forEach(d => { if (d._id?.year && d._id?.month) activePeriods.add(`${d._id.year}-${String(d._id.month).padStart(2, '0')}`); });
+    txDates.forEach(d => { if (d._id?.year && d._id?.month) activePeriods.add(`${d._id.year}-${String(d._id.month).padStart(2, '0')}`); });
+    supplierDates.forEach(d => { if (d._id?.year && d._id?.month) activePeriods.add(`${d._id.year}-${String(d._id.month).padStart(2, '0')}`); });
+
+    for (const ym of activePeriods) {
+      if (!reportMap.has(ym)) {
+        const [y, m] = ym.split('-').map(Number);
+        const data = await calculateMonthlyData(y, m);
+        reportMap.set(ym, {
+          year: y,
+          month: m,
+          yearMonth: ym,
+          monthName: data.monthName,
+          totalSales: data.totalSales,
+          netProfit: data.netProfit,
+          totalExpenses: data.totalExpenses,
+          totalOrders: data.totalOrders,
+          isClosed: ym !== currentYearMonth
+        });
+      }
+    }
+
     // Ensure current month is included in the list dynamically
     if (!reportMap.has(currentYearMonth)) {
       const currentMonthData = await calculateMonthlyData(currentYear, currentMonth);
@@ -308,9 +348,8 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
                            cat.includes('بضائع') ||
                            desc.includes('بضائع') ||
                            cat.includes('مشتريات') ||
-                           desc.includes('مشتريات') ||
-                           desc.includes('شميز') ||
-                           desc.includes('كارفن') ||
+                           desc.includes('مشتريات مورد') ||
+                           desc.includes('فاتورة مشتريات') ||
                            (t.referenceId && supplierTxIds.has(t.referenceId.toString()));
 
         // Avoid duplicating supplier payments that already exist in allSupplierTxs

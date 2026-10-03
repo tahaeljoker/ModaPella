@@ -4,6 +4,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { Icon } from '../../components/Icon';
 import { isDiscountActive } from '../../utils/discount';
 import { renderBarcodeDataUrl } from '../../utils/barcode';
+import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
 
 
 const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
@@ -1039,7 +1040,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
 }
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
-function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onRestock, categories, catAr, onRefresh, showToast }) {
+function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onShowAnalytics, onRestock, categories, catAr, onRefresh, showToast }) {
  const [filter, setFilter] = useState('All');
  const [filterSeason, setFilterSeason] = useState('All'); // 'All' | 'summer' | 'winter' | 'all' | 'archived'
  const [search, setSearch] = useState('');
@@ -1429,13 +1430,23 @@ const normalizeDigits = (str) => {
 
  {p.sizes?.length > 0 && <p className="mt-0.5 text-xs text-burgundy/35">{p.sizes.join(' · ')}</p>}
 
+ <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+ <button
+ type="button"
+ onClick={() => onShowAnalytics(p)}
+ className="text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 px-2.5 py-0.5 rounded-lg flex items-center gap-1 font-bold transition shadow-xs"
+ title="عرض أداء الصنف ومبيعاته وهوامش ربحه"
+ >
+ 📊 نشاط وأداء الصنف
+ </button>
  <button
  type="button"
  onClick={() => onShowHistory(p)}
- className="mt-1 text-[10px] text-burgundy hover:underline flex items-center gap-1 font-bold"
+ className="text-[10px] text-burgundy/60 hover:text-burgundy hover:underline flex items-center gap-0.5 font-medium"
  >
  حركة المخزون
  </button>
+ </div>
  </div>
  </div>
 
@@ -1711,7 +1722,7 @@ const normalizeDigits = (str) => {
 }
 
 // ─── Tab: Inventory ────────────────────────────────────────────────────────────
-function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowHistory, categories, catAr }) {
+function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowHistory, onShowAnalytics, categories, catAr }) {
  const [search, setSearch] = useState('');
  const [filterCat, setFilterCat] = useState('الكل');
  const [filterSupplier, setFilterSupplier] = useState('الكل');
@@ -1963,6 +1974,15 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  تعديل بيانات المنتج
  </button>
  )}
+ {onShowAnalytics && (
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onShowAnalytics(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
+ >
+ 📊 نشاط وتحليل أداء الصنف
+ </button>
+ )}
  {onShowHistory && (
  <button
  type="button"
@@ -2023,6 +2043,7 @@ function AdminProducts() {
  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
  const [catAr, setCatAr] = useState(DEFAULT_CAT_AR);
  const [historyProduct, setHistoryProduct] = useState(null);
+ const [analyticsProduct, setAnalyticsProduct] = useState(null);
  const [toast, setToast] = useState('');
 
  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
@@ -2163,6 +2184,7 @@ function AdminProducts() {
  onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
  onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
  onShowHistory={setHistoryProduct}
+ onShowAnalytics={setAnalyticsProduct}
  onRestock={setRestockingProduct}
  onRefresh={loadProducts}
  showToast={showToast}
@@ -2177,6 +2199,7 @@ function AdminProducts() {
  onRestock={setRestockingProduct}
  onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
  onShowHistory={setHistoryProduct}
+ onShowAnalytics={setAnalyticsProduct}
  />
  )}
 
@@ -2209,6 +2232,14 @@ function AdminProducts() {
  <StockHistoryModal
  product={historyProduct}
  onClose={() => setHistoryProduct(null)}
+ />
+ )}
+
+ {/* Product Performance & Analytics Modal */}
+ {analyticsProduct && (
+ <ProductAnalyticsModal
+ product={analyticsProduct}
+ onClose={() => setAnalyticsProduct(null)}
  />
  )}
 

@@ -672,21 +672,21 @@ export default function AdminMonthlyReports() {
  {/* Net Cash Flow / Safe Balance */}
  <div className="rounded-[1.5rem] border border-blue-500/20 bg-blue-50/50 p-5 shadow-sm">
  <div className="flex items-center justify-between text-blue-900 text-xs font-medium">
- <span>صافي حركة السيولة الخزينة</span>
- <span></span>
+ <span>صافي حركة السيولة والخزينة</span>
+ <span className="text-[10px] font-bold bg-blue-100/80 text-blue-800 px-2 py-0.5 rounded-full">كاش + إنستاباي</span>
  </div>
  <p className="mt-2 text-2xl font-bold text-blue-800 flex items-center gap-1">
  {EGP(report.netCashFlow ?? 0)}
               <InfoPopover
-                title="صافي حركة السيولة الخزينة"
-                formula="(المقبوضات النقدية الفعلية) - (المرتجعات المستردة + مصاريف تشغيل + موردين + مسحوبات شخصية)"
+                title="صافي حركة الخزينة والسيولة الشاملة"
+                formula="صافي السيولة = صافي حركة كاش الدرج + صافي حركة إنستاباي/البنك"
                 rows={[
                   { label: 'كاش المبيعات المحصل (قبل المرتجع)', value: EGP(report.grossCashCollected ?? report.auditDetails?.grossCashCollected ?? ((report.salesCashCollected || 0) + (report.refundsCash || 0))) },
                   { label: 'إنستاباي المبيعات المحصل', value: EGP(report.grossInstapayCollected ?? report.auditDetails?.grossInstapayCollected ?? report.salesInstapayCollected ?? 0) },
                   { label: 'إجمالي المقبوضات من المبيعات', value: EGP((report.grossCashCollected ?? ((report.salesCashCollected || 0) + (report.refundsCash || 0))) + (report.grossInstapayCollected ?? (report.salesInstapayCollected || 0))) },
                   ...((report.refundsTotal ?? report.auditDetails?.refundsTotal ?? (((report.auditDetails?.refundsCash || 0) + (report.auditDetails?.refundsInstapay || 0)))) > 0 ? [
                     {
-                      label: `(-) مرتجعات العملاء المستردة نقداً${(report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length ?? 0) > 0 ? ` (${report.refundsCount ?? report.auditDetails?.refundsCount ?? report.auditDetails?.refundsList?.length} عملية)` : ''}`,
+                      label: `(-) مرتجعات العملاء المستردة (كاش: ${EGP(report.refundsCash || 0)} | إنستاباي: ${EGP(report.refundsInstapay || 0)})`,
                       value: `-${EGP(report.refundsTotal ?? report.auditDetails?.refundsTotal ?? (((report.auditDetails?.refundsCash || 0) + (report.auditDetails?.refundsInstapay || 0))))}`,
                       negative: true
                     }
@@ -704,13 +704,17 @@ export default function AdminMonthlyReports() {
                   { label: '(-) المدفوع للموردين من الخزنة', value: `-${EGP(report.supplierPaidFromSafe ?? report.auditDetails?.supplierPaidFromSafe ?? report.supplierCashPaid ?? 0)}`, negative: true },
                   { label: '(-) المسحوبات الشخصية والجمعية', value: `-${EGP(report.personalWithdrawals ?? report.auditDetails?.personalWithdrawalsTotal ?? 0)}`, negative: true },
                   { separator: true },
-                  { label: '= صافي حركة الخزينة والسيولة', value: EGP(report.netCashFlow ?? 0), highlight: true },
+                  { label: '💵 صافي حركة نقدية الدرج (الكاش)', value: EGP(report.netCashFlowCash ?? ((report.cashRevenue || 0) - ((report.operatingExpensesCash ?? report.operatingExpenses ?? 0) + (report.supplierPaidFromSafe || 0) + (report.personalWithdrawalsCash ?? report.personalWithdrawals ?? 0)))), highlight: true },
+                  { label: '📱 صافي حركة إنستاباي والمحافظ', value: EGP(report.netCashFlowInstapay ?? ((report.instapayRevenue || 0) - ((report.operatingExpensesInstapay || 0) + (report.personalWithdrawalsInstapay || 0)))), highlight: true },
+                  { separator: true },
+                  { label: '= إجمالي صافي السيولة المجمعة', value: EGP(report.netCashFlow ?? 0), highlight: true },
                 ]}
-                note="هذا الرقم يعكس التدفق النقدي الفعلي للخزينة، ويطابق حركة الدرج بالمليم (المبيعات المحصلة منقوصاً منها المرتجعات والمصاريف والمسحوبات والموردين)."/>
+                note="صافي كاش الدرج يطابق حركة نقدية الدرج في صفحة الخزنة، وصافي إنستاباي يطابق رصيد إنستاباي في صفحة الخزنة بالمليم."/>
  </p>
- <p className="mt-2 text-[11px] text-blue-900/70">
- إجمالي الداخل كاش إجمالي الخارج
- </p>
+ <div className="mt-2.5 pt-2 border-t border-blue-200/50 flex flex-wrap items-center justify-between text-[11px] font-semibold text-blue-900/80 gap-1">
+ <span>كاش الدرج: <span className="font-bold text-emerald-700">{EGP(report.netCashFlowCash ?? ((report.cashRevenue || 0) - ((report.operatingExpensesCash ?? report.operatingExpenses ?? 0) + (report.supplierPaidFromSafe || 0) + (report.personalWithdrawalsCash ?? report.personalWithdrawals ?? 0))))}</span></span>
+ <span>إنستاباي: <span className="font-bold text-blue-700">{EGP(report.netCashFlowInstapay ?? ((report.instapayRevenue || 0) - ((report.operatingExpensesInstapay || 0) + (report.personalWithdrawalsInstapay || 0))))}</span></span>
+ </div>
  </div>
  </div>
 

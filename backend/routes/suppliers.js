@@ -30,8 +30,7 @@ router.get('/', auth, requireRole(ADMIN), async (req, res) => {
       const totalPurchased = txs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
       const totalPaid      = txs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
       const totalReturned  = txs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
-      const totalReturnedOnBalance = txs.filter(t => t.type === 'return' && t.paymentSource !== 'StoreSafe').reduce((sum, t) => sum + t.amount, 0);
-      const balance = totalPurchased - totalPaid - totalReturnedOnBalance; // المبلغ المستحق للمورد
+      const balance = totalPurchased - totalPaid - totalReturned; // صافي المبلغ المستحق للمورد بعد السدادات والمرتجعات
       
       const productCount = products.length;
       const totalPieces = products.reduce((sum, p) => sum + (p.stock || 0), 0);
@@ -55,8 +54,7 @@ router.get('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
     const totalPurchased = txs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
     const totalPaid      = txs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
     const totalReturned  = txs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
-    const totalReturnedOnBalance = txs.filter(t => t.type === 'return' && t.paymentSource !== 'StoreSafe').reduce((sum, t) => sum + t.amount, 0);
-    const balance = totalPurchased - totalPaid - totalReturnedOnBalance;
+    const balance = totalPurchased - totalPaid - totalReturned;
     res.json({ supplier, transactions: txs, totalPurchased, totalPaid, totalReturned, balance });
   } catch (e) {
     res.status(500).json({ message: 'Unable to load supplier transactions', error: e.message });

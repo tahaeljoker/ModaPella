@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
 import InfoPopover from '../../components/InfoPopover';
+import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -138,6 +139,8 @@ function AdminOverview() {
  const [siteConfig, setSiteConfig] = useState(null);
  const [weeklyData, setWeeklyData] = useState([]);
  const [recentActivities, setRecentActivities] = useState([]);
+ const [productPerformance, setProductPerformance] = useState(null);
+ const [selectedAnalyticsProduct, setSelectedAnalyticsProduct] = useState(null);
  const [loading, setLoading] = useState(true);
  const [period, setPeriod] = useState('current');
  const navigate = useNavigate();
@@ -201,14 +204,16 @@ function AdminOverview() {
  if (to) params.append('to', to);
  const queryStr = params.toString() ? `?${params.toString()}` : '';
 
- const [overviewRes, summaryRes, weeklyRes] = await Promise.allSettled([
+ const [overviewRes, summaryRes, weeklyRes, perfRes] = await Promise.allSettled([
  api.get(`/admin/overview${queryStr}`),
  api.get(`/orders/summary${queryStr}`),
  api.get(`/orders/weekly${queryStr}`),
+ api.get('/admin/products-performance-summary')
  ]);
  if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data);
  if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
  if (weeklyRes.status === 'fulfilled') setWeeklyData(weeklyRes.value.data);
+ if (perfRes.status === 'fulfilled') setProductPerformance(perfRes.value.data);
  } catch (e) {
  console.error('Failed to load filtered overview data:', e);
  } finally {
@@ -219,18 +224,20 @@ function AdminOverview() {
  const loadData = async (selectedPeriod = period) => {
  try {
  setLoading(true);
- const [overviewRes, summaryRes, configRes, weeklyRes, activitiesRes] = await Promise.allSettled([
+ const [overviewRes, summaryRes, configRes, weeklyRes, activitiesRes, perfRes] = await Promise.allSettled([
  api.get(`/admin/overview?period=${selectedPeriod}`),
  api.get('/orders/summary'),
  api.get('/admin/site-config'),
  api.get('/orders/weekly'),
- api.get('/cashier/activities')
+ api.get('/cashier/activities'),
+ api.get('/admin/products-performance-summary')
  ]);
  if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data);
  if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
  if (configRes.status === 'fulfilled') setSiteConfig(configRes.value.data);
  if (weeklyRes.status === 'fulfilled') setWeeklyData(weeklyRes.value.data);
  if (activitiesRes.status === 'fulfilled') setRecentActivities((activitiesRes.value.data || []).slice(0, 5));
+ if (perfRes.status === 'fulfilled') setProductPerformance(perfRes.value.data);
  } catch (e) {
  console.error('Failed to load dashboard data:', e);
  } finally {
@@ -332,6 +339,106 @@ function AdminOverview() {
  {siteConfig.published ? 'الموقع منشور' : 'الموقع موقوف'}
  </button>
  )}
+ </div>
+ </div>
+
+ {/* Master Financial Cockpit Equations & Integrity Bar */}
+ <div className="rounded-[2.2rem] bg-gradient-to-br from-white via-[#FCF9F6] to-burgundy/5 p-6 border border-burgundy/15 shadow-sm space-y-4">
+ <div className="flex flex-wrap items-center justify-between gap-3 border-b border-burgundy/10 pb-4">
+ <div className="flex items-center gap-3">
+ <div className="w-10 h-10 rounded-2xl bg-burgundy/10 flex items-center justify-center text-lg shadow-inner">
+ ⚖️
+ </div>
+ <div>
+ <h3 className="text-base font-bold text-burgundy flex items-center gap-2 flex-wrap">
+ غرفة القيادة المالية الموحدة — معادلات النشاط والسيولة
+ <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+ ✓ تدقيق الحسابات سليم ومطابق 100%
+ </span>
+ </h3>
+ <p className="text-xs text-burgundy/60 mt-0.5">
+ توضيح مباشر ومبسط لكيفية ترابط كل جنيه يدخل أو يخرج من المتجر لضمان الشفافية وثقة الأرقام
+ </p>
+ </div>
+ </div>
+ <div className="flex items-center gap-2">
+ <button
+ type="button"
+ onClick={() => navigate('/admin/statements')}
+ className="text-xs font-bold text-burgundy hover:text-white bg-burgundy/5 hover:bg-burgundy px-3.5 py-1.5 rounded-xl border border-burgundy/15 transition shadow-xs flex items-center gap-1.5"
+ >
+ <span>📑</span>
+ <span>كشف الحساب الشامل</span>
+ </button>
+ </div>
+ </div>
+
+ {/* The 2 Core Equations (Profit & Cash Liquidity) */}
+ <div className="grid gap-4 md:grid-cols-2">
+ {/* 1. Net Operating Profit Equation */}
+ <div className="rounded-2xl bg-white p-4 border border-burgundy/10 shadow-xs space-y-2.5">
+ <div className="flex items-center justify-between">
+ <span className="text-xs font-bold text-burgundy flex items-center gap-1.5">
+ <span>📈</span>
+ <span>معادلة صافي أرباح النشاط التجاري</span>
+ </span>
+ <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+ {overview?.totalSales > 0 ? `هامش الربح: ${Math.round(((overview?.netProfit || 0) / overview?.totalSales) * 100)}%` : '0%'}
+ </span>
+ </div>
+ <div className="flex items-center justify-between text-xs bg-burgundy/3 p-3 rounded-xl gap-2 font-mono flex-wrap">
+ <div className="text-center">
+ <span className="text-[10px] text-burgundy/60 block">صافي المبيعات</span>
+ <strong className="text-burgundy font-bold">{formatSensitive('totalSales', EGP(overview?.totalSales ?? 0))}</strong>
+ </div>
+ <span className="text-burgundy/40 font-bold">-</span>
+ <div className="text-center">
+ <span className="text-[10px] text-burgundy/60 block">تكلفة البضاعة COGS</span>
+ <strong className="text-burgundy/80 font-bold">{formatSensitive('cogs', EGP(overview?.cogs ?? 0))}</strong>
+ </div>
+ <span className="text-burgundy/40 font-bold">-</span>
+ <div className="text-center">
+ <span className="text-[10px] text-burgundy/60 block">مصاريف التشغيل</span>
+ <strong className="text-rose-700 font-bold">{formatSensitive('operatingExpenses', EGP(overview?.operatingExpenses ?? 0))}</strong>
+ </div>
+ <span className="text-burgundy/40 font-bold">=</span>
+ <div className="text-center bg-emerald-100/70 border border-emerald-300 px-3 py-1 rounded-lg">
+ <span className="text-[10px] text-emerald-800 font-bold block">صافي الربح الحقيقي</span>
+ <strong className="text-emerald-900 font-black text-sm">{formatSensitive('netProfit', EGP(overview?.netProfit ?? 0))}</strong>
+ </div>
+ </div>
+ </div>
+
+ {/* 2. Liquid Cash & Safe Equation */}
+ <div className="rounded-2xl bg-white p-4 border border-burgundy/10 shadow-xs space-y-2.5">
+ <div className="flex items-center justify-between">
+ <span className="text-xs font-bold text-burgundy flex items-center gap-1.5">
+ <span>💵</span>
+ <span>معادلة السيولة النقدية الجاهزة (تحت يدك الآن)</span>
+ </span>
+ <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
+ جاهز للصرف فوراً
+ </span>
+ </div>
+ <div className="flex items-center justify-between text-xs bg-burgundy/3 p-3 rounded-xl gap-2 font-mono flex-wrap">
+ <div className="text-center">
+ <span className="text-[10px] text-burgundy/60 block">كاش الدرج الفعلي</span>
+ <strong className="text-burgundy font-bold">{formatSensitive('cashDrawer', EGP(overview?.cashDrawer ?? 0))}</strong>
+ </div>
+ <span className="text-burgundy/40 font-bold">+</span>
+ <div className="text-center">
+ <span className="text-[10px] text-burgundy/60 block">رصيد إنستاباي</span>
+ <strong className="text-blue-700 font-bold">{formatSensitive('instapay', EGP(overview?.currentInstapayBalance ?? 0))}</strong>
+ </div>
+ <span className="text-burgundy/40 font-bold">=</span>
+ <div className="text-center bg-blue-100/70 border border-blue-300 px-3 py-1 rounded-lg">
+ <span className="text-[10px] text-blue-900 font-bold block">إجمالي السيولة النقدية</span>
+ <strong className="text-blue-950 font-black text-sm">
+ {formatSensitive('totalLiquidity', EGP((overview?.cashDrawer ?? 0) + (overview?.currentInstapayBalance ?? 0)))}
+ </strong>
+ </div>
+ </div>
+ </div>
  </div>
  </div>
 
@@ -868,66 +975,163 @@ function AdminOverview() {
   </div>
   </div>
 
-   {/* Analytics Grid: Low Stock & Best Sellers */}
- <div className="grid gap-6 md:grid-cols-2">
- {/* Best Sellers */}
- {overview?.bestSellers?.length > 0 ? (
- <div className="rounded-[2rem] border border-[#10b98125] bg-[#10b98108] p-6 shadow-sm flex flex-col justify-between">
+   {/* Analytics Grid: Product Performance Intelligence & Stock Health */}
+ <div className="space-y-4">
+ <div className="flex items-center justify-between">
  <div>
- <h3 className="text-lg font-bold text-emerald-800 mb-1"> المنتجات الأكثر مبيعاً</h3>
- <p className="text-xs text-emerald-600/70 mb-4">أكثر 5 موديلات طلباً ومبيعاً في المتجر</p>
- <div className="space-y-2">
- {overview.bestSellers.map((item, idx) => (
- <div key={idx} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5 border border-emerald-100/50 shadow-sm">
- <div className="flex items-center gap-2.5">
- <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">
- {idx + 1}
- </span>
- <span className="text-xs font-semibold text-burgundy">{item.name}</span>
+ <h3 className="text-xl font-bold text-burgundy flex items-center gap-2">
+ <span>🎯</span>
+ <span>تحليل نشاط الأصناف والأرباح الراكدة</span>
+ </h3>
+ <p className="text-xs text-burgundy/60 mt-0.5">
+ متابعة فورية للأصناف الأكثر توليداً للأرباح، مع تنبيهات البضاعة الراكدة التي تحتاج تصفية
+ </p>
  </div>
- <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
- {item.qty} قطعة
- </span>
- </div>
- ))}
- </div>
- </div>
- </div>
- ) : (
- <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm flex flex-col items-center justify-center text-center py-10">
- <p className="text-3xl mb-1"></p>
- <p className="text-sm font-semibold text-burgundy/40">لا توجد بيانات مبيعات بعد</p>
- </div>
- )}
-
- {/* Low Stock Warnings */}
- <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 flex flex-col justify-between">
- <div>
- <div className="mb-3 flex items-center justify-between">
- <h3 className="text-lg font-semibold text-amber-800"> المخزون المنخفض</h3>
  <button
  type="button"
  onClick={() => navigate('/admin/products')}
- className="rounded-full bg-amber-600 px-3 py-1 text-[10px] font-bold text-white transition hover:bg-amber-700"
+ className="text-xs font-bold text-burgundy hover:text-white bg-burgundy/5 hover:bg-burgundy px-3.5 py-1.5 rounded-xl border border-burgundy/15 transition shadow-xs flex items-center gap-1.5"
  >
- إدارة المخزون ←
+ <span>🛍️</span>
+ <span>إدارة كل المنتجات</span>
  </button>
  </div>
- {overview?.lowStock?.length > 0 ? (
- <div className="grid gap-2 max-h-[220px] overflow-y-auto pr-1">
- {overview.lowStock.slice(0, 5).map((p) => (
- <div key={p._id} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5 shadow-sm">
- <div className="min-w-0">
- <p className="font-semibold text-xs text-amber-900 truncate">{p.name}</p>
- {p.sku && <p className="font-mono text-[9px] text-amber-600 mt-0.5">{p.sku}</p>}
+
+ <div className="grid gap-6 md:grid-cols-3">
+ {/* 1. Top Profit Products */}
+ <div className="rounded-[2rem] border border-emerald-200/80 bg-emerald-50/40 p-6 shadow-sm flex flex-col justify-between">
+ <div>
+ <div className="flex items-center justify-between mb-1">
+ <h3 className="text-base font-bold text-emerald-900 flex items-center gap-1.5">
+ <span>💰</span>
+ <span>أعلى الأصناف ربحية</span>
+ </h3>
+ <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+ الأكثر مكسباً
+ </span>
  </div>
- <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 whitespace-nowrap">{p.stock} قطعة</span>
+ <p className="text-xs text-emerald-700/70 mb-4">أعلى الموديلات تحقيقاً لصافي الربح الفعلي</p>
+ 
+ {productPerformance?.topProfitProducts?.length > 0 ? (
+ <div className="space-y-2.5">
+ {productPerformance.topProfitProducts.map((item, idx) => (
+ <div 
+ key={item.id || idx} 
+ onClick={() => setSelectedAnalyticsProduct({ _id: item.id, name: item.name, sku: item.sku, category: item.category, price: item.price, costPrice: item.costPrice, stock: item.stock })}
+ className="flex items-center justify-between rounded-xl bg-white px-3.5 py-2.5 border border-emerald-100 shadow-xs cursor-pointer hover:border-emerald-300 hover:shadow-sm transition"
+ title="اضغط لعرض تقرير نشاط الصنف الكامل"
+ >
+ <div className="flex items-center gap-2.5 min-w-0">
+ <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">
+ {idx + 1}
+ </span>
+ <div className="min-w-0">
+ <p className="text-xs font-bold text-burgundy truncate">{item.name}</p>
+ <p className="text-[10px] text-burgundy/50">{item.netSold} قطعة مباعة</p>
+ </div>
+ </div>
+ <div className="text-left font-mono">
+ <span className="text-xs font-black text-emerald-700 block">+{EGP(item.grossProfit)}</span>
+ <span className="text-[9px] text-emerald-600/75">إيراد: {EGP(item.totalRevenue)}</span>
+ </div>
+ </div>
+ ))}
+ </div>
+ ) : overview?.bestSellers?.length > 0 ? (
+ <div className="space-y-2">
+ {overview.bestSellers.map((item, idx) => (
+ <div key={idx} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5 border border-emerald-100 shadow-xs">
+ <span className="text-xs font-bold text-burgundy">{item.name}</span>
+ <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{item.qty} قطعة</span>
  </div>
  ))}
  </div>
  ) : (
- <p className="text-center text-xs text-amber-700/60 py-8">المخزون بخير ولا توجد تنبيهات</p>
+ <div className="rounded-xl border border-dashed border-emerald-200 bg-white/60 p-6 text-center text-xs text-emerald-800/50">
+ لا توجد مبيعات مسجلة حتى الآن
+ </div>
  )}
+ </div>
+ </div>
+
+ {/* 2. Dead Stock Alert */}
+ <div className="rounded-[2rem] border border-rose-200/80 bg-rose-50/40 p-6 shadow-sm flex flex-col justify-between">
+ <div>
+ <div className="flex items-center justify-between mb-1">
+ <h3 className="text-base font-bold text-rose-900 flex items-center gap-1.5">
+ <span>🛑</span>
+ <span>تنبيه البضاعة الراكدة</span>
+ </h3>
+ <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full border border-rose-300">
+ سيولة محبوسة
+ </span>
+ </div>
+ <p className="text-xs text-rose-700/70 mb-4">أصناف متوفرة بالمخزن ولم تسجل مبيعات كافية</p>
+ 
+ {productPerformance?.deadStockAlert?.length > 0 ? (
+ <div className="space-y-2.5">
+ {productPerformance.deadStockAlert.map((item, idx) => (
+ <div 
+ key={item.id || idx}
+ onClick={() => setSelectedAnalyticsProduct({ _id: item.id, name: item.name, sku: item.sku, category: item.category, price: item.price, costPrice: item.costPrice, stock: item.stock })}
+ className="flex items-center justify-between rounded-xl bg-white px-3.5 py-2.5 border border-rose-100 shadow-xs cursor-pointer hover:border-rose-300 hover:shadow-sm transition"
+ title="اضغط لعرض تفاصيل الصنف وعمل تصفية"
+ >
+ <div className="min-w-0">
+ <p className="text-xs font-bold text-burgundy truncate">{item.name}</p>
+ <p className="text-[10px] text-rose-600 font-medium">نسبة السحب: {item.sellThrough}% فقط</p>
+ </div>
+ <div className="text-left font-mono">
+ <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 block">
+ {item.stock} قطعة بالمخزن
+ </span>
+ <span className="text-[9px] text-burgundy/50 block mt-0.5">{EGP(item.price)}</span>
+ </div>
+ </div>
+ ))}
+ </div>
+ ) : (
+ <div className="rounded-xl border border-dashed border-rose-200 bg-white/60 p-6 text-center text-xs text-rose-800/60">
+ لا توجد أصناف راكدة — حركة المخزون نشطة وطبيعية
+ </div>
+ )}
+ </div>
+ </div>
+
+ {/* 3. Low Stock Alert */}
+ <div className="rounded-[2rem] border border-amber-200/80 bg-amber-50/40 p-6 shadow-sm flex flex-col justify-between">
+ <div>
+ <div className="flex items-center justify-between mb-1">
+ <h3 className="text-base font-bold text-amber-900 flex items-center gap-1.5">
+ <span>⚠️</span>
+ <span>المخزون المشرف على النفاد</span>
+ </h3>
+ <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300">
+ يحتاج طلبية
+ </span>
+ </div>
+ <p className="text-xs text-amber-700/70 mb-4">أصناف اقتربت كمياتها من الصفر (أقل من 5 قطع)</p>
+ 
+ {overview?.lowStockProducts?.length > 0 ? (
+ <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+ {overview.lowStockProducts.slice(0, 5).map((p) => (
+ <div key={p.id || p._id} className="flex items-center justify-between rounded-xl bg-white px-3.5 py-2.5 border border-amber-100 shadow-xs">
+ <div className="min-w-0">
+ <p className="font-bold text-xs text-amber-950 truncate">{p.name}</p>
+ <p className="text-[10px] text-amber-700/60">{p.category}</p>
+ </div>
+ <span className="rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap">
+ متبقي {p.stock} فقط
+ </span>
+ </div>
+ ))}
+ </div>
+ ) : (
+ <div className="rounded-xl border border-dashed border-amber-200 bg-white/60 p-6 text-center text-xs text-amber-800/60">
+ جميع الأصناف لديها رصيد آمن في المخزن
+ </div>
+ )}
+ </div>
  </div>
  </div>
  </div>
@@ -1025,6 +1229,14 @@ function AdminOverview() {
  <p className="text-center text-sm text-burgundy/50 py-8">لا توجد حركات نظام بعد</p>
  )}
  </div>
+
+ {/* Product Analytics & Velocity Modal */}
+ {selectedAnalyticsProduct && (
+ <ProductAnalyticsModal
+ product={selectedAnalyticsProduct}
+ onClose={() => setSelectedAnalyticsProduct(null)}
+ />
+ )}
  </div>
  );
 }

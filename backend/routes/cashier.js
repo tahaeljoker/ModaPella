@@ -205,10 +205,8 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         desc.includes('مورد') ||
         desc.includes('بضاعة') ||
         desc.includes('بضائع') ||
-        desc.includes('مشتريات') ||
-        desc.includes('شميز') ||
-        desc.includes('كارفن') ||
-        !!t.referenceId
+        desc.includes('مشتريات مورد') ||
+        desc.includes('فاتورة مشتريات')
       );
     };
 
@@ -219,7 +217,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
 
     transactions.forEach(t => {
       const cat = (t.category || '').toLowerCase();
-      if (cat === 'shiftclose') return;
+      if (cat === 'shiftclose' || cat === 'shiftopen') return;
 
       if (t.paymentMethod === 'Cash') {
         if (t.type === 'IN') cashDrawer += t.amount;
@@ -280,13 +278,15 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     let allTimeCashDrawer = 0;
     allCashTxs.forEach(t => {
       const cat = (t.category || '').toLowerCase();
-      if (cat === 'shiftclose') return;
+      if (cat === 'shiftclose' || cat === 'shiftopen') return;
       if (t.type === 'IN') allTimeCashDrawer += t.amount;
       if (t.type === 'OUT') allTimeCashDrawer -= t.amount;
     });
 
     let instapayCurrentBalance = 0;
     allInstapayTxs.forEach(t => {
+      const cat = (t.category || '').toLowerCase();
+      if (cat === 'shiftclose' || cat === 'shiftopen') return;
       if (t.type === 'IN') instapayCurrentBalance += t.amount;
       if (t.type === 'OUT') instapayCurrentBalance -= t.amount;
     });

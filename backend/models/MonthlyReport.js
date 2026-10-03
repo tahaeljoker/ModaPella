@@ -29,6 +29,8 @@ const MonthlyReportSchema = new mongoose.Schema({
   supplierPaidFromSafe: { type: Number, default: 0 },
   personalWithdrawals: { type: Number, default: 0 },
   netCashFlow: { type: Number, default: 0 },
+  netCashFlowCash: { type: Number, default: 0 },
+  netCashFlowInstapay: { type: Number, default: 0 },
   totalDiscounts: { type: Number, default: 0 },
   totalOrders: { type: Number, default: 0 },
   salesCashCollected: { type: Number, default: 0 },

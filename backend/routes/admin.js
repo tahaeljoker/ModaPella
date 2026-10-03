@@ -67,7 +67,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
       let cashDrawer = 0;
       allCashTxs.forEach(t => {
         const cat = (t.category || '').toLowerCase();
-        if (cat === 'shiftclose') return;
+        if (cat === 'shiftclose' || cat === 'shiftopen') return;
         if (t.type === 'IN') cashDrawer += t.amount;
         if (t.type === 'OUT') cashDrawer -= t.amount;
       });
@@ -165,7 +165,7 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     let cashDrawer = 0;
     allCashTxs.forEach(t => {
       const cat = (t.category || '').toLowerCase();
-      if (cat === 'shiftclose') return;
+      if (cat === 'shiftclose' || cat === 'shiftopen') return;
       if (t.type === 'IN') cashDrawer += t.amount;
       if (t.type === 'OUT') cashDrawer -= t.amount;
     });
@@ -528,6 +528,187 @@ router.get('/products/:id/stock-history', auth, requireRole(['admin']), async (r
     res.json(history);
   } catch (error) {
     res.status(500).json({ message: 'Unable to load stock history', error: error.message });
+  }
+});
+
+// GET /api/admin/products/:id/analytics — Comprehensive product activity and performance report
+router.get('/products/:id/analytics', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'المنتج غير موجود' });
+
+    // 1. Fetch all orders containing this product
+    const orders = await Order.find({
+      'items.product': product._id,
+      status: { $in: ['Completed', 'Returned'] }
+    }).sort({ createdAt: -1 }).lean();
+
+    // 2. Fetch stock history
+    const stockHistory = await StockHistory.find({ product: product._id })
+      .populate('performedBy', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 3. Fetch supplier transactions for this product if any
+    const supplierTxs = await SupplierTransaction.find({
+      'items.product': product._id
+    }).populate('supplier', 'name phone').sort({ date: -1 }).lean();
+
+    // 4. Calculate Sales, Costs & Margins
+    let unitsSoldGross = 0;
+    let unitsReturned = 0;
+    let totalRevenue = 0;
+    const ordersSummary = [];
+
+    orders.forEach(order => {
+      const orderItems = (order.items || []).filter(i => i.product?.toString() === product._id.toString());
+      orderItems.forEach(item => {
+        const qty = Number(item.quantity || 0);
+        const retQty = Number(item.returnedQuantity || 0);
+        const netQty = Math.max(0, qty - retQty);
+
+        unitsSoldGross += qty;
+        unitsReturned += retQty;
+        totalRevenue += (item.price || product.price || 0) * netQty;
+
+        ordersSummary.push({
+          orderId: order._id,
+          date: order.createdAt,
+          customerName: order.customerName || 'عميل نقدي',
+          size: item.size || '-',
+          color: item.color || '-',
+          quantity: qty,
+          returnedQuantity: retQty,
+          netQuantity: netQty,
+          price: item.price || product.price,
+          status: order.status
+        });
+      });
+    });
+
+    const netSold = Math.max(0, unitsSoldGross - unitsReturned);
+    const costPrice = Number(product.costPrice || 0);
+    const sellingPrice = Number(product.isDiscountActive ? product.discountPrice : product.price);
+    const totalCost = netSold * costPrice;
+    const grossProfit = Math.round(totalRevenue - totalCost);
+    const profitMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 1000) / 10 : 0;
+
+    const currentStock = Number(product.stock || 0);
+    const totalReceived = Math.max(Number(product.totalReceived || 0), currentStock + netSold);
+    const sellThroughRate = totalReceived > 0 ? Math.round((netSold / totalReceived) * 1000) / 10 : 0;
+
+    // Determine product velocity
+    let velocity = {
+      status: 'medium',
+      badge: '⚖️ حركة منتظمة',
+      color: 'amber',
+      label: 'نشاط بيعي مستقر ومقبول'
+    };
+
+    if (sellThroughRate >= 60 || netSold >= 15) {
+      velocity = {
+        status: 'fast',
+        badge: '🚀 سريع البيع (Star Mover)',
+        color: 'emerald',
+        label: 'معدل سحب مرتفع وطلب قوي'
+      };
+    } else if (sellThroughRate < 25 && currentStock > 0) {
+      velocity = {
+        status: 'dead',
+        badge: '🛑 بضاعة راكدة (Dead Stock)',
+        color: 'rose',
+        label: 'حركة ضعيفة — يُنصح بعمل عرض ترويجي أو خصم'
+      };
+    }
+
+    res.json({
+      product: {
+        id: product._id,
+        name: product.name,
+        category: product.category,
+        sku: product.sku,
+        price: product.price,
+        effectivePrice: sellingPrice,
+        costPrice: product.costPrice || 0,
+        supplier: product.supplier || '',
+        stock: currentStock,
+        variants: product.variants || []
+      },
+      metrics: {
+        totalReceived,
+        currentStock,
+        unitsSoldGross,
+        unitsReturned,
+        netSold,
+        totalRevenue: Math.round(totalRevenue),
+        totalCost: Math.round(totalCost),
+        grossProfit,
+        profitMargin,
+        sellThroughRate,
+        velocity
+      },
+      ordersSummary: ordersSummary.slice(0, 15),
+      supplierHistory: supplierTxs,
+      stockHistory: stockHistory.slice(0, 20)
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'تعذر جلب تقرير نشاط الصنف', error: error.message });
+  }
+});
+
+// GET /api/admin/products-performance-summary — Overview of top profit makers & dead stocks
+router.get('/products-performance-summary', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const products = await Product.find({ active: true }).lean();
+    const orders = await Order.find({ status: { $in: ['Completed', 'Returned'] } }).lean();
+
+    const productSalesMap = {};
+    orders.forEach(o => {
+      (o.items || []).forEach(item => {
+        const pId = item.product?.toString();
+        if (!pId) return;
+        if (!productSalesMap[pId]) {
+          productSalesMap[pId] = { soldQty: 0, returnedQty: 0, revenue: 0 };
+        }
+        const netQty = Math.max(0, (item.quantity || 0) - (item.returnedQuantity || 0));
+        productSalesMap[pId].soldQty += (item.quantity || 0);
+        productSalesMap[pId].returnedQty += (item.returnedQuantity || 0);
+        productSalesMap[pId].revenue += netQty * (item.price || 0);
+      });
+    });
+
+    const enriched = products.map(p => {
+      const pId = p._id.toString();
+      const sData = productSalesMap[pId] || { soldQty: 0, returnedQty: 0, revenue: 0 };
+      const netSold = Math.max(0, sData.soldQty - sData.returnedQty);
+      const totalCost = netSold * (p.costPrice || 0);
+      const grossProfit = Math.round(sData.revenue - totalCost);
+      const totalRec = Math.max(p.totalReceived || 0, (p.stock || 0) + netSold);
+      const sellThrough = totalRec > 0 ? Math.round((netSold / totalRec) * 1000) / 10 : 0;
+
+      return {
+        id: p._id,
+        name: p.name,
+        category: p.category,
+        sku: p.sku,
+        stock: p.stock,
+        costPrice: p.costPrice || 0,
+        price: p.price,
+        netSold,
+        totalRevenue: Math.round(sData.revenue),
+        grossProfit,
+        sellThrough,
+        isDead: p.stock > 0 && sellThrough < 20
+      };
+    });
+
+    const topProfitProducts = [...enriched].sort((a, b) => b.grossProfit - a.grossProfit).slice(0, 5);
+    const fastMovers = [...enriched].filter(p => p.netSold > 0).sort((a, b) => b.sellThrough - a.sellThrough).slice(0, 5);
+    const deadStockAlert = [...enriched].filter(p => p.isDead).sort((a, b) => b.stock - a.stock).slice(0, 5);
+
+    res.json({ topProfitProducts, fastMovers, deadStockAlert });
+  } catch (error) {
+    res.status(500).json({ message: 'تعذر جلب ملخص أداء الأصناف', error: error.message });
   }
 });
 
