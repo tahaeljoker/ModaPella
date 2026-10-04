@@ -1322,15 +1322,15 @@ const normalizeDigits = (str) => {
  {c === 'All' ? 'الكل' : (catAr[c] || c)}
  </button>
  ))}
- {filter !== 'All' && onOpenCategoryAnalytics && (
+ {onOpenCategoryAnalytics && (
  <button
  type="button"
- onClick={() => onOpenCategoryAnalytics(filter)}
+ onClick={() => onOpenCategoryAnalytics(filter === 'All' ? 'all' : filter)}
  className="rounded-full px-3.5 py-1.5 text-xs font-bold bg-amber-500/15 text-amber-900 border border-amber-500/30 hover:bg-amber-500/25 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
  title={`تحليل نشاط ومبيعات قسم ${catAr[filter] || filter} بالكامل`}
  >
  <span>📊</span>
- <span>نشاط قسم {catAr[filter] || filter}</span>
+ <span>{filter === 'All' ? 'تتبع نشاط الأقسام' : `نشاط قسم ${catAr[filter] || filter}`}</span>
  </button>
  )}
  </div>

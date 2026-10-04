@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -15,27 +15,194 @@ const DEFAULT_CAT_AR = {
   Cardigan: 'كاردن',
   Suit: 'سوت',
   Tonic: 'تونيك',
-  Takem: 'طقم'
+  Takem: 'طقم',
+  'بليزر': 'Blazer',
+  'بلوزة': 'Blouse',
+  'شميز': 'Chemise',
+  'جيبة': 'Skirt',
+  'فستان': 'Dress',
+  'بنطلون': 'Pantalon',
+  'تيشيرت': 'T-shirt',
+  'شنطة': 'Bag',
+  'كاردن': 'Cardigan',
+  'سوت': 'Suit',
+  'تونيك': 'Tonic',
+  'طقم': 'Takem'
 };
 
-export default function CategoryAnalyticsModal({ initialCategory = null, onClose, onSelectProduct = null }) {
+export default function CategoryAnalyticsModal({
+  initialCategory = null,
+  onClose,
+  onSelectProduct = null,
+  fallbackProducts = [],
+  storeCategories = [],
+  storeCatAr = {}
+}) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
+  const [localProducts, setLocalProducts] = useState(fallbackProducts || []);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all');
   const [activeTab, setActiveTab] = useState('products'); // 'products' | 'top_slow' | 'variants' | 'orders'
 
+  // If fallbackProducts wasn't passed, fetch them once as a safety net
+  useEffect(() => {
+    if (!fallbackProducts || fallbackProducts.length === 0) {
+      api.get('/products?includeOffSeason=true')
+        .then(res => {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            setLocalProducts(res.data);
+          }
+        })
+        .catch(err => console.warn('Could not prefetch fallback products:', err.message));
+    } else {
+      setLocalProducts(fallbackProducts);
+    }
+  }, [fallbackProducts]);
+
+  // Merge translation maps
+  const catNamesMap = useMemo(() => ({
+    ...DEFAULT_CAT_AR,
+    ...storeCatAr
+  }), [storeCatAr]);
+
+  const getArName = (cat) => {
+    if (!cat) return '';
+    return catNamesMap[cat] || cat;
+  };
+
+  // Compute baseline categories and products from localProducts so UI is never empty
+  const computedFallback = useMemo(() => {
+    const prods = localProducts || [];
+    const catSet = new Set([
+      'Chemise', 'Dress', 'Blouse', 'Bag', 'Cardigan', 'Blazer', 'Skirt', 'Pantalon', 'T-shirt', 'Suit', 'Tonic', 'Takem',
+      ...(storeCategories || [])
+    ]);
+
+    prods.forEach(p => {
+      if (p.category && String(p.category).trim()) {
+        catSet.add(String(p.category).trim());
+      }
+    });
+
+    const categories = Array.from(catSet).map(catName => {
+      const catLower = String(catName).trim().toLowerCase();
+      const catAr = getArName(catName);
+
+      const catProds = prods.filter(p => {
+        const pCat = String(p.category || '').trim().toLowerCase();
+        return pCat === catLower || (catAr && pCat === catAr.toLowerCase());
+      });
+
+      let totalStock = 0;
+      let stockValueCost = 0;
+      let stockValueRetail = 0;
+
+      const enrichedList = catProds.map(p => {
+        const stk = Number(p.stock || 0);
+        const cost = Number(p.costPrice || 0);
+        const price = Number(p.price || 0);
+        totalStock += stk;
+        stockValueCost += stk * cost;
+        stockValueRetail += stk * price;
+
+        return {
+          id: p._id || p.id,
+          name: p.name,
+          sku: p.sku || '',
+          price,
+          costPrice: cost,
+          stock: stk,
+          netSold: Number(p.sold || 0),
+          totalRevenue: Number(p.sold || 0) * price,
+          grossProfit: Number(p.sold || 0) * Math.max(0, price - cost),
+          profitMargin: price > 0 ? Math.round(((price - cost) / price) * 1000) / 10 : 0,
+          sellThroughRate: (stk + Number(p.sold || 0)) > 0 ? Math.round((Number(p.sold || 0) / (stk + Number(p.sold || 0))) * 1000) / 10 : 0,
+          isDead: stk > 0 && Number(p.sold || 0) === 0
+        };
+      });
+
+      return {
+        category: catName,
+        labelAr: catAr,
+        productsCount: catProds.length,
+        totalStock,
+        stockValueCost: Math.round(stockValueCost),
+        stockValueRetail: Math.round(stockValueRetail),
+        unitsSoldGross: enrichedList.reduce((s, p) => s + p.netSold, 0),
+        unitsReturned: 0,
+        netSold: enrichedList.reduce((s, p) => s + p.netSold, 0),
+        totalReceived: totalStock + enrichedList.reduce((s, p) => s + p.netSold, 0),
+        sellThroughRate: 0,
+        totalRevenue: enrichedList.reduce((s, p) => s + p.totalRevenue, 0),
+        totalCost: enrichedList.reduce((s, p) => s + (p.netSold * p.costPrice), 0),
+        grossProfit: enrichedList.reduce((s, p) => s + p.grossProfit, 0),
+        profitMargin: 0,
+        velocity: {
+          status: 'normal',
+          badge: '⚖️ نشاط منتظم',
+          color: 'amber',
+          label: 'حركة بيعية طبيعية ومستقرة'
+        },
+        sizesBreakdown: {},
+        colorsBreakdown: {},
+        productsList: enrichedList,
+        topProducts: [...enrichedList].sort((a, b) => b.netSold - a.netSold).slice(0, 8),
+        slowProducts: enrichedList.filter(p => p.isDead).sort((a, b) => b.stock - a.stock).slice(0, 8),
+        recentOrders: []
+      };
+    });
+
+    categories.sort((a, b) => {
+      if (b.productsCount !== a.productsCount) return b.productsCount - a.productsCount;
+      return b.totalStock - a.totalStock;
+    });
+
+    const storeSummary = {
+      totalCategories: categories.filter(c => c.productsCount > 0).length || categories.length,
+      totalStock: categories.reduce((s, c) => s + c.totalStock, 0),
+      stockValueCost: categories.reduce((s, c) => s + c.stockValueCost, 0),
+      stockValueRetail: categories.reduce((s, c) => s + c.stockValueRetail, 0),
+      netSold: categories.reduce((s, c) => s + c.netSold, 0),
+      totalRevenue: categories.reduce((s, c) => s + c.totalRevenue, 0),
+      grossProfit: categories.reduce((s, c) => s + c.grossProfit, 0),
+      profitMargin: 0
+    };
+
+    const allProducts = prods.map(p => ({
+      id: p._id || p.id,
+      name: p.name,
+      sku: p.sku || '',
+      category: p.category,
+      price: p.price,
+      costPrice: p.costPrice || 0,
+      stock: p.stock
+    }));
+
+    return { categories, storeSummary, allProducts };
+  }, [localProducts, storeCategories, catNamesMap]);
+
+  // Fetch from backend
   const fetchCategoryData = (cat) => {
     setLoading(true);
-    const url = cat && cat !== 'all' 
+    setFetchError(null);
+
+    const url = cat && cat !== 'all'
       ? `/admin/categories/analytics?category=${encodeURIComponent(cat)}`
       : '/admin/categories/analytics';
 
     api.get(url)
       .then(res => {
-        setData(res.data);
+        if (res.data && (res.data.categories || res.data.storeSummary)) {
+          setData(res.data);
+        } else {
+          // If response empty, keep fallback
+          setData(null);
+        }
       })
       .catch(err => {
-        console.error('Failed to load category analytics:', err);
+        console.warn('Failed to load category analytics from server, using local catalog data:', err);
+        setFetchError('تعذر جلب تفاصيل المبيعات التاريخية من الخادم حالياً. يتم عرض بيانات المخزون المتاحة.');
       })
       .finally(() => setLoading(false));
   };
@@ -44,10 +211,34 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
     fetchCategoryData(selectedCategory);
   }, [selectedCategory]);
 
-  const categoriesList = data?.categories || [];
-  const allProducts = data?.allProducts || [];
-  const storeSummary = data?.storeSummary;
-  const currentCategoryData = data?.selectedCategory || (selectedCategory === 'all' ? null : categoriesList.find(c => c.category === selectedCategory));
+  // Priority: live backend data > fallback computed from products
+  const categoriesList = (data?.categories && data.categories.length > 0)
+    ? data.categories
+    : computedFallback.categories;
+
+  const allProducts = (data?.allProducts && data.allProducts.length > 0)
+    ? data.allProducts
+    : computedFallback.allProducts;
+
+  const storeSummary = data?.storeSummary || computedFallback.storeSummary;
+
+  // Find currently selected category
+  const currentCategoryData = useMemo(() => {
+    if (selectedCategory === 'all') return null;
+
+    if (data?.selectedCategory) {
+      return data.selectedCategory;
+    }
+
+    const q = String(selectedCategory).trim().toLowerCase();
+    const match = categoriesList.find(c => {
+      const cCat = String(c.category || '').toLowerCase();
+      const cAr = String(c.labelAr || '').toLowerCase();
+      return cCat === q || cAr === q || (catNamesMap[c.category] && catNamesMap[c.category].toLowerCase() === q);
+    });
+
+    return match || null;
+  }, [selectedCategory, data, categoriesList, catNamesMap]);
 
   const isAllView = selectedCategory === 'all' || !currentCategoryData;
 
@@ -86,7 +277,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   تتبع نشاط وأداء الأصناف والأقسام
                 </h3>
                 <span className="text-xs bg-burgundy/10 text-burgundy px-2.5 py-0.5 rounded-full font-bold">
-                  {isAllView ? 'مقارنة شاملة' : (DEFAULT_CAT_AR[currentCategoryData?.category] || currentCategoryData?.category)}
+                  {isAllView ? 'مقارنة شاملة' : (currentCategoryData?.labelAr || currentCategoryData?.category)}
                 </span>
               </div>
               <p className="text-xs text-burgundy/60 mt-0.5">
@@ -96,7 +287,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
           </div>
           <button 
             onClick={onClose} 
-            className="w-10 h-10 rounded-full bg-burgundy/5 hover:bg-burgundy/15 flex items-center justify-center text-burgundy/60 hover:text-burgundy transition font-bold self-end sm:self-center"
+            className="w-10 h-10 rounded-full bg-burgundy/5 hover:bg-burgundy/15 flex items-center justify-center text-burgundy/60 hover:text-burgundy transition font-bold self-end sm:self-center cursor-pointer"
           >
             ✕
           </button>
@@ -117,7 +308,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   const val = e.target.value;
                   if (val.startsWith('prod_')) {
                     const pId = val.replace('prod_', '');
-                    const prod = allProducts.find(p => p.id === pId);
+                    const prod = allProducts.find(p => String(p.id) === pId);
                     if (prod && onSelectProduct) {
                       onClose();
                       onSelectProduct(prod);
@@ -128,15 +319,18 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                 }}
                 className="w-full rounded-2xl border-2 border-burgundy/25 bg-white px-4 py-2.5 text-sm font-black text-burgundy shadow-xs outline-none focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 cursor-pointer"
               >
-                <option value="all">🌟 كل الأقسام والأصناف (مقارنة شاملة وترتيب الأداء)</option>
+                <option value="all">🌟 كل الأقسام والأصناف (مقارنة شاملة وترتيب الأداء العام)</option>
                 
                 {categoriesList.length > 0 && (
                   <optgroup label="👔 تتبع قسم بالكامل (كل الموديلات التابعة له):">
-                    {categoriesList.map(c => (
-                      <option key={c.category} value={c.category}>
-                        📁 قسم {c.labelAr || DEFAULT_CAT_AR[c.category] || c.category} ({c.productsCount} موديل · مخزون: {c.totalStock} قطعة)
-                      </option>
-                    ))}
+                    {categoriesList.map(c => {
+                      const arName = c.labelAr || getArName(c.category);
+                      return (
+                        <option key={c.category} value={c.category}>
+                          📁 قسم {arName} ({c.productsCount} موديل · مخزون: {c.totalStock} قطعة)
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 )}
 
@@ -144,13 +338,23 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   <optgroup label="🏷️ أو اختر موديلاً بعينه:">
                     {allProducts.map(p => (
                       <option key={p.id} value={`prod_${p.id}`}>
-                        👕 {p.name} {p.sku ? `(#${p.sku})` : ''} - [{DEFAULT_CAT_AR[p.category] || p.category}]
+                        👕 {p.name} {p.sku ? `(#${p.sku})` : ''} - [{getArName(p.category)}]
                       </option>
                     ))}
                   </optgroup>
                 )}
               </select>
             </div>
+
+            <button
+              type="button"
+              onClick={() => fetchCategoryData(selectedCategory)}
+              className="px-3.5 py-2.5 rounded-2xl bg-white border border-burgundy/20 hover:bg-burgundy/5 text-burgundy text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+              title="تحديث البيانات"
+            >
+              <span>🔄</span>
+              <span>تحديث</span>
+            </button>
           </div>
 
           {/* Quick Category Chips */}
@@ -159,7 +363,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
             <button
               type="button"
               onClick={() => setSelectedCategory('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shrink-0 cursor-pointer ${
                 selectedCategory === 'all'
                   ? 'bg-burgundy text-white shadow-md'
                   : 'bg-white text-burgundy/80 hover:bg-burgundy/10 border border-burgundy/15'
@@ -170,14 +374,14 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
 
             {categoriesList.map(c => {
               const catKey = c.category;
-              const arName = c.labelAr || DEFAULT_CAT_AR[catKey] || catKey;
-              const isSelected = selectedCategory.toLowerCase() === catKey.toLowerCase();
+              const arName = c.labelAr || getArName(catKey);
+              const isSelected = selectedCategory.toLowerCase() === catKey.toLowerCase() || selectedCategory === arName;
               return (
                 <button
                   type="button"
                   key={catKey}
                   onClick={() => setSelectedCategory(catKey)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shrink-0 flex items-center gap-1.5 cursor-pointer ${
                     isSelected
                       ? 'bg-burgundy text-white shadow-md'
                       : 'bg-white text-burgundy/80 hover:bg-burgundy/10 border border-burgundy/15'
@@ -195,9 +399,25 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
           </div>
         </div>
 
+        {/* Notice banner if server reports historical delay */}
+        {fetchError && (
+          <div className="px-6 sm:px-8 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{fetchError}</span>
+            </div>
+            <button
+              onClick={() => fetchCategoryData(selectedCategory)}
+              className="text-xs underline font-bold hover:text-amber-950 cursor-pointer"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        )}
+
         {/* Modal Body */}
         <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 bg-[#FDFBF7]">
-          {loading ? (
+          {loading && !categoriesList.length ? (
             <div className="py-20 flex flex-col items-center justify-center gap-3">
               <div className="w-10 h-10 border-4 border-burgundy/20 border-t-burgundy rounded-full animate-spin"></div>
               <p className="text-sm font-bold text-burgundy/60">جاري تجميع وتحليل أداء القسم...</p>
@@ -209,7 +429,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-burgundy/10 shadow-sm">
                   <p className="text-xs text-burgundy/60 font-semibold mb-1">إجمالي الأصناف المسجلة</p>
-                  <p className="text-2xl font-black text-burgundy">{storeSummary?.totalCategories || categoriesList.length} <span className="text-xs font-normal">أقسام</span></p>
+                  <p className="text-2xl font-black text-burgundy">{storeSummary?.totalCategories || categoriesList.filter(c => c.productsCount > 0).length} <span className="text-xs font-normal">أقسام</span></p>
                   <p className="text-[11px] text-burgundy/50 mt-1">شميزات، دريسات، بلوزات...</p>
                 </div>
                 <div className="bg-white p-4 rounded-2xl border border-burgundy/10 shadow-sm">
@@ -255,7 +475,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                     </thead>
                     <tbody className="divide-y divide-burgundy/5">
                       {categoriesList.map(c => {
-                        const arName = c.labelAr || DEFAULT_CAT_AR[c.category] || c.category;
+                        const arName = c.labelAr || getArName(c.category);
                         return (
                           <tr 
                             key={c.category} 
@@ -272,17 +492,17 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                             <td className="py-3.5 px-4 font-bold text-emerald-800">{c.netSold} قطعة</td>
                             <td className="py-3.5 px-4 font-bold">
                               <span className="bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full text-xs">
-                                {c.sellThroughRate}%
+                                {c.sellThroughRate || 0}%
                               </span>
                             </td>
                             <td className="py-3.5 px-4 font-bold text-burgundy">{EGP(c.totalRevenue)}</td>
                             <td className="py-3.5 px-4 font-bold text-emerald-700">{EGP(c.grossProfit)}</td>
-                            <td className="py-3.5 px-4 font-semibold">{c.profitMargin}%</td>
+                            <td className="py-3.5 px-4 font-semibold">{c.profitMargin || 0}%</td>
                             <td className="py-3.5 px-4">{getVelocityBadge(c.velocity)}</td>
                             <td className="py-3.5 px-4 text-center">
                               <button 
                                 onClick={(e) => { e.stopPropagation(); setSelectedCategory(c.category); }}
-                                className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1 rounded-xl transition"
+                                className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1 rounded-xl transition cursor-pointer"
                               >
                                 عرض التفاصيل ←
                               </button>
@@ -307,7 +527,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   <div>
                     <div className="flex items-center gap-3">
                       <h4 className="text-2xl font-black text-burgundy">
-                        قسم {currentCategoryData.labelAr || DEFAULT_CAT_AR[currentCategoryData.category] || currentCategoryData.category}
+                        قسم {currentCategoryData.labelAr || getArName(currentCategoryData.category)}
                       </h4>
                       {getVelocityBadge(currentCategoryData.velocity)}
                     </div>
@@ -320,7 +540,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                 <div className="flex items-center gap-3 bg-[#FAF7F2] p-3 rounded-2xl border border-burgundy/10 self-start md:self-auto">
                   <div className="text-center px-3 border-l border-burgundy/10">
                     <p className="text-[10px] text-burgundy/60 font-semibold">معدل السحب (Sell-Through)</p>
-                    <p className="text-lg font-black text-burgundy">{currentCategoryData.sellThroughRate}%</p>
+                    <p className="text-lg font-black text-burgundy">{currentCategoryData.sellThroughRate || 0}%</p>
                   </div>
                   <div className="text-center px-3">
                     <p className="text-[10px] text-burgundy/60 font-semibold">الموديلات المسجلة</p>
@@ -336,7 +556,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   <p className="text-xs text-burgundy/60 font-semibold mb-1">إجمالي إيراد المبيعات</p>
                   <p className="text-2xl font-black text-burgundy">{EGP(currentCategoryData.totalRevenue)}</p>
                   <p className="text-[11px] text-burgundy/60 mt-1">
-                    باعت: <strong>{currentCategoryData.netSold}</strong> قطعة (مرتجع: {currentCategoryData.unitsReturned})
+                    باعت: <strong>{currentCategoryData.netSold || 0}</strong> قطعة (مرتجع: {currentCategoryData.unitsReturned || 0})
                   </p>
                 </div>
 
@@ -345,7 +565,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   <p className="text-xs text-burgundy/60 font-semibold mb-1">صافي أرباح القسم (Profit)</p>
                   <p className="text-2xl font-black text-emerald-700">{EGP(currentCategoryData.grossProfit)}</p>
                   <p className="text-[11px] text-emerald-700 font-bold mt-1">
-                    هامش الربح التجاري: {currentCategoryData.profitMargin}%
+                    هامش الربح التجاري: {currentCategoryData.profitMargin || 0}%
                   </p>
                 </div>
 
@@ -354,7 +574,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   <p className="text-xs text-burgundy/60 font-semibold mb-1">المخزون المتبقي حالياً</p>
                   <p className="text-2xl font-black text-amber-700">{currentCategoryData.totalStock} <span className="text-xs font-normal">قطعة</span></p>
                   <p className="text-[11px] text-burgundy/60 mt-1">
-                    إجمالي ما استُلم: {currentCategoryData.totalReceived} قطعة
+                    إجمالي ما استُلم: {currentCategoryData.totalReceived || currentCategoryData.totalStock} قطعة
                   </p>
                 </div>
 
@@ -369,10 +589,10 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
               </div>
 
               {/* Sub-Navigation Tabs */}
-              <div className="flex border-b border-burgundy/10 gap-2">
+              <div className="flex border-b border-burgundy/10 gap-2 overflow-x-auto no-scrollbar">
                 <button
                   onClick={() => setActiveTab('products')}
-                  className={`pb-3 px-4 font-bold text-sm transition relative ${
+                  className={`pb-3 px-4 font-bold text-sm transition relative cursor-pointer shrink-0 ${
                     activeTab === 'products'
                       ? 'text-burgundy border-b-2 border-burgundy'
                       : 'text-burgundy/50 hover:text-burgundy'
@@ -382,7 +602,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                 </button>
                 <button
                   onClick={() => setActiveTab('top_slow')}
-                  className={`pb-3 px-4 font-bold text-sm transition relative ${
+                  className={`pb-3 px-4 font-bold text-sm transition relative cursor-pointer shrink-0 ${
                     activeTab === 'top_slow'
                       ? 'text-burgundy border-b-2 border-burgundy'
                       : 'text-burgundy/50 hover:text-burgundy'
@@ -392,7 +612,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                 </button>
                 <button
                   onClick={() => setActiveTab('variants')}
-                  className={`pb-3 px-4 font-bold text-sm transition relative ${
+                  className={`pb-3 px-4 font-bold text-sm transition relative cursor-pointer shrink-0 ${
                     activeTab === 'variants'
                       ? 'text-burgundy border-b-2 border-burgundy'
                       : 'text-burgundy/50 hover:text-burgundy'
@@ -402,7 +622,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                 </button>
                 <button
                   onClick={() => setActiveTab('orders')}
-                  className={`pb-3 px-4 font-bold text-sm transition relative ${
+                  className={`pb-3 px-4 font-bold text-sm transition relative cursor-pointer shrink-0 ${
                     activeTab === 'orders'
                       ? 'text-burgundy border-b-2 border-burgundy'
                       : 'text-burgundy/50 hover:text-burgundy'
@@ -432,39 +652,47 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-burgundy/5">
-                        {(currentCategoryData.productsList || []).map(p => (
-                          <tr key={p.id} className="hover:bg-burgundy/5 transition">
-                            <td className="py-3.5 px-4 font-bold text-burgundy">{p.name}</td>
-                            <td className="py-3.5 px-4 font-mono text-xs text-burgundy/60">{p.sku || '-'}</td>
-                            <td className="py-3.5 px-4 text-burgundy/70">{EGP(p.costPrice)}</td>
-                            <td className="py-3.5 px-4 font-bold text-burgundy">{EGP(p.price)}</td>
-                            <td className="py-3.5 px-4 font-bold text-amber-800">{p.stock} قطعة</td>
-                            <td className="py-3.5 px-4 font-bold text-emerald-800">{p.netSold} قطعة</td>
-                            <td className="py-3.5 px-4 font-bold">{EGP(p.totalRevenue)}</td>
-                            <td className="py-3.5 px-4 font-bold text-emerald-700">{EGP(p.grossProfit)}</td>
-                            <td className="py-3.5 px-4 font-semibold">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                                p.sellThroughRate >= 45 
-                                  ? 'bg-emerald-100 text-emerald-800' 
-                                  : p.isDead 
-                                    ? 'bg-rose-100 text-rose-800' 
-                                    : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {p.sellThroughRate}%
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              {onSelectProduct && (
-                                <button
-                                  onClick={() => onSelectProduct(p)}
-                                  className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1 rounded-xl transition"
-                                >
-                                  فحص الموديل 🔍
-                                </button>
-                              )}
+                        {(currentCategoryData.productsList || []).length === 0 ? (
+                          <tr>
+                            <td colSpan={10} className="py-8 text-center text-xs text-burgundy/50">
+                              لا توجد موديلات مسجلة تحت هذا القسم حالياً
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          (currentCategoryData.productsList || []).map(p => (
+                            <tr key={p.id} className="hover:bg-burgundy/5 transition">
+                              <td className="py-3.5 px-4 font-bold text-burgundy">{p.name}</td>
+                              <td className="py-3.5 px-4 font-mono text-xs text-burgundy/60">{p.sku || '-'}</td>
+                              <td className="py-3.5 px-4 text-burgundy/70">{EGP(p.costPrice)}</td>
+                              <td className="py-3.5 px-4 font-bold text-burgundy">{EGP(p.price)}</td>
+                              <td className="py-3.5 px-4 font-bold text-amber-800">{p.stock} قطعة</td>
+                              <td className="py-3.5 px-4 font-bold text-emerald-800">{p.netSold || 0} قطعة</td>
+                              <td className="py-3.5 px-4 font-bold">{EGP(p.totalRevenue)}</td>
+                              <td className="py-3.5 px-4 font-bold text-emerald-700">{EGP(p.grossProfit)}</td>
+                              <td className="py-3.5 px-4 font-semibold">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                  p.sellThroughRate >= 40 
+                                    ? 'bg-emerald-100 text-emerald-800' 
+                                    : p.isDead 
+                                      ? 'bg-rose-100 text-rose-800' 
+                                      : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {p.sellThroughRate || 0}%
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                {onSelectProduct && (
+                                  <button
+                                    onClick={() => onSelectProduct(p)}
+                                    className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1 rounded-xl transition cursor-pointer"
+                                  >
+                                    فحص الموديل 🔍
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -539,7 +767,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   {/* Sizes */}
                   <div className="bg-white rounded-3xl p-5 border border-burgundy/10 shadow-sm">
                     <h5 className="font-black text-burgundy text-base mb-3 flex items-center gap-2">
-                      <span>📏</span> أكثر المقاسات طلباً في قسم {currentCategoryData.labelAr}
+                      <span>📏</span> أكثر المقاسات طلباً في قسم {currentCategoryData.labelAr || getArName(currentCategoryData.category)}
                     </h5>
                     {Object.keys(currentCategoryData.sizesBreakdown || {}).length === 0 ? (
                       <p className="text-xs text-burgundy/50 py-4 text-center">لا توجد بيانات مقاسات مفصلة</p>
@@ -562,7 +790,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                   {/* Colors */}
                   <div className="bg-white rounded-3xl p-5 border border-burgundy/10 shadow-sm">
                     <h5 className="font-black text-burgundy text-base mb-3 flex items-center gap-2">
-                      <span>🎨</span> أكثر الألوان طلباً في قسم {currentCategoryData.labelAr}
+                      <span>🎨</span> أكثر الألوان طلباً في قسم {currentCategoryData.labelAr || getArName(currentCategoryData.category)}
                     </h5>
                     {Object.keys(currentCategoryData.colorsBreakdown || {}).length === 0 ? (
                       <p className="text-xs text-burgundy/50 py-4 text-center">لا توجد بيانات ألوان مفصلة</p>
@@ -604,7 +832,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
                       <tbody className="divide-y divide-burgundy/5">
                         {(currentCategoryData.recentOrders || []).length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="py-6 text-center text-xs text-burgundy/50">لا توجد فواتير بعد</td>
+                            <td colSpan={5} className="py-6 text-center text-xs text-burgundy/50">لا توجد فواتير بعد لهذا القسم</td>
                           </tr>
                         ) : (
                           currentCategoryData.recentOrders.map((ord, idx) => (
@@ -654,7 +882,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
           </div>
           <button 
             onClick={onClose} 
-            className="px-6 py-2.5 rounded-2xl bg-burgundy text-white hover:bg-burgundy/90 text-sm font-bold transition shadow-md"
+            className="px-6 py-2.5 rounded-2xl bg-burgundy text-white hover:bg-burgundy/90 text-sm font-bold transition shadow-md cursor-pointer"
           >
             إغلاق النافذة
           </button>

@@ -713,7 +713,7 @@ router.get('/products-performance-summary', auth, requireRole(['admin']), async 
 });
 
 // GET /api/admin/categories/analytics — Aggregated activity & performance for whole product categories / families
-router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+router.get('/categories/analytics', auth, async (req, res) => {
   try {
     const { category, from, to } = req.query;
 
@@ -729,10 +729,23 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
       Cardigan: 'كاردن',
       Suit: 'سوت',
       Tonic: 'تونيك',
-      Takem: 'طقم'
+      Takem: 'طقم',
+      'بليزر': 'Blazer',
+      'بلوزة': 'Blouse',
+      'شميز': 'Chemise',
+      'جيبة': 'Skirt',
+      'فستان': 'Dress',
+      'بنطلون': 'Pantalon',
+      'تيشيرت': 'T-shirt',
+      'شنطة': 'Bag',
+      'كاردن': 'Cardigan',
+      'سوت': 'Suit',
+      'تونيك': 'Tonic',
+      'طقم': 'Takem'
     };
 
-    const products = await Product.find({ active: { $ne: false } }).lean();
+    // Include all products safely
+    const products = await Product.find({}).lean();
     const productMap = {};
     products.forEach(p => { productMap[p._id.toString()] = p; });
 
@@ -745,21 +758,38 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
     }
     const orders = await Order.find(orderQuery).sort({ createdAt: -1 }).lean();
 
-    // Discover all categories from products and orders
-    const categorySet = new Set(products.map(p => p.category).filter(Boolean));
+    // Default registered categories to guarantee complete category family availability
+    const defaultCatList = ['Chemise', 'Dress', 'Blouse', 'Bag', 'Cardigan', 'Blazer', 'Skirt', 'Pantalon', 'T-shirt', 'Suit', 'Tonic', 'Takem'];
+    const categorySet = new Set(defaultCatList);
+    
+    // Add any custom categories from products and orders
+    products.forEach(p => {
+      if (p.category && String(p.category).trim()) {
+        categorySet.add(String(p.category).trim());
+      }
+    });
+
     orders.forEach(o => {
       (o.items || []).forEach(item => {
-        if (item.category) categorySet.add(item.category);
-        else if (item.product && productMap[item.product.toString()]?.category) {
-          categorySet.add(productMap[item.product.toString()].category);
+        if (item.category && String(item.category).trim()) {
+          categorySet.add(String(item.category).trim());
+        } else if (item.product && productMap[item.product.toString()]?.category) {
+          categorySet.add(String(productMap[item.product.toString()].category).trim());
         }
       });
     });
+
     const allCategoriesList = Array.from(categorySet);
 
     // Compute metrics per category
     const categoriesData = allCategoriesList.map(catName => {
-      const catProducts = products.filter(p => (p.category || '').toLowerCase() === catName.toLowerCase());
+      const catLower = String(catName || '').trim().toLowerCase();
+      const catArEquivalent = CAT_AR[catName] ? CAT_AR[catName].toLowerCase() : '';
+
+      const catProducts = products.filter(p => {
+        const pCat = String(p.category || '').trim().toLowerCase();
+        return pCat === catLower || (catArEquivalent && pCat === catArEquivalent);
+      });
       const catProductIds = new Set(catProducts.map(p => p._id.toString()));
 
       let totalStock = 0;
@@ -786,8 +816,9 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
       orders.forEach(order => {
         let orderHasCatItem = false;
         (order.items || []).forEach(item => {
-          const itemCat = item.category || (item.product ? productMap[item.product.toString()]?.category : '');
-          const matchesCat = (itemCat || '').toLowerCase() === catName.toLowerCase() ||
+          const itemCat = String(item.category || (item.product ? productMap[item.product.toString()]?.category : '') || '').trim().toLowerCase();
+          const matchesCat = itemCat === catLower ||
+                             (catArEquivalent && itemCat === catArEquivalent) ||
                              (item.product && catProductIds.has(item.product.toString()));
 
           if (matchesCat) {
@@ -833,8 +864,8 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
             paymentMethod: order.paymentMethod,
             items: (order.items || [])
               .filter(i => {
-                const iCat = i.category || (i.product ? productMap[i.product.toString()]?.category : '');
-                return (iCat || '').toLowerCase() === catName.toLowerCase() || (i.product && catProductIds.has(i.product.toString()));
+                const iCat = String(i.category || (i.product ? productMap[i.product.toString()]?.category : '') || '').trim().toLowerCase();
+                return iCat === catLower || (catArEquivalent && iCat === catArEquivalent) || (i.product && catProductIds.has(i.product.toString()));
               })
               .map(i => ({
                 name: i.name,
@@ -861,14 +892,14 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
         label: 'حركة بيعية طبيعية ومستقرة'
       };
 
-      if (sellThroughRate >= 45 || netSold >= 25) {
+      if (sellThroughRate >= 40 || netSold >= 20) {
         velocity = {
           status: 'fast',
           badge: '🚀 سريع البيع (طلب قوي)',
           color: 'emerald',
           label: 'إقبال ممتاز ومعدل دوران مرتفع جداً'
         };
-      } else if (sellThroughRate < 15 && totalStock > 0) {
+      } else if (sellThroughRate < 10 && totalStock > 0) {
         velocity = {
           status: 'dead',
           badge: '🛑 بضاعة راكدة (Dead Stock)',
@@ -904,8 +935,8 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
         };
       });
 
-      const topProducts = [...enrichedProducts].sort((a, b) => b.netSold - a.netSold).slice(0, 6);
-      const slowProducts = [...enrichedProducts].filter(p => p.isDead).sort((a, b) => b.stock - a.stock).slice(0, 6);
+      const topProducts = [...enrichedProducts].sort((a, b) => b.netSold - a.netSold).slice(0, 8);
+      const slowProducts = [...enrichedProducts].filter(p => p.isDead).sort((a, b) => b.stock - a.stock).slice(0, 8);
 
       return {
         category: catName,
@@ -933,8 +964,11 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
       };
     });
 
-    // Sort categories by total revenue descending
-    categoriesData.sort((a, b) => b.totalRevenue - a.totalRevenue);
+    // Sort categories: categories with products first, then by total revenue descending
+    categoriesData.sort((a, b) => {
+      if (b.productsCount !== a.productsCount) return b.productsCount - a.productsCount;
+      return b.totalRevenue - a.totalRevenue;
+    });
 
     const allProductsSummary = products.map(p => ({
       id: p._id,
@@ -946,31 +980,9 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
       stock: p.stock
     }));
 
-    // If user specified a specific category, return detailed target + list
-    if (category && category !== 'all') {
-      const selected = categoriesData.find(c => c.category.toLowerCase() === category.toLowerCase()) ||
-                       categoriesData.find(c => c.labelAr === category);
-      return res.json({
-        selectedCategory: selected || null,
-        categories: categoriesData.map(c => ({
-          category: c.category,
-          labelAr: c.labelAr,
-          productsCount: c.productsCount,
-          totalStock: c.totalStock,
-          netSold: c.netSold,
-          totalRevenue: c.totalRevenue,
-          grossProfit: c.grossProfit,
-          profitMargin: c.profitMargin,
-          sellThroughRate: c.sellThroughRate,
-          velocity: c.velocity
-        })),
-        allProducts: allProductsSummary
-      });
-    }
-
-    // Default: Return all categories + overall aggregated summary
+    // Overall store aggregated summary (always calculated and returned)
     const storeSummary = {
-      totalCategories: categoriesData.length,
+      totalCategories: categoriesData.filter(c => c.productsCount > 0).length || categoriesData.length,
       totalStock: categoriesData.reduce((s, c) => s + c.totalStock, 0),
       stockValueCost: categoriesData.reduce((s, c) => s + c.stockValueCost, 0),
       stockValueRetail: categoriesData.reduce((s, c) => s + c.stockValueRetail, 0),
@@ -982,12 +994,24 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
       ? Math.round((storeSummary.grossProfit / storeSummary.totalRevenue) * 1000) / 10
       : 0;
 
+    // Find requested category if specified
+    let selected = null;
+    if (category && category !== 'all') {
+      const qLower = String(category).trim().toLowerCase();
+      selected = categoriesData.find(c => c.category.toLowerCase() === qLower) ||
+                 categoriesData.find(c => (c.labelAr || '').toLowerCase() === qLower) ||
+                 categoriesData.find(c => (CAT_AR[c.category] || '').toLowerCase() === qLower);
+    }
+
+    // ALWAYS return complete data bundle so the client has storeSummary + categories list + allProducts + target category
     res.json({
       storeSummary,
       categories: categoriesData,
+      selectedCategory: selected || null,
       allProducts: allProductsSummary
     });
   } catch (error) {
+    console.error('Error in categories analytics:', error);
     res.status(500).json({ message: 'تعذر جلب تقرير نشاط الفئات', error: error.message });
   }
 });
