@@ -138,15 +138,18 @@ export default function AdminFinancialCenter({ defaultView = 'report' }) {
     try {
       setReportLoading(true);
       const res = await api.get('/reports/monthly');
-      setAvailableMonths(res.data);
-      if (res.data.length > 0) {
-        const initial = res.data[0].yearMonth;
-        setSelectedYearMonth(initial);
-        fetchReportDetail(initial);
+      setAvailableMonths(res.data || []);
+      let targetYM = '';
+      if (res.data && res.data.length > 0) {
+        targetYM = res.data[0].yearMonth;
+      } else {
+        const now = new Date();
+        targetYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       }
+      setSelectedYearMonth(targetYM);
+      await fetchReportDetail(targetYM);
     } catch (err) {
       console.error('Failed to load months list:', err);
-    } finally {
       setReportLoading(false);
     }
   };
@@ -617,63 +620,241 @@ export default function AdminFinancialCenter({ defaultView = 'report' }) {
               </div>
 
               {/* Monthly Daily Activity Chart */}
-              {report.dailyBreakdown && report.dailyBreakdown.length > 0 && (
+              {((report.dailyData && report.dailyData.length > 0) || (report.dailyBreakdown && report.dailyBreakdown.length > 0)) && (
                 <div className="bg-white rounded-3xl p-6 border border-burgundy/10 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-burgundy text-base flex items-center gap-2">
-                      <span>📈</span> حركة الإيرادات والأرباح اليومية خلال الشهر
+                      <span>📈</span> حركة الإيرادات والأرباح اليومية خلال الشهر ({report.monthName})
                     </h4>
                     <span className="text-xs text-burgundy/50">توزيع يومي للإيرادات وصافي الأرباح</span>
                   </div>
-                  <MonthlyChart data={report.dailyBreakdown} />
+                  <MonthlyChart data={report.dailyData || report.dailyBreakdown || []} />
                 </div>
               )}
 
+              {/* Detailed Day-by-Day Table */}
+              {report.dailyData && report.dailyData.length > 0 && (
+                <div className="bg-white rounded-3xl border border-burgundy/10 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-burgundy/10 flex items-center justify-between bg-burgundy/[0.02]">
+                    <div>
+                      <h4 className="font-bold text-burgundy text-base flex items-center gap-2">
+                        <span>📅</span> جدول الأداء اليومي المفصل للشهر ({report.monthName})
+                      </h4>
+                      <p className="text-xs text-burgundy/50 mt-0.5">تفاصيل المبيعات والأرباح والمصروفات لكل يوم سطر بسطر</p>
+                    </div>
+                    <span className="text-xs bg-burgundy/10 text-burgundy px-3 py-1 rounded-full font-bold">
+                      {report.dailyData.length} يوم
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-xs">
+                      <thead>
+                        <tr className="border-b border-burgundy/10 bg-[#FAF7F2] font-bold text-burgundy/70">
+                          <th className="py-3 px-4">اليوم والتاريخ</th>
+                          <th className="py-3 px-4">إجمالي الإيراد</th>
+                          <th className="py-3 px-4">الخصومات</th>
+                          <th className="py-3 px-4">صافي الربح</th>
+                          <th className="py-3 px-4">المصروفات</th>
+                          <th className="py-3 px-4">نقدية (كاش)</th>
+                          <th className="py-3 px-4">إنستاباي / محفظة</th>
+                          <th className="py-3 px-4 text-center">عدد الفواتير</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-burgundy/5 font-medium">
+                        {report.dailyData.map((day) => (
+                          <tr key={day.day} className={`hover:bg-burgundy/[0.03] transition ${day.revenue > 0 ? '' : 'opacity-50'}`}>
+                            <td className="py-2.5 px-4 font-bold text-burgundy">
+                              يوم {day.day} <span className="text-burgundy/40 text-[10px] mr-1">({day.date})</span>
+                            </td>
+                            <td className="py-2.5 px-4 font-bold text-burgundy">
+                              {day.revenue > 0 ? EGP(day.revenue) : '—'}
+                            </td>
+                            <td className="py-2.5 px-4 font-semibold text-amber-800">
+                              {day.discounts > 0 ? EGP(day.discounts) : '—'}
+                            </td>
+                            <td className={`py-2.5 px-4 font-bold ${day.profit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {day.revenue > 0 || day.expenses > 0 ? EGP(day.profit) : '—'}
+                            </td>
+                            <td className="py-2.5 px-4 text-rose-700 font-semibold">
+                              {day.expenses > 0 ? EGP(day.expenses) : '—'}
+                            </td>
+                            <td className="py-2.5 px-4 text-burgundy/80">
+                              {day.cashRevenue > 0 ? EGP(day.cashRevenue) : '—'}
+                            </td>
+                            <td className="py-2.5 px-4 text-blue-700 font-semibold">
+                              {day.instapayRevenue > 0 ? EGP(day.instapayRevenue) : '—'}
+                            </td>
+                            <td className="py-2.5 px-4 text-center font-bold text-burgundy/70">
+                              {day.count || 0}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-burgundy/20 bg-burgundy/5 font-black text-burgundy text-xs">
+                          <td className="py-3 px-4">الإجمالي الشهري</td>
+                          <td className="py-3 px-4">{EGP(report.grossBilledSales || report.totalSales)}</td>
+                          <td className="py-3 px-4 text-amber-800">{EGP(report.totalDiscounts || 0)}</td>
+                          <td className="py-3 px-4 text-emerald-700">{EGP(report.netProfit)}</td>
+                          <td className="py-3 px-4 text-rose-700">{EGP(report.totalExpenses)}</td>
+                          <td className="py-3 px-4">{EGP(report.cashRevenue || report.salesCashCollected || 0)}</td>
+                          <td className="py-3 px-4 text-blue-700">{EGP(report.instapayRevenue || report.salesInstapayCollected || 0)}</td>
+                          <td className="py-3 px-4 text-center">{report.totalOrders || 0} فاتورة</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Breakdown Grid: Categories, Best Sellers, Expenses, Employees */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. Category Breakdown */}
+                <div className="bg-white rounded-3xl p-6 border border-burgundy/10 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-burgundy/10 pb-3">
+                    <h4 className="font-bold text-burgundy text-base flex items-center gap-2">
+                      <span>🏷️</span> مبيعات الأقسام في الشهر
+                    </h4>
+                    <span className="text-xs text-burgundy/50">توزيع الإيراد حسب التصنيف</span>
+                  </div>
+                  {report.categoryBreakdown && report.categoryBreakdown.length > 0 ? (
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {report.categoryBreakdown.map((cat, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#FAF7F2] hover:bg-burgundy/5 transition">
+                          <span className="font-bold text-burgundy">{cat.category}</span>
+                          <span className="font-black text-burgundy font-mono">{EGP(cat.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-burgundy/40 py-6 text-center">لا توجد مبيعات أقسام مسجلة لهذا الشهر</p>
+                  )}
+                </div>
+
+                {/* 2. Top Best Sellers */}
+                <div className="bg-white rounded-3xl p-6 border border-burgundy/10 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-burgundy/10 pb-3">
+                    <h4 className="font-bold text-burgundy text-base flex items-center gap-2">
+                      <span>⭐</span> المنتجات الأكثر مبيعاً في الشهر
+                    </h4>
+                    <span className="text-xs text-burgundy/50">ترتيب الأصناف حسب عدد القطع</span>
+                  </div>
+                  {report.bestSellers && report.bestSellers.length > 0 ? (
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {report.bestSellers.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#FAF7F2] hover:bg-burgundy/5 transition">
+                          <span className="font-bold text-burgundy truncate max-w-[200px]">{idx + 1}. {item.name}</span>
+                          <span className="font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">{item.qty} قطعة</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-burgundy/40 py-6 text-center">لا توجد مبيعات منتجات مسجلة لهذا الشهر</p>
+                  )}
+                </div>
+
+                {/* 3. Expense Breakdown */}
+                <div className="bg-white rounded-3xl p-6 border border-burgundy/10 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-burgundy/10 pb-3">
+                    <h4 className="font-bold text-burgundy text-base flex items-center gap-2">
+                      <span>🧾</span> توزيع المصروفات في الشهر
+                    </h4>
+                    <span className="text-xs text-burgundy/50">حسب فئات الصرف</span>
+                  </div>
+                  {report.expenseBreakdown && report.expenseBreakdown.length > 0 ? (
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {report.expenseBreakdown.map((exp, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-rose-50/50 hover:bg-rose-100/50 transition">
+                          <span className="font-bold text-rose-900">{exp.category}</span>
+                          <span className="font-black text-rose-700 font-mono">{EGP(exp.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-burgundy/40 py-6 text-center">لا توجد مصروفات مسجلة لهذا الشهر</p>
+                  )}
+                </div>
+
+                {/* 4. Employee Performance */}
+                <div className="bg-white rounded-3xl p-6 border border-burgundy/10 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-burgundy/10 pb-3">
+                    <h4 className="font-bold text-burgundy text-base flex items-center gap-2">
+                      <span>👔</span> أداء الموظفين والكاشير
+                    </h4>
+                    <span className="text-xs text-burgundy/50">إجمالي المبيعات وعدد العمليات</span>
+                  </div>
+                  {report.employeePerformance && report.employeePerformance.length > 0 ? (
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {report.employeePerformance.map((emp, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#FAF7F2] hover:bg-burgundy/5 transition">
+                          <div>
+                            <p className="font-bold text-burgundy">{emp.name}</p>
+                            <p className="text-[10px] text-burgundy/60">{emp.orderCount || 0} طلبات | {emp.itemsSold || 0} قطعة</p>
+                          </div>
+                          <span className="font-black text-emerald-700 font-mono">{EGP(emp.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-burgundy/40 py-6 text-center">لا توجد عمليات مسجلة لموظفين لهذا الشهر</p>
+                  )}
+                </div>
+              </div>
+
               {/* Expenses Breakdown & Audit Table (if expanded) */}
               {showFullAudit && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   {/* Operating Expenses Breakdown */}
                   <div className="bg-white rounded-3xl p-5 border border-burgundy/10 shadow-sm space-y-3">
                     <h5 className="font-black text-burgundy text-sm flex items-center gap-2">
-                      <span>🧾</span> تفاصيل مصاريف التشغيل بالبنود
+                      <span>🧾</span> تفاصيل مصاريف التشغيل بالبنود سطر بسطر
                     </h5>
-                    {(report.operatingExpensesList || []).length === 0 ? (
-                      <p className="text-xs text-burgundy/50 py-4 text-center">لا توجد مصاريف تشغيل مسجلة</p>
-                    ) : (
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                        {report.operatingExpensesList.map((exp, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF7F2] text-xs">
-                            <div>
-                              <span className="font-bold text-burgundy">{exp.category || 'أخرى'}</span>
-                              <span className="text-burgundy/50 mr-2">{exp.description}</span>
+                    {(() => {
+                      const expList = report.operatingExpensesList || report.auditDetails?.operatingExpensesList || report.expenseBreakdown || [];
+                      if (expList.length === 0) {
+                        return <p className="text-xs text-burgundy/50 py-4 text-center">لا توجد مصاريف تشغيل مسجلة</p>;
+                      }
+                      return (
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {expList.map((exp, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF7F2] text-xs">
+                              <div>
+                                <span className="font-bold text-burgundy">{exp.category || 'أخرى'}</span>
+                                {exp.description && <span className="text-burgundy/50 mr-2">{exp.description}</span>}
+                              </div>
+                              <span className="font-black text-rose-700">{EGP(exp.amount)}</span>
                             </div>
-                            <span className="font-black text-rose-700">{EGP(exp.amount)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Personal Withdrawals Breakdown */}
                   <div className="bg-white rounded-3xl p-5 border border-burgundy/10 shadow-sm space-y-3">
                     <h5 className="font-black text-purple-900 text-sm flex items-center gap-2">
-                      <span>👤</span> تفاصيل مسحوبات المالك الشخصية والجمعيات
+                      <span>👤</span> تفاصيل مسحوبات المالك الشخصية والجمعيات سطر بسطر
                     </h5>
-                    {(report.personalWithdrawalsList || []).length === 0 ? (
-                      <p className="text-xs text-burgundy/50 py-4 text-center">لا توجد مسحوبات شخصية مسجلة</p>
-                    ) : (
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                        {report.personalWithdrawalsList.map((w, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-purple-50/50 text-xs">
-                            <div>
-                              <span className="font-bold text-purple-900">{w.category || 'مسحوبات شخصية'}</span>
-                              <span className="text-purple-800/60 mr-2">{w.description}</span>
+                    {(() => {
+                      const withList = report.personalWithdrawalsList || report.auditDetails?.personalWithdrawalsList || [];
+                      if (withList.length === 0) {
+                        return <p className="text-xs text-burgundy/50 py-4 text-center">لا توجد مسحوبات شخصية مسجلة</p>;
+                      }
+                      return (
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {withList.map((w, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-purple-50/50 text-xs">
+                              <div>
+                                <span className="font-bold text-purple-900">{w.category || 'مسحوبات شخصية'}</span>
+                                {w.description && <span className="text-purple-800/60 mr-2">{w.description}</span>}
+                              </div>
+                              <span className="font-black text-purple-800">{EGP(w.amount)}</span>
                             </div>
-                            <span className="font-black text-purple-800">{EGP(w.amount)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
