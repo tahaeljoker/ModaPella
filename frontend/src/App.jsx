@@ -34,6 +34,7 @@ import AdminDebts from './pages/admin/AdminDebts';
 import AdminMonthlyReports from './pages/admin/AdminMonthlyReports';
 import AdminSafe from './pages/admin/AdminSafe';
 import AdminAccountStatement from './pages/admin/AdminAccountStatement';
+import AdminFinancialCenter from './pages/admin/AdminFinancialCenter';
 import AdminUpdates from './pages/admin/AdminUpdates';
 
 // Cashier Pages
@@ -212,10 +213,10 @@ function AppContent() {
  <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUsers /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/activities" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminActivities /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/debts" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminDebts /></AdminLayout></ProtectedRoute>} />
- <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminMonthlyReports /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminFinancialCenter defaultView="report" /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/safe" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminSafe /></AdminLayout></ProtectedRoute>} />
-          <Route path="/admin/statements" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminAccountStatement /></AdminLayout></ProtectedRoute>} />
-          <Route path="/admin/updates" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUpdates /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/statements" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminFinancialCenter defaultView="ledger" /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/updates" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUpdates /></AdminLayout></ProtectedRoute>} />
 
  {/* Cashier Routes */}
  <Route path="/cashier" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />

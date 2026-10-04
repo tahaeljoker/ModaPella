@@ -16,7 +16,7 @@ const sections = [
   {
     title: 'المالية والحسابات',
     items: [
-      { to: '/admin/statements', label: 'كشف حساب شامل', icon: 'statement' },
+      { to: '/admin/reports', label: 'المركز المالي وكشف الحساب', icon: 'reports' },
       { to: '/admin/safe', label: 'الخزنة وحركة الدرج', icon: 'safe' },
       { to: '/admin/debts', label: 'ديون ومستحقات العملاء', icon: 'debts' },
       { to: '/admin/suppliers', label: 'حسابات ومشتريات الموردين', icon: 'suppliers' },
@@ -34,7 +34,6 @@ const sections = [
   {
     title: 'التقارير والإدارة',
     items: [
-      { to: '/admin/reports', label: 'التقارير الشهرية والأرشيف', icon: 'reports' },
       { to: '/admin/employees', label: 'الموظفون والعمولات', icon: 'employee' },
       { to: '/admin/activities', label: 'سجل حركات النظام', icon: 'activities' },
       { to: '/admin/site', label: 'إعدادات الموقع', icon: 'site' },
