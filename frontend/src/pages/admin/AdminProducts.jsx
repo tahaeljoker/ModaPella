@@ -1514,6 +1514,17 @@ const normalizeDigits = (str) => {
 
  {/* Actions */}
  <div className="flex items-center gap-2 justify-end">
+ {onShowAnalytics && (
+ <button
+ type="button"
+ onClick={() => onShowAnalytics(p)}
+ className="rounded-xl border border-burgundy/20 hover:border-burgundy bg-burgundy/5 hover:bg-burgundy hover:text-white px-2.5 py-1 text-xs font-bold text-burgundy transition shadow-xs flex items-center gap-1 cursor-pointer"
+ title="تتبع حركة ونشاط وأرباح هذا الصنف"
+ >
+ <span>📊</span>
+ <span>نشاط الصنف</span>
+ </button>
+ )}
  {p.stock === 0 && (
  <button
  onClick={() => onRestock(p)}
@@ -1582,6 +1593,15 @@ const normalizeDigits = (str) => {
  >
  سجل حركة المخزون
  </button>
+ {onShowAnalytics && (
+ <button
+ type="button"
+ onClick={() => { setActiveMenuId(null); onShowAnalytics(p); }}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
+ >
+ 📊 نشاط وأداء الصنف
+ </button>
+ )}
  {p.sku && (
  <button
  type="button"

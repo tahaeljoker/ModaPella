@@ -936,6 +936,16 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
     // Sort categories by total revenue descending
     categoriesData.sort((a, b) => b.totalRevenue - a.totalRevenue);
 
+    const allProductsSummary = products.map(p => ({
+      id: p._id,
+      name: p.name,
+      sku: p.sku || '',
+      category: p.category,
+      price: p.price,
+      costPrice: p.costPrice || 0,
+      stock: p.stock
+    }));
+
     // If user specified a specific category, return detailed target + list
     if (category && category !== 'all') {
       const selected = categoriesData.find(c => c.category.toLowerCase() === category.toLowerCase()) ||
@@ -953,7 +963,8 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
           profitMargin: c.profitMargin,
           sellThroughRate: c.sellThroughRate,
           velocity: c.velocity
-        }))
+        })),
+        allProducts: allProductsSummary
       });
     }
 
@@ -973,7 +984,8 @@ router.get('/categories/analytics', auth, requireRole(['admin', 'cashier', 'mana
 
     res.json({
       storeSummary,
-      categories: categoriesData
+      categories: categoriesData,
+      allProducts: allProductsSummary
     });
   } catch (error) {
     res.status(500).json({ message: 'تعذر جلب تقرير نشاط الفئات', error: error.message });

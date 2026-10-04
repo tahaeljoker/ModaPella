@@ -45,6 +45,7 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
   }, [selectedCategory]);
 
   const categoriesList = data?.categories || [];
+  const allProducts = data?.allProducts || [];
   const storeSummary = data?.storeSummary;
   const currentCategoryData = data?.selectedCategory || (selectedCategory === 'all' ? null : categoriesList.find(c => c.category === selectedCategory));
 
@@ -101,42 +102,97 @@ export default function CategoryAnalyticsModal({ initialCategory = null, onClose
           </button>
         </div>
 
-        {/* Category Selector Bar */}
-        <div className="bg-[#FAF7F2] border-b border-burgundy/10 px-6 sm:px-8 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <span className="text-xs font-bold text-burgundy/60 shrink-0 ml-2">اختر الصنف / القسم:</span>
-          
-          <button
-            onClick={() => setSelectedCategory('all')}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold transition shrink-0 ${
-              selectedCategory === 'all'
-                ? 'bg-burgundy text-white shadow-md'
-                : 'bg-white text-burgundy/80 hover:bg-burgundy/10 border border-burgundy/15'
-            }`}
-          >
-            🌟 كل الأقسام (مقارنة)
-          </button>
-
-          {categoriesList.map(c => {
-            const catKey = c.category;
-            const arName = c.labelAr || DEFAULT_CAT_AR[catKey] || catKey;
-            const isSelected = selectedCategory.toLowerCase() === catKey.toLowerCase();
-            return (
-              <button
-                key={catKey}
-                onClick={() => setSelectedCategory(catKey)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-burgundy text-white shadow-md'
-                    : 'bg-white text-burgundy/80 hover:bg-burgundy/10 border border-burgundy/15'
-                }`}
+        {/* Category & Product Selector Section */}
+        <div className="bg-[#FAF7F2] border-b border-burgundy/10 px-6 sm:px-8 py-3.5 space-y-2.5">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <label className="text-xs font-black text-burgundy shrink-0 flex items-center gap-1.5">
+              <span>🎯</span>
+              <span>اختر الصنف أو القسم لتتبع نشاطه:</span>
+            </label>
+            
+            <div className="relative flex-1">
+              <select
+                value={selectedCategory}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val.startsWith('prod_')) {
+                    const pId = val.replace('prod_', '');
+                    const prod = allProducts.find(p => p.id === pId);
+                    if (prod && onSelectProduct) {
+                      onClose();
+                      onSelectProduct(prod);
+                    }
+                  } else {
+                    setSelectedCategory(val);
+                  }
+                }}
+                className="w-full rounded-2xl border-2 border-burgundy/25 bg-white px-4 py-2.5 text-sm font-black text-burgundy shadow-xs outline-none focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 cursor-pointer"
               >
-                <span>{arName}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-burgundy/10 text-burgundy'}`}>
-                  {c.productsCount || 0}
-                </span>
-              </button>
-            );
-          })}
+                <option value="all">🌟 كل الأقسام والأصناف (مقارنة شاملة وترتيب الأداء)</option>
+                
+                {categoriesList.length > 0 && (
+                  <optgroup label="👔 تتبع قسم بالكامل (كل الموديلات التابعة له):">
+                    {categoriesList.map(c => (
+                      <option key={c.category} value={c.category}>
+                        📁 قسم {c.labelAr || DEFAULT_CAT_AR[c.category] || c.category} ({c.productsCount} موديل · مخزون: {c.totalStock} قطعة)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+
+                {allProducts.length > 0 && (
+                  <optgroup label="🏷️ أو اختر موديلاً بعينه:">
+                    {allProducts.map(p => (
+                      <option key={p.id} value={`prod_${p.id}`}>
+                        👕 {p.name} {p.sku ? `(#${p.sku})` : ''} - [{DEFAULT_CAT_AR[p.category] || p.category}]
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Quick Category Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+            <span className="text-[11px] font-bold text-burgundy/50 shrink-0">أزرار سريعة للأقسام:</span>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shrink-0 ${
+                selectedCategory === 'all'
+                  ? 'bg-burgundy text-white shadow-md'
+                  : 'bg-white text-burgundy/80 hover:bg-burgundy/10 border border-burgundy/15'
+              }`}
+            >
+              🌟 كل الأقسام
+            </button>
+
+            {categoriesList.map(c => {
+              const catKey = c.category;
+              const arName = c.labelAr || DEFAULT_CAT_AR[catKey] || catKey;
+              const isSelected = selectedCategory.toLowerCase() === catKey.toLowerCase();
+              return (
+                <button
+                  type="button"
+                  key={catKey}
+                  onClick={() => setSelectedCategory(catKey)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-burgundy text-white shadow-md'
+                      : 'bg-white text-burgundy/80 hover:bg-burgundy/10 border border-burgundy/15'
+                  }`}
+                >
+                  <span>{arName}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-burgundy/10 text-burgundy'
+                  }`}>
+                    {c.productsCount || 0}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Modal Body */}
