@@ -710,7 +710,8 @@ export default function AdminAccountStatement() {
                 </thead>
                 <tbody className="divide-y divide-burgundy/5">
                   {pagedStatements.map(s => {
-                    const isOut = s.flow === 'OUT' || s.flow === 'DEBT_INCREASE';
+                    const isInvoice = s.flow === 'INVOICE' || s.type === 'فاتورة مشتريات' || s.type === 'مشتريات بضاعة';
+                    const isOut = s.flow === 'OUT';
                     const isBalanceNeg = s.runningBalance < 0;
                     const rowId = s.id?.toString();
                     const hasNote = notes[rowId] && notes[rowId].trim();
@@ -811,9 +812,15 @@ export default function AdminAccountStatement() {
 
                         {/* Amount */}
                         <td className="py-3 px-4 text-left whitespace-nowrap">
-                          <span className={`text-sm font-black ${isOut ? 'text-rose-600' : 'text-emerald-700'}`}>
-                            {isOut ? '-' : '+'} {EGP(s.amount)}
-                          </span>
+                          {isInvoice ? (
+                            <span className="text-sm font-bold text-amber-900 font-mono" title="فاتورة وارد مخزن">
+                              {EGP(s.amount)}
+                            </span>
+                          ) : (
+                            <span className={`text-sm font-black ${isOut ? 'text-rose-600' : 'text-emerald-700'}`}>
+                              {isOut ? '-' : '+'} {EGP(s.amount)}
+                            </span>
+                          )}
                         </td>
 
                         {/* Running Balance */}

@@ -321,6 +321,7 @@ export default function AdminFinancialCenter({ defaultView = 'report' }) {
     const cat = (category || '').toLowerCase();
     if (cat === 'sale' || cat.includes('مبيعات')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     if (cat === 'refund' || cat.includes('مرتجع')) return 'bg-rose-100 text-rose-800 border-rose-200';
+    if (cat.includes('مشتريات') || cat.includes('بضاعة')) return 'bg-amber-100 text-amber-900 border-amber-300';
     if (cat.includes('مورد') || cat.includes('supplier')) return 'bg-blue-100 text-blue-800 border-blue-200';
     if (cat.includes('شخصي') || cat.includes('مسحوبات') || cat.includes('جمعية')) return 'bg-purple-100 text-purple-800 border-purple-200';
     if (cat === 'expense' || cat.includes('مصروف')) return 'bg-amber-100 text-amber-800 border-amber-200';
@@ -855,28 +856,36 @@ export default function AdminFinancialCenter({ defaultView = 'report' }) {
                             <span className="text-burgundy/40 text-[10px]">{TIME(item.date)}</span>
                           </td>
                           <td className="py-3.5 px-4 font-bold text-xs">
-                            {item.type === 'IN' ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            {item.flow === 'IN' || item.type === 'IN' ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
                                 <span>↓</span> داخل
                               </span>
+                            ) : item.flow === 'INVOICE' || item.type === 'فاتورة مشتريات' || item.type === 'مشتريات بضاعة' ? (
+                              <span className="inline-flex items-center gap-1 text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full" title="استلام بضاعة واردة للمخزن (فاتورة إثبات)">
+                                <span>📦</span> وارد مخزن
+                              </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                              <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full">
                                 <span>↑</span> خارج
                               </span>
                             )}
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className={`inline-block text-xs font-bold px-2.5 py-0.5 rounded-lg border ${getCategoryBadgeClass(item.category)}`}>
-                              {item.category}
+                            <span className={`inline-block text-xs font-bold px-2.5 py-0.5 rounded-lg border ${getCategoryBadgeClass(item.category || item.type)}`}>
+                              {item.category || item.type}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-xs font-medium text-burgundy max-w-xs truncate">
                             {item.description || '-'}
                           </td>
                           <td className="py-3.5 px-4 font-black text-sm">
-                            <span className={item.type === 'IN' ? 'text-emerald-700' : 'text-rose-700'}>
-                              {item.type === 'IN' ? '+' : '-'}{EGP(item.amount)}
-                            </span>
+                            {item.flow === 'IN' || item.type === 'IN' ? (
+                              <span className="text-emerald-700">+{EGP(item.amount)}</span>
+                            ) : item.flow === 'INVOICE' || item.type === 'فاتورة مشتريات' || item.type === 'مشتريات بضاعة' ? (
+                              <span className="text-amber-900 font-mono font-bold" title="قيمة بضاعة واردة للمخزن">{EGP(item.amount)}</span>
+                            ) : (
+                              <span className="text-rose-700">-{EGP(item.amount)}</span>
+                            )}
                           </td>
                           <td className="py-3.5 px-4 text-xs font-semibold text-burgundy/70">
                             {item.paymentMethod || 'Cash'}
