@@ -505,12 +505,164 @@ function SupplierReturnModal({ supplierId, supplierName, onClose, onSave }) {
 const CAT_AR_SUP = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP_S = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
+
+function EditTransactionModal({ transaction, supplierId, onClose, onSave }) {
+  const [form, setForm] = useState({
+    amount: transaction.amount || '',
+    type: transaction.type || 'purchase',
+    paymentSource: transaction.paymentSource || 'PersonalPocket',
+    reference: transaction.reference || '',
+    description: transaction.description || '',
+    date: transaction.date ? new Date(transaction.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.amount || Number(form.amount) <= 0) return alert('الرجاء إدخال مبلغ صحيح أكبر من صفر');
+    setLoading(true);
+    try {
+      await api.put(`/suppliers/${supplierId}/transactions/${transaction._id}`, form);
+      onSave();
+      onClose();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'فشل تعديل الفاتورة');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose} dir="rtl">
+      <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-burgundy/10 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">✏️</span>
+            <h4 className="font-bold text-burgundy text-base">تعديل فاتورة / حركة مورد</h4>
+          </div>
+          <button onClick={onClose} className="text-burgundy/40 hover:text-burgundy font-bold text-lg cursor-pointer">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div>
+            <label className="block text-xs font-bold text-burgundy mb-1">نوع المعاملة</label>
+            <select
+              value={form.type}
+              onChange={e => setForm({ ...form, type: e.target.value })}
+              className="w-full rounded-xl border border-burgundy/20 px-3 py-2 text-xs font-bold text-burgundy outline-none focus:border-burgundy"
+            >
+              <option value="purchase">🛒 فاتورة مشتريات بضاعة (مديونية على المحل)</option>
+              <option value="payment">💵 سداد دفعة للمورد (سداد كاش)</option>
+              <option value="return">↩️ مرتجع بضاعة للمورد (تخفيض الدين)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-burgundy mb-1">المبلغ (ج.م) *</label>
+            <input
+              type="number"
+              step="any"
+              min="0.01"
+              required
+              value={form.amount}
+              onChange={e => setForm({ ...form, amount: e.target.value })}
+              className="w-full rounded-xl border border-burgundy/20 px-3 py-2 text-sm font-bold text-burgundy outline-none focus:border-burgundy"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-burgundy mb-1">جهة الصرف / الدفع</label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-xs font-bold transition ${form.paymentSource === 'StoreSafe' ? 'border-burgundy bg-burgundy/5 text-burgundy' : 'border-burgundy/15 text-burgundy/60'}`}>
+                <input
+                  type="radio"
+                  name="editPaymentSource"
+                  checked={form.paymentSource === 'StoreSafe'}
+                  onChange={() => setForm({ ...form, paymentSource: 'StoreSafe' })}
+                  className="accent-burgundy"
+                />
+                <span>🏦 الخزينة (تعديل الصرف)</span>
+              </label>
+
+              <label className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-xs font-bold transition ${form.paymentSource === 'PersonalPocket' ? 'border-burgundy bg-burgundy/5 text-burgundy' : 'border-burgundy/15 text-burgundy/60'}`}>
+                <input
+                  type="radio"
+                  name="editPaymentSource"
+                  checked={form.paymentSource === 'PersonalPocket'}
+                  onChange={() => setForm({ ...form, paymentSource: 'PersonalPocket' })}
+                  className="accent-burgundy"
+                />
+                <span>👤 جيب شخصي / آجل</span>
+              </label>
+            </div>
+            <p className="text-[10px] text-burgundy/50 mt-1">
+              {form.paymentSource === 'StoreSafe' ? '💡 سيتم تحديث حركة المصروف في الخزينة فوراً بنفس المبلغ.' : '💡 اختيار (شخصي) لن يخصم أي أموال من درج الخزينة.'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-bold text-burgundy mb-1">رقم الفاتورة / الوصل</label>
+              <input
+                type="text"
+                value={form.reference}
+                onChange={e => setForm({ ...form, reference: e.target.value })}
+                placeholder="مثال: INV-102"
+                className="w-full rounded-xl border border-burgundy/20 px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-burgundy mb-1">تاريخ الفاتورة</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => setForm({ ...form, date: e.target.value })}
+                className="w-full rounded-xl border border-burgundy/20 px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-burgundy mb-1">بيان وملاحظات الفاتورة</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="وصف البضاعة أو طريقة السداد..."
+              className="w-full rounded-xl border border-burgundy/20 px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 rounded-xl border border-burgundy/20 text-burgundy text-xs font-bold hover:bg-burgundy/5 transition cursor-pointer"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-2 rounded-xl bg-burgundy text-white text-xs font-bold hover:bg-[#650018] transition shadow-md cursor-pointer disabled:opacity-50"
+            >
+              {loading ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function SupplierDetailModal({ supplierId, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addTx, setAddTx] = useState(false);
   const [addReturn, setAddReturn] = useState(false);
   const [deleteTxId, setDeleteTxId] = useState(null);
+  const [editingTx, setEditingTx] = useState(null);
+  const [cleaningDupes, setCleaningDupes] = useState(false);
   const [activeTab, setActiveTab] = useState('account'); // 'account' | 'returns' | 'products' | 'po'
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -554,6 +706,22 @@ function SupplierDetailModal({ supplierId, onClose }) {
   const totalReturnMoney = useMemo(() => {
     return returnTxs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
   }, [returnTxs]);
+
+  
+  const handleCleanDuplicates = async () => {
+    if (!window.confirm('هل تريد فحص وتنظيف أي فواتير مسجلة مرتين بالخطأ لنفس المورد؟ سيتم حذف المكرر وتعديل الخزينة فوراً.')) return;
+    setCleaningDupes(true);
+    try {
+      const res = await api.post(`/suppliers/${supplierId}/clean-duplicates`);
+      alert(res.data.message || 'تم تنظيف التكرار بنجاح');
+      load();
+      loadProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'فشل تنظيف الفواتير المكررة');
+    } finally {
+      setCleaningDupes(false);
+    }
+  };
 
   const handleDeleteTx = async () => {
     await api.delete(`/suppliers/${supplierId}/transactions/${deleteTxId}`);
@@ -918,7 +1086,8 @@ function SupplierDetailModal({ supplierId, onClose }) {
                         <p className={`font-bold text-sm ${tx.type === 'purchase' ? 'text-red-600' : tx.type === 'return' ? 'text-amber-700' : 'text-emerald-700'}`}>
                           {tx.type === 'purchase' ? '+' : '-'} {EGP_S(tx.amount)}
                         </p>
-                        <button onClick={() => setDeleteTxId(tx._id)} title="حذف التعامل" className="text-burgundy/30 hover:text-red-500 transition text-sm">🗑️</button>
+                        <button onClick={() => setEditingTx(tx)} title="تعديل الفاتورة والمبلغ" className="text-burgundy/40 hover:text-burgundy transition text-sm cursor-pointer p-1">✏️</button>
+<button onClick={() => setDeleteTxId(tx._id)} title="حذف التعامل ومصروف الخزينة" className="text-burgundy/30 hover:text-red-500 transition text-sm cursor-pointer p-1">🗑️</button>
                       </div>
                     </div>
                   ))}
@@ -1231,7 +1400,15 @@ function SupplierDetailModal({ supplierId, onClose }) {
           }}
         />
       )}
-      <ConfirmModal isOpen={!!deleteTxId} title="حذف التعامل" message="هل أنت متأكد من حذف هذا التعامل؟ إذا كان مرتجعاً سيتم إعادة الأصناف للمخزن." onConfirm={handleDeleteTx} onCancel={() => setDeleteTxId(null)} />
+      {editingTx && (
+ <EditTransactionModal
+ transaction={editingTx}
+ supplierId={supplierId}
+ onClose={() => setEditingTx(null)}
+ onSave={() => { load(); loadProducts(); }}
+ />
+ )}
+ <ConfirmModal isOpen={!!deleteTxId} title="حذف الفاتورة" message="هل أنت متأكد من حذف هذه الفاتورة؟ سيتم أيضاً حذف حركة الصرف المرتبطة بها من الخزينة وتعديل رصيد المورد تلقائياً." onConfirm={handleDeleteTx} onCancel={() => setDeleteTxId(null)} />
     </div>
   );
 }

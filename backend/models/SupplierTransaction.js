@@ -19,6 +19,7 @@ const SupplierTransactionSchema = new mongoose.Schema({
     unitPrice: { type: Number, default: 0 },
     reason: { type: String, default: '' }
   }],
+  pairTxId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupplierTransaction' },
   date: { type: Date, default: Date.now }
 }, { timestamps: true });
 
