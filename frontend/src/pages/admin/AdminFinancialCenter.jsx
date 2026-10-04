@@ -875,8 +875,15 @@ export default function AdminFinancialCenter({ defaultView = 'report' }) {
                               {item.category || item.type}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-xs font-medium text-burgundy max-w-xs truncate">
-                            {item.description || '-'}
+                          <td className="py-3.5 px-4 text-xs font-medium text-burgundy max-w-sm">
+                            <div className="flex flex-col gap-1">
+                              <span className="truncate">{item.description || '-'}</span>
+                              {item.linkedRef && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full w-fit shadow-2xs" title="هذه الحركة مرتبطة بقيد مكمل لها">
+                                  <span>🔗</span> {item.flow === 'INVOICE' ? 'سند السداد:' : 'الفاتورة:'} <span className="font-mono">{item.linkedRef}</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3.5 px-4 font-black text-sm">
                             {item.flow === 'IN' || item.type === 'IN' ? (

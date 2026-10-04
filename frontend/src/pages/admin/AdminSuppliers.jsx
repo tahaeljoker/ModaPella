@@ -63,7 +63,19 @@ function AddTransactionModal({ supplierId, onClose, onSave }) {
  try {
  await api.post(`/suppliers/${supplierId}/transactions`, form);
  onSave(); onClose();
- } catch (err) { alert(err.response?.data?.message || 'فشل الإضافة'); }
+ } catch (err) {
+ if (err.response?.status === 409 && err.response?.data?.isDuplicateWarning) {
+ if (window.confirm(err.response.data.message)) {
+ try {
+ await api.post(`/suppliers/${supplierId}/transactions`, { ...form, forceDuplicate: true });
+ onSave(); onClose();
+ return;
+ } catch (retryErr) { alert(retryErr.response?.data?.message || 'فشل الإضافة'); }
+ }
+ } else {
+ alert(err.response?.data?.message || 'فشل الإضافة');
+ }
+ }
  finally { setLoading(false); }
  };
 

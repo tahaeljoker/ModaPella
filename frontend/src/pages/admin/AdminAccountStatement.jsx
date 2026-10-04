@@ -762,6 +762,11 @@ export default function AdminAccountStatement() {
                             {s.itemsCount > 0 && !s.returnedItems?.length && (
                               <span className="text-[10px] text-amber-800">({s.itemsCount} صنف بضاعة)</span>
                             )}
+                            {s.linkedRef && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded-full" title="مرتبط بقيد مكمل">
+                                <span>🔗</span> {s.flow === 'INVOICE' ? 'سند السداد:' : 'الفاتورة:'} <span className="font-mono">{s.linkedRef}</span>
+                              </span>
+                            )}
                           </div>
 
                           {/* Returns Specific: Original Sale Date & Duration */}

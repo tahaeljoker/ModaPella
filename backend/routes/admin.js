@@ -1103,6 +1103,19 @@ const handleSupplierProductBilling = async ({ supplierId, supplierName, product,
 
   const totalAmount = qty * cost;
 
+  // Anti-duplicate safeguard: check if a purchase for the exact same product and amount was created within last 15 minutes
+  const recentProductTx = await SupplierTransaction.findOne({
+    supplier: supplierDoc._id,
+    type: 'purchase',
+    amount: totalAmount,
+    createdAt: { $gte: new Date(Date.now() - 15 * 60 * 1000) },
+    'items.product': product._id
+  });
+  if (recentProductTx) {
+    console.warn(`[SafeGuard] Prevented duplicate supplier billing for product ${product.name} (Amount: ${totalAmount})`);
+    return;
+  }
+
   if (option === 'credit') {
     // آجل على المحل (دين للمورد)
     const tx = new SupplierTransaction({

@@ -31,6 +31,7 @@ function CashierSafe() {
  const [form, setForm] = useState({ amount: '', category: 'ضيافة', description: '' });
  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
  const [currentShift, setCurrentShift] = useState(null);
+ const [reconcileCash, setReconcileCash] = useState('');
 
  const loadSafe = () => {
  setLoading(true);
@@ -218,6 +219,106 @@ function CashierSafe() {
  </div>
  </div>
  </div>
+
+        {/* Smart Cash Reconciliation Card */}
+        {(() => {
+          const expectedCash = data.summary?.cashDrawer || 0;
+          const countedNum = reconcileCash === '' ? null : Number(reconcileCash);
+          const diff = countedNum !== null ? countedNum - expectedCash : null;
+
+          return (
+            <div className="rounded-[2rem] border border-burgundy/15 bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] p-5 sm:p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-burgundy/10 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                    ⚖️
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base text-burgundy">المطابقة الذكية لنقدية الدرج (جرد الكاش)</h3>
+                      <span className="text-[10px] bg-burgundy/10 text-burgundy font-bold px-2.5 py-0.5 rounded-full">
+                        مساعد الكاشير والإدارة
+                      </span>
+                    </div>
+                    <p className="text-xs text-burgundy/60 mt-0.5">
+                      اكتب المبلغ الفعلي الموجود في الدرج للتأكد من سلامة النقدية واكتشاف أي عجز أو زيادة فوراً
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-2xl border border-burgundy/20 shadow-xs">
+                    <span className="text-xs font-bold text-burgundy/70">العد الفعلي:</span>
+                    <input
+                      type="number"
+                      placeholder="المبلغ بالدرج..."
+                      value={reconcileCash}
+                      onChange={e => setReconcileCash(e.target.value)}
+                      className="w-28 text-sm font-bold text-burgundy outline-none bg-transparent font-mono"
+                    />
+                    <span className="text-xs text-burgundy/50 font-bold">ج.م</span>
+                  </div>
+
+                  {reconcileCash !== '' && (
+                    <button
+                      type="button"
+                      onClick={() => setReconcileCash('')}
+                      className="text-xs text-burgundy/50 hover:text-burgundy px-2 py-1 font-bold"
+                    >
+                      إلغاء
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setReconcileCash(expectedCash.toString())}
+                    className="text-xs bg-burgundy/10 hover:bg-burgundy/20 text-burgundy font-bold px-3 py-2 rounded-xl transition"
+                    title="تعبئة تلقائية بالمبلغ المحسوب بالسيستم"
+                  >
+                    مطابقة بالرصيد الحالي
+                  </button>
+                </div>
+              </div>
+
+              {countedNum !== null && (
+                <div className={`mt-4 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition animate-in fade-in duration-300 ${
+                  diff === 0 
+                    ? 'bg-emerald-50/90 border-emerald-300 text-emerald-900' 
+                    : diff < 0 
+                    ? 'bg-rose-50/90 border-rose-300 text-rose-900' 
+                    : 'bg-blue-50/90 border-blue-300 text-blue-900'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">
+                      {diff === 0 ? '✅' : diff < 0 ? '⚠️' : '❇️'}
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold">
+                        {diff === 0 
+                          ? 'الدرج مطابق تماماً! النقدية الفعلية مطابقة لحسابات السيستم بالقرش.' 
+                          : diff < 0 
+                          ? `يوجد عجز نقدية في الدرج بمقدار (${EGP(Math.abs(diff))})` 
+                          : `يوجد زيادة نقدية في الدرج بمقدار (+${EGP(diff)})`}
+                      </p>
+                      <p className="text-[11px] opacity-80 mt-0.5 font-medium">
+                        المتوقع بالسيستم: {EGP(expectedCash)} | الفعلي بالدرج: {EGP(countedNum)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-left">
+                    <span className={`text-lg font-black font-mono ${
+                      diff === 0 ? 'text-emerald-700' : diff < 0 ? 'text-rose-700' : 'text-blue-700'
+                    }`}>
+                      {diff === 0 ? '0 ج.م' : `${diff > 0 ? '+' : ''}${EGP(diff)}`}
+                    </span>
+                    <span className="block text-[10px] opacity-70 font-bold">فارق المطابقة</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <div className="rounded-[1.5rem] border border-burgundy/10 bg-white p-4 shadow-sm">

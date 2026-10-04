@@ -104,7 +104,24 @@ router.post('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
     if (!amount || amount <= 0) return res.status(400).json({ message: 'Amount must be positive' });
     const supplier = await Supplier.findById(req.params.id);
     if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
-    
+
+    // Anti-duplicate protection: check if an identical transaction was saved within last 15 minutes
+    if (!req.body.forceDuplicate) {
+      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+      const existingRecent = await SupplierTransaction.findOne({
+        supplier: req.params.id,
+        type: type === 'cash_purchase' ? 'purchase' : type,
+        amount: Number(amount),
+        createdAt: { $gte: fifteenMinsAgo }
+      });
+      if (existingRecent) {
+        return res.status(409).json({
+          isDuplicateWarning: true,
+          message: `⚠️ تنبيه حماية: تم تسجيل حركة مطابقة لهذا المورد بنفس المبلغ (${Number(amount).toLocaleString()} ج.م) منذ قليل. هل أنت متأكد من تكرار الإضافة؟`
+        });
+      }
+    }
+
     if (type === 'cash_purchase') {
       const txPurchase = new SupplierTransaction({
         supplier: req.params.id,

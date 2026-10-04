@@ -313,6 +313,21 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
     if (tab === 'all') {
       // 1. All Supplier Transactions
       allSupplierTxs.forEach(st => {
+        let linkedRef = st.pairTxId ? '#' + st.pairTxId.toString().slice(-6).toUpperCase() : null;
+        if (!linkedRef) {
+          const targetType = st.type === 'purchase' ? 'payment' : st.type === 'payment' ? 'purchase' : null;
+          if (targetType) {
+            const paired = allSupplierTxs.find(other => 
+              other._id.toString() !== st._id.toString() &&
+              other.supplier?._id?.toString() === st.supplier?._id?.toString() &&
+              other.type === targetType &&
+              other.amount === st.amount &&
+              Math.abs(new Date(other.date || other.createdAt) - new Date(st.date || st.createdAt)) <= 120000
+            );
+            if (paired) linkedRef = '#' + paired._id.toString().slice(-6).toUpperCase();
+          }
+        }
+
         statementItems.push({
           id: st._id,
           source: 'supplier',
@@ -330,6 +345,7 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
             : (st.paymentSource === 'StoreSafe' ? 'خزينة المحل' : 'خارج الخزينة'),
           description: st.description || (st.type === 'purchase' ? 'فاتورة مشتريات' : st.type === 'payment' ? 'سداد لمورد' : 'مرتجع بضاعة معيبة'),
           reference: st.reference || '',
+          linkedRef: linkedRef,
           itemsCount: st.items?.length || 0,
           items: st.items || []
         });
@@ -419,6 +435,21 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
         if (supplierId && st.supplier?._id?.toString() !== supplierId && st.supplier?.toString() !== supplierId) {
           return;
         }
+        let linkedRef = st.pairTxId ? '#' + st.pairTxId.toString().slice(-6).toUpperCase() : null;
+        if (!linkedRef) {
+          const targetType = st.type === 'purchase' ? 'payment' : st.type === 'payment' ? 'purchase' : null;
+          if (targetType) {
+            const paired = allSupplierTxs.find(other => 
+              other._id.toString() !== st._id.toString() &&
+              other.supplier?._id?.toString() === st.supplier?._id?.toString() &&
+              other.type === targetType &&
+              other.amount === st.amount &&
+              Math.abs(new Date(other.date || other.createdAt) - new Date(st.date || st.createdAt)) <= 120000
+            );
+            if (paired) linkedRef = '#' + paired._id.toString().slice(-6).toUpperCase();
+          }
+        }
+
         statementItems.push({
           id: st._id,
           source: 'supplier',
@@ -436,6 +467,7 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
             : (st.paymentSource === 'StoreSafe' ? 'خزينة المحل' : 'خارج الخزينة'),
           description: st.description || (st.type === 'purchase' ? 'فاتورة مشتريات' : st.type === 'payment' ? 'سداد لمورد' : 'مرتجع بضاعة معيبة'),
           reference: st.reference || '',
+          linkedRef: linkedRef,
           itemsCount: st.items?.length || 0,
           items: st.items || []
         });
