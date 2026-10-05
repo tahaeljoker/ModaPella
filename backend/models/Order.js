@@ -22,6 +22,7 @@ const OrderSchema = new mongoose.Schema({
   items: [OrderItemSchema],
   totalAmount: { type: Number, required: true, min: 0 },
   discount: { type: Number, default: 0 },
+  couponCode: { type: String, default: '' },
   type: { type: String, enum: ['Online', 'Offline'], default: 'Online' },
   status: { type: String, enum: ['Pending', 'Completed', 'Returned'], default: 'Pending' },
   paymentMethod: { type: String, enum: ['Cash', 'Instapay', 'Wallet'], default: 'Cash' },

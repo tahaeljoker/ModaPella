@@ -7,11 +7,48 @@ import { cleanProductName } from '../utils/discount';
 function PaymentPage() {
  const { cart, clearCart, total } = useContext(CartContext);
  const [form, setForm] = useState({ fullName: '', phone: '', notes: '' });
+ const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash' (COD) or 'Instapay'
  const [loading, setLoading] = useState(false);
  const [orderResult, setOrderResult] = useState(null);
  const [error, setError] = useState('');
  const [paymentScreenshot, setPaymentScreenshot] = useState('');
  const [screenshotPreview, setScreenshotPreview] = useState('');
+
+ // Coupon state
+ const [couponInput, setCouponInput] = useState('');
+ const [appliedCoupon, setAppliedCoupon] = useState(null);
+ const [couponLoading, setCouponLoading] = useState(false);
+ const [couponError, setCouponError] = useState('');
+
+ const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+ const finalTotal = Math.max(0, total - discountAmount);
+
+ const handleApplyCoupon = async () => {
+  if (!couponInput.trim()) return;
+  setCouponLoading(true);
+  setCouponError('');
+  try {
+   const res = await api.post('/coupons/validate', {
+    code: couponInput.trim(),
+    orderTotal: total
+   });
+   if (res.data && res.data.valid) {
+    setAppliedCoupon(res.data);
+    setCouponError('');
+   }
+  } catch (err) {
+   setAppliedCoupon(null);
+   setCouponError(err.response?.data?.message || 'كود الخصم غير صحيح');
+  } finally {
+   setCouponLoading(false);
+  }
+ };
+
+ const handleRemoveCoupon = () => {
+  setAppliedCoupon(null);
+  setCouponInput('');
+  setCouponError('');
+ };
 
  const handleImageChange = (e) => {
  const file = e.target.files[0];
@@ -54,9 +91,10 @@ function PaymentPage() {
  customerName: form.fullName,
  customerPhone: form.phone,
  items: orderItems,
- paymentMethod: 'Instapay',
+ paymentMethod: paymentMethod === 'Cash' ? 'Cash' : 'Instapay',
  notes: form.notes,
- paymentScreenshot
+ paymentScreenshot: paymentMethod === 'Instapay' ? paymentScreenshot : '',
+ couponCode: appliedCoupon ? appliedCoupon.code : ''
  });
 
  if (res.data.success) {
@@ -159,7 +197,41 @@ function PaymentPage() {
  </div>
 
  <div>
- <label className="block text-xs sm:text-sm font-semibold text-burgundy/80 flex items-center gap-1.5">
+ <label className="block text-xs sm:text-sm font-semibold text-burgundy/80 mb-2">طريقة الدفع</label>
+ <div className="grid grid-cols-2 gap-3">
+ <button
+ type="button"
+ onClick={() => setPaymentMethod('Cash')}
+ className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition ${
+ paymentMethod === 'Cash'
+ ? 'border-burgundy bg-burgundy/10 text-burgundy'
+ : 'border-burgundy/20 bg-white text-burgundy/60 hover:border-burgundy/40'
+ }`}
+ >
+ <span>💵</span> الدفع عند الاستلام
+ </button>
+ <button
+ type="button"
+ onClick={() => setPaymentMethod('Instapay')}
+ className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition ${
+ paymentMethod === 'Instapay'
+ ? 'border-burgundy bg-burgundy/10 text-burgundy'
+ : 'border-burgundy/20 bg-white text-burgundy/60 hover:border-burgundy/40'
+ }`}
+ >
+ <span>⚡</span> تحويل Instapay
+ </button>
+ </div>
+ </div>
+
+ {paymentMethod === 'Instapay' && (
+ <div className="p-3.5 bg-burgundy/5 border border-burgundy/15 rounded-xl space-y-3">
+ <div className="text-xs text-burgundy/80 space-y-1">
+ <p className="font-bold text-burgundy">بيانات التحويل عبر Instapay:</p>
+ <p>عنوان الدفع: <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-burgundy/15 select-all">modapella@instapay</span></p>
+ </div>
+ <div>
+ <label className="block text-xs font-semibold text-burgundy/80 flex items-center gap-1.5">
  صورة إثبات التحويل (Instapay Screenshot)
  <span className="text-[10px] font-normal text-burgundy/45">(اختياري لتسريع تأكيد الطلب)</span>
  </label>
@@ -180,18 +252,20 @@ function PaymentPage() {
  }}
  className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md"
  >
- 
+ ×
  </button>
  </div>
  )}
  </div>
+ </div>
+ )}
 
  <button
  type="submit"
  disabled={loading || cart.length === 0}
  className="w-full rounded-xl sm:rounded-3xl bg-burgundy px-5 py-2.5 sm:py-3 font-bold text-sm sm:text-base text-white transition hover:bg-[#650018] disabled:opacity-50"
  >
- {loading ? 'جاري تسجيل الطلب...' : `تأكيد الطلب ودفع ${Number(total).toLocaleString('en-US')} ج.م`}
+ {loading ? 'جاري تسجيل الطلب...' : `تأكيد الطلب ودفع ${Number(finalTotal).toLocaleString('en-US')} ج.م`}
  </button>
  </form>
 
@@ -211,15 +285,77 @@ function PaymentPage() {
  ))}
  </div>
 
- <div className="pt-3 border-t border-burgundy/10 flex justify-between items-center text-sm sm:text-base font-bold">
+ {/* Coupon Section */}
+ <div className="pt-3 border-t border-burgundy/10">
+ <label className="block text-xs font-bold text-burgundy/80 mb-1.5">كوبون الخصم 🎟️</label>
+ {appliedCoupon ? (
+ <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs">
+ <div className="flex items-center gap-1.5">
+ <span className="text-emerald-700 font-bold">تم تطبيق الكوبون:</span>
+ <span className="bg-emerald-600 text-white font-mono px-2 py-0.5 rounded font-bold">{appliedCoupon.code}</span>
+ <span className="text-emerald-700 font-semibold">(-{Number(appliedCoupon.discountAmount).toLocaleString('en-US')} ج.م)</span>
+ </div>
+ <button
+ type="button"
+ onClick={handleRemoveCoupon}
+ className="text-red-500 hover:text-red-700 font-bold px-2 py-0.5 text-sm"
+ title="إلغاء الكوبون"
+ >
+ ✕
+ </button>
+ </div>
+ ) : (
+ <div>
+ <div className="flex gap-2">
+ <input
+ type="text"
+ value={couponInput}
+ onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+ placeholder="أدخل كود الخصم (مثل: SAVE10)"
+ className="flex-1 rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs font-mono uppercase text-burgundy outline-none focus:border-burgundy"
+ />
+ <button
+ type="button"
+ onClick={handleApplyCoupon}
+ disabled={couponLoading || !couponInput.trim()}
+ className="bg-burgundy text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#650018] transition disabled:opacity-50"
+ >
+ {couponLoading ? '...' : 'تطبيق'}
+ </button>
+ </div>
+ {couponError && (
+ <p className="mt-1 text-[11px] text-red-600 font-medium">{couponError}</p>
+ )}
+ </div>
+ )}
+ </div>
+
+ {/* Totals Breakdown */}
+ <div className="pt-3 border-t border-burgundy/10 space-y-1.5 text-xs sm:text-sm">
+ <div className="flex justify-between items-center text-burgundy/75">
+ <span>إجمالي المنتجات</span>
+ <span>{Number(total).toLocaleString('en-US')} ج.م</span>
+ </div>
+ {discountAmount > 0 && (
+ <div className="flex justify-between items-center text-emerald-700 font-semibold">
+ <span>خصم الكوبون ({appliedCoupon?.code})</span>
+ <span>-{Number(discountAmount).toLocaleString('en-US')} ج.م</span>
+ </div>
+ )}
+ <div className="pt-2 border-t border-burgundy/10 flex justify-between items-center text-base sm:text-lg font-bold text-burgundy">
  <span>الإجمالي المستحق</span>
- <span className="text-lg text-burgundy">{Number(total).toLocaleString('en-US')} ج.م</span>
+ <span className="text-xl text-burgundy">{Number(finalTotal).toLocaleString('en-US')} ج.م</span>
+ </div>
  </div>
 
  <div className="p-3 bg-white/60 border border-burgundy/5 rounded-xl text-[11px] text-burgundy/70 space-y-1.5">
  <p className="font-bold text-burgundy text-xs"> معلومات الدفع والتوصيل:</p>
- <p>• سيتم حجز المنتجات مؤقتاً لمدة 24 ساعة لحين استلام التحويل.</p>
- <p>• الشحن يستغرق من يومين إلى 4 أيام عمل بعد تأكيد الدفع.</p>
+ <p>• الشحن يستغرق من يومين إلى 4 أيام عمل.</p>
+ {paymentMethod === 'Cash' ? (
+ <p>• الدفع نقداً عند استلام الشحنة ومعاينتها.</p>
+ ) : (
+ <p>• يرجى إتمام تحويل Instapay لتأكيد شحن الطلب فوراً.</p>
+ )}
  </div>
  </div>
  </div>

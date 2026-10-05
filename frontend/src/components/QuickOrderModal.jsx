@@ -52,6 +52,12 @@ export default function QuickOrderModal({
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // 'Cash' (COD) or 'Instapay'
   const [notes, setNotes] = useState('');
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [orderResult, setOrderResult] = useState(null);
@@ -64,6 +70,9 @@ export default function QuickOrderModal({
       setQty(Math.max(1, Math.min(initialQty || 1, product.stock || 1)));
       setErrorMsg('');
       setOrderResult(null);
+      setCouponInput('');
+      setAppliedCoupon(null);
+      setCouponError('');
     }
   }, [isOpen, product, initialSize, initialColor, initialQty]);
 
@@ -84,7 +93,36 @@ export default function QuickOrderModal({
   const hasDiscount = isDiscountActive(product);
   const unitPrice = hasDiscount ? product.discountPrice : product.price;
   const totalPrice = unitPrice * qty;
+  const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const finalPrice = Math.max(0, totalPrice - discountAmount);
   const mainImage = product.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80';
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const res = await api.post('/coupons/validate', {
+        code: couponInput.trim(),
+        orderTotal: totalPrice
+      });
+      if (res.data && res.data.valid) {
+        setAppliedCoupon(res.data);
+        setCouponError('');
+      }
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(err.response?.data?.message || 'كود الخصم غير صحيح');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -114,6 +152,7 @@ export default function QuickOrderModal({
         shippingAddress: address.trim(),
         notes: notes.trim(),
         paymentMethod: paymentMethod === 'Cash' ? 'Cash' : 'Instapay',
+        couponCode: appliedCoupon ? appliedCoupon.code : '',
         items: [
           {
             product: product._id,
@@ -153,7 +192,8 @@ export default function QuickOrderModal({
       `${size ? `📏 *المقاس:* ${size}\n` : ''}` +
       `${color ? `🎨 *اللون:* ${color}\n` : ''}` +
       `🔢 *الكمية:* ${qty}\n` +
-      `💰 *الإجمالي:* ${Number(totalPrice).toLocaleString('en-US')} ج.م\n` +
+      `${appliedCoupon ? `🎟️ *كود الخصم:* ${appliedCoupon.code} (خصم ${discountAmount} ج.م)\n` : ''}` +
+      `💰 *المبلغ النهائي:* ${Number(finalPrice).toLocaleString('en-US')} ج.م\n` +
       `📍 *العنوان:* ${governorate} - ${address}\n` +
       `💵 *طريقة الدفع:* ${paymentMethod === 'Cash' ? 'الدفع عند الاستلام' : 'تحويل Instapay'}\n\n` +
       `أرجو تأكيد الشحن في أقرب وقت. شكراً لكم!`;
@@ -227,9 +267,15 @@ export default function QuickOrderModal({
                   <span className="text-burgundy/60">العنوان</span>
                   <span className="font-semibold text-burgundy">{governorate} - {address}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center text-xs text-emerald-700 font-bold">
+                    <span>خصم الكوبون ({appliedCoupon.code})</span>
+                    <span>-{Number(discountAmount).toLocaleString('en-US')} ج.م</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-xs border-t border-burgundy/10 pt-2 font-bold">
-                  <span className="text-burgundy">المبلغ المطلوب</span>
-                  <span className="text-base text-burgundy">{Number(totalPrice).toLocaleString('en-US')} ج.م</span>
+                  <span className="text-burgundy">المبلغ المطلوب تحصيله</span>
+                  <span className="text-base text-burgundy">{Number(finalPrice).toLocaleString('en-US')} ج.م</span>
                 </div>
                 <div className="text-[11px] text-emerald-700 bg-emerald-50 rounded-lg p-2 text-center font-medium mt-1">
                   {paymentMethod === 'Cash' 
@@ -494,18 +540,91 @@ export default function QuickOrderModal({
                     className="w-full h-9 px-3 rounded-xl border border-burgundy/15 bg-white text-xs text-burgundy/80 outline-none focus:border-burgundy transition"
                   />
                 </div>
+
+                {/* Promo Code Box */}
+                <div className="p-3 rounded-2xl bg-[#FAF5F2] border border-burgundy/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-burgundy flex items-center gap-1.5">
+                      <span>🎟️</span>
+                      <span>هل لديكِ كود خصم؟</span>
+                    </span>
+                    {appliedCoupon && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-[11px] text-red-600 hover:underline font-bold"
+                      >
+                        إلغاء الكود ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                      <div className="flex items-center gap-1.5">
+                        <span>✓ تم تفعيل كود</span>
+                        <span className="font-mono bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300">
+                          {appliedCoupon.code}
+                        </span>
+                      </div>
+                      <span className="text-emerald-700 font-extrabold text-sm">
+                        -{Number(appliedCoupon.discountAmount).toLocaleString('en-US')} ج.م
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={(e) => {
+                          setCouponInput(e.target.value.toUpperCase());
+                          if (couponError) setCouponError('');
+                        }}
+                        placeholder="أدخلي الكود هنا (مثال: MODA10)"
+                        className="flex-1 h-10 px-3 rounded-xl border border-burgundy/20 bg-white text-xs font-mono uppercase text-burgundy outline-none focus:border-burgundy transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponInput.trim()}
+                        className="h-10 px-4 rounded-xl bg-burgundy hover:bg-[#650018] text-white text-xs font-bold transition disabled:opacity-50 active:scale-95 flex items-center justify-center shrink-0"
+                      >
+                        {couponLoading ? '...' : 'تطبيق'}
+                      </button>
+                    </div>
+                  )}
+
+                  {couponError && (
+                    <p className="text-[11px] text-red-600 font-semibold flex items-center gap-1">
+                      <span>⚠️</span>
+                      <span>{couponError}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Order Total & Trust Badges */}
               <div className="border-t border-dashed border-burgundy/15 pt-3 space-y-2">
-                <div className="flex justify-between items-center text-sm font-bold text-burgundy">
-                  <span>إجمالي الطلب:</span>
-                  <span className="text-base text-burgundy">
-                    {Number(totalPrice).toLocaleString('en-US')} ج.م
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-xs text-burgundy/70">
+                    <span>قيمة المنتجات:</span>
+                    <span>{Number(totalPrice).toLocaleString('en-US')} ج.م</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between items-center text-xs font-bold text-emerald-600">
+                      <span>خصم الكوبون ({appliedCoupon?.code}):</span>
+                      <span>-{Number(discountAmount).toLocaleString('en-US')} ج.م</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-sm font-extrabold text-burgundy pt-1.5 border-t border-burgundy/10">
+                    <span>المبلغ النهائي المطلوب:</span>
+                    <span className="text-base text-burgundy">
+                      {Number(finalPrice).toLocaleString('en-US')} ج.م
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-center gap-4 text-[10px] text-burgundy/60 py-1 bg-[#FAF5F2] rounded-xl">
+                <div className="flex items-center justify-center gap-4 text-[10px] text-burgundy/60 py-1.5 bg-[#FAF5F2] rounded-xl">
                   <span>🛡️ معاينة القطعة قبل الاستلام</span>
                   <span>•</span>
                   <span>🔄 استبدال خلال 14 يوماً</span>

@@ -267,7 +267,8 @@ router.post('/public-checkout', async (req, res) => {
       notes = '', 
       paymentScreenshot = '',
       governorate = '',
-      shippingAddress = ''
+      shippingAddress = '',
+      couponCode = ''
     } = req.body;
 
     if (!customerPhone || !items || items.length === 0) {
@@ -332,10 +333,38 @@ router.post('/public-checkout', async (req, res) => {
       variantId: variant?._id || null
     }));
 
-    const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    let discount = 0;
+    let appliedCoupon = null;
+
+    if (couponCode && typeof couponCode === 'string') {
+      const Coupon = require('../models/Coupon');
+      const normalizedCode = couponCode.trim().toUpperCase();
+      const coupon = await Coupon.findOne({ code: normalizedCode, active: true });
+      if (coupon) {
+        const now = new Date();
+        const isNotExpired = !coupon.expiryDate || new Date(coupon.expiryDate) >= now;
+        const isUnderLimit = !coupon.usageLimit || coupon.timesUsed < coupon.usageLimit;
+        const meetsMin = !coupon.minOrderAmount || rawTotal >= coupon.minOrderAmount;
+
+        if (isNotExpired && isUnderLimit && meetsMin) {
+          if (coupon.discountType === 'percentage') {
+            discount = Math.round((rawTotal * coupon.discountValue) / 100);
+            if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+              discount = coupon.maxDiscount;
+            }
+          } else {
+            discount = Math.min(coupon.discountValue, rawTotal);
+          }
+          appliedCoupon = coupon;
+        }
+      }
+    }
+
+    const finalTotalAmount = Math.max(0, rawTotal - discount);
 
     // 4. Save Customer Points (give points on checkout)
-    dbCustomer.points += Math.floor(totalAmount / 100);
+    dbCustomer.points += Math.floor(finalTotalAmount / 100);
     await dbCustomer.save();
 
     // Format address note cleanly
@@ -351,7 +380,9 @@ router.post('/public-checkout', async (req, res) => {
       customerName: dbCustomer.name,
       customerPhone: dbCustomer.phone,
       items: orderItems,
-      totalAmount,
+      totalAmount: finalTotalAmount,
+      discount,
+      couponCode: appliedCoupon ? appliedCoupon.code : '',
       type: 'Online',
       status: 'Pending',
       paymentMethod: paymentMethod === 'COD' ? 'Cash' : paymentMethod,
@@ -361,6 +392,11 @@ router.post('/public-checkout', async (req, res) => {
       notes: finalNotes
     });
     await order.save();
+
+    if (appliedCoupon) {
+      appliedCoupon.timesUsed += 1;
+      await appliedCoupon.save();
+    }
 
     // 6. Deduct Stock & Write Stock History
     await Promise.all(productLookups.map(async ({ item, product, variant }) => {
