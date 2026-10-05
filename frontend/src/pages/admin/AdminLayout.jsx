@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
 
 const sections = [
   {
-    title: 'الرئيسية والمبيعات',
+    title: 'المتجر الإلكتروني (Online Store)',
+    items: [
+      { to: '/admin/site', label: 'المتجر وإعدادات الموقع 🌐', icon: 'site', end: true },
+      { to: '/admin/site?tab=announcement', label: 'شريط الإعلانات الترويجي 📢', icon: 'activities' },
+      { to: '/admin/site?tab=coupons', label: 'كوبونات الخصم 🎟️', icon: 'debts' },
+      { to: '/admin/site?tab=orders', label: 'طلبات الأونلاين 📦', icon: 'orders' },
+    ]
+  },
+  {
+    title: 'الرئيسية ومبيعات المحل',
     items: [
       { to: '/admin', label: 'لوحة التحكم', icon: 'dashboard', end: true },
-      { to: '/admin/orders', label: 'الطلبات وفواتير البيع', icon: 'orders' },
+      { to: '/admin/orders', label: 'فواتير ومبيعات المحل', icon: 'orders' },
       { to: '/admin/customers', label: 'العملاء وبرامج الولاء', icon: 'customers' },
       { to: '/cashier', label: 'شاشة الكاشير السريعة', icon: 'cart' },
     ]
@@ -36,7 +45,6 @@ const sections = [
     items: [
       { to: '/admin/employees', label: 'الموظفون والعمولات', icon: 'employee' },
       { to: '/admin/activities', label: 'سجل حركات النظام', icon: 'activities' },
-      { to: '/admin/site', label: 'إعدادات الموقع', icon: 'site' },
       { to: '/admin/users', label: 'مستخدمو النظام والصلاحيات', icon: 'users' },
     ]
   }
@@ -44,6 +52,7 @@ const sections = [
 
 function AdminLayout({ children }) {
  const navigate = useNavigate();
+ const location = useLocation();
  const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
  
  const [notifications, setNotifications] = useState([]);
@@ -142,24 +151,31 @@ function AdminLayout({ children }) {
  <p className="px-4 text-[10px] font-extrabold uppercase tracking-[0.15em] text-burgundy/40">
  {section.title}
  </p>
- {section.items.map((item) => (
+ {section.items.map((item) => {
+ const isExplicitActive = item.to.includes('?')
+ ? (location.pathname + location.search) === item.to
+ : (item.to === '/admin/site' ? (location.pathname === '/admin/site' && !location.search) : false);
+
+ return (
  <NavLink
  key={item.to}
  to={item.to}
  end={item.end}
  onClick={() => setIsSidebarOpen(false)}
- className={({ isActive }) =>
- `flex items-center gap-3 rounded-2xl px-4 py-2 text-xs font-bold transition-all duration-200 ${
- isActive
+ className={({ isActive }) => {
+ const active = item.to.includes('?') || item.to === '/admin/site' ? isExplicitActive : isActive;
+ return `flex items-center gap-3 rounded-2xl px-4 py-2 text-xs font-bold transition-all duration-200 ${
+ active
  ? 'bg-burgundy text-white shadow-md shadow-burgundy/25'
  : 'text-burgundy/70 hover:bg-burgundy/8 hover:text-burgundy'
- }`
- }
+ }`;
+ }}
  >
  <Icon name={item.icon} className="w-5 h-5 opacity-80" />
  {item.label}
  </NavLink>
- ))}
+ );
+ })}
  </div>
  ))}
  </nav>

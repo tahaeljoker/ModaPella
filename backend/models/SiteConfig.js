@@ -14,7 +14,10 @@ const SiteConfigSchema = new mongoose.Schema({
   maintenanceMessage: { type: String, default: 'الموقع غير متاح حالياً، سنعود قريباً.' },
   whatsappNumber: { type: String, default: '201090048832' },
   // New fields
-  announcementBar: { type: String, default: '' },
+  announcementBar: { type: String, default: '🚚 شحن سريع لجميع المحافظات | تسوقي أحدث الموديلات الآن ✨' },
+  announcementBarActive: { type: Boolean, default: true },
+  announcementBarLink: { type: String, default: '/shop' },
+  announcementBarBg: { type: String, default: 'burgundy' },
   storeAddress: { type: String, default: 'شارع الإعدادية بنات، بني مزار، المنيا' },
   storePhone: { type: String, default: '01090048832' },
   aboutText: { type: String, default: 'محل أزياء نسائي في قلب بني مزار، بنقدم فيه أحدث الموديلات العصرية بأسعار كويسة.' },

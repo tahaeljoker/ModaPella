@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect } from 'react';
-import { Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import CartContext from './context/CartContext';
 import LandingPage from './pages/LandingPage';
@@ -70,6 +70,8 @@ function AppContent() {
  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
  const [prevCartLength, setPrevCartLength] = useState(cart.length);
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
+ const [siteConfig, setSiteConfig] = useState(null);
+ const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
  // Trigger drawer cart open when items are added
  useEffect(() => {
@@ -85,8 +87,11 @@ function AppContent() {
 
  api.get('/admin/site-config')
  .then(res => {
- if (res.data && res.data.whatsappNumber) {
+ if (res.data) {
+ setSiteConfig(res.data);
+ if (res.data.whatsappNumber) {
  setWhatsappNumber(res.data.whatsappNumber);
+ }
  }
  })
  .catch(console.error);
@@ -97,6 +102,42 @@ function AppContent() {
 
  return (
  <div className="min-h-screen bg-[#fcf9f8] text-burgundy">
+ {/* Global Top Announcement Bar */}
+ {!isDashboard && !isBannerDismissed && siteConfig?.announcementBarActive && siteConfig?.announcementBar && (
+ <div
+ className={`py-2 px-4 text-center text-xs sm:text-sm font-semibold tracking-wide transition-all shadow-sm flex items-center justify-between relative ${
+ siteConfig.announcementBarBg === 'emerald'
+ ? 'bg-emerald-700 text-white'
+ : siteConfig.announcementBarBg === 'dark'
+ ? 'bg-[#1a1215] text-amber-200'
+ : siteConfig.announcementBarBg === 'amber'
+ ? 'bg-amber-600 text-white'
+ : 'bg-burgundy text-white'
+ }`}
+ dir="rtl"
+ >
+ <div className="flex-1 flex items-center justify-center gap-2">
+ <span className="inline-block animate-pulse">📢</span>
+ {siteConfig.announcementBarLink ? (
+ <Link to={siteConfig.announcementBarLink} className="hover:underline flex items-center gap-1.5">
+ <span>{siteConfig.announcementBar}</span>
+ <span className="text-[11px] underline opacity-90 mr-1">تصفحي الآن ←</span>
+ </Link>
+ ) : (
+ <span>{siteConfig.announcementBar}</span>
+ )}
+ </div>
+ <button
+ type="button"
+ onClick={() => setIsBannerDismissed(true)}
+ className="text-white/70 hover:text-white p-1 text-xs leading-none transition cursor-pointer"
+ aria-label="إغلاق الإعلان"
+ >
+ ✕
+ </button>
+ </div>
+ )}
+
  {!isDashboard && (
  <header className="container mx-auto border-b border-burgundy/10 bg-[#fcf9f8] px-4 py-5 shadow-sm relative">
  <div className="flex items-center justify-between">

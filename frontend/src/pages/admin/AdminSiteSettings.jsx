@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
 
@@ -12,12 +13,25 @@ const STATUS_COLOR = {
 };
 
 function AdminSiteSettings() {
+ const [searchParams, setSearchParams] = useSearchParams();
+ const tabFromUrl = searchParams.get('tab');
  const [config, setConfig] = useState(null);
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
  const [toast, setToast] = useState('');
- const [activeTab, setActiveTab] = useState('appearance'); // 'appearance' | 'categories' | 'orders' | 'stats' | 'whatsapp'
+ const [activeTab, setActiveTab] = useState(tabFromUrl || 'appearance');
  const [stats, setStats] = useState(null);
+
+ useEffect(() => {
+  if (tabFromUrl && tabFromUrl !== activeTab) {
+   setActiveTab(tabFromUrl);
+  }
+ }, [tabFromUrl]);
+
+ const handleTabChange = (tab) => {
+  setActiveTab(tab);
+  setSearchParams({ tab });
+ };
 
  // Categories management state
  const [newCatKey, setNewCatKey] = useState('');
@@ -381,22 +395,38 @@ function AdminSiteSettings() {
  {/* Navigation Tabs */}
  <div className="flex border-b border-burgundy/10 gap-1 overflow-x-auto pb-px">
  <button
- onClick={() => setActiveTab('appearance')}
+ onClick={() => handleTabChange('appearance')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
- <Icon name="site" className="w-4 h-4" /> المظهر والمحتوى
+ <Icon name="site" className="w-4 h-4" /> المظهر والواجهة
  </button>
  <button
- onClick={() => setActiveTab('categories')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+ onClick={() => handleTabChange('announcement')}
+ className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'announcement' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
- <Icon name="inventory" className="w-4 h-4" /> الفئات
+ <span>📢</span>
+ <span>شريط الإعلانات الترويجي</span>
+ {config?.announcementBarActive && (
+ <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+ )}
  </button>
  <button
- onClick={() => setActiveTab('orders')}
+ onClick={() => handleTabChange('coupons')}
+ className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'coupons' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+ >
+ <span>🎟️</span>
+ <span>كوبونات الخصم</span>
+ {coupons.filter(c => c.active).length > 0 && (
+ <span className="bg-burgundy/10 text-burgundy rounded-full text-[10px] px-2 py-0.5 font-mono font-bold">
+ {coupons.filter(c => c.active).length}
+ </span>
+ )}
+ </button>
+ <button
+ onClick={() => handleTabChange('orders')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition relative flex items-center gap-1.5 ${activeTab === 'orders' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
- <Icon name="orders" className="w-4 h-4" /> الطلبات
+ <Icon name="orders" className="w-4 h-4" /> طلبات الأونلاين
  {orders.filter(o => o.status === 'Pending').length > 0 && (
  <span className="absolute -top-1 -left-1 bg-red-500 text-white rounded-full text-[10px] w-5 h-5 flex items-center justify-center font-mono">
  {orders.filter(o => o.status === 'Pending').length}
@@ -404,16 +434,10 @@ function AdminSiteSettings() {
  )}
  </button>
  <button
-  onClick={() => setActiveTab('coupons')}
-  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'coupons' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+ onClick={() => handleTabChange('categories')}
+ className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
-  <span>🎟️</span>
-  <span>كوبونات الخصم</span>
-  {coupons.filter(c => c.active).length > 0 && (
-   <span className="bg-burgundy/10 text-burgundy rounded-full text-[10px] px-2 py-0.5 font-mono font-bold">
-    {coupons.filter(c => c.active).length}
-   </span>
-  )}
+ <Icon name="inventory" className="w-4 h-4" /> فئات وأقسام الموقع
  </button>
  </div>
 
@@ -468,13 +492,21 @@ function AdminSiteSettings() {
  </div>
  </div>
 
- {/* Announcement Bar */}
- <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
- <h3 className="mb-1 text-lg font-bold flex items-center gap-1.5">
- <Icon name="announcement" className="w-5 h-5" /> شريط الإعلان (أعلى الموقع)
- </h3>
- <p className="mb-4 text-xs text-burgundy/50">اتركه فارغاً لإخفائه. مثال: عرض خاص هذا الأسبوع </p>
- <input name="announcementBar" value={config.announcementBar || ''} onChange={handleChange} className={inputCls} placeholder="اكتب إعلانك هنا..." />
+ {/* Announcement Bar Link Banner */}
+ <div className="rounded-[2rem] border border-burgundy/10 bg-burgundy/5 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+ <div>
+ <h4 className="text-sm font-bold flex items-center gap-2 text-burgundy">
+ <span>📢</span> شريط الإعلانات الترويجي (أعلى الموقع)
+ </h4>
+ <p className="text-xs text-burgundy/60 mt-0.5">يمكنك التحكم بألوانه، نصوصه الجاهزة، روابطه وتفعيله فوراً من التبويب المخصص</p>
+ </div>
+ <button
+ type="button"
+ onClick={() => handleTabChange('announcement')}
+ className="px-4 py-2 bg-burgundy text-white text-xs font-bold rounded-xl hover:bg-[#650018] transition shrink-0"
+ >
+ إدارة شريط الإعلانات 📢 ←
+ </button>
  </div>
 
  {/* Store Info */}
@@ -524,6 +556,162 @@ function AdminSiteSettings() {
  className="w-full rounded-full bg-burgundy py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#650018] disabled:opacity-60">
  {saving ? 'جاري الحفظ...' : 'حفظ جميع الإعدادات'}
  </button>
+ </form>
+ )}
+
+ {activeTab === 'announcement' && config && (
+ <form onSubmit={handleSave} className="space-y-6">
+ {/* Live Preview Card */}
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-3">
+ <div className="flex flex-wrap items-center justify-between gap-2">
+ <h3 className="text-base font-bold flex items-center gap-2">
+ <span>👀</span> معاينة مباشرة لشريط الإعلان أعلى الموقع
+ </h3>
+ <span className="text-xs text-burgundy/50">كما يظهر للعملاء في أعلى كل صفحات المتجر</span>
+ </div>
+
+ <div className="pt-2">
+ {config.announcementBarActive && config.announcementBar ? (
+ <div
+ className={`py-2.5 px-4 text-center text-xs sm:text-sm font-semibold rounded-2xl shadow-sm flex items-center justify-between transition-all ${
+ config.announcementBarBg === 'emerald'
+ ? 'bg-emerald-700 text-white'
+ : config.announcementBarBg === 'dark'
+ ? 'bg-[#1a1215] text-amber-200'
+ : config.announcementBarBg === 'amber'
+ ? 'bg-amber-600 text-white'
+ : 'bg-burgundy text-white'
+ }`}
+ >
+ <div className="flex-1 flex items-center justify-center gap-2">
+ <span className="inline-block animate-pulse">📢</span>
+ <span>{config.announcementBar}</span>
+ {config.announcementBarLink && (
+ <span className="text-[11px] underline opacity-90 mr-1">تصفحي الآن ←</span>
+ )}
+ </div>
+ <span className="text-xs opacity-75 mr-2">✕</span>
+ </div>
+ ) : (
+ <div className="py-4 text-center text-xs text-burgundy/50 bg-beige/10 rounded-2xl border border-dashed border-burgundy/20">
+ ⚠️ شريط الإعلانات معطّل حالياً ولن يظهر للزوار على الموقع
+ </div>
+ )}
+ </div>
+ </div>
+
+ {/* Announcement Controls Card */}
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-6">
+ {/* Toggle active switch */}
+ <div className="flex items-center justify-between border-b border-burgundy/10 pb-4">
+ <div>
+ <h4 className="text-sm font-bold text-burgundy">تفعيل شريط الإعلانات الترويجي</h4>
+ <p className="text-xs text-burgundy/60 mt-0.5">عند تفعيله يظهر فوراً في أعلى جميع صفحات الموقع لجميع الزوار على الموبايل والكمبيوتر</p>
+ </div>
+ <button
+ type="button"
+ onClick={() => setConfig({ ...config, announcementBarActive: !config.announcementBarActive })}
+ className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer ${
+ config.announcementBarActive ? 'bg-emerald-600' : 'bg-gray-300'
+ }`}
+ >
+ <span
+ className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+ config.announcementBarActive ? 'translate-x-1' : 'translate-x-6'
+ }`}
+ />
+ </button>
+ </div>
+
+ {/* Preset Quick Templates */}
+ <div>
+ <label className="block text-xs font-bold text-burgundy/80 mb-2">نماذج إعلانية سريعة وجاهزة (اضغط للاختيار والتطبيق الفوري):</label>
+ <div className="flex flex-wrap gap-2">
+ {[
+ '🚚 شحن مجاني لجميع محافظات مصر بمناسبة الافتتاح 🌸',
+ '🔥 كود خصم 15% على جميع الفساتين | استخدمي كود: MODA15',
+ '✨ تشكيلة الصيف الجديدة وصلت الآن | اطلبي والدفع عند الاستلام',
+ '⚡ كود خصم خاص للمتابعين الجدد: WELCOME10 🎟️',
+ ].map((preset, idx) => (
+ <button
+ key={idx}
+ type="button"
+ onClick={() => setConfig({ ...config, announcementBar: preset })}
+ className="text-xs bg-burgundy/5 hover:bg-burgundy/10 text-burgundy font-medium px-3 py-1.5 rounded-xl border border-burgundy/15 transition text-right cursor-pointer"
+ >
+ {preset}
+ </button>
+ ))}
+ </div>
+ </div>
+
+ {/* Announcement text */}
+ <div>
+ <div className="flex justify-between items-center mb-1">
+ <label className="block text-xs font-bold text-burgundy/80">نص الإعلان أو العرض الترويجي</label>
+ <span className="text-[11px] text-burgundy/50 font-mono">{(config.announcementBar || '').length} حرف</span>
+ </div>
+ <input
+ name="announcementBar"
+ value={config.announcementBar || ''}
+ onChange={handleChange}
+ placeholder="مثال: شحن سريع لجميع المحافظات والدفع عند الاستلام 🛍️"
+ className={inputCls}
+ />
+ </div>
+
+ {/* Banner Color Picker */}
+ <div>
+ <label className="block text-xs font-bold text-burgundy/80 mb-2">لون الشريط الترويجي</label>
+ <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+ {[
+ { id: 'burgundy', label: 'العنابي الملكي', cls: 'bg-burgundy text-white' },
+ { id: 'emerald', label: 'الأخضر الزمردي', cls: 'bg-emerald-700 text-white' },
+ { id: 'amber', label: 'الذهبي / البرونزي', cls: 'bg-amber-600 text-white' },
+ { id: 'dark', label: 'الأسود الفاخر', cls: 'bg-[#1a1215] text-amber-200' },
+ ].map(color => (
+ <button
+ key={color.id}
+ type="button"
+ onClick={() => setConfig({ ...config, announcementBarBg: color.id })}
+ className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+ (config.announcementBarBg || 'burgundy') === color.id
+ ? 'ring-2 ring-burgundy shadow-md font-extrabold'
+ : 'opacity-70 hover:opacity-100'
+ } ${color.cls}`}
+ >
+ <span>{(config.announcementBarBg || 'burgundy') === color.id ? '✓' : '●'}</span>
+ <span>{color.label}</span>
+ </button>
+ ))}
+ </div>
+ </div>
+
+ {/* Target Link */}
+ <div>
+ <label className="block text-xs font-bold text-burgundy/80 mb-1">رابط التحويل عند النقر (اختياري)</label>
+ <input
+ name="announcementBarLink"
+ value={config.announcementBarLink || ''}
+ onChange={handleChange}
+ placeholder="مثال: /shop أو /collections"
+ className={inputCls}
+ dir="ltr"
+ />
+ <p className="mt-1 text-[11px] text-burgundy/50">اتركه فارغاً إذا كنت لا ترغب بجعل شريط الإعلان قابلاً للضغط</p>
+ </div>
+
+ {/* Save Button */}
+ <div className="pt-4 border-t border-burgundy/10 flex justify-end">
+ <button
+ type="submit"
+ disabled={saving}
+ className="rounded-full bg-burgundy px-8 py-3 text-sm font-bold text-white shadow-md hover:bg-[#650018] transition disabled:opacity-50 cursor-pointer"
+ >
+ {saving ? 'جاري الحفظ...' : 'حفظ تعديلات شريط الإعلانات ✨'}
+ </button>
+ </div>
+ </div>
  </form>
  )}
 
