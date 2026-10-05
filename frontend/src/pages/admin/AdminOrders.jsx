@@ -317,7 +317,15 @@ function AdminOrders() {
  </div>
  </div>
 
- <div style="text-align:center;margin-top:20px;font-size:9px;color:#666">
+  <div style="border-top:1px dashed #000;margin-top:8px;padding-top:5px;text-align:right;font-size:8px;line-height:1.35;color:#000">
+    <div style="font-weight:bold;text-align:center;margin-bottom:2px;font-size:8.5px">سياسة الاستبدال والاسترجاع:</div>
+    <div>• الاستبدال والاسترجاع خلال [ 14 يوماً] من تاريخ الشراء.</div>
+    <div>• يشترط وجود الفاتورة الأصلية، وأن تكون البضاعة بحالتها الأصلية وغير مستخدمة وفي غلافها.</div>
+    <div>• البضائع المُخفضة أو التالفة بسبب سوء الاستخدام لا تُرد ولا تُستبدل.</div>
+    <div>• يتم إرجاع المبلغ بنفس طريقة الدفع الأصلية.</div>
+  </div>
+
+ <div style="text-align:center;margin-top:10px;font-size:9px;color:#666">
  شكراً لتعاملكم معنا! ModaPella
  </div>
  </div>

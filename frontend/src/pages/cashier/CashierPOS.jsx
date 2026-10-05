@@ -76,6 +76,13 @@ ${order.isDebt ? `
 ` : ''}
 <div class="method">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش ' : order.paymentMethod === 'Instapay' ? 'انستا باي ' : 'محفظة كاش '}${order.isDebt ? '(آجل)' : ''}</div>
 ${order._employeeName ? `<div class="emp">الموظف: ${order._employeeName}</div>` : ''}
+<div style="border-top:1px dashed #ccc;margin-top:16px;padding-top:10px;font-size:11px;color:#555;line-height:1.6;text-align:right">
+  <strong style="color:#7C0A12">سياسة الاستبدال والاسترجاع:</strong><br/>
+  • الاستبدال والاسترجاع خلال [ 14 يوماً] من تاريخ الشراء.<br/>
+  • يشترط وجود الفاتورة الأصلية، وأن تكون البضاعة بحالتها الأصلية وغير مستخدمة وفي غلافها.<br/>
+  • البضائع المُخفضة أو التالفة بسبب سوء الاستخدام لا تُرد ولا تُستبدل.<br/>
+  • يتم إرجاع المبلغ بنفس طريقة الدفع الأصلية.
+</div>
 <div class="footer">
  شكراً لتعاملكم مع ModaPella <br/>
  تواصل معنا: 01090048832
@@ -146,7 +153,15 @@ function InvoiceModal({ order, onClose }) {
  <div style="font-size:10px;margin-top:2px;font-weight:normal">طريقة الدفع: ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}${order.isDebt ? ' (آجل)' : ''}</div>
  </div>
 
- <div style="text-align:center;margin-top:15px;font-size:10px;color:#444">
+  <div style="border-top:1px dashed #000;margin-top:8px;padding-top:5px;text-align:right;font-size:8px;line-height:1.35;color:#000">
+    <div style="font-weight:bold;text-align:center;margin-bottom:2px;font-size:8.5px">سياسة الاستبدال والاسترجاع:</div>
+    <div>• الاستبدال والاسترجاع خلال [ 14 يوماً] من تاريخ الشراء.</div>
+    <div>• يشترط وجود الفاتورة الأصلية، وأن تكون البضاعة بحالتها الأصلية وغير مستخدمة وفي غلافها.</div>
+    <div>• البضائع المُخفضة أو التالفة بسبب سوء الاستخدام لا تُرد ولا تُستبدل.</div>
+    <div>• يتم إرجاع المبلغ بنفس طريقة الدفع الأصلية.</div>
+  </div>
+
+ <div style="text-align:center;margin-top:10px;font-size:10px;color:#444">
  شكراً لتعاملكم مع ModaPella <br/>
  تواصل معنا: 01090048832
  </div>
@@ -272,7 +287,15 @@ function InvoiceModal({ order, onClose }) {
  <div className="border-t border-dashed border-burgundy/20" />
  </>
  )}
- <p className="text-center text-xs text-burgundy/40">شكراً لتعاملكم معنا </p>
+  <div className="border-t border-dashed border-burgundy/15 pt-3 text-[11px] text-burgundy/70 space-y-1 text-right">
+    <p className="font-bold text-burgundy text-center mb-1">سياسة الاستبدال والاسترجاع:</p>
+    <p>• الاستبدال والاسترجاع خلال [ 14 يوماً] من تاريخ الشراء.</p>
+    <p>• يشترط وجود الفاتورة الأصلية، وأن تكون البضاعة بحالتها الأصلية وغير مستخدمة وفي غلافها.</p>
+    <p>• البضائع المُخفضة أو التالفة بسبب سوء الاستخدام لا تُرد ولا تُستبدل.</p>
+    <p>• يتم إرجاع المبلغ بنفس طريقة الدفع الأصلية.</p>
+  </div>
+
+ <p className="text-center text-xs text-burgundy/40 pt-2">شكراً لتعاملكم معنا </p>
  <p className="text-center text-[10px] text-burgundy/30">تواصل معنا: 01090048832</p>
  </div>
 
