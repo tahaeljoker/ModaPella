@@ -622,16 +622,26 @@ function AdminSiteSettings() {
  <p className="font-bold text-sm text-burgundy border-b border-burgundy/5 pb-2"> بيانات العميل والشحن</p>
  <p><span className="font-semibold text-burgundy/60">الاسم:</span> {order.customerName}</p>
  <p><span className="font-semibold text-burgundy/60">رقم الهاتف:</span> <span className="font-mono">{order.customerPhone}</span></p>
- <p><span className="font-semibold text-burgundy/60">عنوان الشحن:</span> {order.notes || 'لم يتم تحديده'}</p>
+ <p><span className="font-semibold text-burgundy/60">عنوان الشحن:</span> {[order.governorate, order.shippingAddress].filter(Boolean).join(' - ') || order.notes || 'لم يتم تحديده'}</p>
  </div>
 
  <div className="bg-white rounded-2xl p-4 border border-burgundy/5 shadow-sm space-y-2 text-xs flex flex-col justify-between">
  <div>
- <p className="font-bold text-sm text-burgundy border-b border-burgundy/5 pb-2"> إثبات التحويل (Instapay)</p>
- {order.paymentScreenshot ? (
- <p className="text-emerald-700 font-semibold mt-1"> قام العميل برفع صورة إثبات الدفع</p>
+ <p className="font-bold text-sm text-burgundy border-b border-burgundy/5 pb-2">طريقة الدفع</p>
+ {order.paymentMethod === 'Cash' ? (
+   <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
+     <p className="font-bold">💵 الدفع عند الاستلام (COD)</p>
+     <p className="text-[11px] text-amber-700 mt-0.5">تحصيل المبلغ نقداً عند تسليم ومعاينة الطلب.</p>
+   </div>
  ) : (
- <p className="text-burgundy/50 mt-1"> لم يتم رفع صورة إثبات دفع</p>
+   <div>
+     <p className="font-semibold text-burgundy/80 mt-1">📱 تحويل عبر Instapay</p>
+     {order.paymentScreenshot ? (
+       <p className="text-emerald-700 font-semibold mt-1">✓ قام العميل برفع صورة إثبات الدفع</p>
+     ) : (
+       <p className="text-burgundy/50 mt-1">لم يتم رفع صورة إثبات دفع بعد</p>
+     )}
+   </div>
  )}
  </div>
  {order.paymentScreenshot && (

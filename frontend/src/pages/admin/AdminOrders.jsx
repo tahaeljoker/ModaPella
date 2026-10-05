@@ -277,6 +277,37 @@ function AdminOrders() {
  </div>
  )}
  </div>
+ {(order.customerName || order.customerPhone || order.governorate || order.shippingAddress || order.notes) && (
+   <div className="mb-3 p-3 rounded-2xl bg-white border border-burgundy/10 text-xs space-y-1.5">
+     <div className="font-bold text-burgundy text-xs border-b border-burgundy/10 pb-1.5 flex items-center justify-between">
+       <span>بيانات العميل والشحن:</span>
+       {order.customerPhone && (
+         <a
+           href={`https://wa.me/2${order.customerPhone.replace(/[^0-9]/g, '').replace(/^0/, '')}`}
+           target="_blank"
+           rel="noopener noreferrer"
+           className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 transition"
+         >
+           <span>واتساب</span>
+           <span>💬</span>
+         </a>
+       )}
+     </div>
+     {order.customerName && <p><span className="text-burgundy/60">الاسم:</span> <strong className="text-burgundy">{order.customerName}</strong></p>}
+     {order.customerPhone && (
+       <p>
+         <span className="text-burgundy/60">الهاتف:</span>{' '}
+         <a href={`tel:${order.customerPhone}`} className="font-mono font-bold text-blue-600 underline">
+           {order.customerPhone}
+         </a>
+       </p>
+     )}
+     {(order.governorate || order.shippingAddress) && (
+       <p><span className="text-burgundy/60">العنوان:</span> <strong className="text-burgundy">{[order.governorate, order.shippingAddress].filter(Boolean).join(' - ')}</strong></p>
+     )}
+     {order.notes && <p><span className="text-burgundy/60">ملاحظات:</span> {order.notes}</p>}
+   </div>
+ )}
  <div className="flex flex-wrap gap-2">
  <button
  type="button"

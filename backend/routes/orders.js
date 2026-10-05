@@ -259,7 +259,16 @@ router.patch('/:id', auth, async (req, res) => {
 // POST /api/orders/public-checkout — Public endpoint for guest user online checkout
 router.post('/public-checkout', async (req, res) => {
   try {
-    const { customerName, customerPhone, items, paymentMethod = 'Instapay', notes = '', paymentScreenshot = '' } = req.body;
+    const { 
+      customerName, 
+      customerPhone, 
+      items, 
+      paymentMethod = 'Cash', 
+      notes = '', 
+      paymentScreenshot = '',
+      governorate = '',
+      shippingAddress = ''
+    } = req.body;
 
     if (!customerPhone || !items || items.length === 0) {
       return res.status(400).json({ message: 'الرجاء إدخال رقم الهاتف والمنتجات المطلوبة' });
@@ -329,6 +338,13 @@ router.post('/public-checkout', async (req, res) => {
     dbCustomer.points += Math.floor(totalAmount / 100);
     await dbCustomer.save();
 
+    // Format address note cleanly
+    let finalNotes = notes;
+    if (governorate || shippingAddress) {
+      const addressInfo = [governorate && `المحافظة: ${governorate}`, shippingAddress && `العنوان: ${shippingAddress}`].filter(Boolean).join(' - ');
+      finalNotes = notes ? `${addressInfo} | ملاحظات: ${notes}` : addressInfo;
+    }
+
     // 5. Create Order
     const order = new Order({
       customer: dbCustomer._id,
@@ -338,9 +354,11 @@ router.post('/public-checkout', async (req, res) => {
       totalAmount,
       type: 'Online',
       status: 'Pending',
-      paymentMethod,
+      paymentMethod: paymentMethod === 'COD' ? 'Cash' : paymentMethod,
       paymentScreenshot,
-      notes
+      governorate,
+      shippingAddress,
+      notes: finalNotes
     });
     await order.save();
 

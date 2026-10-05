@@ -5,6 +5,7 @@ import CartContext from '../context/CartContext';
 import LazyImage from '../components/LazyImage';
 import sampleProducts from '../data/sampleProducts';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
+import QuickOrderModal from '../components/QuickOrderModal';
 
 function ProductDetailsPage() {
  const { id } = useParams();
@@ -18,6 +19,16 @@ function ProductDetailsPage() {
  const [activeImageIdx, setActiveImageIdx] = useState(0);
  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
  const [similarProducts, setSimilarProducts] = useState([]);
+ const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
+ const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
+
+ useEffect(() => {
+  api.get('/admin/site-config')
+   .then(res => {
+    if (res.data?.whatsappNumber) setWhatsappNumber(res.data.whatsappNumber);
+   })
+   .catch(() => {});
+ }, []);
 
  useEffect(() => {
  api.get(`/products/${id}`)
@@ -80,7 +91,7 @@ function ProductDetailsPage() {
  };
 
  return (
- <section className="space-y-6 sm:space-y-10 py-4 sm:py-10 text-burgundy">
+ <section className="space-y-6 sm:space-y-10 py-4 sm:py-10 pb-28 sm:pb-12 text-burgundy">
  <div className="rounded-2xl sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-4 sm:p-10 shadow-soft">
  <Link to="/shop" className="text-sm text-burgundy/70 underline">عودة إلى المتجر</Link>
  <div className="mt-6 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -240,14 +251,26 @@ function ProductDetailsPage() {
  </div>
  </div>
 
- <button
- type="button"
- onClick={handleAddToCart}
- disabled={product.stock === 0}
- className={`w-full rounded-xl sm:rounded-3xl px-6 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-white transition ${product.stock === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-burgundy hover:bg-[#650018]'}`}
- >
- {product.stock === 0 ? 'غير متوفر' : added ? 'تمت الإضافة' : 'أضف إلى السلة'}
- </button>
+ <div className="flex flex-col sm:flex-row gap-3 pt-2">
+  <button
+   type="button"
+   onClick={() => setIsQuickOrderOpen(true)}
+   disabled={product.stock === 0}
+   className={`flex-1 rounded-xl sm:rounded-2xl px-5 py-3.5 text-sm sm:text-base font-extrabold text-white transition flex items-center justify-center gap-2 shadow-lg shadow-burgundy/25 ${product.stock === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-burgundy hover:bg-[#650018] active:scale-[0.98]'}`}
+  >
+   <span>شراء سريع بنقرة واحدة</span>
+   <span className="text-base">⚡</span>
+  </button>
+  <button
+   type="button"
+   onClick={handleAddToCart}
+   disabled={product.stock === 0}
+   className={`rounded-xl sm:rounded-2xl px-5 py-3.5 text-sm sm:text-base font-bold transition flex items-center justify-center gap-2 border-2 ${product.stock === 0 ? 'border-gray-300 text-gray-400 cursor-not-allowed' : added ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-burgundy/30 bg-[#FAF5F2] text-burgundy hover:bg-burgundy/10 active:scale-[0.98]'}`}
+  >
+   <span>🛒</span>
+   <span>{product.stock === 0 ? 'غير متوفر' : added ? 'تمت الإضافة للسلة' : 'أضف للسلة'}</span>
+  </button>
+ </div>
  </div>
  </div>
  </div>
@@ -326,6 +349,60 @@ function ProductDetailsPage() {
  </div>
  </div>
  )}
+
+  {/* Sticky Bottom Action Bar for Mobile Devices */}
+  <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-burgundy/15 px-3.5 py-2.5 shadow-[0_-6px_25px_rgba(0,0,0,0.12)] flex items-center justify-between gap-3 lg:hidden">
+    <div className="flex flex-col shrink-0 min-w-0">
+      <div className="flex items-center gap-1.5">
+        <span className="font-extrabold text-base text-burgundy">
+          {Number(isDiscountActive(product) ? product.discountPrice : product.price).toLocaleString('en-US')} ج.م
+        </span>
+        {isDiscountActive(product) && (
+          <span className="text-[10px] text-red-500 line-through">
+            {Number(product.price).toLocaleString('en-US')}
+          </span>
+        )}
+      </div>
+      <span className="text-[10px] text-emerald-700 font-semibold truncate">
+        {product.stock > 0 ? '✓ متوفر للشحن الفوري' : '✕ غير متوفر'}
+      </span>
+    </div>
+
+    <div className="flex items-center gap-2 flex-1 justify-end max-w-[240px]">
+      <button
+        type="button"
+        onClick={handleAddToCart}
+        disabled={product.stock === 0}
+        className={`h-11 px-3.5 rounded-xl border border-burgundy/20 flex items-center justify-center transition shrink-0 ${
+          added ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-[#FAF5F2] text-burgundy active:scale-95'
+        }`}
+        title="أضف إلى السلة"
+      >
+        <span className="text-base">{added ? '✓' : '🛒'}</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setIsQuickOrderOpen(true)}
+        disabled={product.stock === 0}
+        className="flex-1 h-11 px-3 rounded-xl bg-burgundy hover:bg-[#650018] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-burgundy/30 active:scale-95 disabled:bg-gray-400"
+      >
+        <span>شراء سريع</span>
+        <span>⚡</span>
+      </button>
+    </div>
+  </div>
+
+  {/* Quick Order Modal */}
+  <QuickOrderModal
+    isOpen={isQuickOrderOpen}
+    onClose={() => setIsQuickOrderOpen(false)}
+    product={product}
+    initialSize={selectedSize}
+    initialColor={selectedColor}
+    initialQty={quantity}
+    whatsappNumber={whatsappNumber}
+  />
  </section>
  );
 }
