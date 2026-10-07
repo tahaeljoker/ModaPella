@@ -17,6 +17,7 @@ import Footer from './components/Footer';
 import Logo from './components/Logo';
 import useRevealOnScroll from './hooks/useRevealOnScroll';
 import SocialProofPopup from './components/SocialProofPopup';
+import WhatsAppWidget from './components/WhatsAppWidget';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -286,20 +287,9 @@ function AppContent() {
  <SocialProofPopup active={siteConfig?.socialProofActive !== false} />
  )}
 
- {/* Floating WhatsApp Button */}
+ {/* Interactive WhatsApp Concierge Widget */}
  {!isDashboard && (
- <a
- href={`https://wa.me/${whatsappNumber}`}
- target="_blank"
- rel="noopener noreferrer"
- className="fixed bottom-6 right-6 z-40 bg-[#25D366] text-white p-4 rounded-full shadow-2xl transition hover:scale-110 flex items-center justify-center hover:bg-[#20ba5a]"
- style={{ width: '60px', height: '60px' }}
- title="تواصل معنا عبر واتساب"
- >
- <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
- <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.739-1.446L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436.002 9.858-4.419 9.862-9.86.002-2.636-1.023-5.112-2.885-6.978C16.582 1.9 14.116.877 11.478.875c-5.442 0-9.866 4.42-9.87 9.861a9.814 9.814 0 001.492 5.161l-1.018 3.714 3.812-.999c1.637.893 3.167 1.362 4.155 1.362zm10.963-7.405c-.247-.124-1.462-.72-1.687-.801-.225-.082-.388-.124-.55.125-.162.247-.631.801-.773.962-.143.162-.285.182-.532.058-.247-.124-1.043-.383-1.987-1.227-.734-.654-1.229-1.462-1.373-1.711-.143-.247-.015-.38.109-.503.111-.11.247-.285.37-.428.123-.143.165-.244.247-.409.082-.165.041-.309-.021-.433-.062-.124-.55-1.326-.753-1.815-.198-.479-.399-.413-.55-.421-.143-.008-.306-.01-.47-.01-.162 0-.427.061-.65.309-.225.247-.856.837-.856 2.037s.872 2.358.995 2.524c.123.165 1.716 2.62 4.156 3.673.58.25 1.033.4 1.385.512.583.185 1.114.159 1.533.096.467-.069 1.462-.598 1.666-1.173.205-.576.205-1.071.143-1.173-.062-.102-.224-.165-.471-.289z" />
- </svg>
- </a>
+ <WhatsAppWidget whatsappNumber={whatsappNumber} />
  )}
 
  {/* Cart Drawer */}
