@@ -7,6 +7,7 @@ import LazyImage from '../components/LazyImage';
 import sampleProducts from '../data/sampleProducts';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import QuickOrderModal from '../components/QuickOrderModal';
+import ShareOutfitModal from '../components/ShareOutfitModal';
 
 function ProductDetailsPage() {
  const { id } = useParams();
@@ -23,6 +24,7 @@ function ProductDetailsPage() {
  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
  const [similarProducts, setSimilarProducts] = useState([]);
  const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
+ const [isShareModalOpen, setIsShareModalOpen] = useState(false);
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
 
  useEffect(() => {
@@ -275,18 +277,29 @@ function ProductDetailsPage() {
   </button>
  </div>
 
-  <button
-   type="button"
-   onClick={() => addToCompare(product)}
-   className={`w-full rounded-xl sm:rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border transition ${
-    isItemComparing
-     ? 'bg-amber-50 border-amber-400 text-burgundy font-black shadow-sm'
-     : 'bg-white hover:bg-beige/20 border-burgundy/15 text-burgundy/80 hover:text-burgundy'
-   }`}
-  >
-   <span className="text-base">{isItemComparing ? '✓' : '🪞'}</span>
-   <span>{isItemComparing ? 'تمت إضافة هذا الموديل للمقارنة (اضغطي للمشاهدة)' : 'مقارنة هذا الموديل مع موديل آخر جنباً إلى جنب'}</span>
-  </button>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+    <button
+     type="button"
+     onClick={() => addToCompare(product)}
+     className={`rounded-xl sm:rounded-2xl py-3 px-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border transition ${
+      isItemComparing
+       ? 'bg-amber-50 border-amber-400 text-burgundy font-black shadow-sm'
+       : 'bg-white hover:bg-beige/20 border-burgundy/15 text-burgundy/80 hover:text-burgundy'
+     }`}
+    >
+     <span className="text-base">{isItemComparing ? '✓' : '🪞'}</span>
+     <span className="truncate">{isItemComparing ? 'تمت الإضافة للمقارنة' : 'مقارنة الموديل 🪞'}</span>
+    </button>
+
+    <button
+     type="button"
+     onClick={() => setIsShareModalOpen(true)}
+     className="rounded-xl sm:rounded-2xl py-3 px-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-amber-500/30 bg-gradient-to-r from-amber-50 via-white to-amber-50 hover:from-amber-100 hover:to-amber-100 text-burgundy transition shadow-xs active:scale-95"
+    >
+     <span className="text-base">💌</span>
+     <span>شاركي اللوك مع صديقتكِ</span>
+    </button>
+  </div>
  </div>
  </div>
  </div>
@@ -387,6 +400,15 @@ function ProductDetailsPage() {
     <div className="flex items-center gap-2 flex-1 justify-end max-w-[240px]">
             <button
         type="button"
+        onClick={() => setIsShareModalOpen(true)}
+        className="h-11 px-3 rounded-xl border border-burgundy/20 bg-[#FAF5F2] hover:bg-amber-50 text-burgundy flex items-center justify-center transition shrink-0"
+        title="شاركي اللوك مع صديقتكِ"
+      >
+        <span className="text-sm">💌</span>
+      </button>
+
+      <button
+        type="button"
         onClick={() => addToCompare(product)}
         className={`h-11 px-3 rounded-xl border flex items-center justify-center transition shrink-0 ${
           isItemComparing
@@ -432,7 +454,14 @@ function ProductDetailsPage() {
     initialQty={quantity}
     whatsappNumber={whatsappNumber}
   />
- </section>
+ 
+  {/* Share Outfit Modal */}
+  <ShareOutfitModal
+    isOpen={isShareModalOpen}
+    onClose={() => setIsShareModalOpen(false)}
+    product={product}
+  />
+</section>
  );
 }
 
