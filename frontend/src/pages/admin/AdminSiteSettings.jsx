@@ -22,7 +22,7 @@ function AdminSiteSettings() {
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
  const [toast, setToast] = useState('');
- const [activeTab, setActiveTab] = useState(tabFromUrl || 'appearance');
+ const [activeTab, setActiveTab] = useState(tabFromUrl || 'online-products');
  const [stats, setStats] = useState(null);
 
  useEffect(() => {

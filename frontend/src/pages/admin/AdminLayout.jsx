@@ -5,11 +5,9 @@ import { Icon } from '../../components/Icon';
 
 const sections = [
   {
-    title: 'المتجر الإلكتروني (Online Store)',
+    title: 'المتجر الإلكتروني',
     items: [
-      { to: '/admin/site', label: 'إدارة المتجر والموقع بالكامل', icon: 'site', end: true },
-      { to: '/admin/site?tab=online-products', label: 'صور ومنتجات المتجر', icon: 'products' },
-      { to: '/admin/site?tab=orders', label: 'طلبات الأونلاين', icon: 'orders' },
+      { to: '/admin/site', label: 'إدارة المتجر الإلكتروني 🌐', icon: 'site' },
     ]
   },
   {
