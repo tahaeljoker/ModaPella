@@ -5,6 +5,7 @@ import ProductCard from '../components/ProductCard';
 import { cleanProductName } from '../utils/discount';
 import { Icon } from '../components/Icon';
 import MarqueeTicker from '../components/MarqueeTicker';
+import BestSellersSlider from '../components/BestSellersSlider';
 
 const defaultSiteConfig = {
  published: true,
@@ -37,7 +38,7 @@ function LandingPage() {
  api.get('/products')
  .then((res) => {
  const active = (res.data || []).filter(p => (p.stock ?? 0) > 0);
- setProducts(active.slice(0, 8));
+ setProducts(active.slice(0, 16));
  })
  .catch(() => setProducts([]));
 
@@ -205,6 +206,9 @@ function LandingPage() {
  </Link>
  </div>
  </div>
+
+ {/* ━━━━━━━━━━━━ سلايدر الأكثر مبيعاً ━━━━━━━━━━━━ */}
+ <BestSellersSlider products={products} />
 
  {/* ━━━━━━━━━━━━ أحدث الموديلات ━━━━━━━━━━━━ */}
  <div className="space-y-5 sm:space-y-8">
