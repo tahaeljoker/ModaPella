@@ -4,6 +4,7 @@ import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { cleanProductName } from '../utils/discount';
 import { Icon } from '../components/Icon';
+import MarqueeTicker from '../components/MarqueeTicker';
 
 const defaultSiteConfig = {
  published: true,
@@ -111,6 +112,61 @@ function LandingPage() {
  </div>
  </div>
  </div>
+ </div>
+
+ {/* ━━━━━━━━━━━━ شريط الماركي التفاعلي اللانهائي ━━━━━━━━━━━━ */}
+ <MarqueeTicker />
+
+ {/* ━━━━━━━━━━━━ مميزات وضمانات التسوق التفاعلية ━━━━━━━━━━━━ */}
+ <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+ {[
+ {
+ icon: '📦',
+ title: 'معاينة قبل الاستلام',
+ desc: 'اطمني على طلبك وتأكدي من المقاس والخامة على عينك',
+ badge: 'اطمئنان تام'
+ },
+ {
+ icon: '🚚',
+ title: 'شحن سريع لباب بيتك',
+ desc: 'توصيل مباشر وآمن لكافة مدن ومحافظات مصر',
+ badge: 'كل المحافظات'
+ },
+ {
+ icon: '🔄',
+ title: 'استبدال واسترجاع 14 يوم',
+ desc: 'سياسة مرنة تضمن حقك وراحتك في كل قطعة',
+ badge: 'حقك مضمون'
+ },
+ {
+ icon: '💬',
+ title: 'دعم ومساعدة فورية',
+ desc: 'فريقنا متاح معك على الواتساب لأي استفسار أو تنسيق',
+ badge: 'خدمة راقية'
+ },
+ ].map((perk, idx) => (
+ <div
+ key={idx}
+ className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/10 bg-white p-4 sm:p-5 shadow-soft transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md hover:border-burgundy/30 flex flex-col justify-between"
+ >
+ <div>
+ <div className="flex items-center justify-between mb-2.5">
+ <span className="text-2xl sm:text-3xl transition-transform duration-300 group-hover:scale-110">
+ {perk.icon}
+ </span>
+ <span className="text-[10px] font-bold text-burgundy/70 bg-burgundy/5 px-2 py-0.5 rounded-full border border-burgundy/10">
+ {perk.badge}
+ </span>
+ </div>
+ <h3 className="text-xs sm:text-sm font-bold text-burgundy mb-1 group-hover:text-[#650018] transition">
+ {perk.title}
+ </h3>
+ <p className="text-[10px] sm:text-xs text-burgundy/60 leading-relaxed">
+ {perk.desc}
+ </p>
+ </div>
+ </div>
+ ))}
  </div>
 
  {/* ━━━━━━━━━━━━ خطوات الطلب ━━━━━━━━━━━━ */}

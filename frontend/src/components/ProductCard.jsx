@@ -25,7 +25,21 @@ function ProductCard({ product }) {
  className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/5 bg-white shadow-sm transition-all duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-md"
  >
  <div className="relative overflow-hidden aspect-[4/3]">
- <LazyImage src={image} alt={cleanProductName(product.name)} className="w-full h-full transition-transform duration-700 ease-out group-hover:scale-105" />
+ <LazyImage
+ src={image}
+ alt={cleanProductName(product.name)}
+ className={`w-full h-full transition-all duration-700 ease-out group-hover:scale-105 ${
+ product.images?.[1] ? 'group-hover:opacity-0' : ''
+ }`}
+ />
+ {product.images?.[1] && (
+ <img
+ src={product.images[1]}
+ alt={`${cleanProductName(product.name)} - 2`}
+ className="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-700 ease-out group-hover:opacity-100 group-hover:scale-105"
+ loading="lazy"
+ />
+ )}
  <div className="absolute inset-0 bg-gradient-to-t from-burgundy/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-90" />
  <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-white/60 bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-medium tracking-[0.15em] text-burgundy shadow-sm">عرض التفاصيل</div>
  {isDiscountActive(product) && (
@@ -33,9 +47,25 @@ function ProductCard({ product }) {
  خصم {Math.round((1 - product.discountPrice / product.price) * 100)}%
  </div>
  )}
- <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/90 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-medium text-burgundy shadow-sm">
- {product.stock > 10 ? 'متوفر' : product.stock > 0 ? 'كمية محدودة' : 'غير متوفر'}
+ {product.stock === 0 ? (
+ <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-red-600 text-white px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm">
+ نفذت الكمية
  </div>
+ ) : product.stock <= 5 ? (
+ <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-amber-500 text-white px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-md flex items-center gap-1 pulse-glow">
+ <span className="text-[10px]">🔥</span>
+ <span>متبقي {product.stock} فقط</span>
+ </div>
+ ) : product.stock <= 10 ? (
+ <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-burgundy/90 text-white px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm flex items-center gap-1">
+ <span>⚡</span>
+ <span>طلب متزايد</span>
+ </div>
+ ) : (
+ <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/95 px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-semibold text-burgundy shadow-sm">
+ متوفر
+ </div>
+ )}
  </div>
  <div className="flex flex-col justify-between p-3 sm:p-4 text-burgundy space-y-1.5">
  <div>
