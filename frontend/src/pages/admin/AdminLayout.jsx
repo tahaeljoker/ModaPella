@@ -6,6 +6,7 @@ import { Icon } from '../../components/Icon';
 const sections = [
   {
     title: 'المتجر الإلكتروني (Online Store)',
+    developerOnly: true,
     items: [
       { to: '/admin/site', label: 'المتجر وإعدادات الموقع 🌐', icon: 'site', end: true },
       { to: '/admin/site?tab=announcement', label: 'شريط الإعلانات الترويجي 📢', icon: 'activities' },
@@ -54,6 +55,8 @@ function AdminLayout({ children }) {
  const navigate = useNavigate();
  const location = useLocation();
  const user = JSON.parse(localStorage.getItem('modapella_user') || '{}');
+ const role = localStorage.getItem('modapella_role') || user.role;
+ const isDeveloper = role === 'developer';
  
  const [notifications, setNotifications] = useState([]);
  const [showNotifs, setShowNotifs] = useState(false);
@@ -146,7 +149,7 @@ function AdminLayout({ children }) {
 
  {/* Nav */}
  <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
- {sections.map((section, idx) => (
+ {sections.filter(s => !s.developerOnly || isDeveloper).map((section, idx) => (
  <div key={idx} className="space-y-1.5">
  <p className="px-4 text-[10px] font-extrabold uppercase tracking-[0.15em] text-burgundy/40">
  {section.title}

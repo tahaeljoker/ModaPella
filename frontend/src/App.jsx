@@ -250,7 +250,7 @@ function AppContent() {
  <Route path="/admin/suppliers" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminSuppliers /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/inventory-count" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminInventoryCount /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/barcodes" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminBarcodeLabels /></AdminLayout></ProtectedRoute>} />
- <Route path="/admin/site" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminSiteSettings /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/site" element={<ProtectedRoute allowedRoles={['developer']}><AdminLayout><AdminSiteSettings /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUsers /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/activities" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminActivities /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/debts" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminDebts /></AdminLayout></ProtectedRoute>} />
