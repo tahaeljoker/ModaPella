@@ -34,24 +34,21 @@ export const CompareProvider = ({ children }) => {
   const addToCompare = (product) => {
     if (!product || !product._id) return false;
     
-    // Check if already in list
+    // Check if already in list: open compare screen directly
     if (compareItems.some((item) => item._id === product._id)) {
-      // Toggle remove
-      setCompareItems((prev) => prev.filter((item) => item._id !== product._id));
-      return false;
+      setIsCompareOpen(true);
+      return true;
     }
 
     if (compareItems.length >= 2) {
-      // Replace second item or update list with new one
+      // Replace second item and open comparison view
       setCompareItems([compareItems[0], product]);
       setIsCompareOpen(true);
       return true;
     } else {
       const next = [...compareItems, product];
       setCompareItems(next);
-      if (next.length === 2) {
-        setIsCompareOpen(true);
-      }
+      setIsCompareOpen(true); // Open immediately so the user clearly sees the comparison!
       return true;
     }
   };

@@ -19,7 +19,7 @@ import Logo from './components/Logo';
 import useRevealOnScroll from './hooks/useRevealOnScroll';
 import SocialProofPopup from './components/SocialProofPopup';
 import WhatsAppWidget from './components/WhatsAppWidget';
-import { CompareProvider } from './context/CompareContext';
+import CompareContext, { CompareProvider } from './context/CompareContext';
 import OutfitComparisonBar from './components/OutfitComparisonBar';
 import OutfitComparisonModal from './components/OutfitComparisonModal';
 
@@ -70,6 +70,7 @@ const navItem = (label, to) => (
 
 function AppContent() {
  const { cart, removeItem, updateQuantity, total } = useContext(CartContext);
+  const { compareItems, setIsCompareOpen } = useContext(CompareContext);
  const location = useLocation();
  const navigate = useNavigate();
  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -171,6 +172,18 @@ function AppContent() {
  <nav className="hidden md:flex flex-wrap gap-2">
  {navItem('الرئيسية', '/')}
  {navItem('الملابس', '/shop')}
+          <button
+            type="button"
+            onClick={() => setIsCompareOpen(true)}
+            className="relative px-3.5 py-2 rounded-lg transition text-burgundy/80 hover:text-burgundy font-semibold text-sm flex items-center gap-1.5"
+          >
+            <span>مقارنة</span>
+            {compareItems.length > 0 && (
+              <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
+                {compareItems.length}
+              </span>
+            )}
+          </button>
  <button
  type="button"
  onClick={() => setIsCartDrawerOpen(true)}
@@ -208,6 +221,21 @@ function AppContent() {
  >
  الملابس
  </NavLink>
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              setIsCompareOpen(true);
+            }}
+            className="px-4 py-2.5 rounded-xl transition font-semibold text-sm flex justify-between items-center text-burgundy/80 hover:bg-burgundy/5"
+          >
+            <span>مقارنة الإطلالات</span>
+            {compareItems.length > 0 && (
+              <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-amber-500 px-2 text-xs font-bold text-white">
+                {compareItems.length}
+              </span>
+            )}
+          </button>
  <button
  type="button"
  onClick={() => {
@@ -299,6 +327,14 @@ function AppContent() {
  {!isDashboard && (
  <WhatsAppWidget whatsappNumber={whatsappNumber} />
  )}
+
+  {/* Outfit Comparison Floating Bar & Modal */}
+  {!isDashboard && (
+    <>
+      <OutfitComparisonBar />
+      <OutfitComparisonModal whatsappNumber={whatsappNumber} />
+    </>
+  )}
 
  {/* Cart Drawer */}
  {isCartDrawerOpen && (
