@@ -56,28 +56,28 @@ export default function BestSellersSlider({ products = [] }) {
   const getRankBadge = (index) => {
     if (index === 0) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-white text-[10px] font-extrabold px-2.5 py-1 shadow-md">
-          <span>الأكثر مبيعاً</span>
+        <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[9px] font-black px-2 py-0.5 shadow-sm">
+          #1 الأكثر مبيعاً
         </span>
       );
     }
     if (index === 1) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-slate-600 via-slate-500 to-gray-500 text-white text-[10px] font-extrabold px-2.5 py-1 shadow-md">
-          <span>#2 الأعلى طلباً</span>
+        <span className="inline-flex items-center rounded-full bg-slate-700 text-white text-[9px] font-black px-2 py-0.5 shadow-sm">
+          #2 الأعلى طلباً
         </span>
       );
     }
     if (index === 2) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 text-white text-[10px] font-extrabold px-2.5 py-1 shadow-md">
-          <span>#3 تريند الأسبوع</span>
+        <span className="inline-flex items-center rounded-full bg-amber-800 text-white text-[9px] font-black px-2 py-0.5 shadow-sm">
+          #3 تريند
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-burgundy/85 text-white text-[10px] font-bold px-2 py-0.5 shadow-sm">
-        <span>#{index + 1} اختيار العميلات</span>
+      <span className="inline-flex items-center rounded-full bg-burgundy/80 text-white text-[8px] font-bold px-1.5 py-0.5 shadow-xs">
+        #{index + 1}
       </span>
     );
   };
@@ -139,10 +139,10 @@ export default function BestSellersSlider({ products = [] }) {
             <div
               key={product._id}
               onClick={() => navigate(`/product/${product._id}`)}
-              className="group relative flex w-[72%] sm:w-[280px] lg:w-[290px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/10 bg-white p-3 shadow-soft interactive-card cursor-pointer"
+              className="group relative flex w-[52%] sm:w-[210px] lg:w-[225px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-burgundy/10 bg-white p-2 sm:p-2.5 shadow-sm transition hover:shadow-md interactive-card cursor-pointer"
             >
-              {/* Product Image Box */}
-              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl sm:rounded-2xl bg-beige/10 sheen-wrapper">
+              {/* Product Image Box - Square compact aspect */}
+              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-beige/10 sheen-wrapper">
                 <LazyImage
                   src={image}
                   alt={cleanProductName(product.name)}
@@ -162,7 +162,7 @@ export default function BestSellersSlider({ products = [] }) {
                 <div className="absolute inset-0 bg-gradient-to-t from-burgundy/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
                 {/* Rank Badge */}
-                <div className="absolute top-2.5 right-2.5 z-10">
+                <div className="absolute top-2 right-2 z-10">
                   {getRankBadge(index)}
                 </div>
 
@@ -185,7 +185,7 @@ export default function BestSellersSlider({ products = [] }) {
 
                 {/* Discount Badge */}
                 {isDiscountActive(product) && (
-                  <div className="absolute top-2.5 left-2.5 z-10 rounded-full bg-red-600 px-2.5 py-0.5 text-[9px] sm:text-[10px] font-extrabold text-white shadow-sm">
+                  <div className="absolute top-2.5 left-2.5 z-10 rounded-full bg-red-600 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-xs">
                     خصم {Math.round((1 - product.discountPrice / product.price) * 100)}%
                   </div>
                 )}
@@ -193,22 +193,22 @@ export default function BestSellersSlider({ products = [] }) {
                 {/* Stock Tag */}
                 <div className="absolute bottom-2.5 right-2.5 z-10">
                   {product.stock <= 5 ? (
-                    <span className="rounded-full bg-amber-500 text-white px-2 py-0.5 text-[9px] font-bold shadow-sm pulse-glow inline-flex items-center gap-0.5">
+                    <span className="rounded-full bg-amber-500 text-white px-1.5 py-0.5 text-[8px] font-bold shadow-xs inline-flex items-center">
                       
                       <span>باقي {product.stock} فقط</span>
                     </span>
                   ) : (
-                    <span className="rounded-full bg-white/90 text-burgundy px-2 py-0.5 text-[9px] font-semibold shadow-sm">
+                    <span className="rounded-full bg-white/90 text-burgundy px-1.5 py-0.5 text-[8px] font-semibold shadow-xs">
                       متوفر بالمخزن
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Product Details */}
-              <div className="mt-3 flex flex-1 flex-col justify-between space-y-2">
+              {/* Product Details - Compact & balanced */}
+              <div className="mt-2 flex flex-1 flex-col justify-between space-y-1.5">
                 <div>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-burgundy/45">
+                  <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-burgundy/40">
                     {product.category}
                   </span>
                   <h3 className="text-xs sm:text-sm font-bold text-burgundy group-hover:text-[#650018] transition line-clamp-1 mt-0.5">
@@ -217,25 +217,25 @@ export default function BestSellersSlider({ products = [] }) {
                 </div>
 
                 {/* Price & Action Button */}
-                <div className="pt-2 border-t border-burgundy/10 flex items-center justify-between gap-2">
+                <div className="pt-1.5 border-t border-burgundy/5 flex items-center justify-between gap-1.5">
                   <div className="flex flex-col">
                     {isDiscountActive(product) ? (
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-sm sm:text-base font-extrabold text-burgundy">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xs sm:text-sm font-black text-burgundy">
                           {EGP(product.discountPrice)}
                         </span>
-                        <span className="text-[10px] text-red-500 line-through">
+                        <span className="text-[9px] text-red-500 line-through">
                           {EGP(product.price)}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-sm sm:text-base font-extrabold text-burgundy">
+                      <span className="text-xs sm:text-sm font-black text-burgundy">
                         {EGP(product.price)}
                       </span>
                     )}
                   </div>
 
-                  <span className="rounded-xl bg-burgundy/10 group-hover:bg-burgundy group-hover:text-white text-burgundy px-2.5 py-1 text-[11px] font-bold transition flex items-center gap-1 shrink-0">
+                  <span className="rounded-lg bg-burgundy/5 group-hover:bg-burgundy group-hover:text-white text-burgundy px-2 py-0.5 text-[10px] font-bold transition flex items-center gap-0.5 shrink-0">
                     <span>طلب</span>
                     <span>←</span>
                   </span>
