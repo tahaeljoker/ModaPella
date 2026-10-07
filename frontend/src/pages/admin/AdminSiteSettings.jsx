@@ -406,7 +406,6 @@ function AdminSiteSettings() {
  onClick={() => handleTabChange('announcement')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'announcement' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
- <span>📢</span>
  <span>شريط الإعلانات الترويجي</span>
  {config?.announcementBarActive && (
  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -416,7 +415,6 @@ function AdminSiteSettings() {
  onClick={() => handleTabChange('coupons')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'coupons' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
- <span>🎟️</span>
  <span>كوبونات الخصم</span>
  {coupons.filter(c => c.active).length > 0 && (
  <span className="bg-burgundy/10 text-burgundy rounded-full text-[10px] px-2 py-0.5 font-mono font-bold">
@@ -445,14 +443,12 @@ function AdminSiteSettings() {
  onClick={() => handleTabChange('traffic')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'traffic' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
- <span>📊</span>
  <span>مصادر الإعلانات (Ad Tracker)</span>
  </button>
  <button
  onClick={() => handleTabChange('creator')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'creator' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
- <span>🎨</span>
  <span>مولد بوسترات الإعلانات</span>
  </button>
  </div>
@@ -721,7 +717,7 @@ function AdminSiteSettings() {
  <div className="pt-4 border-t border-burgundy/10 flex items-center justify-between">
  <div>
  <h4 className="text-sm font-bold text-burgundy flex items-center gap-1.5">
- <span>🛍️</span> إشعارات الشراء الحي والدليل الاجتماعي (Social Proof Popups)
+ إشعارات الشراء الحي والدليل الاجتماعي (Social Proof Popups)
  </h4>
  <p className="text-xs text-burgundy/60 mt-0.5">نافذة صغيرة أنيقة تظهر أسفل الشاشة للزوار لإشعارهم بالطلبات المؤكدة لزيادة الثقة والمبيعات</p>
  </div>
@@ -747,7 +743,7 @@ function AdminSiteSettings() {
  disabled={saving}
  className="rounded-full bg-burgundy px-8 py-3 text-sm font-bold text-white shadow-md hover:bg-[#650018] transition disabled:opacity-50 cursor-pointer"
  >
- {saving ? 'جاري الحفظ...' : 'حفظ تعديلات شريط الإعلانات ✨'}
+ {saving ? 'جاري الحفظ...' : 'حفظ تعديلات شريط الإعلانات'}
  </button>
  </div>
  </div>
@@ -925,10 +921,10 @@ function AdminSiteSettings() {
  </span>
  {order.trafficSource?.source && order.trafficSource.source !== 'Direct' && (
  <span className="rounded-full bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
- {order.trafficSource.source === 'Instagram' ? '📱 إنستغرام' :
- order.trafficSource.source === 'TikTok' ? '🎵 تيك توك' :
- order.trafficSource.source === 'Facebook' ? '📘 فيسبوك' :
- order.trafficSource.source === 'WhatsApp / Share' ? '💬 شير أصدقاء' : order.trafficSource.source}
+ {order.trafficSource.source === 'Instagram' ? 'إنستغرام' :
+ order.trafficSource.source === 'TikTok' ? 'تيك توك' :
+ order.trafficSource.source === 'Facebook' ? 'فيسبوك' :
+ order.trafficSource.source === 'WhatsApp / Share' ? 'شير أصدقاء' : order.trafficSource.source}
  </span>
  )}
  </div>

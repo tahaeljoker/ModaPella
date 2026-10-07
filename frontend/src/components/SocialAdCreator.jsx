@@ -5,11 +5,11 @@ import { cleanProductName, isDiscountActive } from '../utils/discount';
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const HEADLINES = [
-  '🔥 كوليكشن جديد وحصري 2026',
-  '⚡ خصم حصري لفترة محدودة',
-  '🚚 شحن مجاني اليوم فقط لجميع المحافظات',
-  '🥇 الأكثر طلباً ومبيعاً هذا الأسبوع',
-  '🌸 أناقة ملكية وخامة قطنية باردة',
+  'كوليكشن جديد وحصري 2026',
+  'خصم حصري لفترة محدودة',
+  'شحن مجاني اليوم فقط لجميع المحافظات',
+  'الأكثر طلباً ومبيعاً هذا الأسبوع',
+  'أناقة ملكية وخامة قطنية باردة',
 ];
 
 const THEMES = [
@@ -153,7 +153,7 @@ export default function SocialAdCreator() {
 
         ctx.font = 'bold 26px Cairo, sans-serif';
         ctx.fillStyle = themeId === 'ivory' ? '#5A0015' : '#FCD34D';
-        ctx.fillText(`🎟️ ${customBadge}`, width / 2, promoY + 6);
+        ctx.fillText(`${customBadge}`, width / 2, promoY + 6);
       }
 
       // Bottom CTA Banner
@@ -165,7 +165,7 @@ export default function SocialAdCreator() {
 
       ctx.font = 'bold 32px Cairo, sans-serif';
       ctx.fillStyle = themeId === 'ivory' ? '#ffffff' : '#2A050E';
-      ctx.fillText('اطلبي الآن من الرابط في البايو 🛍️', width / 2, ctaY + 52);
+      ctx.fillText('اطلبي الآن من الرابط في البايو', width / 2, ctaY + 52);
 
       // Trigger download
       try {
@@ -193,7 +193,7 @@ export default function SocialAdCreator() {
       <div className="rounded-[2rem] border border-burgundy/10 bg-gradient-to-r from-[#24030B] via-[#480718] to-[#24030B] text-white p-6 shadow-md flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-3 py-1 rounded-full border border-amber-400/30">
-            🎨 أداة تصميم المحتوى الإعلاني التلقائي
+            أداة تصميم المحتوى الإعلاني التلقائي
           </span>
           <h3 className="text-2xl font-black mt-2 text-white">
             مولد بوسترات وستوريز السوشيال ميديا (Auto Story & Ad Creator)
@@ -209,7 +209,7 @@ export default function SocialAdCreator() {
           disabled={downloading || !selectedProduct}
           className="rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-burgundy font-black text-sm px-6 py-3.5 shadow-lg active:scale-95 transition flex items-center gap-2 disabled:opacity-50"
         >
-          <span>{downloading ? 'جاري التوليد...' : 'تحميل البوستر عالي الدقة (PNG) ⬇️'}</span>
+          <span>{downloading ? 'جاري التوليد...' : 'تحميل البوستر عالي الدقة (PNG)'}</span>
         </button>
       </div>
 
@@ -249,7 +249,6 @@ export default function SocialAdCreator() {
                     : 'bg-white hover:bg-beige/20 text-burgundy border-burgundy/20'
                 }`}
               >
-                <span>📱</span>
                 <span>ستوري / ريلز (9:16)</span>
               </button>
               <button
@@ -261,7 +260,6 @@ export default function SocialAdCreator() {
                     : 'bg-white hover:bg-beige/20 text-burgundy border-burgundy/20'
                 }`}
               >
-                <span>🖼️</span>
                 <span>بوست مربع (1:1)</span>
               </button>
             </div>
@@ -369,13 +367,13 @@ export default function SocialAdCreator() {
 
               {showPromo && customBadge && (
                 <div className="inline-block rounded-lg bg-white/10 px-2 py-0.5 border border-amber-300/40 text-[9px] font-bold text-amber-300">
-                  🎟️ {customBadge}
+                  {customBadge}
                 </div>
               )}
 
               <div className="pt-1">
                 <div className="rounded-xl bg-amber-500 text-burgundy font-black text-[10px] py-1.5 shadow">
-                  اطلبي الآن من الرابط في البايو 🛍️
+                  اطلبي الآن من الرابط في البايو
                 </div>
               </div>
             </div>

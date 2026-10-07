@@ -264,7 +264,7 @@ function ProductDetailsPage() {
    className={`flex-1 rounded-xl sm:rounded-2xl px-5 py-3.5 text-sm sm:text-base font-extrabold text-white transition flex items-center justify-center gap-2 shadow-lg shadow-burgundy/25 ${product.stock === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-burgundy hover:bg-[#650018] active:scale-[0.98]'}`}
   >
    <span>شراء سريع بنقرة واحدة</span>
-   <span className="text-base">⚡</span>
+   
   </button>
   <button
    type="button"
@@ -272,7 +272,7 @@ function ProductDetailsPage() {
    disabled={product.stock === 0}
    className={`rounded-xl sm:rounded-2xl px-5 py-3.5 text-sm sm:text-base font-bold transition flex items-center justify-center gap-2 border-2 ${product.stock === 0 ? 'border-gray-300 text-gray-400 cursor-not-allowed' : added ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-burgundy/30 bg-[#FAF5F2] text-burgundy hover:bg-burgundy/10 active:scale-[0.98]'}`}
   >
-   <span>🛒</span>
+   
    <span>{product.stock === 0 ? 'غير متوفر' : added ? 'تمت الإضافة للسلة' : 'أضف للسلة'}</span>
   </button>
  </div>
@@ -287,8 +287,7 @@ function ProductDetailsPage() {
        : 'bg-white hover:bg-beige/20 border-burgundy/15 text-burgundy/80 hover:text-burgundy'
      }`}
     >
-     <span className="text-base">{isItemComparing ? '✓' : '🪞'}</span>
-     <span className="truncate">{isItemComparing ? 'تمت الإضافة للمقارنة' : 'مقارنة الموديل 🪞'}</span>
+     <span className="truncate">{isItemComparing ? '✓ في المقارنة' : 'مقارنة الموديل'}</span>
     </button>
 
     <button
@@ -296,7 +295,6 @@ function ProductDetailsPage() {
      onClick={() => setIsShareModalOpen(true)}
      className="rounded-xl sm:rounded-2xl py-3 px-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-amber-500/30 bg-gradient-to-r from-amber-50 via-white to-amber-50 hover:from-amber-100 hover:to-amber-100 text-burgundy transition shadow-xs active:scale-95"
     >
-     <span className="text-base">💌</span>
      <span>شاركي اللوك مع صديقتكِ</span>
     </button>
   </div>
@@ -404,7 +402,7 @@ function ProductDetailsPage() {
         className="h-11 px-3 rounded-xl border border-burgundy/20 bg-[#FAF5F2] hover:bg-amber-50 text-burgundy flex items-center justify-center transition shrink-0"
         title="شاركي اللوك مع صديقتكِ"
       >
-        <span className="text-sm">💌</span>
+        <span className="text-[11px] font-bold">شير</span>
       </button>
 
       <button
@@ -417,7 +415,7 @@ function ProductDetailsPage() {
         }`}
         title="مقارنة هذا الموديل"
       >
-        <span className="text-sm">{isItemComparing ? '✓' : '🪞'}</span>
+        <span className="text-[11px] font-bold">{isItemComparing ? '✓' : 'مقارنة'}</span>
       </button>
 
 <button
@@ -429,7 +427,7 @@ function ProductDetailsPage() {
         }`}
         title="أضف إلى السلة"
       >
-        <span className="text-base">{added ? '✓' : '🛒'}</span>
+        <span className="text-xs font-bold">{added ? '✓' : 'سلة'}</span>
       </button>
 
       <button
@@ -439,7 +437,7 @@ function ProductDetailsPage() {
         className="flex-1 h-11 px-3 rounded-xl bg-burgundy hover:bg-[#650018] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-burgundy/30 active:scale-95 disabled:bg-gray-400"
       >
         <span>شراء سريع</span>
-        <span>⚡</span>
+        
       </button>
     </div>
   </div>

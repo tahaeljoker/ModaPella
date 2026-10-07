@@ -39,7 +39,7 @@ export default function OutfitComparisonModal({ whatsappNumber = '201090048832' 
           {/* Header */}
           <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-[#2B0610] via-[#4A0A1C] to-[#2B0610] text-white flex items-center justify-between border-b border-amber-500/20 shrink-0">
             <div className="flex items-center gap-2.5">
-              <span className="text-xl sm:text-2xl">🪞</span>
+              
               <div>
                 <h2 className="text-sm sm:text-lg font-black text-amber-200 tracking-wide">
                   مقارنة الإطلالات الفاخرة
@@ -74,9 +74,9 @@ export default function OutfitComparisonModal({ whatsappNumber = '201090048832' 
           <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
             {compareItems.length === 0 ? (
               <div className="py-16 text-center space-y-3 text-burgundy/60">
-                <span className="text-5xl block">⚖️</span>
+                
                 <p className="font-bold text-base text-burgundy">لم تختاري أي قطع للمقارنة بعد</p>
-                <p className="text-xs">اضغطي على أيقونة المقارنة 🪞 على أي قطعة في المتجر لإضافتها هنا</p>
+                <p className="text-xs">اضغطي على زر المقارنة على أي قطعة في المتجر لإضافتها هنا</p>
                 <button
                   onClick={() => setIsCompareOpen(false)}
                   className="rounded-full bg-burgundy px-6 py-2.5 text-xs font-bold text-white shadow hover:bg-[#650018] mt-2 transition"
@@ -127,7 +127,7 @@ export default function OutfitComparisonModal({ whatsappNumber = '201090048832' 
 
           {/* Footer note */}
           <div className="px-4 py-2.5 bg-white border-t border-burgundy/10 text-center text-[10px] sm:text-xs text-burgundy/60 flex items-center justify-between shrink-0">
-            <span>✨ إمكانية المعاينة قبل الاستلام والشحن السريع لجميع المحافظات</span>
+            <span>معاينة قبل الاستلام وشحن سريع لجميع المحافظات</span>
             {compareItems.length > 0 && (
               <button
                 type="button"
@@ -221,7 +221,7 @@ function CompareProductCard({ product, onRemove, onView, onQuickOrder }) {
             {product.stock === 0 ? (
               <span className="text-red-600 font-bold">✕ نفذت الكمية</span>
             ) : product.stock <= 5 ? (
-              <span className="text-amber-600 font-bold">🔥 متبقي {product.stock} فقط</span>
+              <span className="text-amber-600 font-bold">متبقي {product.stock} فقط</span>
             ) : (
               <span className="text-emerald-700 font-bold">✓ متوفر للشحن الفوري</span>
             )}
@@ -271,7 +271,7 @@ function CompareProductCard({ product, onRemove, onView, onQuickOrder }) {
             className="w-full rounded-xl bg-burgundy hover:bg-[#650018] text-white py-2 sm:py-2.5 text-[11px] sm:text-xs font-black flex items-center justify-center gap-1 shadow-sm active:scale-95 transition disabled:bg-gray-300"
           >
             <span>طلب سريع</span>
-            <span>⚡</span>
+            
           </button>
 
           <button
@@ -279,7 +279,7 @@ function CompareProductCard({ product, onRemove, onView, onQuickOrder }) {
             onClick={onView}
             className="w-full rounded-xl bg-beige/20 hover:bg-burgundy/5 text-burgundy py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold border border-burgundy/15 transition"
           >
-            عرض التفاصيل 👁️
+            عرض التفاصيل
           </button>
         </div>
       </div>

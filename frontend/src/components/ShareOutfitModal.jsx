@@ -4,10 +4,10 @@ import { cleanProductName, isDiscountActive } from '../utils/discount';
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const PRESET_MESSAGES = [
-  { id: 1, label: 'إيه رأيك عليا؟ 🌸', text: 'إيه رأيك في الموديل ده عليا؟ لايق عليا ولا إيه؟ 😍' },
-  { id: 2, label: 'شوفي ليكي ✨', text: 'شوفي الموديل ده قمر وحسيته معمول عشانك بالظبط! 💖' },
-  { id: 3, label: 'نطلب سوا 🛍️', text: 'يلا نطلب سوا من ModaPella ونقسم مصاريف الشحن سوا! 👗' },
-  { id: 4, label: 'لقيت الستايل 🌟', text: 'أخيراً لقيت الستايل اللي كنا بندور عليه بقالنا فترة! ✨' },
+  { id: 1, label: 'إيه رأيك عليا؟', text: 'إيه رأيك في الموديل ده عليا؟ لايق عليا ولا إيه؟' },
+  { id: 2, label: 'شوفي ليكي', text: 'شوفي الموديل ده قمر وحسيته معمول عشانك بالظبط!' },
+  { id: 3, label: 'نطلب سوا', text: 'يلا نطلب سوا من ModaPella ونقسم مصاريف الشحن سوا!' },
+  { id: 4, label: 'لقيت الستايل', text: 'أخيراً لقيت الستايل اللي كنا بندور عليه بقالنا فترة!' },
 ];
 
 export default function ShareOutfitModal({ isOpen, onClose, product }) {
@@ -21,7 +21,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
   const productUrl = `${window.location.origin}/product/${product._id}?ref=share_friend`;
 
   const getFullShareText = () => {
-    return `${selectedMessage}\n\n👗 الموديل: *${cleanProductName(product.name)}*\n💰 السعر: *${EGP(currentPrice)}*${hasDiscount ? ` (خصم ${Math.round((1 - product.discountPrice / product.price) * 100)}%)` : ''}\n✨ شوفي التفاصيل والصور من هنا:\n${productUrl}`;
+    return `${selectedMessage}\n\nالموديل: *${cleanProductName(product.name)}*\nالسعر: *${EGP(currentPrice)}*${hasDiscount ? ` (خصم ${Math.round((1 - product.discountPrice / product.price) * 100)}%)` : ''}\nرابط المعاينة والتفاصيل:\n${productUrl}`;
   };
 
   const handleWhatsAppShare = () => {
@@ -70,7 +70,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
         {/* Luxury Header */}
         <div className="px-5 py-4 bg-gradient-to-r from-[#2A050E] via-[#450917] to-[#2A050E] text-white flex items-center justify-between border-b border-amber-500/20">
           <div className="flex items-center gap-2">
-            <span className="text-xl">💌</span>
+            
             <div>
               <h2 className="text-sm sm:text-base font-black text-amber-200">
                 شاركي الإطلالة مع صديقتكِ
@@ -136,7 +136,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
             {/* Custom Message Card Preview */}
             <div className="rounded-xl bg-[#FAF6F0] border border-amber-500/20 p-2.5 text-xs text-burgundy/90 leading-relaxed font-medium">
               <span className="text-amber-600 text-xs font-bold block mb-1">
-                💬 نص الرسالة المرفقة:
+                نص الرسالة المرفقة:
               </span>
               <p className="italic">"{selectedMessage}"</p>
             </div>
@@ -185,7 +185,6 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
               onClick={handleWhatsAppShare}
               className="w-full rounded-xl bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:opacity-95 text-white py-3 px-4 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-md shadow-emerald-900/20 active:scale-[0.98] transition"
             >
-              <span className="text-base">💬</span>
               <span>مشاركة سريعة عبر واتساب</span>
             </button>
 
@@ -196,8 +195,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
                 onClick={handleNativeShare}
                 className="rounded-xl bg-burgundy hover:bg-[#650018] text-white py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition"
               >
-                <span>📱</span>
-                <span>تطبيقات أخرى (انستا / مسنجر)</span>
+                <span>تطبيقات أخرى (إنستغرام / ماسنجر)</span>
               </button>
 
               <button
@@ -209,7 +207,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
                     : 'bg-white hover:bg-beige/20 border-burgundy/20 text-burgundy'
                 }`}
               >
-                <span>{copied ? '✓' : '📋'}</span>
+                <span className="text-xs font-bold">{copied ? '✓' : 'نسخ'}</span>
                 <span>{copied ? 'تم النسخ بنجاح!' : 'نسخ رابط الإطلالة'}</span>
               </button>
             </div>
@@ -218,7 +216,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
 
         {/* Footer */}
         <div className="px-4 py-2.5 bg-white border-t border-burgundy/10 text-center text-[10px] text-burgundy/60">
-          👑 ModaPella | أزياء راقية - التوصيل لجميع محافظات مصر
+          ModaPella | أزياء راقية - التوصيل لجميع محافظات مصر
         </div>
       </div>
     </div>

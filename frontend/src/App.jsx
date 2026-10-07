@@ -127,7 +127,7 @@ function AppContent() {
  dir="rtl"
  >
  <div className="flex-1 flex items-center justify-center gap-2">
- <span className="inline-block animate-pulse">📢</span>
+ 
  {siteConfig.announcementBarLink ? (
  <Link to={siteConfig.announcementBarLink} className="hover:underline flex items-center gap-1.5">
  <span>{siteConfig.announcementBar}</span>

@@ -5,42 +5,42 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const PLATFORM_CONFIG = {
   Instagram: {
     nameAr: 'إعلانات إنستغرام',
-    icon: '📱',
+    icon: '✦',
     badgeClass: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white',
     borderClass: 'border-pink-300',
     bgClass: 'bg-pink-50/50'
   },
   TikTok: {
     nameAr: 'إعلانات تيك توك',
-    icon: '🎵',
+    icon: '✦',
     badgeClass: 'bg-black text-white',
     borderClass: 'border-slate-800',
     bgClass: 'bg-slate-50'
   },
   Facebook: {
     nameAr: 'إعلانات فيسبوك',
-    icon: '📘',
+    icon: '✦',
     badgeClass: 'bg-blue-600 text-white',
     borderClass: 'border-blue-300',
     bgClass: 'bg-blue-50/50'
   },
   'WhatsApp / Share': {
     nameAr: 'مشاركة الأصدقاء وواتساب',
-    icon: '💬',
+    icon: '✦',
     badgeClass: 'bg-emerald-600 text-white',
     borderClass: 'border-emerald-300',
     bgClass: 'bg-emerald-50/50'
   },
   WhatsApp: {
     nameAr: 'واتساب مباشر',
-    icon: '💬',
+    icon: '✦',
     badgeClass: 'bg-emerald-600 text-white',
     borderClass: 'border-emerald-300',
     bgClass: 'bg-emerald-50/50'
   },
   Direct: {
     nameAr: 'زيارات مباشرة / بحث',
-    icon: '🌐',
+    icon: '✦',
     badgeClass: 'bg-slate-600 text-white',
     borderClass: 'border-slate-300',
     bgClass: 'bg-gray-50'
@@ -118,7 +118,7 @@ export default function AdCampaignTracker({ orders = [] }) {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-3 py-1 rounded-full border border-amber-400/30">
-              📊 وحدة التحليلات التسويقية الذكية
+              وحدة التحليلات التسويقية الذكية
             </span>
             <h3 className="text-2xl font-black mt-2 text-white">
               تتبع مصادر الإعلانات والمبيعات (Ad Attribution)
@@ -187,7 +187,7 @@ export default function AdCampaignTracker({ orders = [] }) {
       {/* ── Active Campaigns Breakdown ── */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-4">
         <h4 className="text-base font-bold text-burgundy flex items-center gap-2">
-          <span>🎯</span>
+          
           <span>الحملات الإعلانية النشطة (Campaigns Performance)</span>
         </h4>
 
@@ -229,7 +229,7 @@ export default function AdCampaignTracker({ orders = [] }) {
       <div className="rounded-[2rem] border border-amber-500/30 bg-gradient-to-br from-[#FFFBF5] via-white to-[#FFF8F0] p-6 shadow-sm space-y-4">
         <div>
           <span className="text-amber-800 text-xs font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
-            🔗 أداة توليد روابط الإعلانات
+            أداة توليد روابط الإعلانات
           </span>
           <h4 className="text-lg font-black text-burgundy mt-1.5">
             توليد روابط الحملات الترويجية الذكية
@@ -248,10 +248,10 @@ export default function AdCampaignTracker({ orders = [] }) {
               onChange={(e) => setSelectedPlatform(e.target.value)}
               className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2.5 text-xs text-burgundy font-bold outline-none"
             >
-              <option value="instagram">📱 إنستغرام (Instagram Ads / Bio)</option>
-              <option value="tiktok">🎵 تيك توك (TikTok Ads)</option>
-              <option value="facebook">📘 فيسبوك (Facebook Ads)</option>
-              <option value="whatsapp">💬 واتساب (WhatsApp Campaign)</option>
+              <option value="instagram">إنستغرام (Instagram Ads / Bio)</option>
+              <option value="tiktok">تيك توك (TikTok Ads)</option>
+              <option value="facebook">فيسبوك (Facebook Ads)</option>
+              <option value="whatsapp">واتساب (WhatsApp Campaign)</option>
             </select>
           </div>
 
@@ -292,7 +292,7 @@ export default function AdCampaignTracker({ orders = [] }) {
             onClick={handleCopy}
             className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-burgundy font-black text-xs px-5 py-2.5 shadow active:scale-95 transition shrink-0 flex items-center justify-center gap-1.5"
           >
-            <span>{copiedLink ? '✓' : '📋'}</span>
+            <span>{copiedLink ? '✓' : 'نسخ'}</span>
             <span>{copiedLink ? 'تم نسخ الرابط!' : 'نسخ الرابط للإعلان'}</span>
           </button>
         </div>

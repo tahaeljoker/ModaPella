@@ -33,7 +33,7 @@ export default function WhatsAppWidget({ whatsappNumber = '201090048832' }) {
   };
 
   const cleanPhone = String(whatsappNumber).replace(/[^0-9]/g, '');
-  const greetingText = encodeURIComponent('أهلاً ModaPella 🌸، حابة استفسر عن تفاصيل الموديلات والتوصيل.');
+  const greetingText = encodeURIComponent('أهلاً ModaPella، حابة استفسر عن تفاصيل الموديلات والتوصيل.');
   const whatsappUrl = `https://wa.me/${cleanPhone}?text=${greetingText}`;
 
   return (
@@ -50,12 +50,12 @@ export default function WhatsAppWidget({ whatsappNumber = '201090048832' }) {
           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-burgundy/10">
             <div className="flex items-center gap-2">
               <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm text-base">
-                💬
+                
                 <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-white" />
               </div>
               <div>
                 <p className="text-xs font-bold text-burgundy">خدمة عملاء ModaPella</p>
-                <p className="text-[10px] text-emerald-600 font-medium">متواجدون للمساعدة الآن 🟢</p>
+                <p className="text-[10px] text-emerald-600 font-medium">متواجدون للمساعدة الآن</p>
               </div>
             </div>
 
@@ -71,7 +71,7 @@ export default function WhatsAppWidget({ whatsappNumber = '201090048832' }) {
 
           {/* Message Body */}
           <p className="text-xs text-burgundy/80 leading-relaxed">
-            أهلاً بكِ في <strong className="text-burgundy">ModaPella</strong> 🌸! محتاجة مساعدة في اختيار المقاس أو أي استفسار عن الموديلات؟
+            أهلاً بكِ في <strong className="text-burgundy">ModaPella</strong>! محتاجة مساعدة في اختيار المقاس أو أي استفسار عن الموديلات؟
           </p>
 
           {/* Action Button */}
@@ -83,7 +83,7 @@ export default function WhatsAppWidget({ whatsappNumber = '201090048832' }) {
             className="mt-3 flex items-center justify-center gap-2 w-full rounded-xl sm:rounded-2xl bg-[#25D366] hover:bg-[#20ba5a] text-white py-2.5 px-3 text-xs font-bold shadow-md transition-transform active:scale-95"
           >
             <span>بدء المحادثة على واتساب</span>
-            <span className="text-sm">⚡</span>
+            
           </a>
         </div>
       )}

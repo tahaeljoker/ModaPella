@@ -210,7 +210,7 @@ function PaymentPage() {
  : 'border-burgundy/20 bg-white text-burgundy/60 hover:border-burgundy/40'
  }`}
  >
- <span>💵</span> الدفع عند الاستلام
+ الدفع عند الاستلام
  </button>
  <button
  type="button"
@@ -221,7 +221,7 @@ function PaymentPage() {
  : 'border-burgundy/20 bg-white text-burgundy/60 hover:border-burgundy/40'
  }`}
  >
- <span>⚡</span> تحويل Instapay
+ تحويل Instapay
  </button>
  </div>
  </div>
@@ -289,7 +289,7 @@ function PaymentPage() {
 
  {/* Coupon Section */}
  <div className="pt-3 border-t border-burgundy/10">
- <label className="block text-xs font-bold text-burgundy/80 mb-1.5">كوبون الخصم 🎟️</label>
+ <label className="block text-xs font-bold text-burgundy/80 mb-1.5">كوبون الخصم</label>
  {appliedCoupon ? (
  <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs">
  <div className="flex items-center gap-1.5">

@@ -187,17 +187,17 @@ export default function QuickOrderModal({
     const cleanStorePhone = (whatsappNumber || '201090048832').replace(/[^0-9]/g, '');
     const targetPhone = cleanStorePhone.startsWith('0') ? '2' + cleanStorePhone : cleanStorePhone;
 
-    const message = `أهلاً ModaPella 🌸\n` +
+    const message = `أهلاً ModaPella\n` +
       `أنا أكّدت طلبي السريع من الموقع الآن:\n\n` +
-      `📌 *رقم الطلب:* #${shortId}\n` +
-      `👗 *المنتج:* ${cleanProductName(product.name)}\n` +
-      `${size ? `📏 *المقاس:* ${size}\n` : ''}` +
-      `${color ? `🎨 *اللون:* ${color}\n` : ''}` +
-      `🔢 *الكمية:* ${qty}\n` +
-      `${appliedCoupon ? `🎟️ *كود الخصم:* ${appliedCoupon.code} (خصم ${discountAmount} ج.م)\n` : ''}` +
-      `💰 *المبلغ النهائي:* ${Number(finalPrice).toLocaleString('en-US')} ج.م\n` +
-      `📍 *العنوان:* ${governorate} - ${address}\n` +
-      `💵 *طريقة الدفع:* ${paymentMethod === 'Cash' ? 'الدفع عند الاستلام' : 'تحويل Instapay'}\n\n` +
+      `*رقم الطلب:* #${shortId}\n` +
+      `*المنتج:* ${cleanProductName(product.name)}\n` +
+      `${size ? `*المقاس:* ${size}\n` : ''}` +
+      `${color ? `*اللون:* ${color}\n` : ''}` +
+      `*الكمية:* ${qty}\n` +
+      `${appliedCoupon ? `*كود الخصم:* ${appliedCoupon.code} (خصم ${discountAmount} ج.م)\n` : ''}` +
+      `*المبلغ النهائي:* ${Number(finalPrice).toLocaleString('en-US')} ج.م\n` +
+      `*العنوان:* ${governorate} - ${address}\n` +
+      `*طريقة الدفع:* ${paymentMethod === 'Cash' ? 'الدفع عند الاستلام' : 'تحويل Instapay'}\n\n` +
       `أرجو تأكيد الشحن في أقرب وقت. شكراً لكم!`;
 
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
@@ -222,7 +222,7 @@ export default function QuickOrderModal({
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-burgundy/10 bg-[#FAF5F2]">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-burgundy text-white text-xs font-bold shadow-sm">
-              ⚡
+              ✦
             </span>
             <div>
               <h3 className="font-bold text-sm sm:text-base text-burgundy">طلب سريع بنقرة واحدة</h3>
@@ -281,8 +281,8 @@ export default function QuickOrderModal({
                 </div>
                 <div className="text-[11px] text-emerald-700 bg-emerald-50 rounded-lg p-2 text-center font-medium mt-1">
                   {paymentMethod === 'Cash' 
-                    ? '💵 الدفع عند الاستلام مع إمكانية معاينة القطعة قبل الدفع' 
-                    : '📱 تحويل عبر Instapay، سنتواصل معكِ لتأكيد إشعار الدفع'}
+                    ? 'الدفع عند الاستلام مع إمكانية معاينة القطعة قبل الدفع' 
+                    : 'تحويل عبر Instapay، سنتواصل معكِ لتأكيد إشعار الدفع'}
                 </div>
               </div>
 
@@ -294,7 +294,7 @@ export default function QuickOrderModal({
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-2xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition active:scale-[0.98]"
                 >
-                  <span className="text-lg">💬</span>
+                  
                   <span>تأكيد ومتابعة الطلب عبر واتساب</span>
                 </a>
 
@@ -411,7 +411,7 @@ export default function QuickOrderModal({
               {/* Error Message */}
               {errorMsg && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
-                  <span>⚠️</span>
+                  
                   <span>{errorMsg}</span>
                 </div>
               )}
@@ -496,7 +496,7 @@ export default function QuickOrderModal({
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-burgundy">💵 عند الاستلام</span>
+                        <span className="text-xs font-bold text-burgundy">عند الاستلام</span>
                         <input
                           type="radio"
                           name="paymentMethod"
@@ -517,7 +517,7 @@ export default function QuickOrderModal({
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-burgundy">📱 انستا باي</span>
+                        <span className="text-xs font-bold text-burgundy">انستا باي</span>
                         <input
                           type="radio"
                           name="paymentMethod"
@@ -547,7 +547,7 @@ export default function QuickOrderModal({
                 <div className="p-3 rounded-2xl bg-[#FAF5F2] border border-burgundy/10 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-burgundy flex items-center gap-1.5">
-                      <span>🎟️</span>
+                      
                       <span>هل لديكِ كود خصم؟</span>
                     </span>
                     {appliedCoupon && (
@@ -598,7 +598,7 @@ export default function QuickOrderModal({
 
                   {couponError && (
                     <p className="text-[11px] text-red-600 font-semibold flex items-center gap-1">
-                      <span>⚠️</span>
+                      
                       <span>{couponError}</span>
                     </p>
                   )}
@@ -627,9 +627,9 @@ export default function QuickOrderModal({
                 </div>
 
                 <div className="flex items-center justify-center gap-4 text-[10px] text-burgundy/60 py-1.5 bg-[#FAF5F2] rounded-xl">
-                  <span>🛡️ معاينة القطعة قبل الاستلام</span>
+                  <span>معاينة القطعة قبل الاستلام</span>
                   <span>•</span>
-                  <span>🔄 استبدال خلال 14 يوماً</span>
+                  <span>استبدال خلال 14 يوماً</span>
                 </div>
 
                 {/* Submit Button */}
@@ -646,7 +646,7 @@ export default function QuickOrderModal({
                   ) : (
                     <>
                       <span>تأكيد الطلب الآن</span>
-                      <span className="text-base">⚡</span>
+                      
                     </>
                   )}
                 </button>

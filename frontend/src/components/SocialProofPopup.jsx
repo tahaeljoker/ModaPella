@@ -35,7 +35,7 @@ const customerFirstNames = [
 ];
 
 const timeAgoList = [
-  'للـتو 🛍️',
+  'للـتو',
   'منذ 3 دقائق',
   'منذ 6 دقائق',
   'منذ 12 دقيقة',

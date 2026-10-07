@@ -51,9 +51,8 @@ export default function OutfitComparisonBar() {
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-amber-400 text-xs">⚖️</span>
                 <span className="text-xs font-black tracking-wide text-amber-200">
-                  {compareItems.length === 1 ? 'مقارنة الإطلالات (1/2)' : 'جاهز للمقارنة! (2/2)'}
+                  {compareItems.length === 1 ? 'مقارنة الإطلالات (1/2)' : 'جاهز للمقارنة (2/2)'}
                 </span>
               </div>
               <p className="text-[11px] text-white/70 truncate mt-0.5 max-w-[160px] sm:max-w-[200px]">
@@ -72,7 +71,7 @@ export default function OutfitComparisonBar() {
               className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-burgundy font-black text-xs px-3.5 py-2.5 shadow-md shadow-amber-900/40 active:scale-95 transition flex items-center gap-1"
             >
               <span>{compareItems.length === 1 ? 'فتح' : 'قارني الآن'}</span>
-              <span>✨</span>
+              
             </button>
             <button
               type="button"

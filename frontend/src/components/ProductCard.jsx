@@ -40,9 +40,9 @@ function ProductCard({ product }) {
     ? 'bg-amber-400 text-burgundy font-black scale-105 ring-2 ring-amber-300 shadow-amber-900/30'
     : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy hover:scale-105'
   }`}
-  title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل 🪞'}
+  title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
  >
-  <span className="text-xs sm:text-sm">{isItemComparing ? '✓' : '🪞'}</span>
+  <span className="text-xs sm:text-sm">{isItemComparing ? '✓' : 'مقارنة'}</span>
  </button>
  <LazyImage
  src={image}
@@ -72,13 +72,13 @@ function ProductCard({ product }) {
  </div>
  ) : product.stock <= 5 ? (
  <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-amber-500 text-white px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-md flex items-center gap-1 pulse-glow">
- <span className="text-[10px]">🔥</span>
- <span>متبقي {product.stock} فقط</span>
+ 
+ <span>متبقي {product.stock} قطع فقط</span>
  </div>
  ) : product.stock <= 10 ? (
  <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-burgundy/90 text-white px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm flex items-center gap-1">
- <span>⚡</span>
- <span>طلب متزايد</span>
+ 
+ <span className="text-[9px] font-bold">طلب متزايد</span>
  </div>
  ) : (
  <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/95 px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-semibold text-burgundy shadow-sm">

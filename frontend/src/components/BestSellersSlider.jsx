@@ -57,7 +57,6 @@ export default function BestSellersSlider({ products = [] }) {
     if (index === 0) {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-white text-[10px] font-extrabold px-2.5 py-1 shadow-md">
-          <span>🥇</span>
           <span>الأكثر مبيعاً</span>
         </span>
       );
@@ -65,7 +64,6 @@ export default function BestSellersSlider({ products = [] }) {
     if (index === 1) {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-slate-600 via-slate-500 to-gray-500 text-white text-[10px] font-extrabold px-2.5 py-1 shadow-md">
-          <span>🥈</span>
           <span>#2 الأعلى طلباً</span>
         </span>
       );
@@ -73,14 +71,12 @@ export default function BestSellersSlider({ products = [] }) {
     if (index === 2) {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 text-white text-[10px] font-extrabold px-2.5 py-1 shadow-md">
-          <span>🥉</span>
           <span>#3 تريند الأسبوع</span>
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-burgundy/85 text-white text-[10px] font-bold px-2 py-0.5 shadow-sm">
-        <span>⭐</span>
         <span>#{index + 1} اختيار العميلات</span>
       </span>
     );
@@ -92,14 +88,13 @@ export default function BestSellersSlider({ products = [] }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-800 mb-1 border border-amber-500/20">
-            <span>🔥</span>
             <span>تريندات الأسبوع</span>
           </div>
           <h2 className="text-xl sm:text-3xl font-extrabold text-burgundy">
             الموديلات الأكثر مبيعاً
           </h2>
           <p className="mt-1 text-xs sm:text-sm text-burgundy/65">
-            القطع التي نالت أعلى إعجاب وتفضيل من عميلاتنا مؤخراً 🌸
+            القطع التي نالت أعلى إعجاب وتفضيل من عميلاتنا مؤخراً
           </p>
         </div>
 
@@ -183,9 +178,9 @@ export default function BestSellersSlider({ products = [] }) {
                       ? 'bg-amber-400 text-burgundy font-black ring-2 ring-amber-300'
                       : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy'
                   }`}
-                  title={isComparing(product._id) ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل 🪞'}
+                  title={isComparing(product._id) ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
                 >
-                  <span className="text-xs">{isComparing(product._id) ? '✓' : '🪞'}</span>
+                  <span className="text-[10px] font-bold">{isComparing(product._id) ? '✓' : 'مقارنة'}</span>
                 </button>
 
                 {/* Discount Badge */}
@@ -199,7 +194,7 @@ export default function BestSellersSlider({ products = [] }) {
                 <div className="absolute bottom-2.5 right-2.5 z-10">
                   {product.stock <= 5 ? (
                     <span className="rounded-full bg-amber-500 text-white px-2 py-0.5 text-[9px] font-bold shadow-sm pulse-glow inline-flex items-center gap-0.5">
-                      <span>🔥</span>
+                      
                       <span>باقي {product.stock} فقط</span>
                     </span>
                   ) : (
