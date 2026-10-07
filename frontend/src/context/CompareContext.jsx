@@ -1,6 +1,16 @@
 import { createContext, useState, useEffect } from 'react';
 
-const CompareContext = createContext();
+const defaultContextValue = {
+  compareItems: [],
+  addToCompare: () => false,
+  removeFromCompare: () => {},
+  clearCompare: () => {},
+  isComparing: () => false,
+  isCompareOpen: false,
+  setIsCompareOpen: () => {},
+};
+
+const CompareContext = createContext(defaultContextValue);
 
 export const CompareProvider = ({ children }) => {
   const [compareItems, setCompareItems] = useState(() => {

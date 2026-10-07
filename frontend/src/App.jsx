@@ -418,13 +418,15 @@ function AppContent() {
 }
 
 function App() {
- useRevealOnScroll();
+  useRevealOnScroll();
 
- return (
- <CartProvider>
- <AppContent />
- </CartProvider>
- );
+  return (
+    <CartProvider>
+      <CompareProvider>
+        <AppContent />
+      </CompareProvider>
+    </CartProvider>
+  );
 }
 
 export default App;
