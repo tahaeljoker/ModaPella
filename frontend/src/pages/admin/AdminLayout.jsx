@@ -6,12 +6,10 @@ import { Icon } from '../../components/Icon';
 const sections = [
   {
     title: 'المتجر الإلكتروني (Online Store)',
-    developerOnly: true,
     items: [
-      { to: '/admin/site', label: 'المتجر وإعدادات الموقع 🌐', icon: 'site', end: true },
-      { to: '/admin/site?tab=announcement', label: 'شريط الإعلانات الترويجي 📢', icon: 'activities' },
-      { to: '/admin/site?tab=coupons', label: 'كوبونات الخصم 🎟️', icon: 'debts' },
-      { to: '/admin/site?tab=orders', label: 'طلبات الأونلاين 📦', icon: 'orders' },
+      { to: '/admin/site', label: 'إدارة المتجر والموقع بالكامل', icon: 'site', end: true },
+      { to: '/admin/site?tab=online-products', label: 'صور ومنتجات المتجر', icon: 'products' },
+      { to: '/admin/site?tab=orders', label: 'طلبات الأونلاين', icon: 'orders' },
     ]
   },
   {
