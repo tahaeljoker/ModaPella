@@ -144,10 +144,10 @@ export default function BestSellersSlider({ products = [] }) {
             <div
               key={product._id}
               onClick={() => navigate(`/product/${product._id}`)}
-              className="group relative flex w-[72%] sm:w-[280px] lg:w-[290px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/10 bg-white p-3 shadow-soft transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:border-burgundy/30 cursor-pointer"
+              className="group relative flex w-[72%] sm:w-[280px] lg:w-[290px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/10 bg-white p-3 shadow-soft interactive-card cursor-pointer"
             >
               {/* Product Image Box */}
-              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl sm:rounded-2xl bg-beige/10">
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl sm:rounded-2xl bg-beige/10 sheen-wrapper">
                 <LazyImage
                   src={image}
                   alt={cleanProductName(product.name)}

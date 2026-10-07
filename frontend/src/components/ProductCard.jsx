@@ -26,9 +26,9 @@ function ProductCard({ product }) {
  return (
  <div
  onClick={() => navigate(`/product/${product._id}`)}
- className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/5 bg-white shadow-sm transition-all duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-md"
+ className="reveal-on-scroll group stagger-item interactive-card flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white shadow-sm"
  >
- <div className="relative overflow-hidden aspect-[4/3]">
+ <div className="relative overflow-hidden aspect-[4/3] sheen-wrapper">
  <button
   type="button"
   onClick={(e) => {

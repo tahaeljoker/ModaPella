@@ -36,7 +36,13 @@ const OrderSchema = new mongoose.Schema({
   debtAmount: { type: Number, default: 0 },
   returnedAmount: { type: Number, default: 0 },
   isDebt: { type: Boolean, default: false },
-  isManualDebt: { type: Boolean, default: false }
+  isManualDebt: { type: Boolean, default: false },
+  trafficSource: {
+    source: { type: String, default: 'Direct' },
+    campaign: { type: String, default: '' },
+    medium: { type: String, default: '' },
+    ref: { type: String, default: '' }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

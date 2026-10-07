@@ -2,6 +2,7 @@ import { useContext, useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import CartContext from './context/CartContext';
+import { initTrafficTracking } from './utils/trafficTracker';
 import LandingPage from './pages/LandingPage';
 import PaymentPage from './pages/PaymentPage';
 import AboutPage from './pages/AboutPage';
@@ -76,6 +77,10 @@ function AppContent() {
  const [prevCartLength, setPrevCartLength] = useState(cart.length);
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
  const [siteConfig, setSiteConfig] = useState(null);
+
+  useEffect(() => {
+    initTrafficTracking();
+  }, []);
  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
  // Trigger drawer cart open when items are added

@@ -268,7 +268,8 @@ router.post('/public-checkout', async (req, res) => {
       paymentScreenshot = '',
       governorate = '',
       shippingAddress = '',
-      couponCode = ''
+      couponCode = '',
+      trafficSource = {}
     } = req.body;
 
     if (!customerPhone || !items || items.length === 0) {
@@ -389,7 +390,8 @@ router.post('/public-checkout', async (req, res) => {
       paymentScreenshot,
       governorate,
       shippingAddress,
-      notes: finalNotes
+      notes: finalNotes,
+      trafficSource: trafficSource && trafficSource.source ? trafficSource : { source: 'Direct' }
     });
     await order.save();
 

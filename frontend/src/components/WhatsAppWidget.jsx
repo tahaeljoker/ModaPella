@@ -39,7 +39,7 @@ export default function WhatsAppWidget({ whatsappNumber = '201090048832' }) {
   return (
     <div
       dir="rtl"
-      className={`fixed z-40 transition-all duration-300 ${
+      className={`fixed z-40 transition-all duration-300 float-gentle ${
         isProductPage ? 'bottom-20 sm:bottom-6' : 'bottom-5 sm:bottom-6'
       } right-4 sm:right-6`}
     >

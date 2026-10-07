@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { cleanProductName, isDiscountActive } from '../utils/discount';
+import { getTrafficSource } from '../utils/trafficTracker';
 
 const EGYPT_GOVERNORATES = [
   'القاهرة',
@@ -153,6 +154,7 @@ export default function QuickOrderModal({
         notes: notes.trim(),
         paymentMethod: paymentMethod === 'Cash' ? 'Cash' : 'Instapay',
         couponCode: appliedCoupon ? appliedCoupon.code : '',
+        trafficSource: getTrafficSource(),
         items: [
           {
             product: product._id,

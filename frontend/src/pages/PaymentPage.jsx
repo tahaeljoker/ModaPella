@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import api from '../services/api';
 import { cleanProductName } from '../utils/discount';
+import { getTrafficSource } from '../utils/trafficTracker';
 
 function PaymentPage() {
  const { cart, clearCart, total } = useContext(CartContext);
@@ -94,7 +95,8 @@ function PaymentPage() {
  paymentMethod: paymentMethod === 'Cash' ? 'Cash' : 'Instapay',
  notes: form.notes,
  paymentScreenshot: paymentMethod === 'Instapay' ? paymentScreenshot : '',
- couponCode: appliedCoupon ? appliedCoupon.code : ''
+ couponCode: appliedCoupon ? appliedCoupon.code : '',
+  trafficSource: getTrafficSource()
  });
 
  if (res.data.success) {

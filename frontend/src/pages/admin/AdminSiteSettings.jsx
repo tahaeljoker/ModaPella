@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
+import AdCampaignTracker from '../../components/AdCampaignTracker';
+import SocialAdCreator from '../../components/SocialAdCreator';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -438,6 +440,20 @@ function AdminSiteSettings() {
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
  >
  <Icon name="inventory" className="w-4 h-4" /> فئات وأقسام الموقع
+ </button>
+ <button
+ onClick={() => handleTabChange('traffic')}
+ className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'traffic' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+ >
+ <span>📊</span>
+ <span>مصادر الإعلانات (Ad Tracker)</span>
+ </button>
+ <button
+ onClick={() => handleTabChange('creator')}
+ className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'creator' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+ >
+ <span>🎨</span>
+ <span>مولد بوسترات الإعلانات</span>
  </button>
  </div>
 
@@ -907,6 +923,14 @@ function AdminSiteSettings() {
  <span className="rounded bg-burgundy/8 px-1.5 py-0.5 font-mono text-[10px] text-burgundy/60">
  #{shortId}
  </span>
+ {order.trafficSource?.source && order.trafficSource.source !== 'Direct' && (
+ <span className="rounded-full bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
+ {order.trafficSource.source === 'Instagram' ? '📱 إنستغرام' :
+ order.trafficSource.source === 'TikTok' ? '🎵 تيك توك' :
+ order.trafficSource.source === 'Facebook' ? '📘 فيسبوك' :
+ order.trafficSource.source === 'WhatsApp / Share' ? '💬 شير أصدقاء' : order.trafficSource.source}
+ </span>
+ )}
  </div>
  <p className="text-[11px] text-burgundy/50">
  {new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}
@@ -1424,7 +1448,18 @@ function AdminSiteSettings() {
      </div>
     </div>
    )}
-  </div>
+  
+
+ {/* ━━━━━━ Ad Traffic Attribution Tab ━━━━━━ */}
+ {activeTab === 'traffic' && (
+   <AdCampaignTracker orders={orders} />
+ )}
+
+ {/* ━━━━━━ Social Media Ad Story Creator Tab ━━━━━━ */}
+ {activeTab === 'creator' && (
+   <SocialAdCreator />
+ )}
+</div>
  )}
  </div>
  );

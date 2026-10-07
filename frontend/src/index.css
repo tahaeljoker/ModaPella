@@ -305,3 +305,54 @@ button, input, select, textarea {
     line-height: 1.4;
   }
 }
+
+
+/* ══════════════════════════════════════════════════════════
+   Luxury Dynamic Sheen, 3D Tilt & Micro-Interactions
+   ══════════════════════════════════════════════════════════ */
+@keyframes goldSheenSweep {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  50%, 100% { transform: translateX(200%) skewX(-20deg); }
+}
+
+.sheen-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transform: translateX(-150%) skewX(-20deg);
+  pointer-events: none;
+  animation: goldSheenSweep 6s ease-in-out infinite;
+}
+
+.interactive-card {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease;
+  will-change: transform;
+}
+
+.interactive-card:hover {
+  transform: translateY(-5px) scale(1.015);
+  box-shadow: 0 16px 30px -10px rgba(90, 0, 21, 0.15), 0 0 15px rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.interactive-card:active {
+  transform: scale(0.985);
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.float-gentle {
+  animation: floatGentle 4s ease-in-out infinite;
+}
