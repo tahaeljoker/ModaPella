@@ -1,3 +1,4 @@
+import ImageUploader from '../../components/ImageUploader';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -435,7 +436,7 @@ function RestockModal({ product, onClose, onRestocked }) {
  );
 }
 
-const emptyProduct = { name: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
+const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
@@ -571,7 +572,8 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  originalVariants: product?.variants
  ? product.variants.map(v => ({ size: v.size, color: v.color, stock: v.stock || 0 }))
  : [],
- images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
+ onlineName: (form.onlineName || '').trim(),
+images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
  sizes: activeSizes, colors: activeColors,
  };
  await onSave(payload); onClose();
@@ -585,7 +587,17 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  <h3 className="mb-6 text-2xl font-bold text-burgundy">{form._id ? 'تعديل المنتج' : 'إضافة منتج جديد'}</h3>
  <form onSubmit={handleSubmit} className="space-y-4">
  <div className="grid gap-4 sm:grid-cols-2">
- <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">اسم المنتج *</label><input name="name" value={form.name} onChange={handleChange} className={inp} required /></div>
+ <div>
+<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">اسم المنتج في السيستم / المخزن *</label>
+<input name="name" value={form.name} onChange={handleChange} className={inp} required placeholder="مثال: بلوزة ريون 104" />
+</div>
+<div>
+<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex items-center justify-between">
+  <span>اسم العرض في الموقع (اختياري)</span>
+  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">يظهر للزبائن بدل كود المخزن</span>
+</label>
+<input name="onlineName" value={form.onlineName || ''} onChange={handleChange} className={inp} placeholder="مثال: بلوزة كلاسيك ريون بيج" />
+</div>
  <div>
  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60 flex justify-between items-center">
  <span>الفئة *</span>
@@ -978,10 +990,13 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  </div>
  
  </div>
- <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الوصف</label><textarea name="description" value={form.description} onChange={handleChange} className={`${inp} min-h-[80px]`} /></div>
- <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">روابط الصور (سطر لكل رابط)</label>
- <textarea name="images" value={typeof form.images === 'string' ? form.images : (form.images || []).join('\n')} onChange={handleChange} className={`${inp} min-h-[70px]`} placeholder="https://example.com/image.jpg" />
- </div>
+<div>
+<ImageUploader
+  images={form.images}
+  onChange={(newImages) => setForm(p => ({ ...p, images: newImages }))}
+  label="صور المنتج للمعرض والموقع"
+/>
+</div>
  {ENABLE_VARIANTS && (
  <div className="grid gap-4 sm:grid-cols-2">
  <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات (بفاصلة)</label>

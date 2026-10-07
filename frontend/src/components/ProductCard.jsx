@@ -46,7 +46,7 @@ function ProductCard({ product }) {
  </button>
  <LazyImage
  src={image}
- alt={cleanProductName(product.name)}
+ alt={cleanProductName(product)}
  className={`w-full h-full transition-all duration-700 ease-out group-hover:scale-105 ${
  product.images?.[1] ? 'group-hover:opacity-0' : ''
  }`}
@@ -54,7 +54,7 @@ function ProductCard({ product }) {
  {product.images?.[1] && (
  <img
  src={product.images[1]}
- alt={`${cleanProductName(product.name)} - 2`}
+ alt={`${cleanProductName(product)} - 2`}
  className="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-700 ease-out group-hover:opacity-100 group-hover:scale-105"
  loading="lazy"
  />
@@ -89,7 +89,7 @@ function ProductCard({ product }) {
  <div className="flex flex-col justify-between p-3 sm:p-4 text-burgundy space-y-1.5">
  <div>
  <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.2em] text-burgundy/50">{product.category}</p>
- <h3 className="text-xs sm:text-sm font-semibold mt-0.5 text-burgundy/90 line-clamp-1">{cleanProductName(product.name)}</h3>
+ <h3 className="text-xs sm:text-sm font-semibold mt-0.5 text-burgundy/90 line-clamp-1">{cleanProductName(product)}</h3>
  </div>
  <div className="flex items-baseline gap-2 pt-1 border-t border-burgundy/5">
  {isDiscountActive(product) ? (

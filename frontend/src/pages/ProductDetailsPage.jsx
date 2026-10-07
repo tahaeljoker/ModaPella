@@ -110,7 +110,7 @@ function ProductDetailsPage() {
  >
  <LazyImage 
  src={product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80'} 
- alt={cleanProductName(product.name)} 
+ alt={cleanProductName(product)} 
  className="w-full h-full object-cover" 
  />
  </div>
@@ -170,7 +170,7 @@ function ProductDetailsPage() {
  </div>
  <div className="space-y-5 sm:space-y-6">
  <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] sm:tracking-[0.35em] text-burgundy/60">{product.category}</p>
- <h1 className="text-xl sm:text-3xl font-extrabold">{cleanProductName(product.name)}</h1>
+ <h1 className="text-xl sm:text-3xl font-extrabold">{cleanProductName(product)}</h1>
  <p className="text-sm sm:text-base leading-6 sm:leading-8 text-burgundy/75">{product.description || 'وصف مميز للمنتج يعرض تفاصيل التصميم والجودة.'}</p>
  <div className="grid grid-cols-2 gap-3">
  <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
@@ -318,12 +318,12 @@ function ProductDetailsPage() {
  <div className="aspect-[4/3] overflow-hidden relative rounded-xl bg-beige/5">
  <LazyImage 
  src={p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80'} 
- alt={cleanProductName(p.name)} 
+ alt={cleanProductName(p)} 
  className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105" 
  />
  </div>
  <div className="mt-2 text-right px-1">
- <p className="text-xs font-bold text-burgundy truncate">{cleanProductName(p.name)}</p>
+ <p className="text-xs font-bold text-burgundy truncate">{cleanProductName(p)}</p>
  <p className="text-xs font-extrabold text-burgundy/60 mt-0.5">{Number(p.price).toLocaleString('en-US')} ج.م</p>
  </div>
  </Link>
@@ -350,7 +350,7 @@ function ProductDetailsPage() {
  <div className="relative max-w-full max-h-[85vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
  <img 
  src={product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80'} 
- alt={cleanProductName(product.name)} 
+ alt={cleanProductName(product)} 
  className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl" 
  />
 

@@ -190,7 +190,7 @@ export default function QuickOrderModal({
     const message = `أهلاً ModaPella\n` +
       `أنا أكّدت طلبي السريع من الموقع الآن:\n\n` +
       `*رقم الطلب:* #${shortId}\n` +
-      `*المنتج:* ${cleanProductName(product.name)}\n` +
+      `*المنتج:* ${cleanProductName(product)}\n` +
       `${size ? `*المقاس:* ${size}\n` : ''}` +
       `${color ? `*اللون:* ${color}\n` : ''}` +
       `*الكمية:* ${qty}\n` +
@@ -319,7 +319,7 @@ export default function QuickOrderModal({
                 />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-xs sm:text-sm text-burgundy truncate">
-                    {cleanProductName(product.name)}
+                    {cleanProductName(product)}
                   </h4>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="font-extrabold text-sm text-burgundy">

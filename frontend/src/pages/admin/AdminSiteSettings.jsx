@@ -1,3 +1,4 @@
+import AdminOnlineCatalog from '../../components/AdminOnlineCatalog';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -298,12 +299,15 @@ function AdminSiteSettings() {
  const handlePrintInvoice = (order) => {
  const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
  const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
- const itemsHTML = order.items.map(item => `
- <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
- <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
- <span>${(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
- </div>
- `).join('');
+  const itemsHTML = order.items.map(item => `
+  <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:12px">
+  <div>
+  <div style="font-weight:bold">${item.onlineName || item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</div>
+  ${item.onlineName && item.onlineName !== item.name ? `<div style="font-size:10px;color:#555">المخزن: ${item.name}</div>` : ''}
+  </div>
+  <span style="font-weight:bold">${(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
+  </div>
+  `).join('');
 
  const printDiv = document.createElement('div');
  printDiv.id = 'receipt-reprint-root';
@@ -454,7 +458,11 @@ function AdminSiteSettings() {
  </div>
 
  {/* Tab Contents */}
- {activeTab === 'appearance' && config && (
+ {activeTab === 'online-products' && (
+  <AdminOnlineCatalog onToast={showToast} />
+)}
+
+{activeTab === 'appearance' && config && (
  <form onSubmit={handleSave} className="space-y-6">
  {/* Hero Section */}
  <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
@@ -991,19 +999,26 @@ function AdminSiteSettings() {
  <div className="bg-white rounded-2xl p-4 border border-burgundy/5 shadow-sm space-y-3">
  <p className="font-bold text-xs text-burgundy/60"> المنتجات المطلوبة</p>
  <div className="divide-y divide-burgundy/5">
- {order.items?.map((item, i) => (
- <div key={i} className="py-2.5 flex justify-between text-xs sm:text-sm">
- <div>
- <span className="font-semibold text-burgundy">{item.name}</span>
- <span className="text-xs text-burgundy/50 mr-2">
- {item.size ? `(مقاس: ${item.size})` : ''} {item.color ? `(لون: ${item.color})` : ''}
- </span>
- </div>
- <span className="font-mono font-bold text-burgundy/70">
- {item.quantity} × {EGP(item.price)}
- </span>
- </div>
- ))}
+{order.items?.map((item, i) => (
+<div key={i} className="py-2.5 flex justify-between text-xs sm:text-sm">
+<div className="space-y-0.5">
+  <div className="flex items-center gap-2 flex-wrap">
+    <span className="font-bold text-burgundy">{item.onlineName || item.name}</span>
+    {item.onlineName && item.onlineName !== item.name && (
+      <span className="text-[10px] font-mono bg-burgundy/8 text-burgundy/80 px-2 py-0.5 rounded-md border border-burgundy/10">
+        المخزن: {item.name}
+      </span>
+    )}
+  </div>
+  <div className="text-[11px] text-burgundy/50">
+    {item.size ? `مقاس: ${item.size}` : ''} {item.color ? ` • لون: ${item.color}` : ''}
+  </div>
+</div>
+<span className="font-mono font-bold text-burgundy/70 self-center">
+  {item.quantity} × {EGP(item.price)}
+</span>
+</div>
+))}
  </div>
  <div className="pt-2 border-t border-burgundy/10 flex justify-between font-bold text-sm text-burgundy">
  <span>إجمالي الفاتورة:</span>

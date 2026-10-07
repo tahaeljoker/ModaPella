@@ -18,6 +18,7 @@ const ProductSchema = new mongoose.Schema({
   sold: { type: Number, min: 0, default: 0 },
   totalReceived: { type: Number, min: 0, default: 0 },
   images: [{ type: String }],
+  onlineName: { type: String, default: '', trim: true },
   sizes: [{ type: String }],
   colors: [{ type: String }],
   type: { type: String, default: '' },

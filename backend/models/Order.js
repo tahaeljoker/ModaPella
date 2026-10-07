@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const OrderItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   name: { type: String, required: true },
+  onlineName: { type: String, default: '' },
   category: { type: String, required: true },
   quantity: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true, min: 0 },

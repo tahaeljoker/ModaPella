@@ -325,6 +325,7 @@ router.post('/public-checkout', async (req, res) => {
     const orderItems = productLookups.map(({ item, product, variant, costPrice }) => ({
       product: item.product,
       name: product.name,
+      onlineName: (product.onlineName || item.onlineName || '').trim(),
       category: product.category,
       quantity: item.quantity,
       price: item.price,

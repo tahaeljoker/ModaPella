@@ -58,7 +58,7 @@ export default function OutfitComparisonBar() {
               <p className="text-[11px] text-white/70 truncate mt-0.5 max-w-[160px] sm:max-w-[200px]">
                 {compareItems.length === 1
                   ? 'اضغطي على قطعة تانية لمقارنتها'
-                  : `${cleanProductName(compareItems[0]?.name)} ⟷ ${cleanProductName(compareItems[1]?.name)}`}
+                  : `${cleanProductName(compareItems[0])} ⟷ ${cleanProductName(compareItems[1])}`}
               </p>
             </div>
           </div>

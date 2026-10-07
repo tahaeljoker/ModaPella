@@ -19,6 +19,7 @@ const notificationRoutes = require('./routes/notifications');
 const inventoryTaskRoutes = require('./routes/inventoryTasks');
 const reportRoutes = require('./routes/reports');
 const couponRoutes = require('./routes/coupons');
+const uploadRoutes = require('./routes/upload');
 const User = require('./models/User');
 const { attachInventorySync } = require('./services/inventorySync');
 const { checkAndAutoClosePreviousMonths } = require('./services/monthlyReportService');
@@ -96,7 +97,15 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Serve uploaded product photos statically
+const uploadsStaticPath = path.resolve(__dirname, '../uploads');
+if (!fs.existsSync(uploadsStaticPath)) {
+  try { fs.mkdirSync(uploadsStaticPath, { recursive: true }); } catch (e) {}
+}
+app.use('/uploads', express.static(uploadsStaticPath));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -111,6 +120,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/inventory-tasks', inventoryTaskRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.get('/api/status', (req, res) => {
   res.json({ service: 'Moda Pella POS & E-commerce API', status: 'ok' });

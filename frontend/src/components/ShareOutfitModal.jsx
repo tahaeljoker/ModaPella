@@ -21,7 +21,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
   const productUrl = `${window.location.origin}/product/${product._id}?ref=share_friend`;
 
   const getFullShareText = () => {
-    return `${selectedMessage}\n\nالموديل: *${cleanProductName(product.name)}*\nالسعر: *${EGP(currentPrice)}*${hasDiscount ? ` (خصم ${Math.round((1 - product.discountPrice / product.price) * 100)}%)` : ''}\nرابط المعاينة والتفاصيل:\n${productUrl}`;
+    return `${selectedMessage}\n\nالموديل: *${cleanProductName(product)}*\nالسعر: *${EGP(currentPrice)}*${hasDiscount ? ` (خصم ${Math.round((1 - product.discountPrice / product.price) * 100)}%)` : ''}\nرابط المعاينة والتفاصيل:\n${productUrl}`;
   };
 
   const handleWhatsAppShare = () => {
@@ -34,7 +34,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: cleanProductName(product.name),
+          title: cleanProductName(product),
           text: getFullShareText(),
           url: productUrl,
         });
@@ -114,7 +114,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
                   {product.category || 'أزياء راقية'}
                 </span>
                 <h3 className="text-xs sm:text-sm font-bold text-burgundy line-clamp-1">
-                  {cleanProductName(product.name)}
+                  {cleanProductName(product)}
                 </h3>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-sm sm:text-base font-black text-burgundy">

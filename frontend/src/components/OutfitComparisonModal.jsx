@@ -201,7 +201,7 @@ function CompareProductCard({ product, onRemove, onView, onQuickOrder }) {
         <div className="space-y-2">
           {/* Title */}
           <h3 className="text-xs sm:text-sm font-bold text-burgundy line-clamp-2 leading-tight">
-            {cleanProductName(product.name)}
+            {cleanProductName(product)}
           </h3>
 
           {/* Price */}

@@ -145,7 +145,7 @@ export default function BestSellersSlider({ products = [] }) {
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-beige/10 sheen-wrapper">
                 <LazyImage
                   src={image}
-                  alt={cleanProductName(product.name)}
+                  alt={cleanProductName(product)}
                   className={`h-full w-full object-cover transition-all duration-700 ease-out group-hover:scale-105 ${
                     secondImage ? 'group-hover:opacity-0' : ''
                   }`}
@@ -153,7 +153,7 @@ export default function BestSellersSlider({ products = [] }) {
                 {secondImage && (
                   <img
                     src={secondImage}
-                    alt={`${cleanProductName(product.name)} 2`}
+                    alt={`${cleanProductName(product)} 2`}
                     className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-700 ease-out group-hover:opacity-100 group-hover:scale-105"
                     loading="lazy"
                   />
@@ -212,7 +212,7 @@ export default function BestSellersSlider({ products = [] }) {
                     {product.category}
                   </span>
                   <h3 className="text-xs sm:text-sm font-bold text-burgundy group-hover:text-[#650018] transition line-clamp-1 mt-0.5">
-                    {cleanProductName(product.name)}
+                    {cleanProductName(product)}
                   </h3>
                 </div>
 

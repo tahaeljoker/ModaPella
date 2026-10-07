@@ -122,7 +122,7 @@ export default function SocialProofPopup({ active = true }) {
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-burgundy/10 bg-beige/10">
           <img
             src={image}
-            alt={cleanProductName(product.name)}
+            alt={cleanProductName(product)}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             loading="lazy"
           />
@@ -141,7 +141,7 @@ export default function SocialProofPopup({ active = true }) {
           </div>
 
           <p className="mt-0.5 text-xs font-semibold text-burgundy/90 line-clamp-1 group-hover:text-[#650018] transition">
-            {cleanProductName(product.name)}
+            {cleanProductName(product)}
           </p>
 
           <div className="mt-1 flex items-center justify-between text-[10px] text-burgundy/50">
