@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useContext } from 'react';
+import CompareContext from '../context/CompareContext';
 import { Link, useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
@@ -17,6 +18,7 @@ const fallbackImages = {
 
 export default function BestSellersSlider({ products = [] }) {
   const navigate = useNavigate();
+  const { addToCompare, isComparing } = useContext(CompareContext);
   const sliderRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -168,6 +170,23 @@ export default function BestSellersSlider({ products = [] }) {
                 <div className="absolute top-2.5 right-2.5 z-10">
                   {getRankBadge(index)}
                 </div>
+
+                {/* Compare Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addToCompare(product);
+                  }}
+                  className={`absolute top-2.5 left-2.5 z-10 h-7 w-7 rounded-full flex items-center justify-center transition shadow-md backdrop-blur-sm ${
+                    isComparing(product._id)
+                      ? 'bg-amber-400 text-burgundy font-black ring-2 ring-amber-300'
+                      : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy'
+                  }`}
+                  title={isComparing(product._id) ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل 🪞'}
+                >
+                  <span className="text-xs">{isComparing(product._id) ? '✓' : '🪞'}</span>
+                </button>
 
                 {/* Discount Badge */}
                 {isDiscountActive(product) && (

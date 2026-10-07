@@ -18,6 +18,9 @@ import Logo from './components/Logo';
 import useRevealOnScroll from './hooks/useRevealOnScroll';
 import SocialProofPopup from './components/SocialProofPopup';
 import WhatsAppWidget from './components/WhatsAppWidget';
+import { CompareProvider } from './context/CompareContext';
+import OutfitComparisonBar from './components/OutfitComparisonBar';
+import OutfitComparisonModal from './components/OutfitComparisonModal';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';

@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import CartContext from '../context/CartContext';
+import CompareContext from '../context/CompareContext';
 import LazyImage from '../components/LazyImage';
 import sampleProducts from '../data/sampleProducts';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
@@ -10,7 +11,9 @@ import QuickOrderModal from '../components/QuickOrderModal';
 function ProductDetailsPage() {
  const { id } = useParams();
  const { addItem } = useContext(CartContext);
+ const { addToCompare, isComparing } = useContext(CompareContext);
  const [product, setProduct] = useState(null);
+ const isItemComparing = isComparing(product?._id);
  const [error, setError] = useState('');
  const [selectedSize, setSelectedSize] = useState('');
  const [selectedColor, setSelectedColor] = useState('');
@@ -271,6 +274,19 @@ function ProductDetailsPage() {
    <span>{product.stock === 0 ? 'غير متوفر' : added ? 'تمت الإضافة للسلة' : 'أضف للسلة'}</span>
   </button>
  </div>
+
+  <button
+   type="button"
+   onClick={() => addToCompare(product)}
+   className={`w-full rounded-xl sm:rounded-2xl py-3 px-4 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border transition ${
+    isItemComparing
+     ? 'bg-amber-50 border-amber-400 text-burgundy font-black shadow-sm'
+     : 'bg-white hover:bg-beige/20 border-burgundy/15 text-burgundy/80 hover:text-burgundy'
+   }`}
+  >
+   <span className="text-base">{isItemComparing ? '✓' : '🪞'}</span>
+   <span>{isItemComparing ? 'تمت إضافة هذا الموديل للمقارنة (اضغطي للمشاهدة)' : 'مقارنة هذا الموديل مع موديل آخر جنباً إلى جنب'}</span>
+  </button>
  </div>
  </div>
  </div>
@@ -369,7 +385,20 @@ function ProductDetailsPage() {
     </div>
 
     <div className="flex items-center gap-2 flex-1 justify-end max-w-[240px]">
-      <button
+            <button
+        type="button"
+        onClick={() => addToCompare(product)}
+        className={`h-11 px-3 rounded-xl border flex items-center justify-center transition shrink-0 ${
+          isItemComparing
+            ? 'bg-amber-400 text-burgundy border-amber-500 font-bold'
+            : 'bg-[#FAF5F2] text-burgundy border-burgundy/20'
+        }`}
+        title="مقارنة هذا الموديل"
+      >
+        <span className="text-sm">{isItemComparing ? '✓' : '🪞'}</span>
+      </button>
+
+<button
         type="button"
         onClick={handleAddToCart}
         disabled={product.stock === 0}

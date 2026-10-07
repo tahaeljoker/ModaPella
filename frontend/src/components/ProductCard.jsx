@@ -1,6 +1,8 @@
+import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
+import CompareContext from '../context/CompareContext';
 
 
 const fallbackImages = {
@@ -17,6 +19,8 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 function ProductCard({ product }) {
  const navigate = useNavigate();
+ const { addToCompare, isComparing } = useContext(CompareContext);
+ const isItemComparing = isComparing(product._id);
  const image = product.images?.[0] || fallbackImages[product.category] || fallbackImages.Blouse;
 
  return (
@@ -25,6 +29,21 @@ function ProductCard({ product }) {
  className="reveal-on-scroll group stagger-item flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/5 bg-white shadow-sm transition-all duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-md"
  >
  <div className="relative overflow-hidden aspect-[4/3]">
+ <button
+  type="button"
+  onClick={(e) => {
+   e.stopPropagation();
+   addToCompare(product);
+  }}
+  className={`absolute top-2 sm:top-4 right-2 sm:right-4 h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md backdrop-blur-sm z-10 ${
+   isItemComparing
+    ? 'bg-amber-400 text-burgundy font-black scale-105 ring-2 ring-amber-300 shadow-amber-900/30'
+    : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy hover:scale-105'
+  }`}
+  title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل 🪞'}
+ >
+  <span className="text-xs sm:text-sm">{isItemComparing ? '✓' : '🪞'}</span>
+ </button>
  <LazyImage
  src={image}
  alt={cleanProductName(product.name)}
