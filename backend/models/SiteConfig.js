@@ -18,6 +18,7 @@ const SiteConfigSchema = new mongoose.Schema({
   announcementBarActive: { type: Boolean, default: true },
   announcementBarLink: { type: String, default: '/shop' },
   announcementBarBg: { type: String, default: 'burgundy' },
+  socialProofActive: { type: Boolean, default: true },
   storeAddress: { type: String, default: 'شارع الإعدادية بنات، بني مزار، المنيا' },
   storePhone: { type: String, default: '01090048832' },
   aboutText: { type: String, default: 'محل أزياء نسائي في قلب بني مزار، بنقدم فيه أحدث الموديلات العصرية بأسعار كويسة.' },

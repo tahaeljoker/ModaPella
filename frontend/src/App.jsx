@@ -16,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 import Logo from './components/Logo';
 import useRevealOnScroll from './hooks/useRevealOnScroll';
+import SocialProofPopup from './components/SocialProofPopup';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -279,6 +280,11 @@ function AppContent() {
  </main>
  
  {!isDashboard && <Footer />}
+
+ {/* Social Proof Live Sales Notification */}
+ {!isDashboard && (
+ <SocialProofPopup active={siteConfig?.socialProofActive !== false} />
+ )}
 
  {/* Floating WhatsApp Button */}
  {!isDashboard && (

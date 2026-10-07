@@ -701,6 +701,29 @@ function AdminSiteSettings() {
  <p className="mt-1 text-[11px] text-burgundy/50">اتركه فارغاً إذا كنت لا ترغب بجعل شريط الإعلان قابلاً للضغط</p>
  </div>
 
+ {/* Social Proof Toggle */}
+ <div className="pt-4 border-t border-burgundy/10 flex items-center justify-between">
+ <div>
+ <h4 className="text-sm font-bold text-burgundy flex items-center gap-1.5">
+ <span>🛍️</span> إشعارات الشراء الحي والدليل الاجتماعي (Social Proof Popups)
+ </h4>
+ <p className="text-xs text-burgundy/60 mt-0.5">نافذة صغيرة أنيقة تظهر أسفل الشاشة للزوار لإشعارهم بالطلبات المؤكدة لزيادة الثقة والمبيعات</p>
+ </div>
+ <button
+ type="button"
+ onClick={() => setConfig({ ...config, socialProofActive: config.socialProofActive === false ? true : false })}
+ className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer ${
+ config.socialProofActive !== false ? 'bg-emerald-600' : 'bg-gray-300'
+ }`}
+ >
+ <span
+ className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+ config.socialProofActive !== false ? 'translate-x-1' : 'translate-x-6'
+ }`}
+ />
+ </button>
+ </div>
+
  {/* Save Button */}
  <div className="pt-4 border-t border-burgundy/10 flex justify-end">
  <button
