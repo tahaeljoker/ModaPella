@@ -63,14 +63,25 @@ export default function AdminOnlineCatalog({ onToast }) {
     }
   };
 
+  const [imageFilter, setImageFilter] = useState('all'); // 'all' | 'missing' | 'ready'
+
   const filtered = products.filter(p => {
     const q = search.toLowerCase();
     const nameMatch = (p.name || '').toLowerCase().includes(q);
     const onlineNameMatch = (p.onlineName || '').toLowerCase().includes(q);
     const skuMatch = (p.sku || '').toLowerCase().includes(q);
     const catMatch = (p.category || '').toLowerCase().includes(q);
-    return nameMatch || onlineNameMatch || skuMatch || catMatch;
+    const matchesSearch = nameMatch || onlineNameMatch || skuMatch || catMatch;
+    if (!matchesSearch) return false;
+
+    const hasImages = p.images && p.images.length > 0;
+    if (imageFilter === 'missing') return !hasImages;
+    if (imageFilter === 'ready') return hasImages;
+    return true;
   });
+
+  const missingCount = products.filter(p => !p.images || p.images.length === 0).length;
+  const readyCount = products.filter(p => p.images && p.images.length > 0).length;
 
   return (
     <div className="space-y-6">
@@ -84,14 +95,58 @@ export default function AdminOnlineCatalog({ onToast }) {
           </p>
         </div>
 
-        <div className="w-full sm:w-72">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث بالاسم، الكود، أو الفئة..."
-            className="w-full rounded-full border border-burgundy/20 bg-white px-4 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-          />
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Quick Filters */}
+          <div className="flex bg-burgundy/5 p-1 rounded-full border border-burgundy/10 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setImageFilter('all')}
+              className={`px-3 py-1.5 rounded-full transition ${
+                imageFilter === 'all'
+                  ? 'bg-burgundy text-white shadow-sm'
+                  : 'text-burgundy/70 hover:text-burgundy'
+              }`}
+            >
+              الكل ({products.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageFilter('missing')}
+              className={`px-3 py-1.5 rounded-full transition flex items-center gap-1.5 ${
+                imageFilter === 'missing'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-amber-800 hover:text-amber-950'
+              }`}
+            >
+              <span>بانتظار الصور</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                imageFilter === 'missing' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900 font-bold'
+              }`}>
+                {missingCount}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageFilter('ready')}
+              className={`px-3 py-1.5 rounded-full transition ${
+                imageFilter === 'ready'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-emerald-800 hover:text-emerald-950'
+              }`}
+            >
+              جاهزة بصور ({readyCount})
+            </button>
+          </div>
+
+          <div className="w-full sm:w-64">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث بالاسم، الكود، أو الفئة..."
+              className="w-full rounded-full border border-burgundy/20 bg-white px-4 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
+            />
+          </div>
         </div>
       </div>
 
@@ -99,7 +154,7 @@ export default function AdminOnlineCatalog({ onToast }) {
         {/* Products List (Left side) */}
         <div className="lg:col-span-5 rounded-[2rem] border border-burgundy/10 bg-white p-4 shadow-sm space-y-3 max-h-[750px] overflow-y-auto">
           <div className="flex justify-between items-center px-2 pb-2 border-b border-burgundy/5 text-xs text-burgundy/60">
-            <span>المنتجات ({filtered.length})</span>
+            <span>المنتجات المعروضة ({filtered.length})</span>
             <span>اضغط لاختيار منتج</span>
           </div>
 

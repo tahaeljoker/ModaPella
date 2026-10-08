@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import CompareContext from '../context/CompareContext';
+import { extractProductColors, getColorHex } from '../utils/colorSwatches';
 
 
 const fallbackImages = {
@@ -88,7 +89,28 @@ function ProductCard({ product }) {
  </div>
  <div className="flex flex-col justify-between p-3 sm:p-4 text-burgundy space-y-1.5">
  <div>
- <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.2em] text-burgundy/50">{product.category}</p>
+ <div className="flex items-center justify-between gap-1">
+  <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.2em] text-burgundy/50">{product.category}</p>
+  {(() => {
+    const colors = extractProductColors(product);
+    if (colors.length <= 1) return null;
+    return (
+      <div className="flex items-center gap-1">
+        {colors.slice(0, 4).map((c, i) => (
+          <span
+            key={i}
+            className="w-2.5 h-2.5 rounded-full border border-black/15 shadow-xs inline-block transition-transform hover:scale-125"
+            style={{ backgroundColor: getColorHex(c) }}
+            title={c}
+          />
+        ))}
+        {colors.length > 4 && (
+          <span className="text-[8px] text-burgundy/50 font-mono font-bold">+{colors.length - 4}</span>
+        )}
+      </div>
+    );
+  })()}
+</div>
  <h3 className="text-xs sm:text-sm font-semibold mt-0.5 text-burgundy/90 line-clamp-1">{cleanProductName(product)}</h3>
  </div>
  <div className="flex items-baseline gap-2 pt-1 border-t border-burgundy/5">

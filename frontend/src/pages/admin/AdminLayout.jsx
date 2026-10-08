@@ -1,3 +1,38 @@
+
+// Web Audio API chime generator for incoming online orders (Zero external mp3 files needed)
+const playOrderChime = () => {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    
+    // Note 1: pleasant C5
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(523.25, now);
+    gain1.gain.setValueAtTime(0.15, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.5);
+
+    // Note 2: pleasant G5
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(783.99, now + 0.15);
+    gain2.gain.setValueAtTime(0.15, now + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(now + 0.15);
+    osc2.stop(now + 0.7);
+  } catch (err) {
+    console.debug('Audio context not allowed yet without user interaction', err);
+  }
+};
+import socket from '../../services/socket';
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
@@ -59,6 +94,7 @@ function AdminLayout({ children }) {
  const [firstTimeMsgOpen, setFirstTimeMsgOpen] = useState(true);
  const [selectedNotification, setSelectedNotification] = useState(null);
  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [liveOrderAlert, setLiveOrderAlert] = useState(null);
 
  useEffect(() => {
  fetchNotifications();
@@ -258,7 +294,41 @@ function AdminLayout({ children }) {
  </div>
  </aside>
 
- {/* Main content — offset by sidebar width on large screens */}
+ {/* Floating Live Online Order Alert */}
+      {liveOrderAlert && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-bounce shadow-2xl rounded-2xl bg-burgundy text-white px-6 py-4 flex items-center gap-4 border-2 border-amber-300">
+          <div className="w-10 h-10 rounded-full bg-amber-400 text-burgundy flex items-center justify-center text-lg font-black shrink-0">
+            🔔
+          </div>
+          <div className="text-right">
+            <h4 className="font-bold text-sm text-amber-200">طلب أونلاين جديد الآن!</h4>
+            <p className="text-xs text-white/90">
+              عميل: <strong className="text-white">{liveOrderAlert.customerName || 'عميل أونلاين'}</strong> • بقيمة <strong className="text-amber-200 font-mono">{Number(liveOrderAlert.totalAmount || 0).toLocaleString('en-US')} ج.م</strong>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 mr-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLiveOrderAlert(null);
+                navigate('/admin/site?tab=orders');
+              }}
+              className="bg-amber-400 hover:bg-amber-300 text-burgundy px-3 py-1.5 rounded-xl font-bold text-xs transition shadow"
+            >
+              عرض الطلب
+            </button>
+            <button
+              type="button"
+              onClick={() => setLiveOrderAlert(null)}
+              className="text-white/70 hover:text-white text-xs px-2"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main content — offset by sidebar width on large screens */}
  <main className="flex-1 lg:mr-64 p-4 sm:p-8 w-full min-w-0">
  {/* Mobile Header with Hamburger */}
  <div className="lg:hidden flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-burgundy/10">
