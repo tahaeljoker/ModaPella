@@ -31,6 +31,65 @@ const getSiteConfig = async () => {
   return config;
 };
 
+const parseAnalyticsDateRange = ({ period, from, to }) => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-indexed
+
+  let startDate = null;
+  let endDate = null;
+  let activePeriod = period || (from && to ? 'custom' : 'all');
+  let label = 'كل الفترات';
+
+  if (from && to) {
+    startDate = new Date(from);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(to);
+    endDate.setHours(23, 59, 59, 999);
+    activePeriod = 'custom';
+    label = `من ${from} إلى ${to}`;
+  } else if (period === 'current' || period === 'this_month') {
+    startDate = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0, 0);
+    endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+    activePeriod = 'current';
+    label = `هذا الشهر (${ARABIC_MONTHS[currentMonth - 1]} ${currentYear})`;
+  } else if (period === 'previous' || period === 'last_month') {
+    let targetYear = currentYear;
+    let targetMonth = currentMonth - 1;
+    if (targetMonth < 1) {
+      targetMonth = 12;
+      targetYear -= 1;
+    }
+    startDate = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0);
+    endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+    activePeriod = 'previous';
+    label = `الشهر السابق (${ARABIC_MONTHS[targetMonth - 1]} ${targetYear})`;
+  } else if (period === 'last_7_days') {
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    activePeriod = 'last_7_days';
+    label = 'آخر 7 أيام';
+  } else if (period === 'last_30_days') {
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    activePeriod = 'last_30_days';
+    label = 'آخر 30 يوم';
+  } else {
+    startDate = null;
+    endDate = null;
+    activePeriod = 'all';
+    label = 'كل الفترات';
+  }
+
+  return { startDate, endDate, activePeriod, label };
+};
+
 router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
   try {
     const { period = 'current', from, to } = req.query;
@@ -537,31 +596,68 @@ router.get('/products/:id/analytics', auth, requireRole(['admin', 'cashier', 'ma
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'المنتج غير موجود' });
 
-    // 1. Fetch all orders containing this product
-    const orders = await Order.find({
-      'items.product': product._id,
+    const { startDate, endDate, activePeriod, label } = parseAnalyticsDateRange(req.query);
+
+    // 1. Fetch orders containing this product (within date range if specified)
+    const orderQuery = {
+      $or: [
+        { 'items.product': product._id },
+        { 'items.name': product.name }
+      ],
       status: { $in: ['Completed', 'Returned'] }
-    }).sort({ createdAt: -1 }).lean();
+    };
+    if (startDate && endDate) {
+      orderQuery.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    const orders = await Order.find(orderQuery).sort({ createdAt: -1 }).lean();
+
+    // Lifetime total orders count for context
+    const lifetimeOrdersCount = await Order.countDocuments({
+      $or: [
+        { 'items.product': product._id },
+        { 'items.name': product.name }
+      ],
+      status: { $in: ['Completed', 'Returned'] }
+    });
 
     // 2. Fetch stock history
-    const stockHistory = await StockHistory.find({ product: product._id })
+    const stockHistoryQuery = { product: product._id };
+    if (startDate && endDate) {
+      stockHistoryQuery.createdAt = { $gte: startDate, $lte: endDate };
+    }
+    const stockHistory = await StockHistory.find(stockHistoryQuery)
       .populate('performedBy', 'name')
       .sort({ createdAt: -1 })
       .lean();
+    const lifetimeStockHistoryCount = await StockHistory.countDocuments({ product: product._id });
 
     // 3. Fetch supplier transactions for this product if any
-    const supplierTxs = await SupplierTransaction.find({
-      'items.product': product._id
-    }).populate('supplier', 'name phone').sort({ date: -1 }).lean();
+    const supplierQuery = { 'items.product': product._id };
+    if (startDate && endDate) {
+      supplierQuery.date = { $gte: startDate, $lte: endDate };
+    }
+    const supplierTxs = await SupplierTransaction.find(supplierQuery)
+      .populate('supplier', 'name phone')
+      .sort({ date: -1 })
+      .lean();
 
     // 4. Calculate Sales, Costs & Margins
     let unitsSoldGross = 0;
     let unitsReturned = 0;
     let totalRevenue = 0;
+    let totalCost = 0;
     const ordersSummary = [];
 
+    const defaultCostPrice = Number(product.costPrice || 0);
+    const defaultSellingPrice = Number(product.isDiscountActive ? product.discountPrice : product.price);
+
     orders.forEach(order => {
-      const orderItems = (order.items || []).filter(i => i.product?.toString() === product._id.toString());
+      const orderItems = (order.items || []).filter(i => 
+        (i.product && i.product.toString() === product._id.toString()) ||
+        (!i.product && i.name === product.name)
+      );
+
       orderItems.forEach(item => {
         const qty = Number(item.quantity || 0);
         const retQty = Number(item.returnedQuantity || 0);
@@ -569,7 +665,12 @@ router.get('/products/:id/analytics', auth, requireRole(['admin', 'cashier', 'ma
 
         unitsSoldGross += qty;
         unitsReturned += retQty;
-        totalRevenue += (item.price || product.price || 0) * netQty;
+
+        const itemUnitPrice = Number(item.price ?? defaultSellingPrice);
+        const itemUnitCost = Number((item.costPrice !== undefined && item.costPrice !== null && Number(item.costPrice) > 0) ? item.costPrice : defaultCostPrice);
+
+        totalRevenue += itemUnitPrice * netQty;
+        totalCost += itemUnitCost * netQty;
 
         ordersSummary.push({
           orderId: order._id,
@@ -580,62 +681,91 @@ router.get('/products/:id/analytics', auth, requireRole(['admin', 'cashier', 'ma
           quantity: qty,
           returnedQuantity: retQty,
           netQuantity: netQty,
-          price: item.price || product.price,
+          price: itemUnitPrice,
+          costPrice: itemUnitCost,
+          profit: (itemUnitPrice - itemUnitCost) * netQty,
           status: order.status
         });
       });
     });
 
     const netSold = Math.max(0, unitsSoldGross - unitsReturned);
-    const costPrice = Number(product.costPrice || 0);
-    const sellingPrice = Number(product.isDiscountActive ? product.discountPrice : product.price);
-    const totalCost = netSold * costPrice;
     const grossProfit = Math.round(totalRevenue - totalCost);
     const profitMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 1000) / 10 : 0;
 
     const currentStock = Number(product.stock || 0);
-    const totalReceived = Math.max(Number(product.totalReceived || 0), currentStock + netSold);
-    const sellThroughRate = totalReceived > 0 ? Math.round((netSold / totalReceived) * 1000) / 10 : 0;
+    const totalReceivedLifetime = Math.max(Number(product.totalReceived || 0), currentStock + (product.sold || netSold));
 
-    // Determine product velocity
-    let velocity = {
-      status: 'medium',
-      badge: '⚖️ حركة منتظمة',
-      color: 'amber',
-      label: 'نشاط بيعي مستقر ومقبول'
-    };
+    // Sell through calculation
+    const sellThroughBase = activePeriod === 'all'
+      ? totalReceivedLifetime
+      : Math.max(1, currentStock + netSold);
+    const sellThroughRate = sellThroughBase > 0
+      ? Math.round((netSold / sellThroughBase) * 1000) / 10
+      : 0;
 
-    if (sellThroughRate >= 60 || netSold >= 15) {
+    // Velocity determination with proper empty / dead stock logic
+    let velocity;
+    if (netSold === 0) {
+      if (currentStock === 0) {
+        velocity = {
+          status: 'empty',
+          badge: '📦 نفد المخزون',
+          color: 'slate',
+          label: 'الرصيد 0 ولا توجد مبيعات في هذه الفترة'
+        };
+      } else {
+        velocity = {
+          status: 'dead',
+          badge: '🛑 بضاعة راكدة (Dead Stock)',
+          color: 'rose',
+          label: 'لم تسجل أي حركة بيع في هذه الفترة — يُنصح بعمل عرض ترويجي'
+        };
+      }
+    } else if (sellThroughRate >= 50 || netSold >= 12) {
       velocity = {
         status: 'fast',
         badge: '🚀 سريع البيع (Star Mover)',
         color: 'emerald',
-        label: 'معدل سحب مرتفع وطلب قوي'
+        label: 'معدل سحب مرتفع وطلب قوي خلال الفترة'
       };
-    } else if (sellThroughRate < 25 && currentStock > 0) {
+    } else if (sellThroughRate < 20 && currentStock > 0) {
       velocity = {
-        status: 'dead',
-        badge: '🛑 بضاعة راكدة (Dead Stock)',
-        color: 'rose',
-        label: 'حركة ضعيفة — يُنصح بعمل عرض ترويجي أو خصم'
+        status: 'slow',
+        badge: '⚠️ حركة بطيئة',
+        color: 'amber',
+        label: 'سحب بطيء بالنسبة للمخزون المتاح'
+      };
+    } else {
+      velocity = {
+        status: 'medium',
+        badge: '⚖️ حركة منتظمة',
+        color: 'blue',
+        label: 'نشاط بيعي مستقر ومقبول'
       };
     }
 
     res.json({
+      periodInfo: {
+        period: activePeriod,
+        label,
+        startDate,
+        endDate
+      },
       product: {
         id: product._id,
         name: product.name,
         category: product.category,
         sku: product.sku,
         price: product.price,
-        effectivePrice: sellingPrice,
-        costPrice: product.costPrice || 0,
+        effectivePrice: defaultSellingPrice,
+        costPrice: defaultCostPrice,
         supplier: product.supplier || '',
         stock: currentStock,
         variants: product.variants || []
       },
       metrics: {
-        totalReceived,
+        totalReceived: totalReceivedLifetime,
         currentStock,
         unitsSoldGross,
         unitsReturned,
@@ -647,9 +777,12 @@ router.get('/products/:id/analytics', auth, requireRole(['admin', 'cashier', 'ma
         sellThroughRate,
         velocity
       },
-      ordersSummary: ordersSummary.slice(0, 15),
+      ordersSummary: ordersSummary.slice(0, 50),
+      totalOrdersCount: ordersSummary.length,
+      lifetimeOrdersCount,
       supplierHistory: supplierTxs,
-      stockHistory: stockHistory.slice(0, 20)
+      stockHistory: stockHistory.slice(0, 30),
+      lifetimeStockHistoryCount
     });
   } catch (error) {
     res.status(500).json({ message: 'تعذر جلب تقرير نشاط الصنف', error: error.message });
@@ -659,8 +792,15 @@ router.get('/products/:id/analytics', auth, requireRole(['admin', 'cashier', 'ma
 // GET /api/admin/products-performance-summary — Overview of top profit makers & dead stocks
 router.get('/products-performance-summary', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const products = await Product.find({ active: true }).lean();
-    const orders = await Order.find({ status: { $in: ['Completed', 'Returned'] } }).lean();
+    const { startDate, endDate, activePeriod, label } = parseAnalyticsDateRange(req.query);
+
+    const products = await Product.find({ active: { $ne: false } }).lean();
+
+    const orderQuery = { status: { $in: ['Completed', 'Returned'] } };
+    if (startDate && endDate) {
+      orderQuery.createdAt = { $gte: startDate, $lte: endDate };
+    }
+    const orders = await Order.find(orderQuery).lean();
 
     const productSalesMap = {};
     orders.forEach(o => {
@@ -668,22 +808,26 @@ router.get('/products-performance-summary', auth, requireRole(['admin']), async 
         const pId = item.product?.toString();
         if (!pId) return;
         if (!productSalesMap[pId]) {
-          productSalesMap[pId] = { soldQty: 0, returnedQty: 0, revenue: 0 };
+          productSalesMap[pId] = { soldQty: 0, returnedQty: 0, revenue: 0, cost: 0 };
         }
-        const netQty = Math.max(0, (item.quantity || 0) - (item.returnedQuantity || 0));
-        productSalesMap[pId].soldQty += (item.quantity || 0);
-        productSalesMap[pId].returnedQty += (item.returnedQuantity || 0);
+        const qty = Number(item.quantity || 0);
+        const retQty = Number(item.returnedQuantity || 0);
+        const netQty = Math.max(0, qty - retQty);
+
+        productSalesMap[pId].soldQty += qty;
+        productSalesMap[pId].returnedQty += retQty;
         productSalesMap[pId].revenue += netQty * (item.price || 0);
+        productSalesMap[pId].cost += netQty * (item.costPrice || 0);
       });
     });
 
     const enriched = products.map(p => {
       const pId = p._id.toString();
-      const sData = productSalesMap[pId] || { soldQty: 0, returnedQty: 0, revenue: 0 };
+      const sData = productSalesMap[pId] || { soldQty: 0, returnedQty: 0, revenue: 0, cost: 0 };
       const netSold = Math.max(0, sData.soldQty - sData.returnedQty);
-      const totalCost = netSold * (p.costPrice || 0);
+      const totalCost = sData.cost > 0 ? sData.cost : netSold * (p.costPrice || 0);
       const grossProfit = Math.round(sData.revenue - totalCost);
-      const totalRec = Math.max(p.totalReceived || 0, (p.stock || 0) + netSold);
+      const totalRec = Math.max(p.totalReceived || 0, (p.stock || 0) + (p.sold || netSold));
       const sellThrough = totalRec > 0 ? Math.round((netSold / totalRec) * 1000) / 10 : 0;
 
       return {
@@ -698,15 +842,33 @@ router.get('/products-performance-summary', auth, requireRole(['admin']), async 
         totalRevenue: Math.round(sData.revenue),
         grossProfit,
         sellThrough,
-        isDead: p.stock > 0 && sellThrough < 20
+        isDead: p.stock > 0 && (sellThrough < 20 || netSold === 0)
       };
     });
 
-    const topProfitProducts = [...enriched].sort((a, b) => b.grossProfit - a.grossProfit).slice(0, 5);
-    const fastMovers = [...enriched].filter(p => p.netSold > 0).sort((a, b) => b.sellThrough - a.sellThrough).slice(0, 5);
-    const deadStockAlert = [...enriched].filter(p => p.isDead).sort((a, b) => b.stock - a.stock).slice(0, 5);
+    // Only return products with ACTUAL sales and profit in topProfitProducts (prevents zeroed-out display)
+    const topProfitProducts = [...enriched]
+      .filter(p => p.netSold > 0 && p.grossProfit > 0)
+      .sort((a, b) => b.grossProfit - a.grossProfit)
+      .slice(0, 5);
 
-    res.json({ topProfitProducts, fastMovers, deadStockAlert });
+    const fastMovers = [...enriched]
+      .filter(p => p.netSold > 0)
+      .sort((a, b) => b.sellThrough - a.sellThrough)
+      .slice(0, 5);
+
+    const deadStockAlert = [...enriched]
+      .filter(p => p.isDead)
+      .sort((a, b) => b.stock - a.stock)
+      .slice(0, 5);
+
+    res.json({ 
+      periodInfo: { period: activePeriod, label, startDate, endDate },
+      topProfitProducts, 
+      fastMovers, 
+      deadStockAlert,
+      totalOrdersCount: orders.length
+    });
   } catch (error) {
     res.status(500).json({ message: 'تعذر جلب ملخص أداء الأصناف', error: error.message });
   }
@@ -749,12 +911,11 @@ router.get('/categories/analytics', auth, async (req, res) => {
     const productMap = {};
     products.forEach(p => { productMap[p._id.toString()] = p; });
 
+    const { startDate, endDate, activePeriod, label } = parseAnalyticsDateRange(req.query);
+
     const orderQuery = { status: { $in: ['Completed', 'Returned'] } };
-    if (from && to) {
-      orderQuery.createdAt = {
-        $gte: new Date(from),
-        $lte: new Date(new Date(to).setHours(23, 59, 59, 999))
-      };
+    if (startDate && endDate) {
+      orderQuery.createdAt = { $gte: startDate, $lte: endDate };
     }
     const orders = await Order.find(orderQuery).sort({ createdAt: -1 }).lean();
 
@@ -921,6 +1082,7 @@ router.get('/categories/analytics', auth, async (req, res) => {
 
         return {
           id: p._id,
+          _id: p._id,
           name: p.name,
           sku: p.sku || '',
           price: p.price,
@@ -972,6 +1134,7 @@ router.get('/categories/analytics', auth, async (req, res) => {
 
     const allProductsSummary = products.map(p => ({
       id: p._id,
+      _id: p._id,
       name: p.name,
       sku: p.sku || '',
       category: p.category,
@@ -1005,6 +1168,7 @@ router.get('/categories/analytics', auth, async (req, res) => {
 
     // ALWAYS return complete data bundle so the client has storeSummary + categories list + allProducts + target category
     res.json({
+      periodInfo: { period: activePeriod, label, startDate, endDate },
       storeSummary,
       categories: categoriesData,
       selectedCategory: selected || null,

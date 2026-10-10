@@ -210,7 +210,7 @@ function AdminOverview() {
  api.get(`/admin/overview${queryStr}`),
  api.get(`/orders/summary${queryStr}`),
  api.get(`/orders/weekly${queryStr}`),
- api.get('/admin/products-performance-summary')
+        api.get(`/admin/products-performance-summary${queryStr}`)
  ]);
  if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data);
  if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
@@ -232,7 +232,7 @@ function AdminOverview() {
  api.get('/admin/site-config'),
  api.get('/orders/weekly'),
  api.get('/cashier/activities'),
- api.get('/admin/products-performance-summary')
+        api.get(`/admin/products-performance-summary?period=${selectedPeriod}`)
  ]);
  if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data);
  if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
@@ -1256,11 +1256,11 @@ function AdminOverview() {
  {selectedCategoryAnalytics && (
  <CategoryAnalyticsModal
  initialCategory={selectedCategoryAnalytics}
- onClose={() => setSelectedCategoryAnalytics(null)}
- onSelectProduct={(p) => {
- setSelectedCategoryAnalytics(null);
- setSelectedAnalyticsProduct(p);
- }}
+  onClose={() => setSelectedCategoryAnalytics(null)}
+  onSelectProduct={(p) => {
+    setSelectedCategoryAnalytics(null);
+    setSelectedAnalyticsProduct({ ...p, _id: p?._id || p?.id });
+  }}
  />
  )}
  </div>

@@ -44,6 +44,10 @@ export default function CategoryAnalyticsModal({
   const [localProducts, setLocalProducts] = useState(fallbackProducts || []);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all');
   const [activeTab, setActiveTab] = useState('products'); // 'products' | 'top_slow' | 'variants' | 'orders'
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [showCustomInputs, setShowCustomInputs] = useState(false);
 
   // If fallbackProducts wasn't passed, fetch them once as a safety net
   useEffect(() => {
@@ -122,6 +126,14 @@ export default function CategoryAnalyticsModal({
         };
       });
 
+      const catNetSold = enrichedList.reduce((s, p) => s + p.netSold, 0);
+      const catTotalRec = totalStock + catNetSold;
+      const catRev = enrichedList.reduce((s, p) => s + p.totalRevenue, 0);
+      const catCost = enrichedList.reduce((s, p) => s + (p.netSold * p.costPrice), 0);
+      const catProfit = enrichedList.reduce((s, p) => s + p.grossProfit, 0);
+      const catMargin = catRev > 0 ? Math.round((catProfit / catRev) * 1000) / 10 : 0;
+      const catSellThrough = catTotalRec > 0 ? Math.round((catNetSold / catTotalRec) * 1000) / 10 : 0;
+
       return {
         category: catName,
         labelAr: catAr,
@@ -129,15 +141,15 @@ export default function CategoryAnalyticsModal({
         totalStock,
         stockValueCost: Math.round(stockValueCost),
         stockValueRetail: Math.round(stockValueRetail),
-        unitsSoldGross: enrichedList.reduce((s, p) => s + p.netSold, 0),
+        unitsSoldGross: catNetSold,
         unitsReturned: 0,
-        netSold: enrichedList.reduce((s, p) => s + p.netSold, 0),
-        totalReceived: totalStock + enrichedList.reduce((s, p) => s + p.netSold, 0),
-        sellThroughRate: 0,
-        totalRevenue: enrichedList.reduce((s, p) => s + p.totalRevenue, 0),
-        totalCost: enrichedList.reduce((s, p) => s + (p.netSold * p.costPrice), 0),
-        grossProfit: enrichedList.reduce((s, p) => s + p.grossProfit, 0),
-        profitMargin: 0,
+        netSold: catNetSold,
+        totalReceived: catTotalRec,
+        sellThroughRate: catSellThrough,
+        totalRevenue: catRev,
+        totalCost: catCost,
+        grossProfit: catProfit,
+        profitMargin: catMargin,
         velocity: {
           status: 'normal',
           badge: '⚖️ نشاط منتظم',
@@ -168,6 +180,9 @@ export default function CategoryAnalyticsModal({
       grossProfit: categories.reduce((s, c) => s + c.grossProfit, 0),
       profitMargin: 0
     };
+    storeSummary.profitMargin = storeSummary.totalRevenue > 0
+      ? Math.round((storeSummary.grossProfit / storeSummary.totalRevenue) * 1000) / 10
+      : 0;
 
     const allProducts = prods.map(p => ({
       id: p._id || p.id,
@@ -183,20 +198,25 @@ export default function CategoryAnalyticsModal({
   }, [localProducts, storeCategories, catNamesMap]);
 
   // Fetch from backend
-  const fetchCategoryData = (cat) => {
+  const fetchCategoryData = (cat = selectedCategory, period = selectedPeriod, from = customFrom, to = customTo) => {
     setLoading(true);
     setFetchError(null);
 
-    const url = cat && cat !== 'all'
-      ? `/admin/categories/analytics?category=${encodeURIComponent(cat)}`
-      : '/admin/categories/analytics';
+    const params = new URLSearchParams();
+    if (cat && cat !== 'all') params.append('category', cat);
+    if (period) params.append('period', period);
+    if (period === 'custom' && from && to) {
+      params.append('from', from);
+      params.append('to', to);
+    }
+
+    const url = `/admin/categories/analytics${params.toString() ? `?${params.toString()}` : ''}`;
 
     api.get(url)
       .then(res => {
         if (res.data && (res.data.categories || res.data.storeSummary)) {
           setData(res.data);
         } else {
-          // If response empty, keep fallback
           setData(null);
         }
       })
@@ -208,8 +228,8 @@ export default function CategoryAnalyticsModal({
   };
 
   useEffect(() => {
-    fetchCategoryData(selectedCategory);
-  }, [selectedCategory]);
+    fetchCategoryData(selectedCategory, selectedPeriod, customFrom, customTo);
+  }, [selectedCategory, selectedPeriod]);
 
   // Priority: live backend data > fallback computed from products
   const categoriesList = (data?.categories && data.categories.length > 0)
@@ -308,10 +328,10 @@ export default function CategoryAnalyticsModal({
                   const val = e.target.value;
                   if (val.startsWith('prod_')) {
                     const pId = val.replace('prod_', '');
-                    const prod = allProducts.find(p => String(p.id) === pId);
+                    const prod = allProducts.find(p => String(p.id) === pId || String(p._id) === pId);
                     if (prod && onSelectProduct) {
                       onClose();
-                      onSelectProduct(prod);
+                      onSelectProduct({ ...prod, _id: prod._id || prod.id, id: prod.id || prod._id });
                     }
                   } else {
                     setSelectedCategory(val);
@@ -355,6 +375,71 @@ export default function CategoryAnalyticsModal({
               <span>🔄</span>
               <span>تحديث</span>
             </button>
+          </div>
+
+          {/* Period Filter Selector */}
+          <div className="flex items-center justify-between gap-3 flex-wrap bg-[#F7F2EC] p-3 rounded-2xl border border-burgundy/10">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-bold text-burgundy/60 ml-1">فترة التقرير:</span>
+              {[
+                { id: 'all', label: 'كل الفترات' },
+                { id: 'this_month', label: 'هذا الشهر' },
+                { id: 'last_month', label: 'الشهر السابق' },
+                { id: 'last_30_days', label: 'آخر 30 يوم' },
+                { id: 'last_7_days', label: 'آخر 7 أيام' },
+                { id: 'custom', label: 'مخصص 📅' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    if (opt.id === 'custom') {
+                      setShowCustomInputs(true);
+                      setSelectedPeriod('custom');
+                    } else {
+                      setShowCustomInputs(false);
+                      setSelectedPeriod(opt.id);
+                    }
+                  }}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    selectedPeriod === opt.id
+                      ? 'bg-burgundy text-white shadow-sm'
+                      : 'bg-white text-burgundy/70 hover:bg-burgundy/10 border border-burgundy/10'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {showCustomInputs && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <input 
+                  type="date"
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="text-xs px-2 py-1 rounded-lg border border-burgundy/20 bg-white text-burgundy font-semibold outline-none"
+                />
+                <span className="text-xs text-burgundy/60 font-bold">إلى</span>
+                <input 
+                  type="date"
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="text-xs px-2 py-1 rounded-lg border border-burgundy/20 bg-white text-burgundy font-semibold outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (customFrom && customTo) {
+                      fetchCategoryData(selectedCategory, 'custom', customFrom, customTo);
+                    }
+                  }}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1 rounded-lg transition cursor-pointer"
+                >
+                  تطبيق
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Quick Category Chips */}
@@ -681,14 +766,14 @@ export default function CategoryAnalyticsModal({
                                 </span>
                               </td>
                               <td className="py-3.5 px-4 text-center">
-                                {onSelectProduct && (
-                                  <button
-                                    onClick={() => onSelectProduct(p)}
-                                    className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1 rounded-xl transition cursor-pointer"
-                                  >
-                                    فحص الموديل 🔍
-                                  </button>
-                                )}
+                                  {onSelectProduct && (
+                                    <button
+                                      onClick={() => onSelectProduct({ ...p, _id: p._id || p.id, id: p.id || p._id })}
+                                      className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1 rounded-xl transition cursor-pointer"
+                                    >
+                                      فحص الموديل 🔍
+                                    </button>
+                                  )}
                               </td>
                             </tr>
                           ))
@@ -712,7 +797,12 @@ export default function CategoryAnalyticsModal({
                         <p className="text-xs text-burgundy/50 py-4 text-center">لا توجد مبيعات مسجلة لهذا القسم بعد</p>
                       ) : (
                         currentCategoryData.topProducts.map((p, idx) => (
-                          <div key={p.id} className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-500/10 flex items-center justify-between">
+                          <div 
+                            key={p.id} 
+                            onClick={() => onSelectProduct && onSelectProduct({ ...p, _id: p._id || p.id, id: p.id || p._id })}
+                            className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-500/10 flex items-center justify-between hover:border-emerald-500/30 hover:shadow-xs transition cursor-pointer"
+                            title="اضغط لفحص حركة ونشاط هذا الموديل"
+                          >
                             <div className="flex items-center gap-3">
                               <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
                                 {idx + 1}
@@ -743,7 +833,12 @@ export default function CategoryAnalyticsModal({
                         </p>
                       ) : (
                         currentCategoryData.slowProducts.map(p => (
-                          <div key={p.id} className="p-3 rounded-2xl bg-rose-50/50 border border-rose-500/10 flex items-center justify-between">
+                          <div 
+                            key={p.id} 
+                            onClick={() => onSelectProduct && onSelectProduct({ ...p, _id: p._id || p.id, id: p.id || p._id })}
+                            className="p-3 rounded-2xl bg-rose-50/50 border border-rose-500/10 flex items-center justify-between hover:border-rose-500/30 hover:shadow-xs transition cursor-pointer"
+                            title="اضغط لفحص حركة ونشاط هذا الموديل"
+                          >
                             <div>
                               <p className="font-bold text-burgundy text-sm">{p.name}</p>
                               <p className="text-[11px] text-rose-800/80">

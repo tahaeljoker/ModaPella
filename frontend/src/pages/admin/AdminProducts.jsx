@@ -2309,11 +2309,11 @@ function AdminProducts() {
  {categoryAnalyticsTarget && (
  <CategoryAnalyticsModal
  initialCategory={categoryAnalyticsTarget}
- onClose={() => setCategoryAnalyticsTarget(null)}
- onSelectProduct={(p) => {
- setCategoryAnalyticsTarget(null);
- setAnalyticsProduct(p);
- }}
+  onClose={() => setCategoryAnalyticsTarget(null)}
+  onSelectProduct={(p) => {
+    setCategoryAnalyticsTarget(null);
+    setAnalyticsProduct({ ...p, _id: p?._id || p?.id });
+  }}
  />
  )}
 
