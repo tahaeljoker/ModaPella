@@ -1461,14 +1461,6 @@ const normalizeDigits = (str) => {
  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
  <button
  type="button"
- onClick={() => onShowAnalytics(p)}
- className="text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 px-2.5 py-0.5 rounded-lg flex items-center gap-1 font-bold transition shadow-xs"
- title="عرض أداء الصنف ومبيعاته وهوامش ربحه"
- >
- 📊 نشاط وأداء الصنف
- </button>
- <button
- type="button"
  onClick={() => onShowHistory(p)}
  className="text-[10px] text-burgundy/60 hover:text-burgundy hover:underline flex items-center gap-0.5 font-medium"
  >
@@ -1535,10 +1527,10 @@ const normalizeDigits = (str) => {
  type="button"
  onClick={() => onShowAnalytics(p)}
  className="rounded-xl border border-burgundy/20 hover:border-burgundy bg-burgundy/5 hover:bg-burgundy hover:text-white px-2.5 py-1 text-xs font-bold text-burgundy transition shadow-xs flex items-center gap-1 cursor-pointer"
- title="تتبع حركة ونشاط وأرباح هذا الصنف"
+ title="مشاهدة سريعة لنشاط وأرباح ومبيعات هذا الصنف"
  >
- <span>📊</span>
- <span>نشاط الصنف</span>
+ <span>👁️</span>
+ <span>مشاهدة سريعة</span>
  </button>
  )}
  {p.stock === 0 && (
@@ -1615,7 +1607,7 @@ const normalizeDigits = (str) => {
  onClick={() => { setActiveMenuId(null); onShowAnalytics(p); }}
  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
  >
- 📊 نشاط وأداء الصنف
+ 👁️ مشاهدة سريعة للنشاط
  </button>
  )}
  {p.sku && (
@@ -2028,7 +2020,7 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  onClick={() => { setActiveMenuId(null); onShowAnalytics(p); }}
  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
  >
- 📊 نشاط وتحليل أداء الصنف
+ 👁️ مشاهدة سريعة للنشاط
  </button>
  )}
  {onShowHistory && (
@@ -2205,16 +2197,6 @@ function AdminProducts() {
  <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
  <h2 className="text-2xl font-bold">المنتجات والمخزون</h2>
  </div>
- <div className="flex items-center gap-2.5 flex-wrap">
- <button
- type="button"
- onClick={() => navigate('/admin/products/analytics')}
- className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-burgundy/20 hover:border-burgundy text-burgundy font-bold text-sm shadow-xs hover:shadow transition-all cursor-pointer"
- title="تقرير شامل لتحليل أداء ونشاط أي صنف على صفحة كاملة"
- >
- <span className="text-base">📈</span>
- <span>تتبع نشاط الأصناف والمنتجات</span>
- </button>
  <button
  type="button"
  onClick={() => setCategoryAnalyticsTarget('all')}
@@ -2225,7 +2207,6 @@ function AdminProducts() {
  <span>تتبع نشاط الفئات والأقسام (شميزات، دريسات...)</span>
  <span className="bg-white/20 text-white text-[11px] px-2 py-0.5 rounded-full font-bold">جديد</span>
  </button>
- </div>
  </div>
 
  {/* Tabs */}
@@ -2257,7 +2238,7 @@ function AdminProducts() {
  onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
  onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
  onShowHistory={setHistoryProduct}
- onShowAnalytics={(p) => navigate('/admin/products/' + (p._id || p.id) + '/analytics')}
+ onShowAnalytics={setAnalyticsProduct}
  onOpenCategoryAnalytics={(cat) => setCategoryAnalyticsTarget(cat || 'all')}
  onRestock={setRestockingProduct}
  onRefresh={loadProducts}
@@ -2273,7 +2254,7 @@ function AdminProducts() {
  onRestock={setRestockingProduct}
  onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
  onShowHistory={setHistoryProduct}
- onShowAnalytics={(p) => navigate('/admin/products/' + (p._id || p.id) + '/analytics')}
+ onShowAnalytics={setAnalyticsProduct}
  />
  )}
 
@@ -2325,7 +2306,7 @@ function AdminProducts() {
   onClose={() => setCategoryAnalyticsTarget(null)}
   onSelectProduct={(p) => {
     setCategoryAnalyticsTarget(null);
-    navigate('/admin/products/' + (p?._id || p?.id) + '/analytics');
+    setAnalyticsProduct({ ...p, _id: p?._id || p?.id });
   }}
  />
  )}

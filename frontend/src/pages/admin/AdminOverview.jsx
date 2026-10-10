@@ -992,15 +992,6 @@ function AdminOverview() {
  <div className="flex items-center gap-2">
  <button
  type="button"
- onClick={() => navigate('/admin/products/analytics')}
- className="text-xs font-bold text-burgundy hover:text-white bg-white hover:bg-burgundy px-3.5 py-2 rounded-xl border border-burgundy/20 transition shadow-xs flex items-center gap-1.5 cursor-pointer"
- title="تقرير شامل لتحليل أداء ونشاط أي صنف على صفحة كاملة"
- >
- <span>📈</span>
- <span>تتبع نشاط المنتجات</span>
- </button>
- <button
- type="button"
  onClick={() => setSelectedCategoryAnalytics('all')}
  className="text-xs font-bold text-white bg-gradient-to-r from-burgundy via-[#681E2E] to-[#4A1521] px-4 py-2 rounded-xl transition shadow-sm hover:shadow hover:scale-[1.02] flex items-center gap-1.5 cursor-pointer"
  title="تتبع نشاط وأداء كل قسم وصنف بالكامل (شميزات، دريسات...)"
@@ -1039,7 +1030,7 @@ function AdminOverview() {
  {productPerformance.topProfitProducts.map((item, idx) => (
  <div 
  key={item.id || idx} 
- onClick={() => navigate('/admin/products/' + item.id + '/analytics')}
+ onClick={() => setSelectedAnalyticsProduct({ _id: item.id, name: item.name, sku: item.sku, category: item.category, price: item.price, costPrice: item.costPrice, stock: item.stock })}
  className="flex items-center justify-between rounded-xl bg-white px-3.5 py-2.5 border border-emerald-100 shadow-xs cursor-pointer hover:border-emerald-300 hover:shadow-sm transition"
  title="اضغط لعرض تقرير نشاط الصنف الكامل"
  >
@@ -1095,7 +1086,7 @@ function AdminOverview() {
  {productPerformance.deadStockAlert.map((item, idx) => (
  <div 
  key={item.id || idx}
- onClick={() => navigate('/admin/products/' + item.id + '/analytics')}
+ onClick={() => setSelectedAnalyticsProduct({ _id: item.id, name: item.name, sku: item.sku, category: item.category, price: item.price, costPrice: item.costPrice, stock: item.stock })}
  className="flex items-center justify-between rounded-xl bg-white px-3.5 py-2.5 border border-rose-100 shadow-xs cursor-pointer hover:border-rose-300 hover:shadow-sm transition"
  title="اضغط لعرض تفاصيل الصنف وعمل تصفية"
  >
@@ -1268,7 +1259,7 @@ function AdminOverview() {
   onClose={() => setSelectedCategoryAnalytics(null)}
   onSelectProduct={(p) => {
     setSelectedCategoryAnalytics(null);
-    navigate('/admin/products/' + (p?._id || p?.id) + '/analytics');
+    setSelectedAnalyticsProduct({ ...p, _id: p?._id || p?.id });
   }}
  />
  )}
