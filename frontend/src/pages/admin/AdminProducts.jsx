@@ -2197,16 +2197,6 @@ function AdminProducts() {
  <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
  <h2 className="text-2xl font-bold">المنتجات والمخزون</h2>
  </div>
- <button
- type="button"
- onClick={() => setCategoryAnalyticsTarget('all')}
- className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-burgundy via-[#681E2E] to-[#4A1521] text-white font-bold text-sm shadow-md shadow-burgundy/20 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all self-start sm:self-auto cursor-pointer"
- title="تتبع حركة كل صنف/قسم بالكامل (شميزات، دريسات، بلوزات...)"
- >
- <span className="text-lg">📊</span>
- <span>تتبع نشاط الفئات والأقسام (شميزات، دريسات...)</span>
- <span className="bg-white/20 text-white text-[11px] px-2 py-0.5 rounded-full font-bold">جديد</span>
- </button>
  </div>
 
  {/* Tabs */}
