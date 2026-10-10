@@ -283,7 +283,9 @@ function AppContent() {
  {/* Admin Routes */}
  <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminOverview /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/products" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminProducts /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/products/analytics" element={<ProtectedRoute allowedRoles={['admin', 'manager']}><AdminLayout><AdminProductAnalytics /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/products/:id/analytics" element={<ProtectedRoute allowedRoles={['admin', 'manager']}><AdminLayout><AdminProductAnalytics /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/product-analytics" element={<ProtectedRoute allowedRoles={['admin', 'manager']}><AdminLayout><AdminProductAnalytics /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminOrders /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminCustomers /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/employees" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminEmployees /></AdminLayout></ProtectedRoute>} />

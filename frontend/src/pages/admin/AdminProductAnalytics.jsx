@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../../services/api';
+import CategoryAnalyticsModal from '../../components/CategoryAnalyticsModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -13,14 +14,33 @@ const PERIOD_OPTIONS = [
   { id: 'custom', label: 'تاريخ مخصص 📅' }
 ];
 
+const CAT_AR = {
+  Blazer: 'بليزر',
+  Blouse: 'بلوزة',
+  Chemise: 'شميز',
+  Skirt: 'جيبة',
+  Dress: 'فستان',
+  Pantalon: 'بنطلون',
+  'T-shirt': 'تيشيرت',
+  Bag: 'شنطة',
+  Cardigan: 'كاردن',
+  Suit: 'سوت',
+  Tonic: 'تونيك',
+  Takem: 'طقم'
+};
+
 export default function AdminProductAnalytics() {
-  const { id: productId } = useParams();
+  const { id: routeId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const productId = routeId || searchParams.get('id') || searchParams.get('productId');
+
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(productId));
   const [error, setError] = useState(null);
   const [allProductsList, setAllProductsList] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   // Time Period state
   const [selectedPeriod, setSelectedPeriod] = useState('all');
@@ -29,23 +49,35 @@ export default function AdminProductAnalytics() {
   const [showCustomInputs, setShowCustomInputs] = useState(false);
 
   // Tabs state
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'variants' | 'history' | 'suppliers'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'history' | 'suppliers'
   const [orderSearch, setOrderSearch] = useState('');
 
-  // Fetch all products once for quick product switching dropdown
+  // Hub Search & Filter state (when no product is selected)
+  const [hubSearch, setHubSearch] = useState('');
+  const [hubCategory, setHubCategory] = useState('All');
+  const [hubStockFilter, setHubStockFilter] = useState('all'); // 'all' | 'in_stock' | 'low_stock' | 'out_of_stock'
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
+  // Fetch all products once for quick product switching dropdown & Hub list
   useEffect(() => {
+    setLoadingProducts(true);
     api.get('/products?includeOffSeason=true')
       .then(res => {
         if (Array.isArray(res.data)) {
           setAllProductsList(res.data);
         }
       })
-      .catch(err => console.warn('Could not load products for switcher:', err.message));
+      .catch(err => console.warn('Could not load products for switcher:', err.message))
+      .finally(() => setLoadingProducts(false));
   }, []);
 
   // Fetch product analytics
   const loadAnalytics = useCallback((period = selectedPeriod, from = customFrom, to = customTo) => {
-    if (!productId) return;
+    if (!productId) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -73,7 +105,12 @@ export default function AdminProductAnalytics() {
   }, [productId, selectedPeriod, customFrom, customTo]);
 
   useEffect(() => {
-    loadAnalytics(selectedPeriod, customFrom, customTo);
+    if (productId) {
+      loadAnalytics(selectedPeriod, customFrom, customTo);
+    } else {
+      setLoading(false);
+      setData(null);
+    }
   }, [productId, selectedPeriod]);
 
   const handlePeriodChange = (periodId) => {
@@ -98,10 +135,9 @@ export default function AdminProductAnalytics() {
   const periodInfo = data?.periodInfo;
 
   // Breakdown of Sizes and Colors from ordersSummary
-  const { sizesBreakdown, colorsBreakdown, timelineSales } = useMemo(() => {
+  const { sizesBreakdown, colorsBreakdown } = useMemo(() => {
     const sMap = {};
     const cMap = {};
-    const tMap = {};
 
     (data?.ordersSummary || []).forEach(item => {
       const netQty = Number(item.netQuantity || 0);
@@ -112,18 +148,13 @@ export default function AdminProductAnalytics() {
         if (item.color && item.color !== '-') {
           cMap[item.color] = (cMap[item.color] || 0) + netQty;
         }
-        if (item.date) {
-          const dayKey = new Date(item.date).toLocaleDateString('ar-EG-u-nu-latn', { month: 'short', day: 'numeric' });
-          tMap[dayKey] = (tMap[dayKey] || 0) + netQty;
-        }
       }
     });
 
     const sArr = Object.entries(sMap).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty);
     const cArr = Object.entries(cMap).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty);
-    const tArr = Object.entries(tMap).map(([day, qty]) => ({ day, qty }));
 
-    return { sizesBreakdown: sArr, colorsBreakdown: cArr, timelineSales: tArr };
+    return { sizesBreakdown: sArr, colorsBreakdown: cArr };
   }, [data?.ordersSummary]);
 
   // Filtered orders inside tab
@@ -139,10 +170,294 @@ export default function AdminProductAnalytics() {
     );
   }, [data?.ordersSummary, orderSearch]);
 
+  // Filter products for the Hub (when no productId is selected)
+  const filteredHubProducts = useMemo(() => {
+    return allProductsList.filter(prod => {
+      // Category filter
+      if (hubCategory !== 'All' && prod.category !== hubCategory) {
+        return false;
+      }
+      // Stock filter
+      if (hubStockFilter === 'out_of_stock' && prod.stock > 0) return false;
+      if (hubStockFilter === 'low_stock' && (prod.stock === 0 || prod.stock > 5)) return false;
+      if (hubStockFilter === 'in_stock' && prod.stock <= 0) return false;
+
+      // Search filter
+      if (hubSearch.trim()) {
+        const q = hubSearch.toLowerCase().trim();
+        const matchName = prod.name && prod.name.toLowerCase().includes(q);
+        const matchSku = prod.sku && prod.sku.toLowerCase().includes(q);
+        const matchCat = prod.category && (prod.category.toLowerCase().includes(q) || (CAT_AR[prod.category] || '').includes(q));
+        return matchName || matchSku || matchCat;
+      }
+
+      return true;
+    });
+  }, [allProductsList, hubCategory, hubStockFilter, hubSearch]);
+
+  const uniqueCategories = useMemo(() => {
+    const set = new Set();
+    allProductsList.forEach(item => {
+      if (item.category) set.add(item.category);
+    });
+    return Array.from(set);
+  }, [allProductsList]);
+
   const handlePrint = () => {
     window.print();
   };
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VIEW 1: PRODUCT SELECTION & SEARCH HUB (No product selected yet)
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (!productId) {
+    return (
+      <div className="space-y-6 pb-20" dir="rtl">
+        {/* Top Hero Banner */}
+        <div className="rounded-[2.5rem] bg-gradient-to-r from-burgundy via-[#681E2E] to-[#4A1521] p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 rounded-full bg-white/5 blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold backdrop-blur-xs">
+                <span>📊</span>
+                <span>لوحة تقارير ونشاط الأصناف</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
+                مركز تتبع وتحليل نشاط المنتجات
+              </h1>
+              <p className="text-sm sm:text-base text-white/80 leading-relaxed font-medium">
+                اختر أي صنف أو ابحث عنه لعرض تقرير نشاطه الشامل: المبيعات، هوامش الربح الصافية، المقاسات الأكثر طلباً، وسجل المخزون والتوريدات.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="px-5 py-3 rounded-2xl bg-white text-burgundy font-black text-sm shadow-lg hover:bg-[#FAF6EE] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <span>📈</span>
+                <span>تحليلات الأقسام (شميزات، دريسات...)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/products')}
+                className="px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm backdrop-blur-xs transition flex items-center gap-2 cursor-pointer"
+              >
+                <span>←</span>
+                <span>العودة للمخزن والمنتجات</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Filter & Search Bar */}
+        <div className="bg-white rounded-3xl p-5 border border-burgundy/10 shadow-sm space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 right-3.5 flex items-center text-burgundy/40 text-lg pointer-events-none">
+                🔍
+              </span>
+              <input
+                type="text"
+                placeholder="ابحث باسم الموديل أو كود SKU أو القسم..."
+                value={hubSearch}
+                onChange={e => setHubSearch(e.target.value)}
+                className="w-full text-sm font-bold pr-11 pl-4 py-3 rounded-2xl border border-burgundy/20 bg-[#FAF7F2]/50 text-burgundy placeholder:text-burgundy/40 outline-none focus:border-burgundy focus:bg-white transition"
+              />
+              {hubSearch && (
+                <button
+                  type="button"
+                  onClick={() => setHubSearch('')}
+                  className="absolute inset-y-0 left-3 flex items-center text-xs font-bold text-burgundy/40 hover:text-burgundy"
+                >
+                  مسح
+                </button>
+              )}
+            </div>
+
+            {/* Stock Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-black text-burgundy/70 ml-1">حالة المخزون:</span>
+              {[
+                { id: 'all', label: 'الكل' },
+                { id: 'in_stock', label: 'متوفر بالمخزن' },
+                { id: 'low_stock', label: 'مخزون منخفض (≤ 5)' },
+                { id: 'out_of_stock', label: 'نافد (0)' },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setHubStockFilter(f.id)}
+                  className={`text-xs px-3.5 py-2 rounded-xl font-bold transition cursor-pointer ${
+                    hubStockFilter === f.id
+                      ? 'bg-burgundy text-white shadow-xs'
+                      : 'bg-burgundy/5 text-burgundy/70 hover:bg-burgundy/10'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none border-t border-burgundy/5">
+            <span className="text-xs font-black text-burgundy/70 ml-1 flex-shrink-0">الأقسام:</span>
+            <button
+              type="button"
+              onClick={() => setHubCategory('All')}
+              className={`text-xs px-3.5 py-1.5 rounded-xl font-bold flex-shrink-0 transition cursor-pointer ${
+                hubCategory === 'All'
+                  ? 'bg-burgundy text-white shadow-xs'
+                  : 'bg-burgundy/5 text-burgundy/70 hover:bg-burgundy/10'
+              }`}
+            >
+              كل الأقسام ({allProductsList.length})
+            </button>
+            {uniqueCategories.map(cat => {
+              const count = allProductsList.filter(it => it.category === cat).length;
+              const label = CAT_AR[cat] || cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setHubCategory(cat)}
+                  className={`text-xs px-3.5 py-1.5 rounded-xl font-bold flex-shrink-0 transition cursor-pointer ${
+                    hubCategory === cat
+                      ? 'bg-burgundy text-white shadow-xs'
+                      : 'bg-burgundy/5 text-burgundy/70 hover:bg-burgundy/10'
+                  }`}
+                >
+                  {label} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        {loadingProducts ? (
+          <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 text-burgundy">
+            <div className="w-10 h-10 border-4 border-burgundy/20 border-t-burgundy rounded-full animate-spin" />
+            <p className="text-sm font-bold text-burgundy/70">جارٍ تحميل قائمة المنتجات...</p>
+          </div>
+        ) : filteredHubProducts.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 border border-dashed border-burgundy/20 text-center space-y-3">
+            <span className="text-4xl block">🔍</span>
+            <h3 className="text-base font-bold text-burgundy">لم يتم العثور على أي منتج يطابق خيارات البحث</h3>
+            <p className="text-xs text-burgundy/60">جرب كتابة اسم مختلف أو تغيير فلتر القسم ومستوى المخزون.</p>
+            <button
+              type="button"
+              onClick={() => { setHubSearch(''); setHubCategory('All'); setHubStockFilter('all'); }}
+              className="text-xs font-bold text-burgundy bg-burgundy/10 px-4 py-2 rounded-xl hover:bg-burgundy hover:text-white transition"
+            >
+              إعادة ضبط الفلاتر
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredHubProducts.map(prod => {
+              const img = prod.images && prod.images.length > 0 ? prod.images[0] : null;
+              const catName = CAT_AR[prod.category] || prod.category;
+              const profitPerItem = (prod.effectivePrice || prod.price || 0) - (prod.costPrice || 0);
+
+              return (
+                <div
+                  key={prod._id}
+                  className="rounded-3xl bg-white border border-burgundy/10 shadow-xs hover:shadow-md hover:border-burgundy/30 transition-all duration-200 p-4 flex flex-col justify-between group"
+                >
+                  <div className="space-y-3">
+                    {/* Top image & badges */}
+                    <div className="relative aspect-square rounded-2xl bg-[#F7F0EC] overflow-hidden flex items-center justify-center border border-burgundy/5">
+                      {img ? (
+                        <img
+                          src={img}
+                          alt={prod.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <span className="text-4xl text-burgundy/40">👗</span>
+                      )}
+
+                      {/* Category Badge */}
+                      <span className="absolute top-2.5 right-2.5 text-[11px] font-bold bg-white/90 backdrop-blur-xs text-burgundy px-2.5 py-1 rounded-full shadow-xs">
+                        {catName}
+                      </span>
+
+                      {/* Stock Pill */}
+                      <span className={`absolute bottom-2.5 right-2.5 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs ${
+                        prod.stock === 0
+                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                          : prod.stock <= 5
+                          ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                          : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                      }`}>
+                        {prod.stock === 0 ? 'نفد المخزون' : `${prod.stock} قطعة بالمحل`}
+                      </span>
+                    </div>
+
+                    {/* Product Name & SKU */}
+                    <div>
+                      <h3 className="font-black text-sm text-burgundy line-clamp-1 group-hover:text-burgundy/80 transition" title={prod.name}>
+                        {prod.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-burgundy/60">
+                        {prod.sku && <span className="font-mono bg-burgundy/5 px-2 py-0.5 rounded text-burgundy font-bold">#{prod.sku}</span>}
+                        {prod.supplier && <span className="truncate">مورد: {prod.supplier}</span>}
+                      </div>
+                    </div>
+
+                    {/* Price and Margin */}
+                    <div className="bg-[#FAF7F2] p-2.5 rounded-2xl border border-burgundy/5 flex items-center justify-between text-xs font-mono">
+                      <div>
+                        <span className="text-[10px] text-burgundy/50 block font-sans">سعر البيع</span>
+                        <strong className="text-burgundy font-black">{EGP(prod.effectivePrice || prod.price)}</strong>
+                      </div>
+                      <div className="h-6 w-px bg-burgundy/10" />
+                      <div className="text-left">
+                        <span className="text-[10px] text-emerald-700 block font-sans">مكسب القطعة</span>
+                        <strong className="text-emerald-700 font-black">+{EGP(profitPerItem)}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Open Analytics Button */}
+                  <div className="mt-4 pt-3 border-t border-burgundy/5">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/products/${prod._id}/analytics`)}
+                      className="w-full py-2.5 rounded-xl bg-burgundy hover:bg-burgundy/90 text-white font-bold text-xs shadow-xs hover:shadow transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>📊</span>
+                      <span>عرض تقرير النشاط والتحليلات</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Category Modal if opened */}
+        {isCategoryModalOpen && (
+          <CategoryAnalyticsModal
+            initialCategory="all"
+            onClose={() => setIsCategoryModalOpen(false)}
+            onSelectProduct={(pr) => {
+              setIsCategoryModalOpen(false);
+              navigate(`/admin/products/${pr._id || pr.id}/analytics`);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VIEW 2: LOADING OR ERROR STATE
+  // ─────────────────────────────────────────────────────────────────────────────
   if (loading && !data) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-burgundy" dir="rtl">
@@ -158,16 +473,27 @@ export default function AdminProductAnalytics() {
         <div className="text-5xl">⚠️</div>
         <h3 className="text-xl font-bold text-burgundy">{error || 'المنتج غير موجود'}</h3>
         <p className="text-sm text-burgundy/60">تأكد من صحة رابط الصنف أو اختر صنفاً آخر من قائمة المنتجات.</p>
-        <button
-          onClick={() => navigate('/admin/products')}
-          className="px-6 py-2.5 bg-burgundy text-white font-bold rounded-xl shadow hover:bg-burgundy/90 transition"
-        >
-          العودة لقائمة المنتجات
-        </button>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => navigate('/admin/products/analytics')}
+            className="px-6 py-2.5 bg-burgundy text-white font-bold rounded-xl shadow hover:bg-burgundy/90 transition"
+          >
+            اختيار صنف آخر من القائمة 🔍
+          </button>
+          <button
+            onClick={() => navigate('/admin/products')}
+            className="px-5 py-2.5 bg-burgundy/10 text-burgundy font-bold rounded-xl hover:bg-burgundy/20 transition"
+          >
+            العودة للمخزن والمنتجات
+          </button>
+        </div>
       </div>
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VIEW 3: FULL COMPREHENSIVE PRODUCT ANALYTICS DASHBOARD
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 pb-16" dir="rtl">
       {/* Top Breadcrumb & Controls (Hidden in Print) */}
@@ -178,7 +504,9 @@ export default function AdminProductAnalytics() {
             <span>›</span>
             <Link to="/admin/products" className="hover:underline">المنتجات والمخزون</Link>
             <span>›</span>
-            <span className="text-burgundy font-bold">تقرير نشاط الموديل</span>
+            <Link to="/admin/products/analytics" className="hover:underline">تتبع نشاط المنتجات</Link>
+            <span>›</span>
+            <span className="text-burgundy font-bold">{p.name}</span>
           </div>
           <h1 className="text-2xl font-black text-burgundy flex items-center gap-2">
             <span>📊</span>
@@ -198,12 +526,23 @@ export default function AdminProductAnalytics() {
                 <option disabled value="">🔄 التبديل لصنف آخر...</option>
                 {allProductsList.map(prod => (
                   <option key={prod._id} value={prod._id}>
-                    {prod.name} {prod.sku ? `(#${prod.sku})` : ''} - [{prod.category}]
+                    {prod.name} {prod.sku ? `(#${prod.sku})` : ''} - [{CAT_AR[prod.category] || prod.category}]
                   </option>
                 ))}
               </select>
             </div>
           )}
+
+          {/* Browse all products button */}
+          <button
+            type="button"
+            onClick={() => navigate('/admin/products/analytics')}
+            className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-burgundy/5 text-burgundy border border-burgundy/20 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            title="تصفح قائمة كل الأصناف"
+          >
+            <span>🔍</span>
+            <span>اختيار صنف آخر</span>
+          </button>
 
           {/* Action Buttons */}
           <button
@@ -222,7 +561,7 @@ export default function AdminProductAnalytics() {
             className="px-4 py-2.5 rounded-xl bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
           >
             <span>←</span>
-            <span>العودة للكتالوج</span>
+            <span>العودة للمخزن</span>
           </button>
         </div>
       </div>
@@ -231,7 +570,11 @@ export default function AdminProductAnalytics() {
       <div className="rounded-[2.5rem] bg-gradient-to-r from-white via-[#FDFBF7] to-[#FAF6EE] p-6 sm:p-8 border border-burgundy/15 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-burgundy/10 text-burgundy flex items-center justify-center text-3xl sm:text-4xl shadow-inner flex-shrink-0">
-            🏷️
+            {p.images && p.images.length > 0 ? (
+              <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover rounded-3xl" />
+            ) : (
+              '🏷️'
+            )}
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-3 flex-wrap">
@@ -248,7 +591,7 @@ export default function AdminProductAnalytics() {
               )}
             </div>
             <p className="text-sm text-burgundy/70 flex items-center gap-3 flex-wrap font-medium">
-              <span>القسم: <strong className="text-burgundy">{p.category}</strong></span>
+              <span>القسم: <strong className="text-burgundy">{CAT_AR[p.category] || p.category}</strong></span>
               {p.supplier && <span>· المورد: <strong className="text-burgundy">{p.supplier}</strong></span>}
               <span>· الحالة: <strong className="text-emerald-700">نشط بالكتالوج</strong></span>
             </p>
@@ -428,7 +771,7 @@ export default function AdminProductAnalytics() {
         </div>
       </div>
 
-      {/* Visual Analytics Row: Sizes & Colors Demands + Sales Timeline */}
+      {/* Visual Analytics Row: Sizes & Colors Demands + Variants Table */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Box 1: Sizes & Colors breakdown */}
         <div className="rounded-3xl bg-white p-6 border border-burgundy/10 shadow-sm space-y-5">

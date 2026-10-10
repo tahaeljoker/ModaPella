@@ -1,5 +1,6 @@
 import ImageUploader from '../../components/ImageUploader';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import { Icon } from '../../components/Icon';
@@ -2083,6 +2084,7 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 function AdminProducts() {
+ const navigate = useNavigate();
  const [products, setProducts] = useState([]);
  const [loading, setLoading] = useState(true);
  const [tab, setTab] = useState('catalog'); // 'catalog' | 'inventory'
@@ -2203,6 +2205,16 @@ function AdminProducts() {
  <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
  <h2 className="text-2xl font-bold">المنتجات والمخزون</h2>
  </div>
+ <div className="flex items-center gap-2.5 flex-wrap">
+ <button
+ type="button"
+ onClick={() => navigate('/admin/products/analytics')}
+ className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-burgundy/20 hover:border-burgundy text-burgundy font-bold text-sm shadow-xs hover:shadow transition-all cursor-pointer"
+ title="تقرير شامل لتحليل أداء ونشاط أي صنف على صفحة كاملة"
+ >
+ <span className="text-base">📈</span>
+ <span>تتبع نشاط الأصناف والمنتجات</span>
+ </button>
  <button
  type="button"
  onClick={() => setCategoryAnalyticsTarget('all')}
@@ -2213,6 +2225,7 @@ function AdminProducts() {
  <span>تتبع نشاط الفئات والأقسام (شميزات، دريسات...)</span>
  <span className="bg-white/20 text-white text-[11px] px-2 py-0.5 rounded-full font-bold">جديد</span>
  </button>
+ </div>
  </div>
 
  {/* Tabs */}
@@ -2244,7 +2257,7 @@ function AdminProducts() {
  onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
  onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
  onShowHistory={setHistoryProduct}
- onShowAnalytics={setAnalyticsProduct}
+ onShowAnalytics={(p) => navigate('/admin/products/' + (p._id || p.id) + '/analytics')}
  onOpenCategoryAnalytics={(cat) => setCategoryAnalyticsTarget(cat || 'all')}
  onRestock={setRestockingProduct}
  onRefresh={loadProducts}
@@ -2260,7 +2273,7 @@ function AdminProducts() {
  onRestock={setRestockingProduct}
  onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
  onShowHistory={setHistoryProduct}
- onShowAnalytics={setAnalyticsProduct}
+ onShowAnalytics={(p) => navigate('/admin/products/' + (p._id || p.id) + '/analytics')}
  />
  )}
 
@@ -2312,7 +2325,7 @@ function AdminProducts() {
   onClose={() => setCategoryAnalyticsTarget(null)}
   onSelectProduct={(p) => {
     setCategoryAnalyticsTarget(null);
-    setAnalyticsProduct({ ...p, _id: p?._id || p?.id });
+    navigate('/admin/products/' + (p?._id || p?.id) + '/analytics');
   }}
  />
  )}

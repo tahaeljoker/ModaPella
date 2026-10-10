@@ -68,6 +68,7 @@ const sections = [
     title: 'المخزون والمنتجات',
     items: [
       { to: '/admin/products', label: 'المنتجات والمخزن', icon: 'products' },
+      { to: '/admin/products/analytics', label: 'تتبع نشاط الأصناف والمنتجات 📊', icon: 'reports' },
       { to: '/admin/inventory-count', label: 'جرد ومطابقة المخزون', icon: 'inventory' },
       { to: '/admin/barcodes', label: 'طباعة ملصقات الباركود', icon: 'barcodes' },
     ]
