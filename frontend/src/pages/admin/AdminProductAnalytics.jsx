@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import CategoryAnalyticsModal from '../../components/CategoryAnalyticsModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -36,50 +35,64 @@ export default function AdminProductAnalytics() {
 
   const productId = routeId || searchParams.get('id') || searchParams.get('productId');
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(Boolean(productId));
-  const [error, setError] = useState(null);
-  const [allProductsList, setAllProductsList] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
-
   // Time Period state
   const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [showCustomInputs, setShowCustomInputs] = useState(false);
 
-  // Tabs state
+  // Global Store Analytics Data (Level 1: Statistics & Numbers)
+  const [globalLoading, setGlobalLoading] = useState(true);
+  const [categoriesData, setCategoriesData] = useState([]);
+  const [periodInfo, setPeriodInfo] = useState(null);
+
+  // Table Filters & Sorting for Global Directory
+  const [tableSearch, setTableSearch] = useState('');
+  const [tableCategory, setTableCategory] = useState('All');
+  const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all' | 'top_sellers' | 'dead_stock' | 'in_stock'
+  const [tableSortBy, setTableSortBy] = useState('grossProfit'); // 'grossProfit' | 'netSold' | 'stock' | 'sellThroughRate'
+
+  // Single Product Analytics Data (Level 2: Deep Dive into Selected Product)
+  const [singleData, setSingleData] = useState(null);
+  const [singleLoading, setSingleLoading] = useState(Boolean(productId));
+  const [singleError, setSingleError] = useState(null);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'history' | 'suppliers'
   const [orderSearch, setOrderSearch] = useState('');
 
-  // Hub Search & Filter state (when no product is selected)
-  const [hubSearch, setHubSearch] = useState('');
-  const [hubCategory, setHubCategory] = useState('All');
-  const [hubStockFilter, setHubStockFilter] = useState('all'); // 'all' | 'in_stock' | 'low_stock' | 'out_of_stock'
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  // 1. Fetch Global Store Analytics (Overall Numbers & Statistics)
+  const fetchGlobalAnalytics = useCallback((period = selectedPeriod, from = customFrom, to = customTo) => {
+    setGlobalLoading(true);
+    const params = new URLSearchParams();
+    if (period) params.append('period', period);
+    if (period === 'custom' && from && to) {
+      params.append('from', from);
+      params.append('to', to);
+    }
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-  // Fetch all products once for quick product switching dropdown & Hub list
-  useEffect(() => {
-    setLoadingProducts(true);
-    api.get('/products?includeOffSeason=true')
+    api.get(`/admin/categories/analytics${qs}`)
       .then(res => {
-        if (Array.isArray(res.data)) {
-          setAllProductsList(res.data);
+        if (res.data) {
+          setCategoriesData(res.data.categories || []);
+          setPeriodInfo(res.data.periodInfo || null);
         }
       })
-      .catch(err => console.warn('Could not load products for switcher:', err.message))
-      .finally(() => setLoadingProducts(false));
-  }, []);
+      .catch(err => {
+        console.error('Failed to load global category/product analytics:', err);
+      })
+      .finally(() => setGlobalLoading(false));
+  }, [selectedPeriod, customFrom, customTo]);
 
-  // Fetch product analytics
-  const loadAnalytics = useCallback((period = selectedPeriod, from = customFrom, to = customTo) => {
-    if (!productId) {
-      setLoading(false);
-      setData(null);
+  // 2. Fetch Single Product Analytics (when productId is selected)
+  const fetchSingleProductAnalytics = useCallback((pId = productId, period = selectedPeriod, from = customFrom, to = customTo) => {
+    if (!pId) {
+      setSingleData(null);
+      setSingleLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
+
+    setSingleLoading(true);
+    setSingleError(null);
 
     const params = new URLSearchParams();
     if (period) params.append('period', period);
@@ -89,27 +102,32 @@ export default function AdminProductAnalytics() {
     }
     const qs = params.toString() ? `?${params.toString()}` : '';
 
-    api.get(`/admin/products/${productId}/analytics${qs}`)
+    api.get(`/admin/products/${pId}/analytics${qs}`)
       .then(res => {
         if (res.data) {
-          setData(res.data);
+          setSingleData(res.data);
         } else {
-          setError('لم يتم العثور على بيانات نشاط لهذا الصنف.');
+          setSingleError('لم يتم العثور على تقرير نشاط لهذا الصنف.');
         }
       })
       .catch(err => {
-        console.error('Failed to load product analytics:', err);
-        setError('تعذر جلب تقرير نشاط المنتج من الخادم.');
+        console.error('Failed to load single product analytics:', err);
+        setSingleError('تعذر جلب تفاصيل نشاط الصنف.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => setSingleLoading(false));
   }, [productId, selectedPeriod, customFrom, customTo]);
+
+  // Initial & period-change effects
+  useEffect(() => {
+    fetchGlobalAnalytics(selectedPeriod, customFrom, customTo);
+  }, [selectedPeriod]);
 
   useEffect(() => {
     if (productId) {
-      loadAnalytics(selectedPeriod, customFrom, customTo);
+      fetchSingleProductAnalytics(productId, selectedPeriod, customFrom, customTo);
     } else {
-      setLoading(false);
-      setData(null);
+      setSingleData(null);
+      setSingleLoading(false);
     }
   }, [productId, selectedPeriod]);
 
@@ -120,26 +138,161 @@ export default function AdminProductAnalytics() {
     } else {
       setShowCustomInputs(false);
       setSelectedPeriod(periodId);
-      loadAnalytics(periodId);
     }
   };
 
   const handleApplyCustom = (e) => {
     e.preventDefault();
     if (!customFrom || !customTo) return;
-    loadAnalytics('custom', customFrom, customTo);
+    fetchGlobalAnalytics('custom', customFrom, customTo);
+    if (productId) {
+      fetchSingleProductAnalytics(productId, 'custom', customFrom, customTo);
+    }
   };
 
-  const p = data?.product;
-  const m = data?.metrics;
-  const periodInfo = data?.periodInfo;
+  // Flatten and enrich all products list from categories data
+  const allProducts = useMemo(() => {
+    const list = [];
+    (categoriesData || []).forEach(cat => {
+      (cat.productsList || []).forEach(prod => {
+        list.push({
+          ...prod,
+          category: cat.category,
+          categoryAr: CAT_AR[cat.category] || cat.labelAr || cat.category
+        });
+      });
+    });
+    return list;
+  }, [categoriesData]);
 
-  // Breakdown of Sizes and Colors from ordersSummary
-  const { sizesBreakdown, colorsBreakdown } = useMemo(() => {
+  // Calculate Global Storewide KPIs
+  const globalSummary = useMemo(() => {
+    let totalStock = 0;
+    let stockValueCost = 0;
+    let stockValueRetail = 0;
+    let netSold = 0;
+    let unitsReturned = 0;
+    let totalRevenue = 0;
+    let totalCost = 0;
+    let grossProfit = 0;
+
+    (categoriesData || []).forEach(c => {
+      totalStock += Number(c.totalStock || 0);
+      stockValueCost += Number(c.stockValueCost || 0);
+      stockValueRetail += Number(c.stockValueRetail || 0);
+      netSold += Number(c.netSold || 0);
+      unitsReturned += Number(c.unitsReturned || 0);
+      totalRevenue += Number(c.totalRevenue || 0);
+      totalCost += Number(c.totalCost || 0);
+      grossProfit += Number(c.grossProfit || 0);
+    });
+
+    const profitMargin = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 1000) / 10 : 0;
+    const totalReceived = totalStock + netSold;
+    const overallSellThrough = totalReceived > 0 ? Math.round((netSold / totalReceived) * 1000) / 10 : 0;
+
+    // Top Profit Products
+    const topProfit = [...allProducts]
+      .filter(p => p.netSold > 0 && p.grossProfit > 0)
+      .sort((a, b) => b.grossProfit - a.grossProfit)
+      .slice(0, 5);
+
+    // Top Selling Products (by quantity)
+    const topSold = [...allProducts]
+      .filter(p => p.netSold > 0)
+      .sort((a, b) => b.netSold - a.netSold)
+      .slice(0, 5);
+
+    // Dead Stock Alerts (has stock but low or zero sell through)
+    const deadStock = [...allProducts]
+      .filter(p => p.isDead || (p.stock > 0 && p.netSold === 0))
+      .sort((a, b) => b.stock - a.stock)
+      .slice(0, 5);
+
+    return {
+      totalProducts: allProducts.length,
+      totalStock,
+      stockValueCost: Math.round(stockValueCost),
+      stockValueRetail: Math.round(stockValueRetail),
+      netSold,
+      unitsReturned,
+      totalRevenue: Math.round(totalRevenue),
+      totalCost: Math.round(totalCost),
+      grossProfit: Math.round(grossProfit),
+      profitMargin,
+      overallSellThrough,
+      topProfit,
+      topSold,
+      deadStock
+    };
+  }, [categoriesData, allProducts]);
+
+  // Filter & Sort table of products
+  const filteredTableProducts = useMemo(() => {
+    let prods = [...allProducts];
+
+    // Filter by category
+    if (tableCategory !== 'All') {
+      prods = prods.filter(p => p.category === tableCategory);
+    }
+
+    // Filter by status
+    if (tableStatusFilter === 'top_sellers') {
+      prods = prods.filter(p => p.netSold > 0);
+    } else if (tableStatusFilter === 'dead_stock') {
+      prods = prods.filter(p => p.isDead || (p.stock > 0 && p.netSold === 0));
+    } else if (tableStatusFilter === 'in_stock') {
+      prods = prods.filter(p => p.stock > 0);
+    }
+
+    // Search query
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      prods = prods.filter(p =>
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.sku && p.sku.toLowerCase().includes(q)) ||
+        (p.category && p.category.toLowerCase().includes(q)) ||
+        (p.categoryAr && p.categoryAr.includes(q))
+      );
+    }
+
+    // Sort
+    prods.sort((a, b) => {
+      if (tableSortBy === 'grossProfit') return (b.grossProfit || 0) - (a.grossProfit || 0);
+      if (tableSortBy === 'netSold') return (b.netSold || 0) - (a.netSold || 0);
+      if (tableSortBy === 'stock') return (b.stock || 0) - (a.stock || 0);
+      if (tableSortBy === 'sellThroughRate') return (b.sellThroughRate || 0) - (a.sellThroughRate || 0);
+      return 0;
+    });
+
+    return prods;
+  }, [allProducts, tableCategory, tableStatusFilter, tableSearch, tableSortBy]);
+
+  // Unique categories list
+  const uniqueCategories = useMemo(() => {
+    const set = new Set();
+    allProducts.forEach(it => {
+      if (it.category) set.add(it.category);
+    });
+    return Array.from(set);
+  }, [allProducts]);
+
+  // Handle print
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Single Product Helpers
+  const p = singleData?.product;
+  const m = singleData?.metrics;
+  const singlePeriodInfo = singleData?.periodInfo;
+
+  // Breakdown of Sizes and Colors for single product
+  const { singleSizesBreakdown, singleColorsBreakdown } = useMemo(() => {
     const sMap = {};
     const cMap = {};
 
-    (data?.ordersSummary || []).forEach(item => {
+    (singleData?.ordersSummary || []).forEach(item => {
       const netQty = Number(item.netQuantity || 0);
       if (netQty > 0) {
         if (item.size && item.size !== '-') {
@@ -154,346 +307,539 @@ export default function AdminProductAnalytics() {
     const sArr = Object.entries(sMap).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty);
     const cArr = Object.entries(cMap).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty);
 
-    return { sizesBreakdown: sArr, colorsBreakdown: cArr };
-  }, [data?.ordersSummary]);
+    return { singleSizesBreakdown: sArr, singleColorsBreakdown: cArr };
+  }, [singleData?.ordersSummary]);
 
-  // Filtered orders inside tab
-  const filteredOrders = useMemo(() => {
-    if (!data?.ordersSummary) return [];
-    if (!orderSearch.trim()) return data.ordersSummary;
+  // Filtered orders for single product tab
+  const singleFilteredOrders = useMemo(() => {
+    if (!singleData?.ordersSummary) return [];
+    if (!orderSearch.trim()) return singleData.ordersSummary;
     const q = orderSearch.toLowerCase();
-    return data.ordersSummary.filter(ord =>
+    return singleData.ordersSummary.filter(ord =>
       (ord.orderId && ord.orderId.toLowerCase().includes(q)) ||
       (ord.customerName && ord.customerName.toLowerCase().includes(q)) ||
       (ord.size && ord.size.toLowerCase().includes(q)) ||
       (ord.color && ord.color.toLowerCase().includes(q))
     );
-  }, [data?.ordersSummary, orderSearch]);
+  }, [singleData?.ordersSummary, orderSearch]);
 
-  // Filter products for the Hub (when no productId is selected)
-  const filteredHubProducts = useMemo(() => {
-    return allProductsList.filter(prod => {
-      // Category filter
-      if (hubCategory !== 'All' && prod.category !== hubCategory) {
-        return false;
-      }
-      // Stock filter
-      if (hubStockFilter === 'out_of_stock' && prod.stock > 0) return false;
-      if (hubStockFilter === 'low_stock' && (prod.stock === 0 || prod.stock > 5)) return false;
-      if (hubStockFilter === 'in_stock' && prod.stock <= 0) return false;
-
-      // Search filter
-      if (hubSearch.trim()) {
-        const q = hubSearch.toLowerCase().trim();
-        const matchName = prod.name && prod.name.toLowerCase().includes(q);
-        const matchSku = prod.sku && prod.sku.toLowerCase().includes(q);
-        const matchCat = prod.category && (prod.category.toLowerCase().includes(q) || (CAT_AR[prod.category] || '').includes(q));
-        return matchName || matchSku || matchCat;
-      }
-
-      return true;
-    });
-  }, [allProductsList, hubCategory, hubStockFilter, hubSearch]);
-
-  const uniqueCategories = useMemo(() => {
-    const set = new Set();
-    allProductsList.forEach(item => {
-      if (item.category) set.add(item.category);
-    });
-    return Array.from(set);
-  }, [allProductsList]);
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // VIEW 1: PRODUCT SELECTION & SEARCH HUB (No product selected yet)
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // VIEW 1: OVERALL STATISTICS & PERFORMANCE HUB (When no product is selected)
+  // ═══════════════════════════════════════════════════════════════════════════════
   if (!productId) {
     return (
       <div className="space-y-6 pb-20" dir="rtl">
-        {/* Top Hero Banner */}
+        {/* Top Header Banner */}
         <div className="rounded-[2.5rem] bg-gradient-to-r from-burgundy via-[#681E2E] to-[#4A1521] p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 rounded-full bg-white/5 blur-2xl pointer-events-none" />
+          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 rounded-full bg-white/5 blur-3xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold backdrop-blur-xs">
                 <span>📊</span>
-                <span>لوحة تقارير ونشاط الأصناف</span>
+                <span>لوحة تقارير وتحليل نشاط المنتجات</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
-                مركز تتبع وتحليل نشاط المنتجات
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight">
+                إحصائيات وأرقام نشاط جميع المنتجات
               </h1>
-              <p className="text-sm sm:text-base text-white/80 leading-relaxed font-medium">
-                اختر أي صنف أو ابحث عنه لعرض تقرير نشاطه الشامل: المبيعات، هوامش الربح الصافية، المقاسات الأكثر طلباً، وسجل المخزون والتوريدات.
+              <p className="text-xs sm:text-sm text-white/80 leading-relaxed font-medium">
+                نظرة شاملة ودقيقة على مبيعات المحل، صافي الأرباح المحققة، وقيمة المخزون الحالي. يمكنك الضغط على أي صنف بالجدول لفحص تقريره الفردي المفصل.
               </p>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
               <button
                 type="button"
-                onClick={() => setIsCategoryModalOpen(true)}
-                className="px-5 py-3 rounded-2xl bg-white text-burgundy font-black text-sm shadow-lg hover:bg-[#FAF6EE] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 cursor-pointer"
+                onClick={handlePrint}
+                className="px-4 py-3 rounded-2xl bg-white text-burgundy font-black text-xs shadow-md hover:bg-[#FAF6EE] transition flex items-center gap-2 cursor-pointer"
               >
-                <span>📈</span>
-                <span>تحليلات الأقسام (شميزات، دريسات...)</span>
+                <span>🖨️</span>
+                <span>طباعة تقرير الإحصائيات</span>
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/admin/products')}
-                className="px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm backdrop-blur-xs transition flex items-center gap-2 cursor-pointer"
+                className="px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-xs transition flex items-center gap-2 cursor-pointer"
               >
                 <span>←</span>
-                <span>العودة للمخزن والمنتجات</span>
+                <span>كتالوج المنتجات والمخزن</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Quick Filter & Search Bar */}
-        <div className="bg-white rounded-3xl p-5 border border-burgundy/10 shadow-sm space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <span className="absolute inset-y-0 right-3.5 flex items-center text-burgundy/40 text-lg pointer-events-none">
-                🔍
-              </span>
-              <input
-                type="text"
-                placeholder="ابحث باسم الموديل أو كود SKU أو القسم..."
-                value={hubSearch}
-                onChange={e => setHubSearch(e.target.value)}
-                className="w-full text-sm font-bold pr-11 pl-4 py-3 rounded-2xl border border-burgundy/20 bg-[#FAF7F2]/50 text-burgundy placeholder:text-burgundy/40 outline-none focus:border-burgundy focus:bg-white transition"
-              />
-              {hubSearch && (
-                <button
-                  type="button"
-                  onClick={() => setHubSearch('')}
-                  className="absolute inset-y-0 left-3 flex items-center text-xs font-bold text-burgundy/40 hover:text-burgundy"
-                >
-                  مسح
-                </button>
-              )}
-            </div>
-
-            {/* Stock Filter Pills */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-black text-burgundy/70 ml-1">حالة المخزون:</span>
-              {[
-                { id: 'all', label: 'الكل' },
-                { id: 'in_stock', label: 'متوفر بالمخزن' },
-                { id: 'low_stock', label: 'مخزون منخفض (≤ 5)' },
-                { id: 'out_of_stock', label: 'نافد (0)' },
-              ].map(f => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setHubStockFilter(f.id)}
-                  className={`text-xs px-3.5 py-2 rounded-xl font-bold transition cursor-pointer ${
-                    hubStockFilter === f.id
-                      ? 'bg-burgundy text-white shadow-xs'
-                      : 'bg-burgundy/5 text-burgundy/70 hover:bg-burgundy/10'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Category Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none border-t border-burgundy/5">
-            <span className="text-xs font-black text-burgundy/70 ml-1 flex-shrink-0">الأقسام:</span>
-            <button
-              type="button"
-              onClick={() => setHubCategory('All')}
-              className={`text-xs px-3.5 py-1.5 rounded-xl font-bold flex-shrink-0 transition cursor-pointer ${
-                hubCategory === 'All'
-                  ? 'bg-burgundy text-white shadow-xs'
-                  : 'bg-burgundy/5 text-burgundy/70 hover:bg-burgundy/10'
-              }`}
-            >
-              كل الأقسام ({allProductsList.length})
-            </button>
-            {uniqueCategories.map(cat => {
-              const count = allProductsList.filter(it => it.category === cat).length;
-              const label = CAT_AR[cat] || cat;
+        {/* Time Period Filter Bar */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-burgundy/10 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-black text-burgundy/70 ml-1">تحديد فترة الإحصائيات:</span>
+            {PERIOD_OPTIONS.map(opt => {
+              const isActive = selectedPeriod === opt.id;
               return (
                 <button
-                  key={cat}
+                  key={opt.id}
                   type="button"
-                  onClick={() => setHubCategory(cat)}
-                  className={`text-xs px-3.5 py-1.5 rounded-xl font-bold flex-shrink-0 transition cursor-pointer ${
-                    hubCategory === cat
-                      ? 'bg-burgundy text-white shadow-xs'
-                      : 'bg-burgundy/5 text-burgundy/70 hover:bg-burgundy/10'
+                  onClick={() => handlePeriodChange(opt.id)}
+                  className={`text-xs px-4 py-2 rounded-xl font-bold transition cursor-pointer ${
+                    isActive
+                      ? 'bg-burgundy text-white shadow-md shadow-burgundy/20'
+                      : 'bg-burgundy/5 hover:bg-burgundy/10 text-burgundy border border-burgundy/10'
                   }`}
                 >
-                  {label} ({count})
+                  {opt.label}
                 </button>
               );
             })}
           </div>
+
+          {/* Custom Date Form */}
+          {showCustomInputs && (
+            <form onSubmit={handleApplyCustom} className="flex items-center gap-2 flex-wrap bg-[#FAF6EE] p-2 rounded-2xl border border-burgundy/15">
+              <span className="text-xs font-bold text-burgundy/70">من:</span>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                className="text-xs px-3 py-1.5 rounded-xl border border-burgundy/20 bg-white text-burgundy font-bold outline-none"
+                required
+              />
+              <span className="text-xs font-bold text-burgundy/70">إلى:</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                className="text-xs px-3 py-1.5 rounded-xl border border-burgundy/20 bg-white text-burgundy font-bold outline-none"
+                required
+              />
+              <button
+                type="submit"
+                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-1.5 rounded-xl transition shadow-xs cursor-pointer"
+              >
+                تطبيق
+              </button>
+            </form>
+          )}
         </div>
 
-        {/* Products Grid */}
-        {loadingProducts ? (
-          <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 text-burgundy">
+        {/* 4 Major Storewide KPI Cards */}
+        {globalLoading ? (
+          <div className="min-h-[25vh] flex flex-col items-center justify-center gap-3 text-burgundy">
             <div className="w-10 h-10 border-4 border-burgundy/20 border-t-burgundy rounded-full animate-spin" />
-            <p className="text-sm font-bold text-burgundy/70">جارٍ تحميل قائمة المنتجات...</p>
-          </div>
-        ) : filteredHubProducts.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 border border-dashed border-burgundy/20 text-center space-y-3">
-            <span className="text-4xl block">🔍</span>
-            <h3 className="text-base font-bold text-burgundy">لم يتم العثور على أي منتج يطابق خيارات البحث</h3>
-            <p className="text-xs text-burgundy/60">جرب كتابة اسم مختلف أو تغيير فلتر القسم ومستوى المخزون.</p>
-            <button
-              type="button"
-              onClick={() => { setHubSearch(''); setHubCategory('All'); setHubStockFilter('all'); }}
-              className="text-xs font-bold text-burgundy bg-burgundy/10 px-4 py-2 rounded-xl hover:bg-burgundy hover:text-white transition"
-            >
-              إعادة ضبط الفلاتر
-            </button>
+            <p className="text-xs font-bold text-burgundy/70">جارٍ تجميع وحساب أرقام وإحصائيات المنتجات...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredHubProducts.map(prod => {
-              const img = prod.images && prod.images.length > 0 ? prod.images[0] : null;
-              const catName = CAT_AR[prod.category] || prod.category;
-              const profitPerItem = (prod.effectivePrice || prod.price || 0) - (prod.costPrice || 0);
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Gross Profit */}
+              <div className="rounded-3xl bg-white p-5 border border-emerald-200/80 shadow-xs hover:shadow-md transition">
+                <span className="text-xs font-bold text-emerald-800 block">صافي أرباح المنتجات بالفترة</span>
+                <p className="text-3xl font-black text-emerald-700 mt-2">
+                  {EGP(globalSummary.grossProfit)}
+                </p>
+                <div className="mt-2 text-xs text-emerald-700 font-bold flex items-center justify-between border-t border-emerald-100 pt-2">
+                  <span>هامش الربح الإجمالي:</span>
+                  <span className="bg-emerald-100 px-2 py-0.5 rounded-full">{globalSummary.profitMargin}%</span>
+                </div>
+              </div>
 
-              return (
-                <div
-                  key={prod._id}
-                  className="rounded-3xl bg-white border border-burgundy/10 shadow-xs hover:shadow-md hover:border-burgundy/30 transition-all duration-200 p-4 flex flex-col justify-between group"
-                >
-                  <div className="space-y-3">
-                    {/* Top image & badges */}
-                    <div className="relative aspect-square rounded-2xl bg-[#F7F0EC] overflow-hidden flex items-center justify-center border border-burgundy/5">
-                      {img ? (
-                        <img
-                          src={img}
-                          alt={prod.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <span className="text-4xl text-burgundy/40">👗</span>
-                      )}
+              {/* Card 2: Total Revenue */}
+              <div className="rounded-3xl bg-white p-5 border border-burgundy/10 shadow-xs hover:shadow-md transition">
+                <span className="text-xs font-bold text-burgundy/60 block">إجمالي مبيعات المنتجات</span>
+                <p className="text-3xl font-black text-burgundy mt-2">
+                  {EGP(globalSummary.totalRevenue)}
+                </p>
+                <div className="mt-2 text-xs text-burgundy/60 flex items-center justify-between border-t border-burgundy/5 pt-2">
+                  <span>تكلفة البضاعة المباعة:</span>
+                  <strong className="font-mono">{EGP(globalSummary.totalCost)}</strong>
+                </div>
+              </div>
 
-                      {/* Category Badge */}
-                      <span className="absolute top-2.5 right-2.5 text-[11px] font-bold bg-white/90 backdrop-blur-xs text-burgundy px-2.5 py-1 rounded-full shadow-xs">
-                        {catName}
-                      </span>
+              {/* Card 3: Net Units Sold */}
+              <div className="rounded-3xl bg-white p-5 border border-burgundy/10 shadow-xs hover:shadow-md transition">
+                <span className="text-xs font-bold text-burgundy/60 block">إجمالي القطع المباعة</span>
+                <p className="text-3xl font-black text-burgundy mt-2">
+                  {globalSummary.netSold} <span className="text-sm font-semibold text-burgundy/40">قطعة</span>
+                </p>
+                <div className="mt-2 text-xs text-burgundy/60 flex items-center justify-between border-t border-burgundy/5 pt-2">
+                  <span>إجمالي المرتجعات:</span>
+                  <strong className="text-rose-600 font-mono">{globalSummary.unitsReturned} قطعة</strong>
+                </div>
+              </div>
 
-                      {/* Stock Pill */}
-                      <span className={`absolute bottom-2.5 right-2.5 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs ${
-                        prod.stock === 0
-                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                          : prod.stock <= 5
-                          ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                          : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                      }`}>
-                        {prod.stock === 0 ? 'نفد المخزون' : `${prod.stock} قطعة بالمحل`}
-                      </span>
-                    </div>
+              {/* Card 4: Inventory Valuation */}
+              <div className="rounded-3xl bg-white p-5 border border-burgundy/10 shadow-xs hover:shadow-md transition">
+                <span className="text-xs font-bold text-burgundy/60 block">المخزون الحالي بالمحل</span>
+                <p className="text-3xl font-black text-burgundy mt-2">
+                  {globalSummary.totalStock} <span className="text-sm font-semibold text-burgundy/40">قطعة</span>
+                </p>
+                <div className="mt-2 text-xs text-burgundy/60 flex items-center justify-between border-t border-burgundy/5 pt-2">
+                  <span>قيمته بالتكلفة:</span>
+                  <strong className="font-mono text-emerald-800">{EGP(globalSummary.stockValueCost)}</strong>
+                </div>
+              </div>
+            </div>
 
-                    {/* Product Name & SKU */}
+            {/* Two Intelligence Columns: Top Performers vs. Dead Stock Alerts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Box 1: Top Profit Makers */}
+              <div className="rounded-3xl bg-white p-6 border border-emerald-200/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🏆</span>
                     <div>
-                      <h3 className="font-black text-sm text-burgundy line-clamp-1 group-hover:text-burgundy/80 transition" title={prod.name}>
-                        {prod.name}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-burgundy/60">
-                        {prod.sku && <span className="font-mono bg-burgundy/5 px-2 py-0.5 rounded text-burgundy font-bold">#{prod.sku}</span>}
-                        {prod.supplier && <span className="truncate">مورد: {prod.supplier}</span>}
-                      </div>
-                    </div>
-
-                    {/* Price and Margin */}
-                    <div className="bg-[#FAF7F2] p-2.5 rounded-2xl border border-burgundy/5 flex items-center justify-between text-xs font-mono">
-                      <div>
-                        <span className="text-[10px] text-burgundy/50 block font-sans">سعر البيع</span>
-                        <strong className="text-burgundy font-black">{EGP(prod.effectivePrice || prod.price)}</strong>
-                      </div>
-                      <div className="h-6 w-px bg-burgundy/10" />
-                      <div className="text-left">
-                        <span className="text-[10px] text-emerald-700 block font-sans">مكسب القطعة</span>
-                        <strong className="text-emerald-700 font-black">+{EGP(profitPerItem)}</strong>
-                      </div>
+                      <h3 className="font-black text-base text-emerald-950">أعلى الأصناف ربحية ومبيعاً</h3>
+                      <p className="text-[11px] text-emerald-800/70 mt-0.5">الموديلات الأكثر مساهمة في أرباح المحل خلال {periodInfo?.label || 'الفترة'}</p>
                     </div>
                   </div>
+                  <span className="text-xs font-bold bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-full">
+                    توب 5
+                  </span>
+                </div>
 
-                  {/* Open Analytics Button */}
-                  <div className="mt-4 pt-3 border-t border-burgundy/5">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/admin/products/${prod._id}/analytics`)}
-                      className="w-full py-2.5 rounded-xl bg-burgundy hover:bg-burgundy/90 text-white font-bold text-xs shadow-xs hover:shadow transition flex items-center justify-center gap-2 cursor-pointer"
+                {globalSummary.topProfit.length === 0 ? (
+                  <p className="text-xs text-center py-8 text-burgundy/40">لم تسجل مبيعات كافية في هذه الفترة بعد.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {globalSummary.topProfit.map((prod, idx) => (
+                      <div
+                        key={prod.id || idx}
+                        className="flex items-center justify-between p-3 rounded-2xl bg-[#F7FAF8] hover:bg-emerald-50 border border-emerald-100/60 transition group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-900 font-black text-xs flex items-center justify-center flex-shrink-0">
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-burgundy truncate">{prod.name}</p>
+                            <p className="text-[10px] text-burgundy/50 mt-0.5">
+                              {prod.sku ? `#${prod.sku} · ` : ''}{prod.categoryAr} · <strong>{prod.netSold} قطعة مباعة</strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-left font-mono flex-shrink-0">
+                          <div>
+                            <span className="text-xs font-black text-emerald-700 block">+{EGP(prod.grossProfit)}</span>
+                            <span className="text-[10px] text-burgundy/50 block font-sans">إيراد: {EGP(prod.totalRevenue)}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/admin/products/${prod.id}/analytics`)}
+                            className="text-[11px] font-bold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-700 hover:text-white px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
+                            title="فحص تقرير هذا الصنف بالتفصيل"
+                          >
+                            فحص الصنف 📊
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Box 2: Dead Stock Alerts */}
+              <div className="rounded-3xl bg-white p-6 border border-rose-200/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-rose-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🛑</span>
+                    <div>
+                      <h3 className="font-black text-base text-rose-950">تنبيهات البضاعة الراكدة</h3>
+                      <p className="text-[11px] text-rose-800/70 mt-0.5">أصناف متوفرة بالمخزن وسرعة تصريفها ضعيفة وتحتاج تصفية</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold bg-rose-100 text-rose-900 px-2.5 py-1 rounded-full">
+                    سيولة محبوسة
+                  </span>
+                </div>
+
+                {globalSummary.deadStock.length === 0 ? (
+                  <p className="text-xs text-center py-8 text-emerald-700 font-bold">حركة المخزون ممتازة ولا توجد أصناف راكدة حالياً 🎉</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {globalSummary.deadStock.map((prod, idx) => (
+                      <div
+                        key={prod.id || idx}
+                        className="flex items-center justify-between p-3 rounded-2xl bg-[#FFF9F9] hover:bg-rose-50 border border-rose-100/60 transition group"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-burgundy truncate">{prod.name}</p>
+                          <p className="text-[10px] text-rose-700 mt-0.5">
+                            {prod.sku ? `#${prod.sku} · ` : ''}{prod.categoryAr} · <strong>سحب {prod.sellThroughRate}% فقط</strong>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-left font-mono flex-shrink-0">
+                          <div>
+                            <span className="text-xs font-black text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-lg block text-center">
+                              {prod.stock} قطعة متبقية
+                            </span>
+                            <span className="text-[10px] text-burgundy/50 block mt-0.5 font-sans">{EGP(prod.price)}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/admin/products/${prod.id}/analytics`)}
+                            className="text-[11px] font-bold bg-white text-rose-800 border border-rose-300 hover:bg-rose-700 hover:text-white px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
+                            title="فحص تقرير هذا الصنف"
+                          >
+                            فحص الصنف 📊
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section 3: Interactive Table of All Products */}
+            <div className="bg-white rounded-3xl border border-burgundy/10 shadow-sm overflow-hidden space-y-4 p-5 sm:p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-burgundy/5 pb-4">
+                <div>
+                  <h3 className="text-lg font-black text-burgundy flex items-center gap-2">
+                    <span>📋</span>
+                    <span>جدول أداء جميع الأصناف والموديلات ({filteredTableProducts.length})</span>
+                  </h3>
+                  <p className="text-xs text-burgundy/60 mt-0.5">
+                    قارن بين أرباح كل موديل ومبيعاته، ثم اضغط على «فحص التقرير التفصيلي» لعرض فواتيره ومقاساته وسجل مخزونه.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Sorting dropdown */}
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-burgundy">
+                    <span>الترتيب حسب:</span>
+                    <select
+                      value={tableSortBy}
+                      onChange={e => setTableSortBy(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl border border-burgundy/20 bg-[#FAF7F2] text-burgundy font-bold text-xs outline-none"
                     >
-                      <span>📊</span>
-                      <span>عرض تقرير النشاط والتحليلات</span>
-                    </button>
+                      <option value="grossProfit">الأعلى تحقيقاً للأرباح 💰</option>
+                      <option value="netSold">الأكثر مبيعاً بالقطع 🛍️</option>
+                      <option value="stock">الأعلى مخزوناً بالمحل 📦</option>
+                      <option value="sellThroughRate">أعلى معدل تصريف %</option>
+                    </select>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
 
-        {/* Category Modal if opened */}
-        {isCategoryModalOpen && (
-          <CategoryAnalyticsModal
-            initialCategory="all"
-            onClose={() => setIsCategoryModalOpen(false)}
-            onSelectProduct={(pr) => {
-              setIsCategoryModalOpen(false);
-              navigate(`/admin/products/${pr._id || pr.id}/analytics`);
-            }}
-          />
+              {/* Filters row: Search + Category + Status */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute inset-y-0 right-3.5 flex items-center text-burgundy/40 text-sm pointer-events-none">
+                    🔍
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="ابحث بالاسم، كود SKU، أو القسم..."
+                    value={tableSearch}
+                    onChange={e => setTableSearch(e.target.value)}
+                    className="w-full text-xs font-bold pr-9 pl-3 py-2.5 rounded-xl border border-burgundy/20 bg-[#FAF7F2]/60 text-burgundy placeholder:text-burgundy/40 outline-none focus:border-burgundy focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Category Filter */}
+                  <select
+                    value={tableCategory}
+                    onChange={e => setTableCategory(e.target.value)}
+                    className="text-xs px-3 py-2 rounded-xl border border-burgundy/20 bg-white text-burgundy font-bold outline-none"
+                  >
+                    <option value="All">كل الأقسام</option>
+                    {uniqueCategories.map(cat => (
+                      <option key={cat} value={cat}>قسم {CAT_AR[cat] || cat}</option>
+                    ))}
+                  </select>
+
+                  {/* Status Pills */}
+                  {[
+                    { id: 'all', label: 'الكل' },
+                    { id: 'top_sellers', label: 'المباع بالفترة' },
+                    { id: 'dead_stock', label: 'الراكد فقط' },
+                    { id: 'in_stock', label: 'متوفر بالمخزن' },
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setTableStatusFilter(f.id)}
+                      className={`text-xs px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                        tableStatusFilter === f.id
+                          ? 'bg-burgundy text-white shadow-xs'
+                          : 'bg-burgundy/5 text-burgundy/70 hover:bg-burgundy/10'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Products Table */}
+              <div className="overflow-x-auto rounded-2xl border border-burgundy/10">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-[#F7F0EC] text-burgundy/80 font-bold border-b border-burgundy/10">
+                    <tr>
+                      <th className="px-4 py-3.5">الصنف</th>
+                      <th className="px-3 py-3.5">القسم</th>
+                      <th className="px-3 py-3.5 text-center">المخزون الحالي</th>
+                      <th className="px-3 py-3.5 text-center">المباع بالفترة</th>
+                      <th className="px-3 py-3.5">سعر البيع</th>
+                      <th className="px-3 py-3.5">سعر التكلفة</th>
+                      <th className="px-3 py-3.5">إجمالي الإيراد</th>
+                      <th className="px-3 py-3.5">صافي الربح المحقق</th>
+                      <th className="px-3 py-3.5 text-center">معدل التصريف</th>
+                      <th className="px-4 py-3.5 text-center">الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-burgundy/5">
+                    {filteredTableProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="py-12 text-center text-xs text-burgundy/50">
+                          لا توجد أصناف مطابقة لخيارات البحث أو الفلترة.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredTableProducts.map(prod => (
+                        <tr key={prod.id} className="hover:bg-burgundy/2 transition">
+                          {/* Name & SKU */}
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-burgundy text-xs">{prod.name}</p>
+                            {prod.sku && (
+                              <span className="font-mono text-[10px] text-burgundy/60 bg-burgundy/5 px-1.5 py-0.5 rounded">
+                                #{prod.sku}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Category */}
+                          <td className="px-3 py-3 text-burgundy/70 font-medium">
+                            {prod.categoryAr}
+                          </td>
+
+                          {/* Stock */}
+                          <td className="px-3 py-3 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              prod.stock === 0
+                                ? 'bg-rose-100 text-rose-800'
+                                : prod.stock <= 5
+                                ? 'bg-amber-100 text-amber-900'
+                                : 'bg-emerald-100 text-emerald-900'
+                            }`}>
+                              {prod.stock} قطعة
+                            </span>
+                          </td>
+
+                          {/* Net Sold */}
+                          <td className="px-3 py-3 text-center font-bold text-burgundy">
+                            {prod.netSold > 0 ? (
+                              <span className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                                {prod.netSold} قطعة
+                              </span>
+                            ) : (
+                              <span className="text-burgundy/40">0</span>
+                            )}
+                          </td>
+
+                          {/* Selling Price */}
+                          <td className="px-3 py-3 font-bold text-burgundy font-mono">
+                            {EGP(prod.price)}
+                          </td>
+
+                          {/* Cost Price */}
+                          <td className="px-3 py-3 text-burgundy/60 font-mono">
+                            {prod.costPrice ? EGP(prod.costPrice) : '—'}
+                          </td>
+
+                          {/* Revenue */}
+                          <td className="px-3 py-3 font-mono font-bold text-burgundy">
+                            {EGP(prod.totalRevenue || 0)}
+                          </td>
+
+                          {/* Gross Profit */}
+                          <td className="px-3 py-3 font-mono">
+                            <span className={`font-black ${
+                              prod.grossProfit > 0 ? 'text-emerald-700' : 'text-burgundy/50'
+                            }`}>
+                              +{EGP(prod.grossProfit || 0)}
+                            </span>
+                            {prod.profitMargin > 0 && (
+                              <span className="text-[10px] text-emerald-600 block">
+                                ({prod.profitMargin}%)
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Sell Through */}
+                          <td className="px-3 py-3 text-center">
+                            <span className={`font-mono text-xs font-bold ${
+                              prod.sellThroughRate >= 40
+                                ? 'text-emerald-700'
+                                : prod.sellThroughRate === 0
+                                ? 'text-burgundy/40'
+                                : 'text-amber-700'
+                            }`}>
+                              {prod.sellThroughRate}%
+                            </span>
+                          </td>
+
+                          {/* Action Button: View Details */}
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/admin/products/${prod.id}/analytics`)}
+                              className="px-3 py-1.5 rounded-xl bg-burgundy hover:bg-burgundy/90 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                              title="عرض تقرير الصنف التفصيلي"
+                            >
+                              <span>📊</span>
+                              <span>تفاصيل الصنف</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // VIEW 2: LOADING OR ERROR STATE
-  // ─────────────────────────────────────────────────────────────────────────────
-  if (loading && !data) {
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // VIEW 2: SINGLE PRODUCT DETAILED REPORT (When a product is selected)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  if (singleLoading && !singleData) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-burgundy" dir="rtl">
         <div className="w-12 h-12 border-4 border-burgundy/20 border-t-burgundy rounded-full animate-spin" />
-        <p className="text-base font-bold text-burgundy/80">جارٍ إعداد وتحليل التقرير الشامل لحركة ونشاط الموديل...</p>
+        <p className="text-base font-bold text-burgundy/80">جارٍ إعداد وتحليل تقرير الصنف التفصيلي...</p>
       </div>
     );
   }
 
-  if (error || !p) {
+  if (singleError || !p) {
     return (
       <div className="p-8 text-center max-w-xl mx-auto space-y-4" dir="rtl">
         <div className="text-5xl">⚠️</div>
-        <h3 className="text-xl font-bold text-burgundy">{error || 'المنتج غير موجود'}</h3>
-        <p className="text-sm text-burgundy/60">تأكد من صحة رابط الصنف أو اختر صنفاً آخر من قائمة المنتجات.</p>
+        <h3 className="text-xl font-bold text-burgundy">{singleError || 'المنتج غير موجود'}</h3>
+        <p className="text-sm text-burgundy/60">تأكد من صحة الصنف أو اختر صنفاً آخر من لوحة الإحصائيات العامة.</p>
         <div className="flex items-center justify-center gap-3 pt-2">
           <button
             onClick={() => navigate('/admin/products/analytics')}
             className="px-6 py-2.5 bg-burgundy text-white font-bold rounded-xl shadow hover:bg-burgundy/90 transition"
           >
-            اختيار صنف آخر من القائمة 🔍
+            ← العودة للإحصائيات والأرقام العامة
           </button>
           <button
             onClick={() => navigate('/admin/products')}
             className="px-5 py-2.5 bg-burgundy/10 text-burgundy font-bold rounded-xl hover:bg-burgundy/20 transition"
           >
-            العودة للمخزن والمنتجات
+            كتالوج المنتجات
           </button>
         </div>
       </div>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // VIEW 3: FULL COMPREHENSIVE PRODUCT ANALYTICS DASHBOARD
-  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 pb-16" dir="rtl">
       {/* Top Breadcrumb & Controls (Hidden in Print) */}
@@ -502,66 +848,55 @@ export default function AdminProductAnalytics() {
           <div className="flex items-center gap-2 text-xs text-burgundy/60 font-semibold mb-1">
             <Link to="/admin" className="hover:underline">الإدارة</Link>
             <span>›</span>
-            <Link to="/admin/products" className="hover:underline">المنتجات والمخزون</Link>
-            <span>›</span>
-            <Link to="/admin/products/analytics" className="hover:underline">تتبع نشاط المنتجات</Link>
+            <Link to="/admin/products/analytics" className="hover:underline">إحصائيات المنتجات</Link>
             <span>›</span>
             <span className="text-burgundy font-bold">{p.name}</span>
           </div>
           <h1 className="text-2xl font-black text-burgundy flex items-center gap-2">
             <span>📊</span>
-            <span>تقرير الأداء الشامل ونشاط الصنف</span>
+            <span>تقرير الأداء الشامل للصنف: {p.name}</span>
           </h1>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Back to Overall Stats button */}
+          <button
+            type="button"
+            onClick={() => navigate('/admin/products/analytics')}
+            className="px-4 py-2.5 rounded-2xl bg-white hover:bg-burgundy/5 text-burgundy border border-burgundy/20 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            title="الرجوع للوحة الأرقام والإحصائيات العامة لجميع الأصناف"
+          >
+            <span>←</span>
+            <span>العودة للإحصائيات والأرقام العامة</span>
+          </button>
+
           {/* Quick Product Switcher */}
-          {allProductsList.length > 0 && (
-            <div className="relative min-w-[220px]">
+          {allProducts.length > 0 && (
+            <div className="relative min-w-[200px]">
               <select
                 value={p.id || productId}
                 onChange={(e) => navigate(`/admin/products/${e.target.value}/analytics`)}
-                className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-burgundy/20 bg-white text-burgundy shadow-xs outline-none focus:border-burgundy cursor-pointer"
+                className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-burgundy/20 bg-white text-burgundy shadow-xs outline-none focus:border-burgundy cursor-pointer"
               >
                 <option disabled value="">🔄 التبديل لصنف آخر...</option>
-                {allProductsList.map(prod => (
-                  <option key={prod._id} value={prod._id}>
-                    {prod.name} {prod.sku ? `(#${prod.sku})` : ''} - [{CAT_AR[prod.category] || prod.category}]
+                {allProducts.map(prod => (
+                  <option key={prod.id} value={prod.id}>
+                    {prod.name} {prod.sku ? `(#${prod.sku})` : ''}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Browse all products button */}
-          <button
-            type="button"
-            onClick={() => navigate('/admin/products/analytics')}
-            className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-burgundy/5 text-burgundy border border-burgundy/20 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-            title="تصفح قائمة كل الأصناف"
-          >
-            <span>🔍</span>
-            <span>اختيار صنف آخر</span>
-          </button>
-
           {/* Action Buttons */}
           <button
             type="button"
             onClick={handlePrint}
-            className="px-4 py-2.5 rounded-xl bg-white hover:bg-burgundy/5 text-burgundy border border-burgundy/20 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-burgundy/5 text-burgundy border border-burgundy/20 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             title="طباعة التقرير أو حفظه بصيغة PDF"
           >
             <span>🖨️</span>
             <span>طباعة التقرير</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/admin/products')}
-            className="px-4 py-2.5 rounded-xl bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>←</span>
-            <span>العودة للمخزن</span>
           </button>
         </div>
       </div>
@@ -584,9 +919,9 @@ export default function AdminProductAnalytics() {
                   كود SKU: #{p.sku}
                 </span>
               )}
-              {periodInfo && (
+              {singlePeriodInfo && (
                 <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full font-bold shadow-xs">
-                  📅 {periodInfo.label}
+                  📅 {singlePeriodInfo.label}
                 </span>
               )}
             </div>
@@ -619,7 +954,7 @@ export default function AdminProductAnalytics() {
         </div>
       </div>
 
-      {/* Time Period Filter Bar (Hidden in Print) */}
+      {/* Time Period Filter Bar */}
       <div className="print:hidden bg-white p-4 sm:p-5 rounded-3xl border border-burgundy/10 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-black text-burgundy/70 ml-1">تحديد فترة التقرير:</span>
@@ -701,26 +1036,7 @@ export default function AdminProductAnalytics() {
         </div>
       </div>
 
-      {/* Notice when 0 sales in selected period */}
-      {m.netSold === 0 && selectedPeriod !== 'all' && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-4 text-xs text-amber-900 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">ℹ️</span>
-            <span>لم تسجل أي حركة بيع لهذا الصنف خلال <strong>{periodInfo?.label || 'هذه الفترة'}</strong>.</span>
-          </div>
-          {data?.lifetimeOrdersCount > 0 && (
-            <button
-              type="button"
-              onClick={() => handlePeriodChange('all')}
-              className="bg-burgundy text-white hover:bg-burgundy/90 px-4 py-2 rounded-xl font-bold transition shadow-xs flex-shrink-0 cursor-pointer"
-            >
-              عرض سجل كل الفترات ({data.lifetimeOrdersCount} فاتورة) ←
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* KPI 4 Cards Grid */}
+      {/* KPI 4 Cards Grid for single product */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Net Sold */}
         <div className="rounded-3xl bg-white p-5 border border-burgundy/10 shadow-sm">
@@ -771,7 +1087,7 @@ export default function AdminProductAnalytics() {
         </div>
       </div>
 
-      {/* Visual Analytics Row: Sizes & Colors Demands + Variants Table */}
+      {/* Visual Analytics Row: Demands + Variants */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Box 1: Sizes & Colors breakdown */}
         <div className="rounded-3xl bg-white p-6 border border-burgundy/10 shadow-sm space-y-5">
@@ -784,11 +1100,11 @@ export default function AdminProductAnalytics() {
             {/* Sizes */}
             <div>
               <h4 className="text-xs font-bold text-burgundy/60 mb-2">توزيع المقاسات المباعة:</h4>
-              {sizesBreakdown.length === 0 ? (
+              {singleSizesBreakdown.length === 0 ? (
                 <p className="text-xs text-burgundy/40 py-4 text-center">لا توجد تفاصيل مقاسات مسجلة بالفترة</p>
               ) : (
                 <div className="space-y-2">
-                  {sizesBreakdown.map((item, idx) => {
+                  {singleSizesBreakdown.map((item, idx) => {
                     const percent = m.netSold > 0 ? Math.round((item.qty / m.netSold) * 100) : 0;
                     return (
                       <div key={idx} className="space-y-1">
@@ -809,11 +1125,11 @@ export default function AdminProductAnalytics() {
             {/* Colors */}
             <div>
               <h4 className="text-xs font-bold text-burgundy/60 mb-2">توزيع الألوان المباعة:</h4>
-              {colorsBreakdown.length === 0 ? (
+              {singleColorsBreakdown.length === 0 ? (
                 <p className="text-xs text-burgundy/40 py-4 text-center">لا توجد تفاصيل ألوان مسجلة بالفترة</p>
               ) : (
                 <div className="space-y-2">
-                  {colorsBreakdown.map((item, idx) => {
+                  {singleColorsBreakdown.map((item, idx) => {
                     const percent = m.netSold > 0 ? Math.round((item.qty / m.netSold) * 100) : 0;
                     return (
                       <div key={idx} className="space-y-1">
@@ -892,7 +1208,7 @@ export default function AdminProductAnalytics() {
                 : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/5'
             }`}
           >
-            📋 فواتير المبيعات المرتبطة ({data?.ordersSummary?.length || 0})
+            📋 فواتير المبيعات المرتبطة ({singleData?.ordersSummary?.length || 0})
           </button>
           <button
             type="button"
@@ -903,9 +1219,9 @@ export default function AdminProductAnalytics() {
                 : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/5'
             }`}
           >
-            📜 سجل حركات المخزون والتوريد ({data?.stockHistory?.length || 0})
+            📜 سجل حركات المخزون والتوريد ({singleData?.stockHistory?.length || 0})
           </button>
-          {data?.supplierHistory?.length > 0 && (
+          {singleData?.supplierHistory?.length > 0 && (
             <button
               type="button"
               onClick={() => setActiveTab('suppliers')}
@@ -915,7 +1231,7 @@ export default function AdminProductAnalytics() {
                   : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/5'
               }`}
             >
-              🚚 فواتير التوريد من الموردين ({data.supplierHistory.length})
+              🚚 فواتير التوريد من الموردين ({singleData.supplierHistory.length})
             </button>
           )}
         </div>
@@ -936,9 +1252,9 @@ export default function AdminProductAnalytics() {
       {/* Tab 1: Orders Table */}
       {activeTab === 'orders' && (
         <div className="bg-white rounded-3xl border border-burgundy/10 shadow-sm overflow-hidden">
-          {filteredOrders.length === 0 ? (
+          {singleFilteredOrders.length === 0 ? (
             <div className="py-16 text-center text-xs text-burgundy/50 space-y-2">
-              <p className="font-bold text-sm">لا توجد فواتير بيع مسجلة لهذا الصنف في {periodInfo?.label || 'الفترة المحددة'}.</p>
+              <p className="font-bold text-sm">لا توجد فواتير بيع مسجلة لهذا الصنف في {singlePeriodInfo?.label || 'الفترة المحددة'}.</p>
               {selectedPeriod !== 'all' && (
                 <p className="text-burgundy/40">اختر "كل الفترات" لعرض الفواتير السابقة للمنتج.</p>
               )}
@@ -960,7 +1276,7 @@ export default function AdminProductAnalytics() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-burgundy/5">
-                  {filteredOrders.map((item, idx) => (
+                  {singleFilteredOrders.map((item, idx) => (
                     <tr key={idx} className="hover:bg-burgundy/2 transition">
                       <td className="px-4 py-3 font-mono font-black text-burgundy">
                         #{item.orderId?.slice(-6).toUpperCase()}
@@ -1006,13 +1322,13 @@ export default function AdminProductAnalytics() {
       {/* Tab 2: Stock History */}
       {activeTab === 'history' && (
         <div className="bg-white rounded-3xl border border-burgundy/10 shadow-sm overflow-hidden">
-          {(data?.stockHistory || []).length === 0 ? (
+          {(singleData?.stockHistory || []).length === 0 ? (
             <div className="py-16 text-center text-xs text-burgundy/50">
-              لا توجد حركات مخزون مسجلة لهذا الصنف في {periodInfo?.label || 'الفترة المحددة'}.
+              لا توجد حركات مخزون مسجلة لهذا الصنف في {singlePeriodInfo?.label || 'الفترة المحددة'}.
             </div>
           ) : (
             <div className="divide-y divide-burgundy/6">
-              {data.stockHistory.map((h, i) => {
+              {singleData.stockHistory.map((h, i) => {
                 const isPlus = h.quantityChanged > 0;
                 return (
                   <div key={i} className="p-4 flex items-center justify-between text-xs hover:bg-burgundy/2 transition">
@@ -1053,13 +1369,13 @@ export default function AdminProductAnalytics() {
       {/* Tab 3: Supplier History */}
       {activeTab === 'suppliers' && (
         <div className="bg-white rounded-3xl border border-burgundy/10 shadow-sm overflow-hidden">
-          {(!data?.supplierHistory || data.supplierHistory.length === 0) ? (
+          {(!singleData?.supplierHistory || singleData.supplierHistory.length === 0) ? (
             <div className="py-16 text-center text-xs text-burgundy/50">
               لا توجد فواتير توريد مسجلة لهذا الصنف.
             </div>
           ) : (
             <div className="divide-y divide-burgundy/6">
-              {data.supplierHistory.map((stx, i) => (
+              {singleData.supplierHistory.map((stx, i) => (
                 <div key={i} className="p-4 flex items-center justify-between text-xs hover:bg-burgundy/2 transition">
                   <div>
                     <p className="font-bold text-burgundy text-sm">فاتورة توريد #{stx.invoiceNumber || stx._id?.slice(-6)}</p>
