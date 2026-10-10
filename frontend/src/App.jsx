@@ -27,6 +27,7 @@ import OutfitComparisonModal from './components/OutfitComparisonModal';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminProducts from './pages/admin/AdminProducts';
+import AdminProductAnalytics from './pages/admin/AdminProductAnalytics';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminSiteSettings from './pages/admin/AdminSiteSettings';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -282,6 +283,7 @@ function AppContent() {
  {/* Admin Routes */}
  <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminOverview /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/products" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminProducts /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/products/:id/analytics" element={<ProtectedRoute allowedRoles={['admin', 'manager']}><AdminLayout><AdminProductAnalytics /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminOrders /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminCustomers /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/employees" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminEmployees /></AdminLayout></ProtectedRoute>} />

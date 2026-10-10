@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -13,6 +14,7 @@ const PERIOD_OPTIONS = [
 ];
 
 export default function ProductAnalyticsModal({ product, onClose, onOpenCategoryAnalytics }) {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'history' | 'suppliers'
@@ -113,6 +115,20 @@ export default function ProductAnalyticsModal({ product, onClose, onOpenCategory
               >
                 <span>📊</span>
                 <span>نشاط قسم {p.category} ←</span>
+              </button>
+            )}
+            {productId && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate(`/admin/products/${productId}/analytics`);
+                }}
+                className="text-xs bg-burgundy/10 hover:bg-burgundy hover:text-white text-burgundy font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                title="فتح التقرير الكامل في صفحة مخصصة مع رسوم بيانية وخيارات الطباعة"
+              >
+                <span>📄</span>
+                <span>صفحة كاملة ↗</span>
               </button>
             )}
             <button 
