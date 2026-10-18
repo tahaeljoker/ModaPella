@@ -34,7 +34,6 @@ function AboutPage() {
   const mapUrl = config?.locationMapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('ModaPella شارع الاعدادية بنات بني مزار المنيا')}`;
 
   const currentUrl = typeof window !== 'undefined' ? (window.location.origin + '/about') : 'https://modapella.com/about';
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=12&color=4A0012&bgcolor=FFFFFF&data=${encodeURIComponent(currentUrl)}`;
 
   const handleCopyLink = () => {
     if (navigator.clipboard) {
@@ -262,142 +261,118 @@ function AboutPage() {
         </div>
       </div>
 
-      {/* ━━━━━━━━━━━━ QR CODE DIGITAL CARD & LOCATION ━━━━━━━━━━━━ */}
-      <div className="grid gap-6 lg:grid-cols-12 items-stretch">
-
-        {/* QR Code Card */}
-        <div className="lg:col-span-5 rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-8 shadow-soft flex flex-col items-center text-center justify-between space-y-6">
-          <div className="space-y-2">
+      {/* ━━━━━━━━━━━━ LOCATION & STORE DETAILS CARD ━━━━━━━━━━━━ */}
+      <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft space-y-8">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-burgundy/8 pb-6">
+          <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-burgundy/10 px-3.5 py-1 text-xs font-bold text-burgundy">
-              <Icon name="qrcode" className="w-4 h-4" />
-              كارت المتجر الذكي
+              <Icon name="location" className="w-4 h-4" />
+              موقع المحل على الخريطة
             </span>
-            <h3 className="text-xl sm:text-2xl font-black text-burgundy">امسحي الكود وتواصلي معنا</h3>
-            <p className="text-xs text-burgundy/70 max-w-xs mx-auto leading-relaxed">
-              افتحي كاميرا الموبايل واعملي سكان للكود عشان يفتحلك كل روابطنا وموقع المحل مباشرة
+            <h3 className="text-2xl sm:text-3xl font-black text-burgundy mt-2">
+              شرفينا في المحل
+            </h3>
+            <p className="text-sm text-burgundy/75 mt-1 leading-relaxed">
+              بنرحب بيكِ في أي وقت لتجربة ومعاينة أحدث الكولكشن على الطبيعة واختيار الأنسب ليكي.
             </p>
           </div>
-
-          {/* QR Container */}
-          <div className="relative p-4 rounded-3xl bg-gradient-to-b from-beige/20 to-white border border-burgundy/10 shadow-inner flex flex-col items-center">
-            <div className="bg-white p-3 rounded-2xl shadow-sm border border-burgundy/10">
-              <img 
-                src={qrCodeUrl} 
-                alt="ModaPella QR Code" 
-                className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
-                loading="lazy"
-              />
-            </div>
-            <div className="mt-3 flex items-center gap-2 text-[11px] font-bold text-burgundy/70">
-              <img src={logoSrc} alt="" className="w-4 h-4 object-contain inline" />
-              <span>ModaPella • بني مزار</span>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="w-full flex flex-col sm:flex-row gap-2.5">
-            <a
-              href={qrCodeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              download="ModaPella-QRCode.png"
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-burgundy/10 border border-burgundy/20 px-4 py-2.5 text-xs font-bold text-burgundy hover:bg-burgundy hover:text-white transition"
-            >
-              <Icon name="download" className="w-4 h-4" />
-              تحميل الكود للطباعة
-            </a>
-            <button
-              onClick={handleCopyLink}
-              type="button"
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-white border border-burgundy/20 px-4 py-2.5 text-xs font-bold text-burgundy hover:bg-burgundy/5 transition"
-            >
-              <Icon name="copy" className="w-4 h-4" />
-              {copied ? 'تم النسخ ✓' : 'نسخ رابط الكارت'}
-            </button>
+          <div className="text-xs text-burgundy/70 bg-beige/20 border border-burgundy/10 rounded-2xl px-4 py-3 self-start sm:self-center">
+            <span className="font-bold text-burgundy block">مواعيد العمل:</span>
+            <span>يومياً من 11:00 ص حتى 11:00 م</span>
           </div>
         </div>
 
-        {/* Location & Details Card */}
-        <div className="lg:col-span-7 rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-8 shadow-soft flex flex-col justify-between space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-burgundy/10 px-3.5 py-1 text-xs font-bold text-burgundy">
-                <Icon name="location" className="w-4 h-4" />
-                موقع المحل على الخريطة
-              </span>
-              <span className="text-xs text-burgundy/60 font-medium">بني مزار — المنيا</span>
+        {/* Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-12 items-stretch">
+          
+          {/* Info cards */}
+          <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
+            
+            {/* Address */}
+            <div className="rounded-2xl border border-burgundy/10 bg-beige/10 p-5 space-y-2">
+              <div className="flex items-center gap-2 text-burgundy font-bold text-xs">
+                <Icon name="location" className="w-4 h-4 text-burgundy" />
+                <span>العنوان بالتفصيل</span>
+              </div>
+              <p className="text-sm sm:text-base text-burgundy font-bold leading-relaxed">
+                {address}
+              </p>
             </div>
 
-            <h3 className="text-2xl sm:text-3xl font-black text-burgundy">
-              شرفينا في المحل
-            </h3>
-            <p className="text-sm text-burgundy/75 leading-relaxed">
-              بنرحب بيكِ في أي وقت لتجربة ومعاينة أحدث الكولكشن على الطبيعة واختيار الأنسب ليكي.
-            </p>
-
-            {/* Info Cards Grid */}
-            <div className="grid gap-3 sm:grid-cols-2 pt-2">
-              <div className="rounded-2xl border border-burgundy/10 bg-beige/10 p-4 space-y-1.5">
-                <div className="flex items-center gap-2 text-burgundy font-bold text-xs">
-                  <Icon name="location" className="w-4 h-4 text-burgundy" />
-                  <span>العنوان بالتفصيل</span>
-                </div>
-                <p className="text-sm text-burgundy font-medium leading-relaxed">
-                  {address}
+            {/* Phone */}
+            <div className="rounded-2xl border border-burgundy/10 bg-white p-5 space-y-2 shadow-sm">
+              <div className="flex items-center gap-2 text-burgundy font-bold text-xs">
+                <Icon name="phone" className="w-4 h-4 text-burgundy" />
+                <span>الهاتف والاتصال السريع</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-base font-mono font-bold text-burgundy" dir="ltr">
+                  {phone}
                 </p>
-              </div>
-
-              <div className="rounded-2xl border border-burgundy/10 bg-white p-4 space-y-1.5">
-                <div className="flex items-center gap-2 text-burgundy font-bold text-xs">
-                  <Icon name="phone" className="w-4 h-4 text-burgundy" />
-                  <span>الهاتف والاتصال السريع</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-mono font-bold text-burgundy" dir="ltr">
-                    {phone}
-                  </p>
-                  <a
-                    href={`tel:${phone}`}
-                    className="inline-block rounded-full bg-burgundy px-3 py-1 text-[11px] font-bold text-white hover:bg-[#650018] transition"
-                  >
-                    اتصال
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Map Preview Banner */}
-            <div className="relative overflow-hidden rounded-3xl border border-burgundy/10 bg-gradient-to-br from-beige/30 via-white to-burgundy/5 p-6 text-center space-y-3">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-burgundy text-white shadow-md">
-                <Icon name="location" className="w-6 h-6 animate-bounce" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-burgundy">Google Maps لوكيشن</p>
-                <p className="text-xs text-burgundy/70 mt-0.5">
-                  اضغطي لفتح اللوكيشن واتباع المسار والوصول للمحل بكل سهولة
-                </p>
-              </div>
-              <div>
                 <a
-                  href={mapUrl}
+                  href={`tel:${phone}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-burgundy px-4 py-1.5 text-xs font-bold text-white hover:bg-[#650018] transition shadow"
+                >
+                  <Icon name="phone" className="w-3.5 h-3.5" />
+                  اتصال الآن
+                </a>
+              </div>
+            </div>
+
+            {/* Quick WhatsApp support */}
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
+                <Icon name="whatsapp" className="w-4 h-4 text-emerald-600" />
+                <span>خدمة العملاء والطلبات</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-xs text-burgundy/75">
+                  متاحين للرد على أي استفسار فوراً
+                </p>
+                <a
+                  href={`https://wa.me/${waPhone}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-burgundy px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-[#650018] active:scale-95 transition"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-bold text-white hover:bg-emerald-600 transition shadow"
                 >
-                  <Icon name="location" className="w-4 h-4" />
-                  فتح الاتجاهات على خرائط Google
+                  واتساب
                 </a>
               </div>
             </div>
 
           </div>
 
-          {/* Bottom Store hours */}
-          <div className="flex items-center justify-between text-xs text-burgundy/70 border-t border-burgundy/5 pt-4">
-            <span className="font-semibold">مواعيد العمل: يومياً من 11:00 صباحاً حتى 11:00 مساءً</span>
-            <Link to="/shop" className="font-bold text-burgundy hover:underline">
-              تصفحي الكتالوج ←
-            </Link>
+          {/* Google Maps Banner */}
+          <div className="lg:col-span-7 relative overflow-hidden rounded-3xl border border-burgundy/10 bg-gradient-to-br from-beige/30 via-white to-burgundy/5 p-6 sm:p-8 flex flex-col justify-between text-center space-y-6">
+            <div className="space-y-3">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-burgundy text-white shadow-lg">
+                <Icon name="location" className="w-7 h-7 animate-bounce" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-burgundy">Google Maps اتجاهات الخريطة</h4>
+                <p className="text-xs sm:text-sm text-burgundy/75 max-w-md mx-auto mt-1 leading-relaxed">
+                  اضغطي لفتح اللوكيشن على خرائط جوجل واتباع المسار والوصول للمحل في شارع الإعدادية بنات بكل سهولة.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2.5 rounded-2xl bg-burgundy px-8 py-3.5 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-[#650018] active:scale-95 transition"
+              >
+                <Icon name="location" className="w-4 h-4" />
+                فتح الاتجاهات على خرائط Google
+              </a>
+            </div>
+
+            <div className="text-[11px] text-burgundy/60 border-t border-burgundy/8 pt-3">
+              ModaPella • بني مزار، محافظة المنيا
+            </div>
           </div>
 
         </div>
