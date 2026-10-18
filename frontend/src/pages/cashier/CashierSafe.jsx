@@ -31,16 +31,7 @@ const PAYOUT_TYPES = [
 
 const SHIPPING_TYPES = [
   'نولون شحن بضاعة واردة (مورد/مصنع)',
-  'شحن طلبيات لعملاء (شركة شحن/مندوب)',
-  'نقل وتحويل بين الفروع والمخازن',
-  'مرتجع شحن / بوليصة عكسية'
-];
-
-const RENT_PLACES = [
-  'إيجار المحل الرئيسي',
-  'إيجار المخزن / المستودع',
-  'إيجار ورشة / ملحق',
-  'إيجار سكن موظفين / أخرى'
+  'شحن طلبيات لعملاء (شركة شحن/مندوب)'
 ];
 
 const getCurrentMonthName = () => {
@@ -109,8 +100,7 @@ function CashierSafe() {
     // Rent specifics
     rentPlace: 'إيجار المحل الرئيسي',
     rentMonth: getCurrentMonthName(),
-    recipientName: '',
-    receiptNumber: ''
+    recipientName: ''
   });
 
   const [form, setForm] = useState(defaultForm());
@@ -194,7 +184,7 @@ function CashierSafe() {
           }
         });
       } else if (modalType === 'RENT' || (modalType === 'EXPENSE' && form.category === 'إيجار')) {
-        const autoDesc = `سداد إيجار: ${form.rentPlace} عن ${form.rentMonth || 'الشهر الحالي'}${form.recipientName ? ` (المستلم: ${form.recipientName})` : ''}${form.receiptNumber ? ` إيصال #${form.receiptNumber}` : ''}${form.description ? ` - ${form.description}` : ''}`;
+        const autoDesc = `سداد إيجار المحل الرئيسي عن ${form.rentMonth || 'الشهر الحالي'}${form.recipientName ? ` - المستلم: ${form.recipientName}` : ''}${form.description ? ` (${form.description})` : ''}`;
         
         await api.post('/cashier/safe/transaction', {
           amount: Number(form.amount),
@@ -203,10 +193,9 @@ function CashierSafe() {
           paymentMethod: form.paymentMethod || 'Cash',
           description: autoDesc,
           metadata: {
-            rentPlace: form.rentPlace,
+            rentPlace: 'إيجار المحل الرئيسي',
             rentMonth: form.rentMonth,
-            recipientName: form.recipientName,
-            receiptNumber: form.receiptNumber
+            recipientName: form.recipientName
           }
         });
       } else if (modalType === 'EXPENSE') {
@@ -870,19 +859,28 @@ function CashierSafe() {
                 {/* Rent Specifics */}
                 {(modalType === 'RENT' || (modalType === 'EXPENSE' && form.category === 'إيجار')) && (
                   <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200/80 space-y-3">
-                    <p className="text-[11px] font-bold text-purple-900 flex items-center gap-1">
-                      <span>🏢</span> تفاصيل سداد الإيجار:
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold text-purple-900 flex items-center gap-1">
+                        <span>🏢</span> سداد إيجار المحل الرئيسي
+                      </p>
+                      <span className="text-[10px] bg-purple-200/70 text-purple-900 font-bold px-2 py-0.5 rounded-lg">
+                        المحل الرئيسي
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
                       <div>
-                        <label className="mb-1 block text-[11px] font-bold text-purple-950">المكان المستأجر</label>
-                        <select
-                          value={form.rentPlace}
-                          onChange={e => setForm(p => ({ ...p, rentPlace: e.target.value }))}
-                          className="w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-xs font-bold text-burgundy outline-none focus:border-purple-500"
-                        >
-                          {RENT_PLACES.map(rp => <option key={rp} value={rp}>{rp}</option>)}
-                        </select>
+                        <label className="mb-1 block text-[11px] font-bold text-purple-950">
+                          مين اللي استلم إيجار المحل؟ (اسم المستلم / صاحب العقار) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={form.recipientName}
+                          onChange={e => setForm(p => ({ ...p, recipientName: e.target.value }))}
+                          placeholder="اكتب اسم الشخص اللي استلم الإيجار (مثل: الحاج فلان / صاحب المحل)"
+                          className="w-full rounded-xl border border-purple-200 bg-white px-3.5 py-2.5 text-xs font-bold text-burgundy outline-none focus:border-purple-500 shadow-xs"
+                        />
                       </div>
 
                       <div>
@@ -892,29 +890,7 @@ function CashierSafe() {
                           value={form.rentMonth}
                           onChange={e => setForm(p => ({ ...p, rentMonth: e.target.value }))}
                           placeholder="مثال: شهر أكتوبر 2026"
-                          className="w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-xs font-bold text-burgundy outline-none focus:border-purple-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1 block text-[11px] font-bold text-purple-950">اسم المؤجر / المستلم (اختياري)</label>
-                        <input
-                          type="text"
-                          value={form.recipientName}
-                          onChange={e => setForm(p => ({ ...p, recipientName: e.target.value }))}
-                          placeholder="اسم المالك أو الوكيل"
-                          className="w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-xs font-bold text-burgundy outline-none focus:border-purple-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1 block text-[11px] font-bold text-purple-950">رقم الإيصال / السند (اختياري)</label>
-                        <input
-                          type="text"
-                          value={form.receiptNumber}
-                          onChange={e => setForm(p => ({ ...p, receiptNumber: e.target.value }))}
-                          placeholder="مثال: إيصال رقم 12"
-                          className="w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-xs font-bold text-burgundy outline-none focus:border-purple-500"
+                          className="w-full rounded-xl border border-purple-200 bg-white px-3.5 py-2 text-xs font-bold text-burgundy outline-none focus:border-purple-500"
                         />
                       </div>
                     </div>
