@@ -6,6 +6,7 @@ import { cleanProductName } from '../utils/discount';
 import { Icon } from '../components/Icon';
 import MarqueeTicker from '../components/MarqueeTicker';
 import BestSellersSlider from '../components/BestSellersSlider';
+import logoSrc from '../assets/logo.png';
 
 const defaultSiteConfig = {
  published: true,
@@ -245,7 +246,7 @@ function LandingPage() {
  <div className="relative overflow-hidden rounded-2xl sm:rounded-[2rem] bg-burgundy/5 aspect-[4/3] sm:aspect-square flex items-center justify-center">
  <div className="absolute inset-0 bg-gradient-to-br from-burgundy/5 to-beige/30" />
  <div className="relative text-center p-4 sm:p-6 space-y-2 sm:space-y-3 flex flex-col items-center">
- <Icon name="store" className="w-12 h-12 text-burgundy" />
+ <img src={logoSrc} alt="ModaPella Logo" className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-2xl bg-white p-2 shadow-sm border border-burgundy/10 transition-transform duration-300 hover:scale-105" />
  <p className="text-base sm:text-lg font-bold text-burgundy">ModaPella</p>
  <p className="text-xs text-burgundy/60">بني مزار — المنيا</p>
  <div className="mt-2 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">

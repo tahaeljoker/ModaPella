@@ -23,6 +23,10 @@ const SiteConfigSchema = new mongoose.Schema({
   storePhone: { type: String, default: '01090048832' },
   baseMannequinPhoto: { type: String, default: '' },
   aboutText: { type: String, default: 'محل أزياء نسائي في قلب بني مزار، بنقدم فيه أحدث الموديلات العصرية بأسعار كويسة.' },
+  instagramUrl: { type: String, default: 'https://www.instagram.com/moda_pella?obrf=NTRsYWI3MXpuZXNm' },
+  facebookUrl: { type: String, default: 'https://www.facebook.com/share/1HdfNYn5QX/' },
+  tiktokUrl: { type: String, default: 'https://www.tiktok.com/@moda.pella?_r=1&_t=ZS-9AfaJHoDzJk' },
+  locationMapUrl: { type: String, default: '' },
   whatsappMessageTemplate: { type: String, default: 'أهلاً بكِ يا أ/ *{{name}}* في ModaPella 🎠✨\n\nتم تسجيل طلبكِ رقم *#{{id}}* بنجاح بقيمة *{{amount}} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لتأكيد الطلب! 🌸' },
   categories: {
     type: [{ key: String, nameAr: String }],
