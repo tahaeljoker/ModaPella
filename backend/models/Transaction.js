@@ -10,9 +10,11 @@ const TransactionSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-// Link transaction to a Shift when applicable
+// Link transaction to a Shift, Employee, or metadata when applicable
 TransactionSchema.add({
-  shift: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift' }
+  shift: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift' },
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
+  metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
 });
 
 module.exports = mongoose.model('Transaction', TransactionSchema);

@@ -13,6 +13,9 @@ const TYPE_CONFIG = {
   deposit: { label: 'إيداع', icon: '', color: 'border-blue-500 bg-blue-50 text-blue-800 node-bg-blue' },
   safe_movement: { label: 'حركة خزينة', icon: '', color: 'border-indigo-500 bg-indigo-50 text-indigo-800 node-bg-indigo' },
   stock_adjustment: { label: 'مخزون', icon: '', color: 'border-teal-500 bg-teal-50 text-teal-800 node-bg-teal' },
+  salary: { label: 'صرف رواتب', icon: '💼', color: 'border-indigo-500 bg-indigo-50 text-indigo-900 node-bg-indigo' },
+  shipping: { label: 'نولون ومصاريف شحن', icon: '🚚', color: 'border-amber-500 bg-amber-50 text-amber-900 node-bg-amber' },
+  rent: { label: 'سداد إيجار', icon: '🏢', color: 'border-purple-500 bg-purple-50 text-purple-900 node-bg-purple' },
   shift_open: { label: 'فتح وردية', icon: '', color: 'border-purple-500 bg-purple-50 text-purple-800 node-bg-purple' },
   shift_close: { label: 'إغلاق وردية', icon: '', color: 'border-slate-500 bg-slate-50 text-slate-800 node-bg-slate' }
 };

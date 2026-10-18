@@ -145,11 +145,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
 
     const transactions = await Transaction.find({
       createdAt: { $gte: startOfDay, $lte: endOfDay }
-    }).populate('user', 'name').sort({ createdAt: -1 });
-
-    console.log('--- DEBUG: Transactions Found in /safe route ---');
-    console.log(JSON.stringify(transactions, null, 2));
-    console.log('------------------------------------------------');
+    }).populate('user', 'name').populate('employee', 'name phone').sort({ createdAt: -1 });
 
     const todayOrders = await Order.find({
       createdAt: { $gte: startOfDay, $lte: endOfDay },
@@ -170,8 +166,59 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     let refundsInstapay = 0;
     let debtCollectionsCash = 0;
 
+    let salariesCash = 0;
+    let salariesInstapay = 0;
+    let shippingCash = 0;
+    let shippingInstapay = 0;
+    let rentCash = 0;
+    let rentInstapay = 0;
+
+    const isSalariesTx = (t) => {
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'صرف رواتب' ||
+        cat === 'رواتب' ||
+        cat === 'salary' ||
+        cat === 'salaries' ||
+        cat.includes('راتب') ||
+        cat.includes('رواتب') ||
+        desc.includes('صرف راتب') ||
+        desc.includes('رواتب') ||
+        desc.includes('سلفة راتب')
+      );
+    };
+
+    const isShippingTx = (t) => {
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'نولون شحن' ||
+        cat === 'شحن' ||
+        cat === 'shipping' ||
+        cat === 'freight' ||
+        cat.includes('نولون') ||
+        desc.includes('نولون')
+      );
+    };
+
+    const isRentTx = (t) => {
+      const cat = (t.category || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'إيجار' ||
+        cat === 'ايجار' ||
+        cat === 'rent' ||
+        cat.includes('إيجار') ||
+        cat.includes('ايجار') ||
+        desc.includes('إيجار المحل') ||
+        desc.includes('ايجار المحل')
+      );
+    };
+
     const isPersonalTx = (t) => {
       if (t.type !== 'OUT') return false;
+      if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
       const cat = (t.category || '').toLowerCase();
       const desc = (t.description || '').toLowerCase();
       return (
@@ -186,13 +233,14 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         desc.includes('شخصى') ||
         desc.includes('جمعية') ||
         desc.includes('جمعيه') ||
-        desc.includes('سلفة') ||
-        desc.includes('سلفه')
+        desc.includes('سلفة مالك') ||
+        (desc.includes('سلفة') && !desc.includes('راتب'))
       );
     };
 
     const isSupplierTx = (t) => {
       if (t.type !== 'OUT') return false;
+      if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
       const cat = (t.category || '').toLowerCase();
       const desc = (t.description || '').toLowerCase();
       return (
@@ -228,6 +276,12 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         } else if (t.type === 'OUT') {
           if (cat === 'refund' || cat.includes('مرتجع')) {
             refundsCash += t.amount;
+          } else if (isSalariesTx(t)) {
+            salariesCash += t.amount;
+          } else if (isShippingTx(t)) {
+            shippingCash += t.amount;
+          } else if (isRentTx(t)) {
+            rentCash += t.amount;
           } else if (isPersonalTx(t)) {
             personalWithdrawalsCash += t.amount;
           } else if (isSupplierTx(t)) {
@@ -242,6 +296,12 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
           instapayTotal -= t.amount;
           if (cat === 'refund' || cat.includes('مرتجع')) {
             refundsInstapay += t.amount;
+          } else if (isSalariesTx(t)) {
+            salariesInstapay += t.amount;
+          } else if (isShippingTx(t)) {
+            shippingInstapay += t.amount;
+          } else if (isRentTx(t)) {
+            rentInstapay += t.amount;
           }
         }
       }
@@ -293,6 +353,8 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
 
     const netCashInSafe = Math.round(allTimeCashDrawer);
 
+    const totalOperatingExpensesCash = operatingExpensesCash + salariesCash + shippingCash + rentCash;
+
     res.json({
       transactions,
       summary: {
@@ -300,7 +362,17 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         todayNetCash: Math.round(cashDrawer),
         instapayTotal,
         instapayBalance: Math.round(instapayCurrentBalance),
-        expenses: operatingExpensesCash,
+        expenses: totalOperatingExpensesCash,
+        generalExpenses: operatingExpensesCash,
+        salaries: salariesCash + salariesInstapay,
+        salariesCash,
+        salariesInstapay,
+        shipping: shippingCash + shippingInstapay,
+        shippingCash,
+        shippingInstapay,
+        rent: rentCash + rentInstapay,
+        rentCash,
+        rentInstapay,
         personalWithdrawals: personalWithdrawalsCash,
         supplierPayments: supplierPaymentsCash,
         refunds: todayRefunds,
@@ -320,7 +392,17 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
         refunds: todayRefunds,
         refundsCash,
         refundsInstapay,
-        expenses: operatingExpensesCash,
+        expenses: totalOperatingExpensesCash,
+        generalExpenses: operatingExpensesCash,
+        salaries: salariesCash + salariesInstapay,
+        salariesCash,
+        salariesInstapay,
+        shipping: shippingCash + shippingInstapay,
+        shippingCash,
+        shippingInstapay,
+        rent: rentCash + rentInstapay,
+        rentCash,
+        rentInstapay,
         personalWithdrawals: personalWithdrawalsCash,
         supplierPayments: supplierPaymentsCash,
         netCashInSafe
@@ -335,7 +417,7 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
 // POST /api/cashier/safe/transaction — add manual expense or deposit
 router.post('/safe/transaction', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const { amount, type, category, description, paymentMethod = 'Cash' } = req.body;
+    const { amount, type, category, description, paymentMethod = 'Cash', employeeId, metadata } = req.body;
     // attach to current open shift if exists
     let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
     if (!openShift) {
@@ -348,10 +430,15 @@ router.post('/safe/transaction', auth, requireRole(['admin', 'cashier', 'manager
       paymentMethod: paymentMethod || 'Cash',
       description,
       user: req.user.id,
-      shift: openShift?._id
+      shift: openShift?._id,
+      employee: employeeId || undefined,
+      metadata: metadata || {}
     });
     await transaction.save();
-    res.status(201).json(transaction);
+    const populated = await Transaction.findById(transaction._id)
+      .populate('user', 'name')
+      .populate('employee', 'name phone');
+    res.status(201).json(populated);
   } catch (error) {
     res.status(500).json({ message: 'Unable to add transaction', error: error.message });
   }
@@ -404,9 +491,12 @@ router.get('/safe/smart-audit', auth, requireRole(['admin']), async (req, res) =
       const isRefundCat = cat === 'refund' || cat.includes('مرتجع');
       // If category already identifies it as personal/withdrawal — it's already fixed, skip it
       const isPersonalCat = cat === 'personalwithdrawal' || cat.includes('مسحوبات') || cat.includes('شخصي') || cat.includes('شخصى') || cat.includes('جمعية') || cat.includes('جمعيه');
+      const isSalariesCat = cat === 'صرف رواتب' || cat === 'رواتب' || cat.includes('راتب') || cat.includes('رواتب');
+      const isShippingCat = cat === 'نولون شحن' || cat.includes('نولون') || cat === 'شحن';
+      const isRentCat = cat === 'إيجار' || cat === 'ايجار' || cat.includes('إيجار') || cat.includes('ايجار');
 
-      if (t.type === 'OUT' && !isSupplierCat && !isInternalCat && !isRefundCat && !isPersonalCat) {
-        if (desc.includes('جمعيه') || desc.includes('جمعية') || desc.includes('شخصي') || desc.includes('سلفة مالك') || desc.includes('مسحوبات')) {
+      if (t.type === 'OUT' && !isSupplierCat && !isInternalCat && !isRefundCat && !isPersonalCat && !isSalariesCat && !isShippingCat && !isRentCat) {
+        if (desc.includes('جمعيه') || desc.includes('جمعية') || desc.includes('شخصي') || desc.includes('سلفة مالك') || (desc.includes('مسحوبات') && !desc.includes('راتب'))) {
           warnings.push({
             id: t._id,
             amount: t.amount,
@@ -420,6 +510,45 @@ router.get('/safe/smart-audit', auth, requireRole(['admin']), async (req, res) =
             impactMessage: `فئة الحركة (${t.category}) لا تُعرَّف كمسحوبات شخصية — اضغط تصحيح لضمان استبعادها من الربح والتدفق النقدي بشكل صحيح.`
           });
           // Personal withdrawals don't add to potentialProfitGain (already excluded from profit)
+        } else if (desc.includes('نولون') && cat !== 'نولون شحن') {
+          warnings.push({
+            id: t._id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.createdAt,
+            user: t.user ? t.user.name : 'غير محدد',
+            issueType: 'SHIPPING_MISCLASSIFIED',
+            title: 'نولون شحن مسجل كمصروف عام',
+            suggestedCategory: 'نولون شحن',
+            impactMessage: `تحويل الفئة إلى "نولون شحن" لتوثيق وتتبع تكاليف الشحن والنولون بدقة.`
+          });
+        } else if ((desc.includes('راتب') || desc.includes('رواتب') || desc.includes('مرتب')) && cat !== 'صرف رواتب') {
+          warnings.push({
+            id: t._id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.createdAt,
+            user: t.user ? t.user.name : 'غير محدد',
+            issueType: 'SALARY_MISCLASSIFIED',
+            title: 'صرف راتب مسجل كمصروف عام',
+            suggestedCategory: 'صرف رواتب',
+            impactMessage: `تحويل الفئة إلى "صرف رواتب" لربط ومتابعة أجور الموظفين بشكل منفصل ومحاسبي سليم.`
+          });
+        } else if ((desc.includes('إيجار') || desc.includes('ايجار')) && cat !== 'إيجار') {
+          warnings.push({
+            id: t._id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.createdAt,
+            user: t.user ? t.user.name : 'غير محدد',
+            issueType: 'RENT_MISCLASSIFIED',
+            title: 'إيجار مسجل كمصروف عام',
+            suggestedCategory: 'إيجار',
+            impactMessage: `تحويل الفئة إلى "إيجار" لمتابعة التكاليف الإيجارية الثابتة شهرياً بدقة.`
+          });
         } else if (desc.includes('مورد') || desc.includes('بضاعة') || desc.includes('قماش') || desc.includes('مصنع') || desc.includes('سداد حساب')) {
           warnings.push({
             id: t._id,
@@ -634,12 +763,24 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
 
       const catLower = (t.category || '').toLowerCase();
       const descLower = (t.description || '').toLowerCase();
-      const isPersonal = catLower.includes('مسحوبات') || catLower.includes('شخصي') || catLower.includes('جمعية') || catLower.includes('جمعيه') || descLower.includes('جمعية') || descLower.includes('جمعيه') || descLower.includes('شخصي') || descLower.includes('مسحوبات');
+      const isSalaries = catLower.includes('راتب') || catLower.includes('رواتب') || descLower.includes('صرف راتب') || descLower.includes('رواتب');
+      const isShipping = catLower.includes('نولون') || catLower.includes('شحن') || descLower.includes('نولون');
+      const isRent = catLower.includes('إيجار') || catLower.includes('ايجار') || descLower.includes('إيجار') || descLower.includes('ايجار');
+      const isPersonal = !isSalaries && !isShipping && !isRent && (catLower.includes('مسحوبات') || catLower.includes('شخصي') || catLower.includes('جمعية') || catLower.includes('جمعيه') || descLower.includes('جمعية') || descLower.includes('جمعيه') || descLower.includes('شخصي') || descLower.includes('مسحوبات'));
 
       let actType = 'safe_movement';
       if (isPersonal) {
         actType = 'personal_withdrawal';
         typeLabel = 'مسحوبات شخصية / جمعية (تؤثر على الخزنة فقط - مستبعدة من الربح)';
+      } else if (isSalaries) {
+        actType = 'salary';
+        typeLabel = 'صرف رواتب وأجور';
+      } else if (isShipping) {
+        actType = 'shipping';
+        typeLabel = 'نولون شحن ومصاريف نقل';
+      } else if (isRent) {
+        actType = 'rent';
+        typeLabel = 'سداد إيجار';
       } else if (isSupplierTx(t)) {
         actType = 'supplier_payment';
         typeLabel = 'سداد بضاعة مورد (كاش الخزنة)';

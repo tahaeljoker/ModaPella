@@ -906,10 +906,13 @@ router.get('/categories/analytics', auth, async (req, res) => {
       'طقم': 'Takem'
     };
 
-    // Include all products safely
-    const products = await Product.find({}).lean();
+    // Include all historical products for mapping order items safely
+    const allHistoricalProducts = await Product.find({}).lean();
     const productMap = {};
-    products.forEach(p => { productMap[p._id.toString()] = p; });
+    allHistoricalProducts.forEach(p => { productMap[p._id.toString()] = p; });
+
+    // Active in-store catalog products (excludes deactivated and season-archived products, matching Cashier POS)
+    const products = allHistoricalProducts.filter(p => p.active !== false && p.isSeasonArchived !== true);
 
     const { startDate, endDate, activePeriod, label } = parseAnalyticsDateRange(req.query);
 
@@ -919,23 +922,32 @@ router.get('/categories/analytics', auth, async (req, res) => {
     }
     const orders = await Order.find(orderQuery).sort({ createdAt: -1 }).lean();
 
+    // Helper to canonicalize category names (prevents duplicate Arabic & English entries)
+    const toCanonical = (c) => {
+      if (!c) return '';
+      const trimmed = String(c).trim();
+      if (/[\u0600-\u06FF]/.test(trimmed) && CAT_AR[trimmed]) {
+        return CAT_AR[trimmed];
+      }
+      return trimmed;
+    };
+
     // Default registered categories to guarantee complete category family availability
     const defaultCatList = ['Chemise', 'Dress', 'Blouse', 'Bag', 'Cardigan', 'Blazer', 'Skirt', 'Pantalon', 'T-shirt', 'Suit', 'Tonic', 'Takem'];
-    const categorySet = new Set(defaultCatList);
+    const categorySet = new Set(defaultCatList.map(toCanonical));
     
-    // Add any custom categories from products and orders
+    // Add any custom categories from active products and orders (canonicalized)
     products.forEach(p => {
       if (p.category && String(p.category).trim()) {
-        categorySet.add(String(p.category).trim());
+        categorySet.add(toCanonical(p.category));
       }
     });
 
     orders.forEach(o => {
       (o.items || []).forEach(item => {
-        if (item.category && String(item.category).trim()) {
-          categorySet.add(String(item.category).trim());
-        } else if (item.product && productMap[item.product.toString()]?.category) {
-          categorySet.add(String(productMap[item.product.toString()].category).trim());
+        const rawCat = item.category || (item.product ? productMap[item.product.toString()]?.category : '');
+        if (rawCat && String(rawCat).trim()) {
+          categorySet.add(toCanonical(rawCat));
         }
       });
     });
@@ -948,8 +960,8 @@ router.get('/categories/analytics', auth, async (req, res) => {
       const catArEquivalent = CAT_AR[catName] ? CAT_AR[catName].toLowerCase() : '';
 
       const catProducts = products.filter(p => {
-        const pCat = String(p.category || '').trim().toLowerCase();
-        return pCat === catLower || (catArEquivalent && pCat === catArEquivalent);
+        const pCanonical = toCanonical(p.category).toLowerCase();
+        return pCanonical === catLower || (catArEquivalent && pCanonical === catArEquivalent);
       });
       const catProductIds = new Set(catProducts.map(p => p._id.toString()));
 
@@ -977,9 +989,10 @@ router.get('/categories/analytics', auth, async (req, res) => {
       orders.forEach(order => {
         let orderHasCatItem = false;
         (order.items || []).forEach(item => {
-          const itemCat = String(item.category || (item.product ? productMap[item.product.toString()]?.category : '') || '').trim().toLowerCase();
-          const matchesCat = itemCat === catLower ||
-                             (catArEquivalent && itemCat === catArEquivalent) ||
+          const rawItemCat = item.category || (item.product ? productMap[item.product.toString()]?.category : '') || '';
+          const itemCatCanonical = toCanonical(rawItemCat).toLowerCase();
+          const matchesCat = itemCatCanonical === catLower ||
+                             (catArEquivalent && itemCatCanonical === catArEquivalent) ||
                              (item.product && catProductIds.has(item.product.toString()));
 
           if (matchesCat) {
@@ -1146,9 +1159,9 @@ router.get('/categories/analytics', auth, async (req, res) => {
     // Overall store aggregated summary (always calculated and returned)
     const storeSummary = {
       totalCategories: categoriesData.filter(c => c.productsCount > 0).length || categoriesData.length,
-      totalStock: categoriesData.reduce((s, c) => s + c.totalStock, 0),
-      stockValueCost: categoriesData.reduce((s, c) => s + c.stockValueCost, 0),
-      stockValueRetail: categoriesData.reduce((s, c) => s + c.stockValueRetail, 0),
+      totalStock: products.reduce((s, p) => s + Number(p.stock || 0), 0),
+      stockValueCost: Math.round(products.reduce((s, p) => s + Number(p.stock || 0) * Number(p.costPrice || 0), 0)),
+      stockValueRetail: Math.round(products.reduce((s, p) => s + Number(p.stock || 0) * Number(p.price || 0), 0)),
       netSold: categoriesData.reduce((s, c) => s + c.netSold, 0),
       totalRevenue: categoriesData.reduce((s, c) => s + c.totalRevenue, 0),
       grossProfit: categoriesData.reduce((s, c) => s + c.grossProfit, 0),

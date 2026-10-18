@@ -21,6 +21,7 @@ const SiteConfigSchema = new mongoose.Schema({
   socialProofActive: { type: Boolean, default: true },
   storeAddress: { type: String, default: 'شارع الإعدادية بنات، بني مزار، المنيا' },
   storePhone: { type: String, default: '01090048832' },
+  baseMannequinPhoto: { type: String, default: '' },
   aboutText: { type: String, default: 'محل أزياء نسائي في قلب بني مزار، بنقدم فيه أحدث الموديلات العصرية بأسعار كويسة.' },
   whatsappMessageTemplate: { type: String, default: 'أهلاً بكِ يا أ/ *{{name}}* في ModaPella 🎠✨\n\nتم تسجيل طلبكِ رقم *#{{id}}* بنجاح بقيمة *{{amount}} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لتأكيد الطلب! 🌸' },
   categories: {

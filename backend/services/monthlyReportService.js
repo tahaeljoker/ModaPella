@@ -28,11 +28,58 @@ const isRefundTx = (t) => {
 };
 
 /**
+ * Helpers to identify Salaries, Shipping, and Rent expenses
+ */
+const isSalariesTx = (t) => {
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'صرف رواتب' ||
+    cat === 'رواتب' ||
+    cat === 'salary' ||
+    cat === 'salaries' ||
+    cat.includes('راتب') ||
+    cat.includes('رواتب') ||
+    desc.includes('صرف راتب') ||
+    desc.includes('رواتب') ||
+    desc.includes('سلفة راتب')
+  );
+};
+
+const isShippingTx = (t) => {
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'نولون شحن' ||
+    cat === 'شحن' ||
+    cat === 'shipping' ||
+    cat === 'freight' ||
+    cat.includes('نولون') ||
+    desc.includes('نولون')
+  );
+};
+
+const isRentTx = (t) => {
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'إيجار' ||
+    cat === 'ايجار' ||
+    cat === 'rent' ||
+    cat.includes('إيجار') ||
+    cat.includes('ايجار') ||
+    desc.includes('إيجار المحل') ||
+    desc.includes('ايجار المحل')
+  );
+};
+
+/**
  * Helper to identify supplier payment or stock purchase transactions
  */
 const isSupplierTx = (t) => {
   if (t.type !== 'OUT') return false;
   if (isInternalMovement(t)) return false;
+  if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
   const cat = (t.category || '').toLowerCase();
   const desc = (t.description || '').toLowerCase();
   if (cat === 'refund' || cat.includes('مرتجع') || cat === 'sale' || cat === 'debtpayment') return false;
@@ -53,6 +100,7 @@ const isSupplierTx = (t) => {
 
 const isPersonalTx = (t) => {
   if (t.type !== 'OUT') return false;
+  if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
   const cat = (t.category || '').toLowerCase();
   const desc = (t.description || '').toLowerCase();
   return (
@@ -67,8 +115,8 @@ const isPersonalTx = (t) => {
     desc.includes('شخصى') ||
     desc.includes('جمعية') ||
     desc.includes('جمعيه') ||
-    desc.includes('سلفة') ||
-    desc.includes('سلفه') ||
+    (desc.includes('سلفة') && !desc.includes('راتب')) ||
+    (desc.includes('سلفه') && !desc.includes('راتب')) ||
     (/(?:^|\s)(?:آدم|ادم)(?:$|\s)/.test(desc) && !desc.includes('ادمن'))
   );
 };

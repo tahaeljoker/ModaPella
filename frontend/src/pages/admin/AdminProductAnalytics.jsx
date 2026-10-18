@@ -150,11 +150,15 @@ export default function AdminProductAnalytics() {
     }
   };
 
-  // Flatten and enrich all products list from categories data
+  // Flatten and enrich all products list from categories data (with deduplication by product ID)
   const allProducts = useMemo(() => {
+    const seen = new Set();
     const list = [];
     (categoriesData || []).forEach(cat => {
       (cat.productsList || []).forEach(prod => {
+        const id = String(prod._id || prod.id || '');
+        if (id && seen.has(id)) return;
+        if (id) seen.add(id);
         list.push({
           ...prod,
           category: cat.category,
@@ -176,10 +180,15 @@ export default function AdminProductAnalytics() {
     let totalCost = 0;
     let grossProfit = 0;
 
+    // Calculate current store inventory stock directly from unique products to guarantee 100% match with Cashier POS
+    allProducts.forEach(p => {
+      const stk = Number(p.stock || 0);
+      totalStock += stk;
+      stockValueCost += stk * Number(p.costPrice || 0);
+      stockValueRetail += stk * Number(p.price || 0);
+    });
+
     (categoriesData || []).forEach(c => {
-      totalStock += Number(c.totalStock || 0);
-      stockValueCost += Number(c.stockValueCost || 0);
-      stockValueRetail += Number(c.stockValueRetail || 0);
       netSold += Number(c.netSold || 0);
       unitsReturned += Number(c.unitsReturned || 0);
       totalRevenue += Number(c.totalRevenue || 0);

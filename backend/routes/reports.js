@@ -357,8 +357,13 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
         const cat = (t.category || '').toLowerCase();
         const desc = (t.description || '').toLowerCase();
         const isRet = cat === 'refund' || cat.includes('مرتجع');
-        const isPersonal = cat === 'personalwithdrawal' || desc.includes('شخصي') || desc.includes('جمعية') || cat.includes('شخصي');
-        const isSupplier = cat === 'supplierpayment' ||
+        const isSalaries = cat === 'صرف رواتب' || cat === 'رواتب' || cat.includes('راتب') || desc.includes('صرف راتب') || desc.includes('رواتب');
+        const isShipping = cat === 'نولون شحن' || cat === 'شحن' || cat.includes('نولون') || desc.includes('نولون');
+        const isRent = cat === 'إيجار' || cat === 'ايجار' || cat.includes('إيجار') || cat.includes('ايجار');
+
+        const isPersonal = !isSalaries && !isShipping && !isRent && (cat === 'personalwithdrawal' || desc.includes('شخصي') || desc.includes('جمعية') || cat.includes('شخصي'));
+        const isSupplier = !isSalaries && !isShipping && !isRent && (
+                           cat === 'supplierpayment' ||
                            cat === 'supplierpurchase' ||
                            cat.includes('مورد') ||
                            desc.includes('مورد') ||
@@ -369,7 +374,8 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
                            cat.includes('مشتريات') ||
                            desc.includes('مشتريات مورد') ||
                            desc.includes('فاتورة مشتريات') ||
-                           (t.referenceId && supplierTxIds.has(t.referenceId.toString()));
+                           (t.referenceId && supplierTxIds.has(t.referenceId.toString()))
+        );
 
         // Avoid duplicating supplier payments that already exist in allSupplierTxs
         if (isSupplier && t.referenceId && supplierTxIds.has(t.referenceId.toString())) {
@@ -387,6 +393,18 @@ router.get('/statements', auth, requireRole(['admin']), async (req, res) => {
         } else if (isPersonal) {
           section = 'مسحوبات شخصية';
           type = 'مسحوبات شخصية / جمعية';
+          typeColor = 'purple';
+        } else if (isSalaries) {
+          section = 'رواتب وأجور';
+          type = 'صرف رواتب';
+          typeColor = 'indigo';
+        } else if (isShipping) {
+          section = 'نولون وشحن';
+          type = 'نولون شحن';
+          typeColor = 'amber';
+        } else if (isRent) {
+          section = 'إيجار ومقرات';
+          type = 'سداد إيجار';
           typeColor = 'purple';
         } else if (isSupplier) {
           section = 'سداد موردين';
