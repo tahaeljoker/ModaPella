@@ -1,4 +1,5 @@
 import ImageUploader from '../../components/ImageUploader';
+import MannequinImageUploader from '../../components/MannequinImageUploader';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -437,7 +438,7 @@ function RestockModal({ product, onClose, onRestocked }) {
  );
 }
 
-const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
+const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', mannequinImage: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
@@ -453,6 +454,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  discountPrice: product.discountPrice ?? '',
  discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
  discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().split('T')[0] : '',
+ mannequinImage: product.mannequinImage || '',
  };
  }
  return { ...emptyProduct, season: 'winter' };
@@ -996,6 +998,12 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
   images={form.images}
   onChange={(newImages) => setForm(p => ({ ...p, images: newImages }))}
   label="صور المنتج للمعرض والموقع"
+/>
+</div>
+<div>
+<MannequinImageUploader
+  value={form.mannequinImage}
+  onChange={(url) => setForm(p => ({ ...p, mannequinImage: url }))}
 />
 </div>
  {ENABLE_VARIANTS && (

@@ -8,6 +8,9 @@ import sampleProducts from '../data/sampleProducts';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import QuickOrderModal from '../components/QuickOrderModal';
 import ShareOutfitModal from '../components/ShareOutfitModal';
+import MannequinComparisonSlider from '../components/MannequinComparisonSlider';
+import ColorRecolorLabModal from '../components/ColorRecolorLabModal';
+import { getColorHex } from '../utils/colorSwatches';
 
 function ProductDetailsPage() {
  const { id } = useParams();
@@ -26,6 +29,8 @@ function ProductDetailsPage() {
  const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
+  const [isColorLabOpen, setIsColorLabOpen] = useState(false);
+  const [isDigitalRecolorActive, setIsDigitalRecolorActive] = useState(false);
 
  useEffect(() => {
   api.get('/admin/site-config')
@@ -65,7 +70,14 @@ function ProductDetailsPage() {
  return (
  <section className="py-10 text-burgundy">
  <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-10 shadow-soft">{error}</div>
- </section>
+   {/* Color Recolor Lab Modal */}
+  <ColorRecolorLabModal
+    isOpen={isColorLabOpen}
+    onClose={() => setIsColorLabOpen(false)}
+    initialImage={product?.mannequinImage || (product?.images && product.images.length > 0 ? product.images[activeImageIdx] : '')}
+    initialColor={selectedColor || (product?.colors && product.colors[0]) || 'بورجندي'}
+  />
+</section>
  );
  }
 
@@ -102,7 +114,14 @@ function ProductDetailsPage() {
  <div className="mt-6 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
  {/* Image Slider Container */}
  <div className="flex flex-col gap-4">
- {/* Main Viewport */}
+  {product.mannequinImage ? (
+    <MannequinComparisonSlider
+      flatImage={product.images && product.images.length > 0 ? product.images[activeImageIdx] : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80"}
+      mannequinImage={product.mannequinImage}
+      productName={cleanProductName(product)}
+      onImageClick={() => setIsLightboxOpen(true)}
+    />
+  ) : (
  <div className="relative overflow-hidden rounded-xl sm:rounded-[2rem] bg-beige/10 aspect-[4/3] sm:aspect-[3/2] group border border-burgundy/5 shadow-inner">
  <div 
  onClick={() => setIsLightboxOpen(true)}
@@ -113,6 +132,38 @@ function ProductDetailsPage() {
  alt={cleanProductName(product)} 
  className="w-full h-full object-cover" 
  />
+ {isDigitalRecolorActive && selectedColor && (
+   <>
+     <div 
+       className="absolute inset-0 pointer-events-none transition-all duration-300"
+       style={{
+         backgroundColor: getColorHex(selectedColor),
+         mixBlendMode: 'color',
+         opacity: 0.82
+       }}
+     />
+     <div 
+       className="absolute inset-0 pointer-events-none transition-all duration-300"
+       style={{
+         backgroundColor: getColorHex(selectedColor),
+         mixBlendMode: 'multiply',
+         opacity: 0.18
+       }}
+     />
+     <div className="absolute top-3 right-3 bg-burgundy/90 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md z-20 flex items-center gap-1.5 backdrop-blur-xs">
+       <span className="h-2.5 w-2.5 rounded-full border border-white" style={{ backgroundColor: getColorHex(selectedColor) }} />
+       <span>معاينة لون: {selectedColor} (رقمي ✨)</span>
+       <button 
+         type="button" 
+         onClick={(e) => { e.stopPropagation(); setIsDigitalRecolorActive(false); }}
+         className="mr-1.5 text-[10px] bg-white/20 hover:bg-white/40 rounded px-1.5 py-0.5 transition"
+         title="إلغاء المعاينة وعرض اللون الأصلي"
+       >
+         ✕
+       </button>
+     </div>
+   </>
+ )}
  </div>
 
  {/* Arrow controls */}
@@ -151,9 +202,10 @@ function ProductDetailsPage() {
  </div>
  )}
  </div>
+  )}
 
  {/* Thumbnail row */}
- {product.images && product.images.length > 1 && (
+ {((product.images && product.images.length > 1) || Boolean(product.mannequinImage)) && (
  <div className="flex gap-2 overflow-x-auto py-1 shrink-0 select-none scrollbar-thin">
  {product.images.map((img, idx) => (
  <button
@@ -221,21 +273,50 @@ function ProductDetailsPage() {
  )}
 
  {product.colors && product.colors.length > 0 && (
- <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4">
- <h3 className="text-sm font-semibold">الألوان المتاحة</h3>
- <div className="mt-2 flex flex-wrap gap-2 items-center">
+ <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4 space-y-3">
+ <div className="flex items-center justify-between">
+   <h3 className="text-sm font-semibold">الألوان المتاحة</h3>
+   <button
+     type="button"
+     onClick={() => setIsColorLabOpen(true)}
+     className="text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1 shadow-xs cursor-pointer"
+     title="فتح محاكي الألوان الرقمي"
+   >
+     <span>🎨</span>
+     <span>مختبر الألوان (ديمو ✨)</span>
+   </button>
+ </div>
+ <div className="flex flex-wrap gap-2 items-center">
  {product.colors.map((c) => (
  <button
  key={c}
  type="button"
- onClick={() => setSelectedColor(c)}
- className={`flex items-center gap-2 rounded-full border px-3 py-1 text-sm ${selectedColor === c ? 'border-burgundy bg-burgundy/10 text-burgundy' : 'border-burgundy/20 text-burgundy/80'}`}
+ onClick={() => {
+   setSelectedColor(c);
+   setIsDigitalRecolorActive(true);
+ }}
+ className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${selectedColor === c ? 'border-burgundy bg-burgundy/15 text-burgundy ring-1 ring-burgundy shadow-xs' : 'border-burgundy/20 bg-white/80 text-burgundy/80 hover:bg-white'}`}
  >
- <span className="h-4 w-4 rounded-full" style={{ backgroundColor: c }} />
- {c}
+ <span className="h-3.5 w-3.5 rounded-full border border-black/15 shrink-0 shadow-xs" style={{ backgroundColor: getColorHex(c) }} />
+ <span>{c}</span>
  </button>
  ))}
  </div>
+ {selectedColor && (
+   <div className="flex items-center justify-between text-[11px] text-burgundy/70 bg-white/60 p-2 rounded-xl border border-burgundy/10">
+     <span className="flex items-center gap-1.5">
+       <span>{isDigitalRecolorActive ? '🎨 تلوين الصورة بالكمبيوتر: ' : '👁️ العرض العادي للون: '}</span>
+       <strong className="text-burgundy">{selectedColor}</strong>
+     </span>
+     <button
+       type="button"
+       onClick={() => setIsDigitalRecolorActive(prev => !prev)}
+       className="text-xs font-extrabold text-burgundy underline hover:text-black cursor-pointer"
+     >
+       {isDigitalRecolorActive ? 'عرض الصورة الأصلية' : 'تفعيل التلوين الرقمي ✨'}
+     </button>
+   </div>
+ )}
  </div>
  )}
 
