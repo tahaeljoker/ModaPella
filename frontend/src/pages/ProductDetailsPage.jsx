@@ -272,7 +272,10 @@ function ProductDetailsPage() {
  </div>
  )}
 
- {product.colors && product.colors.length > 0 && (
+ {Boolean(product) && (
+  (() => {
+    const availableColors = (product.colors && product.colors.length > 0) ? product.colors : ["بورجندي", "كحلي", "زيتي", "بيبي بلو", "سيمون", "بيج"];
+    return (
  <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4 space-y-3">
  <div className="flex items-center justify-between">
    <h3 className="text-sm font-semibold">الألوان المتاحة</h3>
@@ -287,7 +290,7 @@ function ProductDetailsPage() {
    </button>
  </div>
  <div className="flex flex-wrap gap-2 items-center">
- {product.colors.map((c) => (
+ {availableColors.map((c) => (
  <button
  key={c}
  type="button"
@@ -318,7 +321,8 @@ function ProductDetailsPage() {
    </div>
  )}
  </div>
- )}
+    );
+  })())}
 
  <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4">
  <h3 className="text-sm font-semibold">الكمية المطلوبة</h3>

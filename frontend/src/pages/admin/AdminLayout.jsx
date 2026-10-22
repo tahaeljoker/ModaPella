@@ -37,6 +37,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
+import ColorRecolorLabModal from '../../components/ColorRecolorLabModal';
 
 const sections = [
   {
@@ -95,6 +96,7 @@ function AdminLayout({ children }) {
  const [firstTimeMsgOpen, setFirstTimeMsgOpen] = useState(true);
  const [selectedNotification, setSelectedNotification] = useState(null);
  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isColorLabOpen, setIsColorLabOpen] = useState(false);
   const [liveOrderAlert, setLiveOrderAlert] = useState(null);
 
  useEffect(() => {
@@ -278,7 +280,18 @@ function AdminLayout({ children }) {
  </div>
  </div>
  
- <button
+   <button
+    type="button"
+    onClick={() => setIsColorLabOpen(true)}
+    className="mb-2.5 flex w-full items-center justify-between rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 p-2.5 text-xs font-black text-amber-950 transition shadow-xs cursor-pointer"
+  >
+    <span className="flex items-center gap-2">
+      <span className="text-base">🎨</span>
+      <span>مختبر محاكي الألوان</span>
+    </span>
+    <span className="text-[9px] bg-amber-500 text-white font-extrabold px-2 py-0.5 rounded-full">ديمو ✨</span>
+  </button>
+        <button
  type="button"
  onClick={() => navigate('/cashier')}
  className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F7F0EC] px-4 py-2V5 text-sm font-bold text-burgundy transition hover:bg-burgundy/10"
@@ -333,7 +346,16 @@ function AdminLayout({ children }) {
  <main className="flex-1 lg:mr-64 p-4 sm:p-8 w-full min-w-0">
  {/* Mobile Header with Hamburger */}
  <div className="lg:hidden flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-burgundy/10">
- <h2 className="text-lg font-bold text-burgundy">ModaPella Admin</h2>
+ <div className="flex items-center gap-2">
+    <h2 className="text-base sm:text-lg font-bold text-burgundy">ModaPella</h2>
+    <button
+      type="button"
+      onClick={() => setIsColorLabOpen(true)}
+      className="text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2 py-1 rounded-xl shadow-xs"
+    >
+      🎨 محاكي الألوان (ديمو)
+    </button>
+  </div>
  <button 
  className="text-burgundy focus:outline-none"
  onClick={() => setIsSidebarOpen(true)}
@@ -346,6 +368,11 @@ function AdminLayout({ children }) {
 
  {children}
  </main>
+
+      <ColorRecolorLabModal
+        isOpen={isColorLabOpen}
+        onClose={() => setIsColorLabOpen(false)}
+      />
 
  {/* Notification Modal */}
  {selectedNotification && (
