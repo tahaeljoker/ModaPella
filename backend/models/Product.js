@@ -19,6 +19,10 @@ const ProductSchema = new mongoose.Schema({
   totalReceived: { type: Number, min: 0, default: 0 },
   images: [{ type: String }],
   mannequinImage: { type: String, default: '' },
+  colorImages: [{
+    color: { type: String, trim: true },
+    image: { type: String, trim: true }
+  }],
   onlineName: { type: String, default: '', trim: true },
   sizes: [{ type: String }],
   colors: [{ type: String }],

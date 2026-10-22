@@ -1,5 +1,7 @@
 import ImageUploader from '../../components/ImageUploader';
 import MannequinImageUploader from '../../components/MannequinImageUploader';
+import ColorImagesMapper from '../../components/ColorImagesMapper';
+import { getColorHex } from '../../utils/colorSwatches';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -438,7 +440,7 @@ function RestockModal({ product, onClose, onRestocked }) {
  );
 }
 
-const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', mannequinImage: '', sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
+const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', mannequinImage: '', colorImages: [], sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
@@ -455,6 +457,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
  discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().split('T')[0] : '',
  mannequinImage: product.mannequinImage || '',
+  colorImages: Array.isArray(product.colorImages) ? product.colorImages : [],
  };
  }
  return { ...emptyProduct, season: 'winter' };
@@ -1007,13 +1010,73 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
 />
 </div>
  {ENABLE_VARIANTS && (
+ <div className="space-y-4">
  <div className="grid gap-4 sm:grid-cols-2">
- <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات (بفاصلة)</label>
- <input name="sizes" value={typeof form.sizes === 'string' ? form.sizes : (form.sizes || []).join(', ')} onChange={handleChange} className={inp} placeholder="S, M, L, XL" />
+ <div>
+ <div className="flex items-center justify-between mb-1">
+ <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات المتاحة للمنتج</label>
+ <span className="text-[10px] text-burgundy/50 font-bold">{parsedSizes.length} مقاسات</span>
  </div>
- <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان (بفاصلة)</label>
- <input name="colors" value={typeof form.colors === 'string' ? form.colors : (form.colors || []).join(', ')} onChange={handleChange} className={inp} placeholder="أبيض, أسود, بورجندي" />
+ <input name="sizes" value={typeof form.sizes === "string" ? form.sizes : (form.sizes || []).join(", ")} onChange={handleChange} className={inp} placeholder="S, M, L, XL" />
+ <div className="flex flex-wrap gap-1 mt-2">
+ {["S", "M", "L", "XL", "2XL", "Free Size", "38", "40", "42", "44"].map(sz => {
+ const isSel = parsedSizes.includes(sz);
+ return (
+ <button
+ key={sz}
+ type="button"
+ onClick={() => {
+ const updated = isSel ? parsedSizes.filter(s => s !== sz) : [...parsedSizes, sz];
+ setForm(p => ({ ...p, sizes: updated.join(", ") }));
+ }}
+ className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+ isSel ? "bg-burgundy text-white border-burgundy shadow-xs" : "bg-white text-burgundy/70 border-burgundy/15 hover:bg-burgundy/5"
+ }`}
+ >
+ {sz} {isSel && "✓"}
+ </button>
+ );
+ })}
  </div>
+ </div>
+ <div>
+ <div className="flex items-center justify-between mb-1">
+ <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان المتاحة للمنتج</label>
+ <span className="text-[10px] text-burgundy/50 font-bold">{parsedColors.length} ألوان</span>
+ </div>
+ <input name="colors" value={typeof form.colors === "string" ? form.colors : (form.colors || []).join(", ")} onChange={handleChange} className={inp} placeholder="أحمر, أخضر, بورجندي" />
+ <div className="flex flex-wrap gap-1 mt-2">
+ {["أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", "كحلي", "سماوي", "زيتي", "سيمون", "لافندر", "أصفر"].map(clr => {
+ const isSel = parsedColors.includes(clr);
+ return (
+ <button
+ key={clr}
+ type="button"
+ onClick={() => {
+ const updated = isSel ? parsedColors.filter(c => c !== clr) : [...parsedColors, clr];
+ setForm(p => ({ ...p, colors: updated.join(", ") }));
+ }}
+ className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer ${
+ isSel ? "bg-burgundy text-white border-burgundy shadow-xs" : "bg-white text-burgundy/70 border-burgundy/15 hover:bg-burgundy/5"
+ }`}
+ >
+ <span className="w-2 h-2 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: getColorHex(clr) }} />
+ <span>{clr}</span>
+ {isSel && <span>✓</span>}
+ </button>
+ );
+ })}
+ </div>
+ </div>
+ </div>
+ {parsedColors.length > 0 && (
+ <ColorImagesMapper
+ colors={parsedColors}
+ colorImages={form.colorImages || []}
+ productImages={Array.isArray(form.images) ? form.images : []}
+ onChange={(updated) => setForm(p => ({ ...p, colorImages: updated }))}
+ />
+ )}
  </div>
  )}
  {hasVariants && (

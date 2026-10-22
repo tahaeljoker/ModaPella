@@ -224,7 +224,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, category, description, price, costPrice, stock, images, mannequinImage, sizes, colors, type, sku, oldSku, supplier, supplierId, allowDiscount, discountPrice, discountStartDate, discountEndDate, variants } = req.body;
+    const { name, category, description, price, costPrice, stock, images, mannequinImage, colorImages, sizes, colors, type, sku, oldSku, supplier, supplierId, allowDiscount, discountPrice, discountStartDate, discountEndDate, variants } = req.body;
     
     let finalSku = sku && typeof sku === 'string' ? sku.trim() : '';
     if (!finalSku) {
@@ -240,6 +240,7 @@ router.post('/', auth, async (req, res) => {
       stock: Number(stock || 0),
       images,
       mannequinImage: mannequinImage || '',
+      colorImages: Array.isArray(colorImages) ? colorImages : [],
       sizes,
       colors,
       type,

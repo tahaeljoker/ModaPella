@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import CompareContext from '../context/CompareContext';
-import { extractProductColors, getColorHex } from '../utils/colorSwatches';
+import { getColorHex } from '../utils/colorSwatches';
 
 const fallbackImages = {
   Blouse: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
@@ -21,15 +21,31 @@ function ProductCard({ product }) {
   const navigate = useNavigate();
   const { addToCompare, isComparing } = useContext(CompareContext);
   const isItemComparing = isComparing(product?._id);
-  const image = product?.images?.[0] || fallbackImages[product?.category] || fallbackImages.Blouse;
-  const [activeColor, setActiveColor] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
 
-  const rawColors = extractProductColors(product);
-  const colors = rawColors.length > 0 ? rawColors : ['بورجندي', 'كحلي', 'بيج', 'زيتي'];
+  // Exact colors defined for this product by the admin
+  const colors = Array.isArray(product?.colors) && product.colors.length > 0
+    ? product.colors.map(c => String(c).trim()).filter(Boolean)
+    : [];
+
+  // Find assigned real photo for selected color
+  const getColorPhoto = (colorName) => {
+    if (!colorName) return null;
+    if (Array.isArray(product?.colorImages)) {
+      const match = product.colorImages.find(
+        ci => ci.color && ci.color.trim().toLowerCase() === colorName.trim().toLowerCase() && ci.image
+      );
+      if (match) return match.image;
+    }
+    return null;
+  };
+
+  const defaultImage = product?.images?.[0] || fallbackImages[product?.category] || fallbackImages.Blouse;
+  const currentImage = (selectedColor && getColorPhoto(selectedColor)) || defaultImage;
 
   const handleColorClick = (e, colorName) => {
     e.stopPropagation();
-    setActiveColor(prev => prev === colorName ? null : colorName);
+    setSelectedColor(prev => (prev === colorName ? null : colorName));
   };
 
   return (
@@ -55,49 +71,21 @@ function ProductCard({ product }) {
           <span className="text-xs sm:text-sm">{isItemComparing ? '✓' : 'مقارنة'}</span>
         </button>
 
-        {/* Base Image */}
-        <LazyImage
-          src={image}
+        {/* Real Product Image (changes cleanly to the real photo of the selected color) */}
+        <img
+          key={currentImage}
+          src={currentImage}
           alt={cleanProductName(product)}
-          className={`w-full h-full transition-all duration-700 ease-out group-hover:scale-105 ${
-            product.images?.[1] && !activeColor ? 'group-hover:opacity-0' : ''
-          }`}
+          className="w-full h-full object-cover transition-all duration-500 ease-out group-hover:scale-105"
+          loading="lazy"
         />
 
-        {product.images?.[1] && !activeColor && (
-          <img
-            src={product.images[1]}
-            alt={`${cleanProductName(product)} - 2`}
-            className="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-700 ease-out group-hover:opacity-100 group-hover:scale-105"
-            loading="lazy"
-          />
-        )}
-
-        {/* 🎨 Digital Color Recolor Layer (Instant preview on card) */}
-        {activeColor && (
-          <>
-            <div
-              className="absolute inset-0 pointer-events-none transition-all duration-300 z-10"
-              style={{
-                backgroundColor: getColorHex(activeColor),
-                mixBlendMode: 'color',
-                opacity: 0.85
-              }}
-            />
-            <div
-              className="absolute inset-0 pointer-events-none transition-all duration-300 z-10"
-              style={{
-                backgroundColor: getColorHex(activeColor),
-                mixBlendMode: 'multiply',
-                opacity: 0.16
-              }}
-            />
-            {/* Color Badge */}
-            <div className="absolute top-2 left-2 z-20 bg-burgundy/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 backdrop-blur-xs animate-fadeIn">
-              <span className="w-1.5 h-1.5 rounded-full border border-white" style={{ backgroundColor: getColorHex(activeColor) }} />
-              <span>{activeColor} ✨</span>
-            </div>
-          </>
+        {/* Selected Color Badge */}
+        {selectedColor && (
+          <div className="absolute top-2 left-2 z-20 bg-burgundy/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 backdrop-blur-xs animate-fadeIn">
+            <span className="w-1.5 h-1.5 rounded-full border border-white" style={{ backgroundColor: getColorHex(selectedColor) }} />
+            <span>{selectedColor}</span>
+          </div>
         )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-burgundy/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-90" />
@@ -133,30 +121,29 @@ function ProductCard({ product }) {
       {/* Card Info */}
       <div className="flex flex-col justify-between p-3 sm:p-4 text-burgundy space-y-2">
         <div>
-          {/* Category & Clickable Color Swatches */}
+          {/* Category & EXACT Defined Color Circles */}
           <div className="flex items-center justify-between gap-1.5">
             <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.2em] text-burgundy/50">
               {product.category}
             </p>
 
-            {/* Clickable Color Circles */}
-            <div className="flex items-center gap-1.5 py-0.5">
-              {colors.slice(0, 5).map((c, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={(e) => handleColorClick(e, c)}
-                  className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 hover:scale-125 cursor-pointer shadow-xs ${
-                    activeColor === c ? 'scale-125 ring-2 ring-burgundy border-white shadow-sm' : 'border-black/20'
-                  }`}
-                  style={{ backgroundColor: getColorHex(c) }}
-                  title={`معاينة لون ${c} على القطعة`}
-                />
-              ))}
-              {colors.length > 5 && (
-                <span className="text-[8px] text-burgundy/50 font-mono font-bold">+{colors.length - 5}</span>
-              )}
-            </div>
+            {/* ONLY the exact colors defined for this product */}
+            {colors.length > 0 && (
+              <div className="flex items-center gap-1.5 py-0.5">
+                {colors.map((c, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={(e) => handleColorClick(e, c)}
+                    className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 hover:scale-125 cursor-pointer shadow-xs ${
+                      selectedColor === c ? 'scale-125 ring-2 ring-burgundy border-white shadow-sm' : 'border-black/20'
+                    }`}
+                    style={{ backgroundColor: getColorHex(c) }}
+                    title={`عرض ${c}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <h3 className="text-xs sm:text-sm font-semibold mt-1 text-burgundy/90 line-clamp-1">

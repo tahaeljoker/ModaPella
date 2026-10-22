@@ -9,7 +9,6 @@ import { isDiscountActive, cleanProductName } from '../utils/discount';
 import QuickOrderModal from '../components/QuickOrderModal';
 import ShareOutfitModal from '../components/ShareOutfitModal';
 import MannequinComparisonSlider from '../components/MannequinComparisonSlider';
-import ColorRecolorLabModal from '../components/ColorRecolorLabModal';
 import { getColorHex } from '../utils/colorSwatches';
 
 function ProductDetailsPage() {
@@ -70,14 +69,7 @@ function ProductDetailsPage() {
  return (
  <section className="py-10 text-burgundy">
  <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-10 shadow-soft">{error}</div>
-   {/* Color Recolor Lab Modal */}
-  <ColorRecolorLabModal
-    isOpen={isColorLabOpen}
-    onClose={() => setIsColorLabOpen(false)}
-    initialImage={product?.mannequinImage || (product?.images && product.images.length > 0 ? product.images[activeImageIdx] : '')}
-    initialColor={selectedColor || (product?.colors && product.colors[0]) || 'بورجندي'}
-  />
-</section>
+   </section>
  );
  }
 
@@ -128,42 +120,11 @@ function ProductDetailsPage() {
  className="w-full h-full cursor-zoom-in transition-all duration-300 hover:scale-[1.02]"
  >
  <LazyImage 
- src={product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80'} 
+ src={displayedImage} 
  alt={cleanProductName(product)} 
  className="w-full h-full object-cover" 
  />
- {isDigitalRecolorActive && selectedColor && (
-   <>
-     <div 
-       className="absolute inset-0 pointer-events-none transition-all duration-300"
-       style={{
-         backgroundColor: getColorHex(selectedColor),
-         mixBlendMode: 'color',
-         opacity: 0.82
-       }}
-     />
-     <div 
-       className="absolute inset-0 pointer-events-none transition-all duration-300"
-       style={{
-         backgroundColor: getColorHex(selectedColor),
-         mixBlendMode: 'multiply',
-         opacity: 0.18
-       }}
-     />
-     <div className="absolute top-3 right-3 bg-burgundy/90 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md z-20 flex items-center gap-1.5 backdrop-blur-xs">
-       <span className="h-2.5 w-2.5 rounded-full border border-white" style={{ backgroundColor: getColorHex(selectedColor) }} />
-       <span>معاينة لون: {selectedColor} (رقمي ✨)</span>
-       <button 
-         type="button" 
-         onClick={(e) => { e.stopPropagation(); setIsDigitalRecolorActive(false); }}
-         className="mr-1.5 text-[10px] bg-white/20 hover:bg-white/40 rounded px-1.5 py-0.5 transition"
-         title="إلغاء المعاينة وعرض اللون الأصلي"
-       >
-         ✕
-       </button>
-     </div>
-   </>
- )}
+ 
  </div>
 
  {/* Arrow controls */}
@@ -195,7 +156,7 @@ function ProductDetailsPage() {
  <button
  key={idx}
  type="button"
- onClick={() => setActiveImageIdx(idx)}
+ onClick={() => { setActiveImageIdx(idx); setColorOverride(null); }}
  className={`h-2 rounded-full transition-all duration-300 ${activeImageIdx === idx ? 'w-5 bg-white' : 'w-2 bg-white/55 hover:bg-white'}`}
  />
  ))}
@@ -272,57 +233,49 @@ function ProductDetailsPage() {
  </div>
  )}
 
- {Boolean(product) && (
-  (() => {
-    const availableColors = (product.colors && product.colors.length > 0) ? product.colors : ["بورجندي", "كحلي", "زيتي", "بيبي بلو", "سيمون", "بيج"];
-    return (
- <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4 space-y-3">
- <div className="flex items-center justify-between">
-   <h3 className="text-sm font-semibold">الألوان المتاحة</h3>
-   <button
-     type="button"
-     onClick={() => setIsColorLabOpen(true)}
-     className="text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1 shadow-xs cursor-pointer"
-     title="فتح محاكي الألوان الرقمي"
-   >
-     <span>🎨</span>
-     <span>مختبر الألوان (ديمو ✨)</span>
-   </button>
- </div>
- <div className="flex flex-wrap gap-2 items-center">
- {availableColors.map((c) => (
- <button
- key={c}
- type="button"
- onClick={() => {
-   setSelectedColor(c);
-   setIsDigitalRecolorActive(true);
- }}
- className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${selectedColor === c ? 'border-burgundy bg-burgundy/15 text-burgundy ring-1 ring-burgundy shadow-xs' : 'border-burgundy/20 bg-white/80 text-burgundy/80 hover:bg-white'}`}
- >
- <span className="h-3.5 w-3.5 rounded-full border border-black/15 shrink-0 shadow-xs" style={{ backgroundColor: getColorHex(c) }} />
- <span>{c}</span>
- </button>
- ))}
- </div>
- {selectedColor && (
-   <div className="flex items-center justify-between text-[11px] text-burgundy/70 bg-white/60 p-2 rounded-xl border border-burgundy/10">
-     <span className="flex items-center gap-1.5">
-       <span>{isDigitalRecolorActive ? '🎨 تلوين الصورة بالكمبيوتر: ' : '👁️ العرض العادي للون: '}</span>
-       <strong className="text-burgundy">{selectedColor}</strong>
-     </span>
-     <button
-       type="button"
-       onClick={() => setIsDigitalRecolorActive(prev => !prev)}
-       className="text-xs font-extrabold text-burgundy underline hover:text-black cursor-pointer"
-     >
-       {isDigitalRecolorActive ? 'عرض الصورة الأصلية' : 'تفعيل التلوين الرقمي ✨'}
-     </button>
-   </div>
- )}
- </div>
-    );
-  })())}
+ {product.colors && product.colors.length > 0 && (
+  <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4 space-y-2.5">
+    <div className="flex items-center justify-between">
+      <h3 className="text-sm font-bold text-burgundy">
+        الألوان المتاحة ({product.colors.length} ألوان):
+      </h3>
+      {selectedColor && (
+        <span className="text-xs font-bold text-burgundy bg-burgundy/10 px-2.5 py-1 rounded-xl flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full border border-black/20" style={{ backgroundColor: getColorHex(selectedColor) }} />
+          <span>اللون المختار: {selectedColor}</span>
+        </span>
+      )}
+    </div>
+
+    <div className="flex flex-wrap gap-2 items-center pt-1">
+      {product.colors.map((c) => {
+        const isSelected = selectedColor === c;
+        const hex = getColorHex(c);
+        const hasPhoto = Boolean(getColorPhoto(c));
+
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => handleSelectColor(c)}
+            className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+              isSelected
+                ? 'border-burgundy bg-burgundy text-white shadow-sm ring-2 ring-burgundy/30'
+                : 'border-burgundy/20 bg-white text-burgundy hover:border-burgundy'
+            }`}
+          >
+            <span
+              className="h-3.5 w-3.5 rounded-full border border-black/15 shadow-xs shrink-0"
+              style={{ backgroundColor: hex }}
+            />
+            <span>{c}</span>
+            {hasPhoto && <span className="text-[10px] opacity-80" title="صورة خاصة بهذا اللون">📸</span>}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+)}
 
  <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4">
  <h3 className="text-sm font-semibold">الكمية المطلوبة</h3>
