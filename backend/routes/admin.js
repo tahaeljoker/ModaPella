@@ -236,8 +236,17 @@ router.get('/overview', auth, requireRole(['admin']), async (req, res) => {
     const lowStock = products.filter((item) => item.stock <= 5);
 
     const isInternalMovement = (t) => {
-      const cat = (t.category || '').toLowerCase();
-      return cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
+      const cat = (t.category || '').toLowerCase().replace(/\s+/g, '');
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'shiftopen' ||
+        cat === 'shiftclose' ||
+        cat === 'transfer' ||
+        cat === 'safetransfer' ||
+        cat.includes('transfer') ||
+        cat.includes('تحويل') ||
+        desc.includes('تحويل')
+      );
     };
 
     const isSupplierTx = (t) => {

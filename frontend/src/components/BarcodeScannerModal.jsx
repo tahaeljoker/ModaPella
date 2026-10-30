@@ -32,9 +32,8 @@ function BarcodeScannerModal({ isOpen, onClose, onScanSuccess }) {
  const config = {
  fps: 10,
  qrbox: (width, height) => {
- // Responsive target frame
- const size = Math.min(width, height) * 0.7;
- return { width: size, height: size * 0.5 }; // wide rectangle suitable for 1D barcodes
+ const minDim = Math.min(width, height);
+ return { width: Math.floor(minDim * 0.8), height: Math.floor(minDim * 0.7) };
  },
  aspectRatio: 1.0
  };
@@ -99,10 +98,10 @@ function BarcodeScannerModal({ isOpen, onClose, onScanSuccess }) {
  <div id={elementId} className="w-full h-full" />
  {/* Target Guide overlay */}
  <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
- <div className="w-[80%] h-[35%] border-2 border-dashed border-red-500 rounded-xl flex items-center justify-center">
+ <div className="w-[85%] h-[60%] border-2 border-dashed border-red-500 rounded-xl flex items-center justify-center">
  <div className="w-full h-[2px] bg-red-500 animate-pulse" />
  </div>
- <p className="text-[10px] text-white/70 bg-black/60 px-3 py-1 rounded-full mt-3 font-semibold">ضع الباركود داخل المربع الأحمر</p>
+ <p className="text-[10px] text-white/70 bg-black/60 px-3 py-1 rounded-full mt-3 font-semibold">ضع الباركود أو الـ QR داخل الإطار</p>
  </div>
  </div>
  ) : (

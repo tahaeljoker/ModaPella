@@ -110,7 +110,8 @@ function AdminSafe() {
     // Rent specifics
     rentPlace: 'إيجار المحل الرئيسي',
     rentMonth: getCurrentMonthName(),
-    recipientName: ''
+    recipientName: '',
+    transferDirection: 'INSTAPAY_TO_CASH'
   });
 
   const [form, setForm] = useState(defaultForm());
@@ -160,11 +161,12 @@ function AdminSafe() {
     loadEmployees();
   }, []);
 
-  const openModal = (type, categoryOverride) => {
+  const openModal = (type, categoryOverride, transferDirOverride) => {
     const init = defaultForm();
     if (type === 'SALARY') init.category = 'صرف رواتب';
     else if (type === 'SHIPPING') init.category = 'نولون شحن';
     else if (type === 'RENT') init.category = 'إيجار';
+    else if (type === 'TRANSFER' && transferDirOverride) init.transferDirection = transferDirOverride;
     else if (categoryOverride) init.category = categoryOverride;
     setForm(init);
     setModalType(type);
@@ -240,12 +242,12 @@ function AdminSafe() {
           description: form.description || 'إيداع نقدية في الدرج'
         });
       } else if (modalType === 'TRANSFER') {
-        await api.post('/cashier/safe/transaction', {
+        const isFromInstapay = form.transferDirection === 'INSTAPAY_TO_CASH';
+        await api.post('/cashier/safe/transfer', {
+          from: isFromInstapay ? 'Instapay' : 'Cash',
+          to: isFromInstapay ? 'Cash' : 'Instapay',
           amount: Number(form.amount),
-          type: 'OUT',
-          category: 'Safe Transfer',
-          paymentMethod: 'Cash',
-          description: form.description || 'تحويل نقدية إلى الخزينة الرئيسية'
+          description: form.description
         });
       } else if (modalType === 'CLOSE') {
         if (!currentShift) return alert('لا يوجد وردية مفتوحة حالياً.');
@@ -386,6 +388,7 @@ function AdminSafe() {
     if (categoryFilter === 'expenses') return t.type === 'OUT' && cat !== 'refund' && cat !== 'sale' && !cat.includes('راتب') && !cat.includes('نولون') && !cat.includes('إيجار') && !cat.includes('ايجار') && !cat.includes('مورد');
     if (categoryFilter === 'refunds') return cat === 'refund' || cat.includes('مرتجع');
     if (categoryFilter === 'deposits') return t.type === 'IN' && cat !== 'sale';
+    if (categoryFilter === 'transfers') return cat === 'safe transfer' || cat === 'transfer' || cat.includes('تحويل') || (t.description || '').includes('تحويل');
     return true;
   });
 
@@ -480,15 +483,35 @@ function AdminSafe() {
       {/* Primary KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {/* Cash Drawer */}
-        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-4 rounded-2xl shadow-md space-y-1">
-          <p className="text-[11px] font-bold opacity-80">نقدية الدرج الحالية</p>
+        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-4 rounded-2xl shadow-md space-y-1 relative group">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold opacity-80">نقدية الدرج الحالية</p>
+            <button
+              type="button"
+              onClick={() => openModal('TRANSFER', null, 'CASH_TO_INSTAPAY')}
+              className="text-[10px] bg-white/20 hover:bg-white/30 text-white px-2 py-0.5 rounded-lg transition font-bold flex items-center gap-1 shadow-xs"
+              title="تحويل كاش من الدرج إلى إنستاباي"
+            >
+              <span>تحويل لإنستاباي 💳</span>
+            </button>
+          </div>
           <p className="text-xl font-black">{EGP(data.summary?.cashDrawer || 0)}</p>
           <p className="text-[10px] opacity-75">الكاش الفعلي بالدرج الآن</p>
         </div>
 
         {/* Instapay / Digital */}
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md space-y-1">
-          <p className="text-[11px] font-bold opacity-80">رصيد إنستاباي المفترض (الآن)</p>
+        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md space-y-1 relative group">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold opacity-80">رصيد إنستاباي المفترض (الآن)</p>
+            <button
+              type="button"
+              onClick={() => openModal('TRANSFER', null, 'INSTAPAY_TO_CASH')}
+              className="text-[10px] bg-white/20 hover:bg-white/30 text-white px-2 py-0.5 rounded-lg transition font-bold flex items-center gap-1 shadow-xs"
+              title="سحب من إنستاباي لتغذية الخزنة النقدية"
+            >
+              <span>تحويل للخزنة 💵</span>
+            </button>
+          </div>
           <p className="text-xl font-black">{EGP(data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0)}</p>
           <p className="text-[10px] opacity-75">تحويلات اليوم: {EGP(data.todaySummary?.instapaySales || 0)}</p>
         </div>
@@ -592,14 +615,14 @@ function AdminSafe() {
           <span>إيداع نقدية بالدرج</span>
         </button>
 
-        {/* 6. تحويل للخزينة */}
+        {/* 6. تحويل سيولة بين إنستاباي والخزنة */}
         <button
           type="button"
           onClick={() => openModal('TRANSFER')}
-          className="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5"
+          className="bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-md flex items-center gap-1.5"
         >
-          <Icon name="refresh" className="w-4 h-4" />
-          <span>تحويل للخزينة الرئيسية</span>
+          <Icon name="transfer" className="w-4 h-4" />
+          <span>تحويل سيولة (إنستاباي ⇄ الخزنة)</span>
         </button>
       </div>
 
@@ -643,7 +666,8 @@ function AdminSafe() {
               { id: 'sales', label: 'مبيعات' },
               { id: 'expenses', label: 'مصاريف أخرى' },
               { id: 'refunds', label: 'مرتجعات' },
-              { id: 'deposits', label: 'إيداعات' }
+              { id: 'deposits', label: 'إيداعات' },
+              { id: 'transfers', label: 'تحويلات سيولة' }
             ].map(pill => (
               <button
                 key={pill.id}
@@ -719,9 +743,14 @@ function AdminSafe() {
                               <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-lg text-[10px] font-bold">
                                 إيداع نقدية
                               </span>
-                            ) : t.category === 'Safe Transfer' ? (
-                              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 px-2 py-0.5 rounded-lg text-[10px] font-bold">
-                                تحويل خزينة
+                            ) : t.category === 'Safe Transfer' || t.category === 'Transfer' ? (
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                                t.type === 'IN' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200' : 'bg-blue-100 text-blue-900 border border-blue-200'
+                              }`}>
+                                <Icon name="transfer" className="w-3 h-3" />
+                                {t.paymentMethod === 'Cash'
+                                  ? (t.type === 'IN' ? 'إيداع بالخزنة محول من إنستاباي' : 'سحب من الخزنة لإنستاباي')
+                                  : (t.type === 'IN' ? 'إيداع بإنستاباي محول من الخزنة' : 'سحب من إنستاباي للخزنة')}
                               </span>
                             ) : (
                               <span>{t.category}</span>
@@ -906,7 +935,7 @@ function AdminSafe() {
                 {modalType === 'RENT' && <><Icon name="rent" className="w-5 h-5 text-purple-600" /><span>سداد إيجار المحل / المقرات</span></>}
                 {modalType === 'EXPENSE' && <><Icon name="expenses" className="w-5 h-5 text-rose-600" /><span>صرف مصروف من الخزنة</span></>}
                 {modalType === 'DEPOSIT' && <><Icon name="cash" className="w-5 h-5 text-emerald-600" /><span>إيداع نقدية في الدرج</span></>}
-                {modalType === 'TRANSFER' && <><Icon name="refresh" className="w-5 h-5 text-blue-600" /><span>تحويل نقدية للخزينة الرئيسية</span></>}
+                {modalType === 'TRANSFER' && <><Icon name="transfer" className="w-5 h-5 text-indigo-600" /><span>تحويل سيولة (إنستاباي ⇄ الخزنة الرئيسية)</span></>}
                 {modalType === 'OPEN' && <><Icon name="unlock" className="w-5 h-5 text-emerald-600" /><span>فتح وردية جديدة</span></>}
                 {modalType === 'CLOSE' && <><Icon name="lock" className="w-5 h-5 text-rose-600" /><span>تقفيل الوردية الحالية</span></>}
               </h3>
@@ -1100,6 +1129,101 @@ function AdminSafe() {
                 </div>
               )}
 
+              {/* --- 4. TRANSFER DIRECTION & SOURCE SELECTOR --- */}
+              {modalType === 'TRANSFER' && (
+                <div className="space-y-3 p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-blue-50/80 border border-indigo-200">
+                  <p className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                    <Icon name="transfer" className="w-4 h-4 text-indigo-700" />
+                    <span>اتجاه تحويل السيولة:</span>
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Direction 1: Instapay -> Cash */}
+                    <button
+                      type="button"
+                      onClick={() => setForm(p => ({ ...p, transferDirection: 'INSTAPAY_TO_CASH' }))}
+                      className={`p-3.5 rounded-xl border text-right transition flex flex-col justify-between ${
+                        form.transferDirection === 'INSTAPAY_TO_CASH'
+                          ? 'bg-white border-indigo-600 shadow-md ring-2 ring-indigo-500/20'
+                          : 'bg-white/70 border-indigo-200/80 hover:bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-xs font-black text-indigo-900 flex items-center gap-1">
+                          <span>💳 إنستاباي</span>
+                          <span className="text-indigo-400">⬅</span>
+                          <span>💵 الخزنة</span>
+                        </span>
+                        {form.transferDirection === 'INSTAPAY_TO_CASH' && (
+                          <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-burgundy/70 font-medium">سحب من إنستاباي وإيداع بالدرج (كاش)</p>
+                      <div className="mt-2 pt-1.5 border-t border-indigo-100 flex items-center justify-between text-[10px]">
+                        <span className="text-burgundy/50">رصيد إنستاباي المتاح:</span>
+                        <span className="font-bold text-indigo-700">{EGP(data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0)}</span>
+                      </div>
+                    </button>
+
+                    {/* Direction 2: Cash -> Instapay */}
+                    <button
+                      type="button"
+                      onClick={() => setForm(p => ({ ...p, transferDirection: 'CASH_TO_INSTAPAY' }))}
+                      className={`p-3.5 rounded-xl border text-right transition flex flex-col justify-between ${
+                        form.transferDirection === 'CASH_TO_INSTAPAY'
+                          ? 'bg-white border-emerald-600 shadow-md ring-2 ring-emerald-500/20'
+                          : 'bg-white/70 border-emerald-200/80 hover:bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-xs font-black text-emerald-900 flex items-center gap-1">
+                          <span>💵 الخزنة</span>
+                          <span className="text-emerald-400">⬅</span>
+                          <span>💳 إنستاباي</span>
+                        </span>
+                        {form.transferDirection === 'CASH_TO_INSTAPAY' && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-burgundy/70 font-medium">سحب كاش من الدرج وإيداع بإنستاباي</p>
+                      <div className="mt-2 pt-1.5 border-t border-emerald-100 flex items-center justify-between text-[10px]">
+                        <span className="text-burgundy/50">نقدية الدرج المتاحة:</span>
+                        <span className="font-bold text-emerald-700">{EGP(data.summary?.cashDrawer || 0)}</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Preset Amount Chips */}
+                  <div className="pt-2">
+                    <span className="text-[10px] font-bold text-indigo-900/60 block mb-1">مبالغ سريعة:</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[500, 1000, 2000, 5000].map(val => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setForm(p => ({ ...p, amount: String(val) }))}
+                          className="bg-white hover:bg-indigo-100 text-indigo-900 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 transition"
+                        >
+                          {val.toLocaleString()} ج.م
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const maxVal = form.transferDirection === 'INSTAPAY_TO_CASH'
+                            ? Math.max(0, data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0)
+                            : Math.max(0, data.summary?.cashDrawer || 0);
+                          setForm(p => ({ ...p, amount: String(maxVal) }));
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition"
+                      >
+                        كامل الرصيد
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Amount input */}
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase text-burgundy/70">
@@ -1132,8 +1256,52 @@ function AdminSafe() {
                 </div>
               )}
 
+              {/* Transfer Live Impact Simulation Box */}
+              {modalType === 'TRANSFER' && form.amount && Number(form.amount) > 0 && (
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50/80 p-3.5 text-xs space-y-2">
+                  <p className="font-bold text-indigo-950 flex items-center gap-1 text-[11px]">
+                    <span>📊</span>
+                    <span>معاينة الأرصدة بعد تنفيذ التحويل:</span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="bg-white p-2.5 rounded-xl border border-indigo-100 space-y-0.5">
+                      <span className="text-burgundy/60 text-[10px] block">نقدية الدرج (الكاش):</span>
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="text-burgundy/50">{EGP(data.summary?.cashDrawer || 0)}</span>
+                        <span className="text-indigo-500 text-xs">⬅</span>
+                        <span className={form.transferDirection === 'INSTAPAY_TO_CASH' ? 'text-emerald-700 font-black' : 'text-rose-700 font-black'}>
+                          {EGP(
+                            form.transferDirection === 'INSTAPAY_TO_CASH'
+                              ? (data.summary?.cashDrawer || 0) + Number(form.amount)
+                              : Math.max(0, (data.summary?.cashDrawer || 0) - Number(form.amount))
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-xl border border-indigo-100 space-y-0.5">
+                      <span className="text-burgundy/60 text-[10px] block">رصيد إنستاباي:</span>
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="text-burgundy/50">{EGP(data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0)}</span>
+                        <span className="text-indigo-500 text-xs">⬅</span>
+                        <span className={form.transferDirection === 'CASH_TO_INSTAPAY' ? 'text-emerald-700 font-black' : 'text-rose-700 font-black'}>
+                          {EGP(
+                            form.transferDirection === 'CASH_TO_INSTAPAY'
+                              ? (data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0) + Number(form.amount)
+                              : Math.max(0, (data.summary?.instapayBalance ?? data.summary?.instapayTotal ?? 0) - Number(form.amount))
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-indigo-900/70 font-medium text-center">
+                    ✓ عملية تحويل سيولة داخلية لا تؤثر على صافي الأرباح أو مصروفات التشغيل
+                  </p>
+                </div>
+              )}
+
               {/* Safe Impact Summary Box */}
-              {!['OPEN', 'CLOSE'].includes(modalType) && (
+              {!['OPEN', 'CLOSE', 'TRANSFER'].includes(modalType) && (
                 <div className="rounded-xl border border-burgundy/10 bg-white p-3 text-[11px] space-y-1">
                   <div className="flex items-center justify-between text-burgundy/60 font-medium">
                     <span>التأثير المالي على الخزنة:</span>
@@ -1160,7 +1328,7 @@ function AdminSafe() {
                   disabled={submitting}
                   className="flex-1 rounded-full bg-burgundy py-2.5 text-xs font-bold text-white transition hover:bg-[#650018] disabled:opacity-50"
                 >
-                  {submitting ? 'جاري الحفظ والتسجيل...' : (modalType === 'CLOSE' ? 'تأكيد التقفيل' : 'تأكيد وحفظ في الخزنة')}
+                  {submitting ? 'جاري الحفظ والتسجيل...' : (modalType === 'CLOSE' ? 'تأكيد التقفيل' : (modalType === 'TRANSFER' ? 'تأكيد تحويل السيولة الآن' : 'تأكيد وحفظ في الخزنة'))}
                 </button>
                 <button
                   type="button"

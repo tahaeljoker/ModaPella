@@ -259,8 +259,17 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     };
 
     const isInternalMovement = (t) => {
-      const cat = (t.category || '').toLowerCase();
-      return cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
+      const cat = (t.category || '').toLowerCase().replace(/\s+/g, '');
+      const desc = (t.description || '').toLowerCase();
+      return (
+        cat === 'shiftopen' ||
+        cat === 'shiftclose' ||
+        cat === 'transfer' ||
+        cat === 'safetransfer' ||
+        cat.includes('transfer') ||
+        cat.includes('تحويل') ||
+        desc.includes('تحويل')
+      );
     };
 
     transactions.forEach(t => {
@@ -441,6 +450,89 @@ router.post('/safe/transaction', auth, requireRole(['admin', 'cashier', 'manager
     res.status(201).json(populated);
   } catch (error) {
     res.status(500).json({ message: 'Unable to add transaction', error: error.message });
+  }
+});
+
+// POST /api/cashier/safe/transfer — transfer funds between Instapay and Cash Safe (bi-directional)
+router.post('/safe/transfer', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
+  try {
+    const { from, to, amount, description } = req.body;
+    const transferAmount = Number(amount);
+
+    if (!transferAmount || transferAmount <= 0) {
+      return res.status(400).json({ message: 'المبلغ المطلوب تحويله يجب أن يكون أكبر من صفر' });
+    }
+
+    if (!['Cash', 'Instapay'].includes(from) || !['Cash', 'Instapay'].includes(to) || from === to) {
+      return res.status(400).json({ message: 'طريقة التحويل غير صحيحة (يجب التحويل بين الكاش وإنستاباي)' });
+    }
+
+    // Attach to active open shift if one exists
+    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+    if (!openShift) {
+      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+    }
+
+    const isFromInstapay = from === 'Instapay';
+    const directionKey = isFromInstapay ? 'INSTAPAY_TO_CASH' : 'CASH_TO_INSTAPAY';
+    const noteText = description?.trim() ? ` (${description.trim()})` : '';
+
+    const outDesc = isFromInstapay
+      ? `تحويل سيولة: سحب من إنستاباي لتغذية الخزنة النقدية${noteText}`
+      : `تحويل سيولة: إخراج كاش من الخزنة للإيداع بإنستاباي${noteText}`;
+    const inDesc = isFromInstapay
+      ? `تحويل سيولة: إيداع بالخزنة النقدية محول من إنستاباي${noteText}`
+      : `تحويل سيولة: إيداع بإنستاباي محول من كاش الخزنة${noteText}`;
+
+    const outTx = new Transaction({
+      amount: transferAmount,
+      type: 'OUT',
+      category: 'Safe Transfer',
+      paymentMethod: from,
+      description: outDesc,
+      user: req.user.id,
+      shift: openShift?._id,
+      metadata: {
+        isTransfer: true,
+        direction: directionKey,
+        fromAccount: from,
+        toAccount: to,
+        notes: description || ''
+      }
+    });
+
+    const inTx = new Transaction({
+      amount: transferAmount,
+      type: 'IN',
+      category: 'Safe Transfer',
+      paymentMethod: to,
+      description: inDesc,
+      user: req.user.id,
+      shift: openShift?._id,
+      metadata: {
+        isTransfer: true,
+        direction: directionKey,
+        fromAccount: from,
+        toAccount: to,
+        notes: description || '',
+        pairedTxId: outTx._id
+      }
+    });
+
+    outTx.metadata.pairedTxId = inTx._id;
+
+    await Promise.all([outTx.save(), inTx.save()]);
+
+    const populatedOut = await Transaction.findById(outTx._id).populate('user', 'name');
+    const populatedIn = await Transaction.findById(inTx._id).populate('user', 'name');
+
+    res.status(201).json({
+      message: 'تم تحويل السيولة بين الخزنة وإنستاباي بنجاح وتحديث الأرصدة فورياً',
+      outTransaction: populatedOut,
+      inTransaction: populatedIn
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'حدث خطأ أثناء تنفيذ عملية التحويل', error: error.message });
   }
 });
 
@@ -753,8 +845,13 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
 
       let typeLabel = t.category;
       if (t.category === 'Refund') typeLabel = 'مرتجع مال';
-      else if (t.category === 'Deposit') typeLabel = 'إيداع نقدي';
-      else if (t.category === 'Safe Transfer') typeLabel = 'تحويل للخزينة الرئيسية';
+      else if (t.category === 'Safe Transfer' || t.category === 'Transfer') {
+        typeLabel = t.metadata?.direction === 'INSTAPAY_TO_CASH'
+          ? (t.type === 'IN' ? 'إيداع بالخزنة محول من إنستاباي' : 'سحب من إنستاباي للخزنة')
+          : t.metadata?.direction === 'CASH_TO_INSTAPAY'
+          ? (t.type === 'IN' ? 'إيداع بإنستاباي محول من الخزنة' : 'سحب من الخزنة لإنستاباي')
+          : 'تحويل سيولة بين الخزائن';
+      }
       else if (t.category === 'Expense') typeLabel = 'مصروف';
       else if (t.category === 'ShiftOpen') typeLabel = 'رصيد افتتاحي للوردية';
       else if (t.category === 'ShiftClose') typeLabel = 'تصفية الوردية عند الإغلاق';

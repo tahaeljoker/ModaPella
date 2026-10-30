@@ -14,8 +14,17 @@ const ARABIC_MONTHS = [
  * Helper to identify internal non-expense shift movements
  */
 const isInternalMovement = (t) => {
-  const cat = (t.category || '').toLowerCase();
-  return cat === 'shiftopen' || cat === 'shiftclose' || cat === 'transfer' || cat === 'safetransfer';
+  const cat = (t.category || '').toLowerCase().replace(/\s+/g, '');
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'shiftopen' ||
+    cat === 'shiftclose' ||
+    cat === 'transfer' ||
+    cat === 'safetransfer' ||
+    cat.includes('transfer') ||
+    cat.includes('تحويل') ||
+    desc.includes('تحويل')
+  );
 };
 
 /**

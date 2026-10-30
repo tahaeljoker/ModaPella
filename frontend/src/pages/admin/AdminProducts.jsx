@@ -22,98 +22,107 @@ const getProductIcon = () => (
 );
 
 function printBarcode(product) {
- if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
- const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
- if (!dataUrl) return alert('تعذر إنشاء باركود لهذا الكود');
- const win = window.open('', '_blank', 'width=400,height=300');
- win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
- <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
- * { margin:0; padding:0; box-sizing:border-box; }
- @page { size: 1.57in 1.18in landscape; margin: 0; }
- body {
- font-family: 'Cairo', sans-serif;
- background: #fff;
- width: 1.57in;
- height: 1.14in;
- display: flex;
- flex-direction: column;
- align-items: center;
- justify-content: center;
- padding: 1mm 1.5mm;
- overflow: hidden;
- direction: rtl;
- }
- .brand {
- font-size: 7.5px;
- font-weight: 900;
- color: #000;
- line-height: 1;
- margin-bottom: 1px;
- text-align: center;
- width: 100%;
- }
- .name {
- font-size: 7px;
- color: #000;
- max-width: 95%;
- white-space: nowrap;
- overflow: hidden;
- text-overflow: ellipsis;
- line-height: 1;
- margin-bottom: 2px;
- text-align: center;
- width: 100%;
- }
- .barcode-wrapper {
- width: 90%;
- height: 12mm;
- display: flex;
- justify-content: center;
- align-items: center;
- margin: 0 auto;
- }
- .barcode-wrapper img {
- max-width: 100%;
- height: 12mm;
- object-fit: contain;
- image-rendering: pixelated;
- }
- .footer {
- display: flex;
- justify-content: space-between;
- width: 95%;
- align-items: center;
- line-height: 1;
- margin-top: 2px;
- }
- .sku {
- font-family: monospace;
- font-size: 8px;
- font-weight: 700;
- color: #000;
- text-align: right;
- }
- .price {
- font-size: 8.5px;
- font-weight: 900;
- color: #000;
- text-align: left;
- }
- @media print {
- body { padding: 1mm 2mm; }
- }
- </style></head>
- <body>
- <div class="brand">ModaPella</div>
- <div class="name">${product.name}</div>
- <div class="barcode-wrapper"><img src="${dataUrl}" alt="${product.sku}" /></div>
- <div class="footer">
- <span class="sku">${product.sku}</span>
- <span class="price">${Number(isDiscountActive(product) ? product.discountPrice : product.price).toLocaleString('en-US')} ج.م</span>
- </div>
- </body></html>`);
- win.document.close(); win.focus();
- setTimeout(() => { win.print(); win.close(); }, 500);
+  if (!product.sku) return alert('هذا المنتج ليس له كود (SKU) بعد');
+  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 40, margin: 6 });
+  if (!dataUrl) return alert('تعذر إنشاء باركود لهذا الكود');
+  const win = window.open('', '_blank', 'width=400,height=300');
+  win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/><title>باركود - ${product.sku}</title>
+  <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  @page { size: 40mm 30mm; margin: 0; }
+  body {
+    font-family: 'Cairo', Arial, sans-serif;
+    background: #fff;
+    width: 40mm;
+    height: 28.5mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8mm 1.2mm;
+    overflow: hidden;
+    direction: rtl;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .brand {
+    font-size: 7.5px;
+    font-weight: 900;
+    color: #000;
+    line-height: 1;
+    margin-bottom: 0.5px;
+    text-align: center;
+    width: 100%;
+  }
+  .name {
+    font-size: 6.8px;
+    color: #000;
+    max-width: 96%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;
+    margin-bottom: 1px;
+    text-align: center;
+    width: 100%;
+  }
+  .barcode-wrapper {
+    width: 96%;
+    height: 12mm;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0.5px auto;
+    overflow: visible;
+  }
+  .barcode-wrapper img {
+    max-width: 98%;
+    height: 12mm;
+    object-fit: contain;
+    image-rendering: pixelated;
+    display: block;
+    margin: 0 auto;
+  }
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    width: 96%;
+    align-items: center;
+    line-height: 1;
+    margin-top: 1px;
+    box-sizing: border-box;
+  }
+  .sku {
+    font-family: monospace;
+    font-size: 8.5px;
+    font-weight: 900;
+    color: #000;
+    white-space: nowrap;
+    text-align: right;
+    letter-spacing: 0.5px;
+  }
+  .price {
+    font-size: 8.5px;
+    font-weight: 900;
+    color: #000;
+    white-space: nowrap;
+    text-align: left;
+  }
+  @media print {
+    body { padding: 0.8mm 1.2mm; }
+  }
+  </style></head>
+  <body>
+  <div class="brand">ModaPella</div>
+  <div class="name">${product.name}</div>
+  <div class="barcode-wrapper"><img src="${dataUrl}" alt="${product.sku}" /></div>
+  <div class="footer">
+    <span class="sku">${product.sku}</span>
+    <span class="price">${Number(isDiscountActive(product) ? product.discountPrice : product.price).toLocaleString('en-US')} ج.م</span>
+  </div>
+  </body></html>`);
+  win.document.close(); win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 500);
 }
 
 const ACTION_AR = {

@@ -177,7 +177,7 @@ router.get('/lookup-barcode', async (req, res) => {
         matched.isSeasonArchived = false;
         modified = true;
       }
-      if (!matched.oldSku || (matched.oldSku !== code && matched.oldSku !== normCode)) {
+      if (!matched.oldSku) {
         matched.oldSku = normCode || code;
         modified = true;
       }

@@ -593,7 +593,16 @@ function CashierPOS() {
  .catch(console.error)
  .finally(() => setLoading(false));
  // load employees list
- api.get('/employees').then(res => setEmployees(res.data)).catch(() => {});
+ 
+  // Live products sync: reload products whenever window gains focus
+  useEffect(() => {
+    const handleWindowFocusSync = () => {
+      api.get('/products').then(res => setProducts(res.data)).catch(() => {});
+    };
+    window.addEventListener('focus', handleWindowFocusSync);
+    return () => window.removeEventListener('focus', handleWindowFocusSync);
+  }, []);
+api.get('/employees').then(res => setEmployees(res.data)).catch(() => {});
 
  // Offline handlers
  const handleOnline = () => setIsOnline(true);
@@ -716,52 +725,64 @@ function CashierPOS() {
  const sku = normalizeDigits(normSku).toUpperCase();
  const scannedDigits = sku.replace(/[^0-9]/g, '');
 
- const found = products.find(p => {
- const pSku = normalizeDigits(p.sku || '').trim().toUpperCase();
- const pOldSku = normalizeDigits(p.oldSku || '').trim().toUpperCase();
- const pIdDigits = p._id ? (parseInt(p._id.toString().slice(-6), 16) % 89999 + 10000).toString() : '';
+ // 1. Exact match by sku or oldSku first
+        let found = products.find(p => {
+          const pSku = normalizeDigits(p.sku || '').trim().toUpperCase();
+          const pOldSku = normalizeDigits(p.oldSku || '').trim().toUpperCase();
+          return (pSku && pSku === sku) || (pOldSku && pOldSku === sku);
+        });
 
- if (pSku === sku || (pOldSku && pOldSku === sku) || (pIdDigits && pIdDigits === sku)) return true;
+        // 2. Clean alphanumeric match (ignoring dashes and spaces)
+        if (!found) {
+          const skuClean = sku.replace(/[^A-Z0-9]/g, '');
+          if (skuClean) {
+            found = products.find(p => {
+              const pSkuClean = normalizeDigits(p.sku || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
+              const pOldSkuClean = normalizeDigits(p.oldSku || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
+              return (pSkuClean && pSkuClean === skuClean) || (pOldSkuClean && pOldSkuClean === skuClean);
+            });
+          }
+        }
 
- const pDigits = pSku.replace(/[^0-9]/g, '');
- const pOldDigits = pOldSku.replace(/[^0-9]/g, '');
+        // 3. Exact 5-digit pIdDigits match
+        if (!found) {
+          found = products.find(p => {
+            const pIdDigits = p._id ? (parseInt(p._id.toString().slice(-6), 16) % 89999 + 10000).toString() : '';
+            return pIdDigits && pIdDigits === sku;
+          });
+        }
 
- if (scannedDigits && pDigits && scannedDigits === pDigits) return true;
- if (scannedDigits && pOldDigits && scannedDigits === pOldDigits) return true;
- if (scannedDigits && pIdDigits && scannedDigits === pIdDigits) return true;
+        // 4. Fallback to digits match ONLY if digits >= 4
+        if (!found && scannedDigits && scannedDigits.length >= 4) {
+          found = products.find(p => {
+            const pSku = normalizeDigits(p.sku || '').trim();
+            const pDigits = pSku.replace(/[^0-9]/g, '');
+            return pSku === scannedDigits || pDigits === scannedDigits;
+          });
+        }
 
- return false;
- });
+        if (found) {
+          let autoSize = '';
+          let autoColor = '';
+          let autoStock = 0;
 
- if (found) {
- let autoSize = '';
- let autoColor = '';
- let autoStock = 0;
+          if (found.variants && found.variants.length > 0) {
+            const availableVariant = found.variants.find(v => v.stock > 0) || found.variants[0];
+            autoSize = availableVariant.size || '';
+            autoColor = availableVariant.color || '';
+            autoStock = availableVariant.stock ?? 0;
+          } else {
+            autoSize = found.sizes?.[0] || '';
+            autoColor = found.colors?.[0] || '';
+            autoStock = found.stock ?? 0;
+          }
 
- if (found.variants && found.variants.length > 0) {
- const availableVariant = found.variants.find(v => v.stock > 0);
- if (availableVariant) {
- autoSize = availableVariant.size;
- autoColor = availableVariant.color;
- autoStock = availableVariant.stock;
- } else {
- showToast(`${found.name} — نفد المخزون!`, 'error');
- buffer = '';
- return;
- }
- } else {
- autoSize = found.sizes?.[0] || '';
- autoColor = found.colors?.[0] || '';
- autoStock = found.stock || 0;
- }
+          if (autoStock <= 0) {
+            showToast(`تنبيه: "${found.name}" رصيده في السيستم 0 (تمت الإضافة)`, 'warning');
+            autoStock = 999;
+          }
 
- if (autoStock <= 0) {
- showToast(`${found.name} — نفد المخزون!`, 'error');
- buffer = '';
- return;
- }
-
- // Add directly to cart
+          // Add directly to cart
  const key = `${found._id}_${autoSize}_${autoColor}`;
  const activeDiscount = isDiscountActive(found);
     const origPrice = Number(found.price || 0);

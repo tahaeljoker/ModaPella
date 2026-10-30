@@ -22,56 +22,56 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 // ── Label Component (1.57in × 1.18in thermal label style) ───────────────────────
 function BarcodeLabel({ product, qty }) {
- const effPrice = isDiscountActive(product) ? product.discountPrice : product.price;
- const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 45, margin: 5 });
- return (
- <div
- className="barcode-label"
- style={{
- width: '1.57in',
- height: '1.18in',
- border: '1px solid #ddd',
- borderRadius: '3px',
- padding: '1mm 1.5mm',
- display: 'inline-flex',
- flexDirection: 'column',
- alignItems: 'center',
- justifyContent: 'center', // Centers vertically in flex column
- fontFamily: 'Cairo, Arial, sans-serif',
- direction: 'rtl',
- background: '#fff',
- margin: '1mm',
- pageBreakInside: 'avoid',
- breakInside: 'avoid',
- boxSizing: 'border-box',
- overflow: 'hidden',
- }}
- >
- <div style={{ width: '100%', textAlign: 'center', lineHeight: '1.1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
- <div style={{ fontSize: '7.5px', fontWeight: '900', color: '#000' }}>ModaPella</div>
- <div style={{ fontSize: '7px', color: '#000', marginTop: '0.5px', maxWidth: '95%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
- {product.name}
- </div>
- </div>
+  const effPrice = isDiscountActive(product) ? product.discountPrice : product.price;
+  const dataUrl = renderBarcodeDataUrl(product.sku, { width: 2, height: 40, margin: 6 });
+  return (
+    <div
+      className="barcode-label"
+      style={{
+        width: '40mm',
+        height: '28.5mm',
+        border: '1px solid #ddd',
+        borderRadius: '3px',
+        padding: '0.8mm 1.2mm',
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'Cairo, Arial, sans-serif',
+        direction: 'rtl',
+        background: '#fff',
+        margin: '1mm',
+        pageBreakInside: 'avoid',
+        breakInside: 'avoid',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ width: '100%', textAlign: 'center', lineHeight: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: '7.5px', fontWeight: '900', color: '#000', marginBottom: '0.5px' }}>ModaPella</div>
+        <div style={{ fontSize: '6.8px', color: '#000', maxWidth: '96%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: '1px' }}>
+          {product.name}
+        </div>
+      </div>
 
- {dataUrl ? (
- <div style={{ width: '96%', height: '13mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '1px 0', overflow: 'visible' }}>
- <img src={dataUrl} alt={product.sku} style={{ maxWidth: '96%', height: '13mm', objectFit: 'contain', imageRendering: 'pixelated', display: 'block', margin: '0 auto' }} />
- </div>
- ) : (
- <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
- )}
+      {dataUrl ? (
+        <div style={{ width: '96%', height: '12mm', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0.5px 0', overflow: 'visible' }}>
+          <img src={dataUrl} alt={product.sku} style={{ maxWidth: '98%', height: '12mm', objectFit: 'contain', imageRendering: 'pixelated', display: 'block', margin: '0 auto' }} />
+        </div>
+      ) : (
+        <div style={{ fontSize: '6px', color: '#ccc', margin: '2px 0' }}>[ لا يوجد باركود ]</div>
+      )}
 
- <div style={{ display: 'flex', justifyContent: 'space-between', width: '95%', alignItems: 'center', lineHeight: '1', marginTop: '1px' }}>
- <span style={{ fontSize: '8px', fontWeight: '700', fontFamily: 'monospace', color: '#000' }}>
- {product.sku}
- </span>
- <span style={{ fontSize: '8.5px', fontWeight: '900', color: '#000' }}>
- {EGP(effPrice)}
- </span>
- </div>
- </div>
- );
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '96%', alignItems: 'center', lineHeight: '1', marginTop: '1px', boxSizing: 'border-box' }}>
+        <span style={{ fontSize: '8.5px', fontWeight: '900', fontFamily: 'monospace', color: '#000', whiteSpace: 'nowrap', textAlign: 'right', letterSpacing: '0.5px' }}>
+          {product.sku}
+        </span>
+        <span style={{ fontSize: '8.5px', fontWeight: '900', color: '#000', whiteSpace: 'nowrap', textAlign: 'left' }}>
+          {EGP(effPrice)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 // ── Main Page ────────────────────────────────────────────────────────────────
@@ -155,34 +155,32 @@ function AdminBarcodeLabels() {
  printDiv.id = 'barcode-print-root';
 
  const labelsHTML = selectedProducts.flatMap(p => {
- const qty = quantities[p._id] || 1;
- return Array.from({ length: qty }, () => {
- const dataUrl = renderBarcodeDataUrl(p.sku, { width: 2, height: 45, margin: 5 });
- const barcodeContent = dataUrl
- ? `<img src="${dataUrl}" alt="${p.sku}" style="max-width:96%;height:13mm;object-fit:contain;image-rendering:pixelated;display:block;margin:0 auto;" />`
- : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
+      const qty = quantities[p._id] || 1;
+      return Array.from({ length: qty }, () => {
+        const dataUrl = renderBarcodeDataUrl(p.sku, { width: 2, height: 40, margin: 6 });
+        const barcodeContent = dataUrl
+          ? `<img src="${dataUrl}" alt="${p.sku}" style="max-width:98%;height:12mm;object-fit:contain;image-rendering:pixelated;display:block;margin:0 auto;" />`
+          : `<div style="font-size:6px;color:#ccc;text-align:center">[ لا يوجد باركود ]</div>`;
 
- return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:30mm;overflow:hidden;box-sizing:border-box;">
- <div class="print-label-page" style="width:40mm;height:30mm;padding:1mm 1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
- <div style="width:100%;text-align:center;line-height:1;margin-bottom:1px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
- <div style="font-size:7.5px;font-weight:900;color:#000;">ModaPella</div>
- <div style="font-size:7px;color:#000;margin-top:0.5px;max-width:95%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;">${p.name}</div>
- </div>
- <div style="width:100%;display:flex;justify-content:center;align-items:center;margin:1px 0;overflow:visible;">
- <div style="width:96%;height:13mm;display:flex;justify-content:center;align-items:center;">
- ${barcodeContent}
- </div>
- </div>
- <div style="display:flex;justify-content:space-between;width:95%;align-items:center;line-height:1;margin-top:1px;">
- <span style="font-size:8px;font-weight:700;font-family:monospace;color:#000;text-align:right;">${p.sku}</span>
- <span style="font-size:8.5px;font-weight:900;color:#000;text-align:left;">${Number(isDiscountActive(p) ? p.discountPrice : p.price).toLocaleString('en-US')} ج.م</span>
- </div>
- </div>
- </div>`;
- });
- }).join('');
+        return `<div class="print-label-wrapper" style="page-break-after:always;break-after:page;display:block;width:40mm;height:28.5mm;overflow:hidden;box-sizing:border-box;">
+          <div class="print-label-page" style="width:40mm;height:28.5mm;padding:0.8mm 1.2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;box-sizing:border-box;overflow:hidden;">
+            <div style="width:100%;text-align:center;line-height:1;margin-bottom:0.5px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div style="font-size:7.5px;font-weight:900;color:#000;margin-bottom:0.5px;">ModaPella</div>
+              <div style="font-size:6.8px;color:#000;max-width:96%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;margin-bottom:1px;">${p.name}</div>
+            </div>
+            <div style="width:96%;height:12mm;display:flex;justify-content:center;align-items:center;margin:0.5px 0;overflow:visible;">
+              ${barcodeContent}
+            </div>
+            <div style="display:flex;justify-content:space-between;width:96%;align-items:center;line-height:1;margin-top:1px;box-sizing:border-box;">
+              <span style="font-size:8.5px;font-weight:900;font-family:monospace;color:#000;white-space:nowrap;text-align:right;letter-spacing:0.5px;">${p.sku}</span>
+              <span style="font-size:8.5px;font-weight:900;color:#000;white-space:nowrap;text-align:left;">${Number(isDiscountActive(p) ? p.discountPrice : p.price).toLocaleString('en-US')} ج.م</span>
+            </div>
+          </div>
+        </div>`;
+      });
+    }).join('');
 
- printDiv.innerHTML = labelsHTML;
+    printDiv.innerHTML = labelsHTML;
 
  const style = document.createElement('style');
  style.innerHTML = `
