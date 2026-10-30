@@ -51,10 +51,10 @@ function OrderDetailModal({ order, onClose }) {
  {item.color && <span>اللون: {item.color}</span>}
  </p>
  <p className="text-xs text-burgundy/40 mt-0.5">
- {EGP(item.price)} × {item.quantity}
+ {EGP((item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price)} × {item.quantity}
  </p>
  </div>
- <p className="font-bold text-burgundy text-sm whitespace-nowrap">{EGP(item.price * item.quantity)}</p>
+ <p className="font-bold text-burgundy text-sm whitespace-nowrap">{EGP(((item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price) * item.quantity)}</p>
  </div>
  ))}
  </div>
@@ -105,12 +105,15 @@ function OrderDetailModal({ order, onClose }) {
  onClick={() => {
  const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
  const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
- const itemsHTML = order.items.map(item => `
- <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:10px">
- <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
- <span style="white-space:nowrap">${(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
- </div>
- `).join('');
+ const itemsHTML = order.items.map(item => {
+          const unitPrice = (item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price;
+          return `
+          <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:10px">
+          <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
+          <span style="white-space:nowrap">${(unitPrice * item.quantity).toLocaleString('en-US')} ج.م</span>
+          </div>
+          `;
+        }).join('');
 
  const printDiv = document.createElement('div');
  printDiv.id = 'receipt-reprint-root';
@@ -132,7 +135,7 @@ function OrderDetailModal({ order, onClose }) {
  </div>
 
   <div style="font-weight:bold;font-size:10px">
-  ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
+  ${(order.showDiscountInInvoice !== false && order.discount > 0) ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${order.discount} ج.م</span></div>` : ''}
   <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px">
   <span>الإجمالي الفعلي:</span>
   <span>${order.totalAmount.toLocaleString('en-US')} ج.م</span>

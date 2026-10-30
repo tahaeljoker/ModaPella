@@ -1,6 +1,4 @@
 import ImageUploader from '../../components/ImageUploader';
-import MannequinImageUploader from '../../components/MannequinImageUploader';
-import ColorImagesMapper from '../../components/ColorImagesMapper';
 import { getColorHex } from '../../utils/colorSwatches';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -464,6 +462,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  });
  const [loading, setLoading] = useState(false);
  const [isCalcOpen, setIsCalcOpen] = useState(false);
+  const [customCalcPct, setCustomCalcPct] = useState('');
  const [suppliers, setSuppliers] = useState([]);
  const [isManualSupplier, setIsManualSupplier] = useState(false);
   const [supplierBillOption, setSupplierBillOption] = useState('none');
@@ -645,25 +644,81 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  <div className="absolute top-full right-0 left-0 mt-1.5 z-40 bg-white rounded-2xl p-4 shadow-xl border border-burgundy/10 space-y-2 text-right">
  <p className="text-[11px] font-bold text-burgundy/60">حاسبة تسعير ذكي بناءً على التكلفة:</p>
  <div className="flex gap-1.5 flex-wrap">
- {[15, 25, 35, 50, 60, 70].map(pct => (
- <button
- key={pct}
- type="button"
- onClick={() => {
- const cost = Number(form.costPrice || 0);
- if (cost > 0) {
- const calcPrice = Math.round(cost * (1 + pct / 100));
- setForm(p => ({ ...p, price: calcPrice }));
- setIsCalcOpen(false);
- } else {
- alert('برجاء إدخال سعر التكلفة أولاً');
- }
- }}
- className="text-[10px] bg-burgundy text-white px-2 py-1 rounded hover:bg-[#650018] font-bold"
- >
- +{pct}% ربح
- </button>
- ))}
+ {[50, 60, 70, 80, 90, 100, 110, 120, 130].map(pct => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          const cost = Number(form.costPrice || 0);
+                          if (cost > 0) {
+                            const calcPrice = Math.round(cost * (1 + pct / 100));
+                            setForm(p => ({ ...p, price: calcPrice }));
+                            setIsCalcOpen(false);
+                          } else {
+                            alert('برجاء إدخال سعر التكلفة أولاً');
+                          }
+                        }}
+                        className="text-[10px] bg-burgundy text-white px-2 py-1 rounded hover:bg-[#650018] font-bold transition shadow-xs"
+                      >
+                        +{pct}%
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom Profit Percentage Input */}
+                  <div className="flex items-center gap-1.5 pt-2 border-t border-burgundy/10">
+                    <span className="text-[11px] font-bold text-burgundy/70 whitespace-nowrap">نسبة مخصصة:</span>
+                    <div className="relative flex items-center flex-1">
+                      <input
+                        type="number"
+                        value={customCalcPct}
+                        onChange={e => setCustomCalcPct(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const cost = Number(form.costPrice || 0);
+                            const pct = Number(customCalcPct);
+                            if (cost <= 0) {
+                              alert('برجاء إدخال سعر التكلفة أولاً');
+                              return;
+                            }
+                            if (!pct || pct <= 0) {
+                              alert('برجاء إدخال نسبة ربح صالحة');
+                              return;
+                            }
+                            const calcPrice = Math.round(cost * (1 + pct / 100));
+                            setForm(p => ({ ...p, price: calcPrice }));
+                            setIsCalcOpen(false);
+                            setCustomCalcPct('');
+                          }
+                        }}
+                        placeholder="مثال: 85 أو 140"
+                        className="w-full text-xs text-burgundy bg-[#F7F0EC]/60 border border-burgundy/15 rounded-lg px-2.5 py-1 text-left outline-none focus:border-burgundy font-bold"
+                      />
+                      <span className="absolute left-2 text-xs font-bold text-burgundy/40">%</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cost = Number(form.costPrice || 0);
+                        const pct = Number(customCalcPct);
+                        if (cost <= 0) {
+                          alert('برجاء إدخال سعر التكلفة أولاً');
+                          return;
+                        }
+                        if (!pct || pct <= 0) {
+                          alert('برجاء إدخال نسبة ربح صالحة');
+                          return;
+                        }
+                        const calcPrice = Math.round(cost * (1 + pct / 100));
+                        setForm(p => ({ ...p, price: calcPrice }));
+                        setIsCalcOpen(false);
+                        setCustomCalcPct('');
+                      }}
+                      className="text-[10px] bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1 rounded-lg font-bold transition shadow-sm whitespace-nowrap"
+                    >
+                      تطبيق
+                    </button>
  </div>
  </div>
  )}
@@ -1003,15 +1058,22 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
   label="صور المنتج للمعرض والموقع"
 />
 </div>
-<div>
-<MannequinImageUploader
-  value={form.mannequinImage}
-  onChange={(url) => setForm(p => ({ ...p, mannequinImage: url }))}
-/>
+{ENABLE_VARIANTS && (
+<div className="space-y-4">
+<div className="rounded-xl border border-burgundy/15 bg-burgundy/5 p-3 flex items-center justify-between text-xs text-burgundy">
+  <div className="flex items-center gap-2">
+    <span>💡</span>
+    <span><strong>صور ألوان الموقع والمانيكان:</strong> لتخصيص صور كل لون وعرض مانيكان المحل، انتقل إلى صفحة إعدادات الموقع.</span>
+  </div>
+  <button
+    type="button"
+    onClick={() => navigate('/admin/site-settings?tab=online-products')}
+    className="text-burgundy underline font-bold hover:text-burgundy/80 whitespace-nowrap"
+  >
+    إعدادات الموقع ←
+  </button>
 </div>
- {ENABLE_VARIANTS && (
- <div className="space-y-4">
- <div className="grid gap-4 sm:grid-cols-2">
+<div className="grid gap-4 sm:grid-cols-2">
  <div>
  <div className="flex items-center justify-between mb-1">
  <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات المتاحة للمنتج</label>
@@ -1069,14 +1131,6 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  </div>
  </div>
  </div>
- {parsedColors.length > 0 && (
- <ColorImagesMapper
- colors={parsedColors}
- colorImages={form.colorImages || []}
- productImages={Array.isArray(form.images) ? form.images : []}
- onChange={(updated) => setForm(p => ({ ...p, colorImages: updated }))}
- />
- )}
  </div>
  )}
  {hasVariants && (
@@ -1231,8 +1285,8 @@ const normalizeDigits = (str) => {
  try {
  setBulkLoading(true);
  const res = await api.post('/admin/products/bulk-season', {
- action,
- targetSeason: seasonConfirmModal.targetSeason
+          action: 'switchActiveSeason',
+          targetSeason: seasonConfirmModal.targetSeason
  });
  showToast?.(res.data?.message || 'تم تبديل الموسم بنجاح');
  setSeasonConfirmModal(null);

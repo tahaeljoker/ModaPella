@@ -10,6 +10,7 @@ const OrderItemSchema = new mongoose.Schema({
   size: { type: String, default: '' },
   color: { type: String, default: '' },
   costPrice: { type: Number, default: 0 },
+  originalPrice: { type: Number, default: 0 },
   returnedQuantity: { type: Number, default: 0 }
 });
 
@@ -23,6 +24,7 @@ const OrderSchema = new mongoose.Schema({
   items: [OrderItemSchema],
   totalAmount: { type: Number, required: true, min: 0 },
   discount: { type: Number, default: 0 },
+  showDiscountInInvoice: { type: Boolean, default: true },
   couponCode: { type: String, default: '' },
   type: { type: String, enum: ['Online', 'Offline'], default: 'Online' },
   status: { type: String, enum: ['Pending', 'Completed', 'Returned'], default: 'Pending' },

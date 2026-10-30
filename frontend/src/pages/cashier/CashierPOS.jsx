@@ -30,21 +30,24 @@ const getProductIcon = () => (
 );
 
 // ─── Save Invoice as HTML ─────────────────────────────────────────────────────
-function saveInvoiceAsHTML(order) {
- const id = order._id?.toString().slice(-8).toUpperCase();
- const date = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
- const itemsHTML = (order.items || []).map(item => `
- <tr>
- <td>${item.name}</td>
- <td>${item.size || '—'}</td>
- <td>${item.color || '—'}</td>
- <td style="text-align:center">${item.quantity}</td>
- <td style="text-align:left">${Number(item.price).toLocaleString('en-US')} ج.م</td>
- <td style="text-align:left;font-weight:bold">${Number(item.price * item.quantity).toLocaleString('en-US')} ج.م</td>
- </tr>`).join('');
- const discountRow = order.discount > 0 ? `
- <tr><td colspan="5" style="text-align:right;color:#16a34a">خصم</td>
- <td style="text-align:left;color:#16a34a">- ${Number(order.discount).toLocaleString('en-US')} ج.م</td></tr>` : '';
+function saveInvoiceAsHTML(order, showDiscount = true) {
+  const id = order._id?.toString().slice(-8).toUpperCase();
+  const date = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
+  const itemsHTML = (order.items || []).map(item => {
+    const unitPrice = (item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price;
+    return `
+    <tr>
+    <td>${item.name}</td>
+    <td>${item.size || '—'}</td>
+    <td>${item.color || '—'}</td>
+    <td style="text-align:center">${item.quantity}</td>
+    <td style="text-align:left">${Number(unitPrice).toLocaleString('en-US')} ج.م</td>
+    <td style="text-align:left;font-weight:bold">${Number(unitPrice * item.quantity).toLocaleString('en-US')} ج.م</td>
+    </tr>`;
+  }).join('');
+  const discountRow = (showDiscount && order.discount > 0) ? `
+  <tr><td colspan="5" style="text-align:right;color:#16a34a">خصم</td>
+  <td style="text-align:left;color:#16a34a">- ${Number(order.discount).toLocaleString('en-US')} ج.م</td></tr>` : '';
 
  const html = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -100,7 +103,8 @@ ${order._employeeName ? `<div class="emp">الموظف: ${order._employeeName}</
 
 // ─── Invoice Receipt Modal ────────────────────────────────────────────────────
 function InvoiceModal({ order, onClose }) {
- const [copies, setCopies] = useState(1);
+  const [copies, setCopies] = useState(1);
+  const [showDiscount, setShowDiscount] = useState(order?.showDiscountInInvoice !== false);
 
  if (!order) return null;
 
@@ -124,16 +128,22 @@ function InvoiceModal({ order, onClose }) {
  </div>
 
  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px">
- ${(order.items || []).map(item => `
- <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:12px">
- <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
- <span>${Number(item.price * item.quantity).toLocaleString('en-US')} ج.م</span>
- </div>
- `).join('')}
+ ${(order.items || []).map(item => {
+    const unitPrice = (item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price;
+    return `
+    <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:12px">
+    <span>${item.name} ${item.size ? `(${item.size})` : ''} ${item.color ? `(${item.color})` : ''} x${item.quantity}</span>
+    <span>${Number(unitPrice * item.quantity).toLocaleString('en-US')} ج.م</span>
+    </div>
+    `;
+  }).join('')}
  </div>
 
  <div style="font-weight:bold;font-size:12px">
- ${order.discount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${Number(order.discount).toLocaleString('en-US')} ج.م</span></div>` : ''}
+ ${showDiscount && order.discount > 0 ? `
+  <div style="display:flex;justify-content:space-between;font-size:11px;color:#555"><span>الإجمالي قبل الخصم:</span><span>${Number(order.totalAmount + order.discount).toLocaleString('en-US')} ج.م</span></div>
+  <div style="display:flex;justify-content:space-between;color:#16a34a"><span>خصم:</span><span>-${Number(order.discount).toLocaleString('en-US')} ج.م</span></div>
+  ` : ''}
  <div style="display:flex;justify-content:space-between;font-size:14px;margin-top:5px">
  <span>الإجمالي:</span>
  <span>${Number(order.totalAmount).toLocaleString('en-US')} ج.م</span>
@@ -216,6 +226,21 @@ function InvoiceModal({ order, onClose }) {
 
  {/* Invoice Body */}
  <div className="p-5 space-y-4">
+          {/* Discount visibility toggle */}
+          <div className="flex items-center justify-between p-3 bg-burgundy/5 rounded-2xl border border-burgundy/15">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs font-bold text-burgundy">
+              <input
+                type="checkbox"
+                checked={showDiscount}
+                onChange={e => setShowDiscount(e.target.checked)}
+                className="w-4 h-4 accent-burgundy rounded cursor-pointer"
+              />
+              <span>إظهار الخصم في الفاتورة المطبوعة</span>
+            </label>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-burgundy/10 text-burgundy">
+              {showDiscount ? 'الخصم ظاهر' : 'الخصم مخفي'}
+            </span>
+          </div>
  <div className="flex justify-between text-xs text-burgundy/50">
  <span>التاريخ</span>
  <span>{new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn')}</span>
@@ -224,38 +249,41 @@ function InvoiceModal({ order, onClose }) {
 
  {/* Items */}
  <div className="space-y-2">
- {order.items?.map((item, i) => (
- <div key={i} className="flex justify-between items-start text-sm">
- <div>
- <p className="font-semibold text-burgundy">{item.name}</p>
- <p className="text-xs text-burgundy/50">
- {item.size && <span className="ml-2">المقاس: {item.size}</span>}
- {item.color && <span>اللون: {item.color}</span>}
- </p>
- <p className="text-xs text-burgundy/50">الكمية: {item.quantity}</p>
- </div>
- <p className="font-bold text-burgundy">{EGP(item.price * item.quantity)}</p>
- </div>
- ))}
+ {order.items?.map((item, i) => {
+            const unitPrice = (item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price;
+            return (
+              <div key={i} className="flex justify-between items-start text-sm">
+                <div>
+                  <p className="font-semibold text-burgundy">{item.name}</p>
+                  <p className="text-xs text-burgundy/50">
+                    {item.size && <span className="ml-2">المقاس: {item.size}</span>}
+                    {item.color && <span>اللون: {item.color}</span>}
+                  </p>
+                  <p className="text-xs text-burgundy/50">الكمية: {item.quantity} × {EGP(unitPrice)}</p>
+                </div>
+                <p className="font-bold text-burgundy">{EGP(unitPrice * item.quantity)}</p>
+              </div>
+            );
+          })}
  </div>
 
  <div className="border-t border-dashed border-burgundy/20" />
 
  {/* Totals */}
  <div className="space-y-1 text-sm">
- {order.discount > 0 && (
- <>
- <div className="flex justify-between text-burgundy/60">
- <span>الإجمالي قبل الخصم</span>
- <span>{EGP(order.totalAmount + order.discount)}</span>
- </div>
- <div className="flex justify-between text-green-600">
- <span>خصم</span>
- <span>- {EGP(order.discount)}</span>
- </div>
- </>
- )}
- <div className="flex justify-between font-bold text-base text-burgundy">
+ {showDiscount && order.discount > 0 && (
+              <>
+                <div className="flex justify-between text-burgundy/60">
+                  <span>الإجمالي قبل الخصم</span>
+                  <span>{EGP(order.totalAmount + order.discount)}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>خصم</span>
+                  <span>- {EGP(order.discount)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between font-bold text-base text-burgundy">
  <span>الإجمالي</span>
  <span>{EGP(order.totalAmount)}</span>
  </div>
@@ -308,7 +336,7 @@ function InvoiceModal({ order, onClose }) {
  إغلاق
  </button>
  <button
- onClick={() => saveInvoiceAsHTML(order)}
+ onClick={() => saveInvoiceAsHTML(order, showDiscount)}
  className="rounded-xl border-2 border-burgundy/30 py-2.5 text-sm font-bold text-burgundy transition hover:bg-burgundy/10"
  >
  حفظ HTML
@@ -384,7 +412,8 @@ function CashierPOS() {
  const [paymentMethod, setPaymentMethod] = useState('Cash');
  const [amountPaid, setAmountPaid] = useState('');
  const [discount, setDiscount] = useState(0);
- const [discountType, setDiscountType] = useState('amount'); // 'amount' | 'percent'
+ const [discountType, setDiscountType] = useState('amount');
+  const [showDiscountInInvoice, setShowDiscountInInvoice] = useState(true); // 'amount' | 'percent'
  const [customerName, setCustomerName] = useState('');
  const [customerPhone, setCustomerPhone] = useState('');
  const [notes, setNotes] = useState('');
@@ -490,13 +519,16 @@ function CashierPOS() {
  let autoStock = p.stock || 99;
  const key = `${p._id}_${autoSize}_${autoColor}`;
  const activeDiscount = isDiscountActive(p);
- const cartItem = {
+      const origPrice = Number(p.price || 0);
+      const effPrice = activeDiscount && p.discountPrice != null && Number(p.discountPrice) > 0 ? Number(p.discountPrice) : origPrice;
+      const cartItem = {
  _cartKey: key,
  product: p._id,
  name: p.name,
  category: p.category,
- price: activeDiscount ? p.discountPrice : p.price,
- originalPrice: p.price,
+ price: effPrice,
+        originalPrice: origPrice,
+        discountPrice: p.discountPrice,
  isDiscountActive: activeDiscount,
  size: autoSize,
  color: autoColor,
@@ -732,13 +764,16 @@ function CashierPOS() {
  // Add directly to cart
  const key = `${found._id}_${autoSize}_${autoColor}`;
  const activeDiscount = isDiscountActive(found);
- const cartItem = {
+    const origPrice = Number(found.price || 0);
+    const effPrice = activeDiscount && found.discountPrice != null && Number(found.discountPrice) > 0 ? Number(found.discountPrice) : origPrice;
+    const cartItem = {
  _cartKey: key,
  product: found._id,
  name: found.name,
  category: found.category,
- price: activeDiscount ? found.discountPrice : found.price,
- originalPrice: found.price,
+ price: effPrice,
+      originalPrice: origPrice,
+      discountPrice: found.discountPrice,
  isDiscountActive: activeDiscount,
  size: autoSize,
  color: autoColor,
@@ -782,13 +817,16 @@ function CashierPOS() {
 
  const key = `${serverProduct._id}_${autoSize}_${autoColor}`;
  const activeDiscount = isDiscountActive(serverProduct);
- const cartItem = {
+        const origPrice = Number(serverProduct.price || 0);
+        const effPrice = activeDiscount && serverProduct.discountPrice != null && Number(serverProduct.discountPrice) > 0 ? Number(serverProduct.discountPrice) : origPrice;
+        const cartItem = {
  _cartKey: key,
  product: serverProduct._id,
  name: serverProduct.name,
  category: serverProduct.category,
- price: activeDiscount ? serverProduct.discountPrice : serverProduct.price,
- originalPrice: serverProduct.price,
+ price: effPrice,
+        originalPrice: origPrice,
+        discountPrice: serverProduct.discountPrice,
  isDiscountActive: activeDiscount,
  size: autoSize,
  color: autoColor,
@@ -869,13 +907,16 @@ function CashierPOS() {
  if (!selectedProduct) return;
  const key = `${selectedProduct._id}_${selectedSize}_${selectedColor}`;
  const activeDiscount = isDiscountActive(selectedProduct);
- const cartItem = {
+    const origPrice = Number(selectedProduct.price || 0);
+    const effPrice = activeDiscount && selectedProduct.discountPrice != null && Number(selectedProduct.discountPrice) > 0 ? Number(selectedProduct.discountPrice) : origPrice;
+    const cartItem = {
  _cartKey: key,
  product: selectedProduct._id,
  name: selectedProduct.name,
  category: selectedProduct.category,
- price: activeDiscount ? selectedProduct.discountPrice : selectedProduct.price,
- originalPrice: selectedProduct.price,
+ price: effPrice,
+      originalPrice: origPrice,
+      discountPrice: selectedProduct.discountPrice,
  isDiscountActive: activeDiscount,
  size: selectedSize,
  color: selectedColor,
@@ -937,15 +978,17 @@ function CashierPOS() {
  customerPhone,
  notes,
  items: cart.map(i => ({
- product: i.product,
- name: i.name,
- category: i.category,
- price: i.price,
- quantity: i.quantity,
- size: i.size,
- color: i.color,
- costPrice: i.costPrice || 0
- })),
+      product: i.product,
+      name: i.name,
+      category: i.category,
+      price: i.price,
+      originalPrice: i.originalPrice || i.price,
+      quantity: i.quantity,
+      size: i.size,
+      color: i.color,
+      costPrice: i.costPrice || 0
+    })),
+    showDiscountInInvoice,
  paymentMethod,
  discount: discountAmount,
  type: 'Offline',
@@ -968,7 +1011,8 @@ function CashierPOS() {
  notes: salePayload.notes || '',
  createdAt: salePayload.createdAt,
  _employeeName: emp?.name || '',
- isOfflineSaved: true
+ showDiscountInInvoice,
+      isOfflineSaved: true
  };
 
  saveOfflineSales([...offlineSales, { id: offlineId, payload: salePayload }]);
@@ -996,7 +1040,7 @@ function CashierPOS() {
  res = await api.post('/pos/sell', salePayload);
  }
  const emp = employees.find(e => e._id === selectedEmployee);
- setCompletedOrder({ ...res.data.order, _employeeName: emp?.name || '' });
+ setCompletedOrder({ ...res.data.order, _employeeName: emp?.name || "", showDiscountInInvoice });
  setCart([]);
  setDiscount(0);
  setDiscountType('amount');
@@ -1561,7 +1605,21 @@ function CashierPOS() {
  </div>
  )}
 
- {/* Total */}
+ {/* Discount Visibility Toggle in POS */}
+            <div className="flex items-center justify-between py-2 px-3 bg-burgundy/5 rounded-xl border border-burgundy/15 mb-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-burgundy">
+                <input
+                  type="checkbox"
+                  checked={showDiscountInInvoice}
+                  onChange={e => setShowDiscountInInvoice(e.target.checked)}
+                  className="w-4 h-4 accent-burgundy rounded cursor-pointer"
+                />
+                <span>إظهار الخصم في الفاتورة</span>
+              </label>
+              <span className="text-[10px] text-burgundy/60 font-bold">{showDiscountInInvoice ? 'مفعّل' : 'مخفي'}</span>
+            </div>
+
+            {/* Total */}
  <div className="flex justify-between items-center py-2 border-t border-burgundy/10">
  <span className="font-bold text-burgundy">الإجمالي</span>
  <span className="text-xl font-extrabold text-burgundy">{EGP(totalAfterDiscount)}</span>

@@ -32,7 +32,6 @@ const playOrderChime = () => {
     console.debug('Audio context not allowed yet without user interaction', err);
   }
 };
-import socket from '../../services/socket';
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';

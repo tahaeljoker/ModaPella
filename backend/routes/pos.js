@@ -58,6 +58,7 @@ router.post('/sell', auth, async (req, res) => {
       category: item.category,
       quantity: item.quantity,
       price: item.price,
+      originalPrice: item.originalPrice || product?.price || item.price,
       size: item.size || '',
       color: item.color || '',
       costPrice,
@@ -109,6 +110,7 @@ router.post('/sell', auth, async (req, res) => {
       items: orderItems,
       totalAmount,
       discount: Number(discount),
+      showDiscountInInvoice: req.body.showDiscountInInvoice !== false,
       type,
       status: 'Completed',
       paymentMethod,
@@ -738,6 +740,7 @@ router.put('/orders/:id', auth, async (req, res) => {
       category: item.category,
       quantity: item.quantity,
       price: item.price,
+      originalPrice: item.originalPrice || product?.price || item.price,
       size: item.size || '',
       color: item.color || '',
       costPrice,
@@ -762,6 +765,9 @@ router.put('/orders/:id', auth, async (req, res) => {
     order.items = orderItems;
     order.totalAmount = totalAmount;
     order.discount = Number(discount);
+    if (req.body.showDiscountInInvoice !== undefined) {
+      order.showDiscountInInvoice = req.body.showDiscountInInvoice !== false;
+    }
     order.paymentMethod = paymentMethod;
     order.type = type;
     order.notes = notes || '';
