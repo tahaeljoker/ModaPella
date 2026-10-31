@@ -40,7 +40,7 @@ function AdminCustomers() {
  const loadCustomers = () => {
  setLoading(true);
  api.get('/admin/customers')
- .then(res => setCustomers(res.data))
+ .then(res => setCustomers(Array.isArray(res?.data) ? res.data : []))
  .catch(console.error)
  .finally(() => setLoading(false));
  };
@@ -49,9 +49,10 @@ function AdminCustomers() {
  loadCustomers();
  }, []);
 
- const filtered = customers.filter(c => 
- c.name.toLowerCase().includes(search.toLowerCase()) || 
- c.phone.includes(search)
+ const customerList = Array.isArray(customers) ? customers : [];
+ const filtered = customerList.filter(c => 
+ (c.name || '').toLowerCase().includes(search.toLowerCase()) || 
+ (c.phone || '').includes(search)
  );
 
  const handleEditSubmit = async (e) => {

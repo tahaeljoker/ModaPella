@@ -27,7 +27,7 @@ function AdminDebts() {
  setLoading(true);
  try {
  const res = await api.get('/cashier/debts');
- setDebts(res.data);
+ setDebts(Array.isArray(res?.data) ? res.data : []);
  } catch (e) {
  console.error('Failed to load customer debts:', e);
  } finally {
@@ -95,11 +95,12 @@ function AdminDebts() {
  }
  };
 
- const filtered = debts.filter(d => {
+ const debtList = Array.isArray(debts) ? debts : [];
+ const filtered = debtList.filter(d => {
  const searchLower = search.toLowerCase();
  return (
- d.name.toLowerCase().includes(searchLower) ||
- d.phone.toLowerCase().includes(searchLower)
+ (d.name || '').toLowerCase().includes(searchLower) ||
+ (d.phone || '').toLowerCase().includes(searchLower)
  );
  });
 

@@ -248,7 +248,7 @@ function CashierSafe() {
 
   const handleExport = () => {
     const headers = ['الوقت', 'نوع العملية', 'التصنيف', 'طريقة الدفع', 'المبلغ', 'التفاصيل'];
-    const rows = data.transactions.map(t => [
+    const rows = (data.transactions || []).map(t => [
       new Date(t.createdAt).toLocaleTimeString('ar-EG-u-nu-latn'),
       t.type === 'IN' ? 'داخل' : 'خارج',
       t.category === 'Sale' ? 'مبيعات' : t.category === 'Refund' ? 'مرتجع' : t.category === 'Deposit' ? 'إيداع' : t.category === 'Safe Transfer' ? 'تحويل للخزينة' : t.category,

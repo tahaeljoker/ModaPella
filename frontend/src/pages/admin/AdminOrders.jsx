@@ -40,8 +40,8 @@ function AdminOrders() {
  api.get('/orders'),
  api.get('/employees')
  ]);
- setOrders(ordersRes.data);
- setEmployees(employeesRes.data);
+ setOrders(Array.isArray(ordersRes?.data) ? ordersRes.data : []);
+ setEmployees(Array.isArray(employeesRes?.data) ? employeesRes.data : []);
  } catch (e) {
  console.error(e);
  } finally {
@@ -110,14 +110,15 @@ function AdminOrders() {
 
  useEffect(() => { loadOrders(); }, []);
 
- const filtered = orders.filter((o) => {
+ const orderList = Array.isArray(orders) ? orders : [];
+ const filtered = orderList.filter((o) => {
  const matchStatus = filterStatus === 'All' || o.status === filterStatus;
  const matchType = filterType === 'All' || o.type === filterType;
  const matchEmployee = filterEmployee === 'All' || o.employeeName === filterEmployee || (o.employee && o.employee.name === filterEmployee);
  const shortId = o._id?.slice(-6).toUpperCase() || '';
  const matchSearch = !search ||
  shortId.includes(search.toUpperCase()) ||
- o.items?.some(i => i.name.toLowerCase().includes(search.toLowerCase()));
+ o.items?.some(i => (i.name || '').toLowerCase().includes(search.toLowerCase()));
  return matchStatus && matchType && matchSearch && matchEmployee;
  });
 

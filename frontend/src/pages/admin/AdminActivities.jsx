@@ -38,7 +38,7 @@ function AdminActivities() {
  if (from) params.append('from', from);
  if (to) params.append('to', to);
  const res = await api.get(`/cashier/activities?${params.toString()}`);
- setActivities(res.data);
+ setActivities(Array.isArray(res?.data) ? res.data : []);
  } catch (e) {
  console.error('Failed to load activities:', e);
  } finally {
@@ -64,14 +64,15 @@ function AdminActivities() {
  exportToCSV(`حركات_النظام_${from}_إلى_${to}`, headers, rows);
  };
 
- const filtered = activities.filter(act => {
+ const activityList = Array.isArray(activities) ? activities : [];
+ const filtered = activityList.filter(act => {
  const matchType = filterType === 'All' || act.type === filterType;
  const searchLower = search.toLowerCase();
  const matchSearch = !search || 
- act.title.toLowerCase().includes(searchLower) ||
+ (act.title || '').toLowerCase().includes(searchLower) ||
  (act.description || '').toLowerCase().includes(searchLower) ||
  (act.notes || '').toLowerCase().includes(searchLower) ||
- act.user.toLowerCase().includes(searchLower);
+ (act.user || '').toLowerCase().includes(searchLower);
  return matchType && matchSearch;
  });
 

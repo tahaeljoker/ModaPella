@@ -1300,7 +1300,7 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center gap-2 mt-2">
  <span>⚠️</span>
  <span>
- <strong>تنبيه موسمي:</strong> موسم المتجر أونلاين مضبوط حالياً على <strong>({siteConfig.websiteSeason === 'winter' ? 'الشتوي ❄️' : 'الصيفي ☀️'})</strong>، وهذا الصنف مصنف <strong>({form.season === 'winter' ? 'شتوي' : 'صيفي'})</strong>، لذلك لن يظهر لزوار الموقع أونلاين حتى تحويل موسم الموقع.
+ <strong>تنبيه موسمي:</strong> موسم المتجر أونلاين مضبوط حالياً على <strong>({siteConfig?.websiteSeason === 'winter' ? 'الشتوي ❄️' : 'الصيفي ☀️'})</strong>، وهذا الصنف مصنف <strong>({form.season === 'winter' ? 'شتوي' : 'صيفي'})</strong>، لذلك لن يظهر لزوار الموقع أونلاين حتى تحويل موسم الموقع.
  </span>
  </div>
  )}

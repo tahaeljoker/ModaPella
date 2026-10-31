@@ -573,7 +573,7 @@ function CashierPOS() {
 
  if (successCount > 0) {
  showToast(` تم مزامنة ${successCount} فاتورة معلقة بنجاح!`);
- api.get('/products').then(res => setProducts(res.data)).catch(() => {});
+ api.get('/products').then(res => setProducts(Array.isArray(res?.data) ? res.data : [])).catch(() => {});
  } else {
  showToast(' فشلت المزامنة. تأكد من اتصال السيرفر بالإنترنت.', 'error');
  }
@@ -589,11 +589,11 @@ function CashierPOS() {
 
    useEffect(() => {
     api.get('/products')
-      .then(res => setProducts(res.data))
+      .then(res => setProducts(Array.isArray(res?.data) ? res.data : []))
       .catch(console.error)
       .finally(() => setLoading(false));
 
-    api.get('/employees').then(res => setEmployees(res.data)).catch(() => {});
+    api.get('/employees').then(res => setEmployees(Array.isArray(res?.data) ? res.data : [])).catch(() => {});
 
     // Offline handlers
     const handleOnline = () => setIsOnline(true);
