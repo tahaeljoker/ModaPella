@@ -34,6 +34,7 @@ const ProductSchema = new mongoose.Schema({
   active: { type: Boolean, default: true },
   season: { type: String, enum: ['summer', 'winter', 'all'], default: 'all' },
   isSeasonArchived: { type: Boolean, default: false },
+  showOnWebsite: { type: Boolean, default: true },
   allowDiscount: { type: Boolean, default: true },
   discountPrice: { type: Number, default: null },
   discountStartDate: { type: Date, default: null },

@@ -1548,20 +1548,48 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
 // POST /api/admin/products/bulk-season — Bulk update seasons or switch active season
 router.post('/products/bulk-season', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const { action, productIds = [], season, targetSeason } = req.body;
+    const { action, productIds = [], season, targetSeason, showOnWebsite, updateWebsiteSeason } = req.body;
 
     if (action === 'setSeason') {
       if (!['summer', 'winter', 'all'].includes(season)) {
-        return res.status(400).json({ message: 'موسم غير صالح' });
+        return res.status(400).json({ message: 'الموسم المحدد غير صالح (يجب أن يكون صيفي أو شتوي أو طوال العام)' });
       }
       if (!Array.isArray(productIds) || productIds.length === 0) {
-        return res.status(400).json({ message: 'يرجى تحديد المنتجات المراد تعديلها' });
+        return res.status(400).json({ message: 'يرجى تحديد المنتجات المراد تعديل موسمها' });
       }
       await Product.updateMany(
         { _id: { $in: productIds } },
         { $set: { season } }
       );
-      return res.json({ message: `تم تحديد موسم ${productIds.length} منتج بنجاح` });
+      req.app.locals.io?.emit('inventory:update');
+      return res.json({ message: `تم تحديث موسم ${productIds.length} منتج إلى ${season === 'summer' ? 'صيفي' : season === 'winter' ? 'شتوي' : 'طوال العام'}` });
+    }
+
+    if (action === 'setShowOnWebsite') {
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: 'يرجى تحديد المنتجات المراد تعديل ظهورها على الموقع' });
+      }
+      const val = Boolean(showOnWebsite);
+      await Product.updateMany(
+        { _id: { $in: productIds } },
+        { $set: { showOnWebsite: val } }
+      );
+      req.app.locals.io?.emit('inventory:update');
+      return res.json({ message: `تم ${val ? 'إتاحة وعرض' : 'إخفاء'} ${productIds.length} منتج على الموقع أونلاين بنجاح` });
+    }
+
+    if (action === 'setWebsiteSeason') {
+      if (!['summer', 'winter', 'all'].includes(season)) {
+        return res.status(400).json({ message: 'الموسم المحدد غير صالح' });
+      }
+      const siteConfig = await getSiteConfig();
+      siteConfig.websiteSeason = season;
+      await siteConfig.save();
+      req.app.locals.io?.emit('siteConfig:update', siteConfig);
+      return res.json({
+        message: `تم ضبط موسم المتجر الإلكتروني بنجاح على: ${season === 'winter' ? 'الموسم الشتوي ❄️' : season === 'summer' ? 'الموسم الصيفي ☀️' : 'جميع المواسم 🔄'}`,
+        websiteSeason: season
+      });
     }
 
     if (action === 'archiveSeason') {
@@ -1573,7 +1601,7 @@ router.post('/products/bulk-season', auth, requireRole(['admin']), async (req, r
         { $set: { isSeasonArchived: true } }
       );
       req.app.locals.io?.emit('inventory:update');
-      return res.json({ message: `تم تخزين ${productIds.length} منتج وإخفاؤها من الجرد والكاشير` });
+      return res.json({ message: `تم تخزين وإخفاء ${productIds.length} منتج من الكاشير والجرد` });
     }
 
     if (action === 'activateSeason') {
@@ -1622,11 +1650,19 @@ router.post('/products/bulk-season', auth, requireRole(['admin']), async (req, r
         activatedCount = resAct.modifiedCount || 0;
       }
 
+      // Also sync website season by default
+      if (updateWebsiteSeason !== false) {
+        const siteConfig = await getSiteConfig();
+        siteConfig.websiteSeason = targetSeason;
+        await siteConfig.save();
+      }
+
       req.app.locals.io?.emit('inventory:update');
       return res.json({
-        message: `تم التحويل إلى الموسم ${targetSeason === 'winter' ? 'الشتوي' : 'الصيفي'} بنجاح (تم تخزين ${archivedCount} منتج وتنشيط ${activatedCount} منتج)`,
+        message: `تم التحويل إلى الموسم ${targetSeason === 'winter' ? 'الشتوي' : 'الصيفي'} بنجاح (تم تخزين ${archivedCount} منتج وتنشيط ${activatedCount} منتج وتحديث موسم المتجر أونلاين)`,
         archivedCount,
-        activatedCount
+        activatedCount,
+        websiteSeason: targetSeason
       });
     }
 

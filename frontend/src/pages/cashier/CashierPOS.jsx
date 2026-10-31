@@ -587,13 +587,25 @@ function CashierPOS() {
  setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
  };
 
- useEffect(() => {
- api.get('/products')
- .then(res => setProducts(res.data))
- .catch(console.error)
- .finally(() => setLoading(false));
- // load employees list
- 
+   useEffect(() => {
+    api.get('/products')
+      .then(res => setProducts(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+
+    api.get('/employees').then(res => setEmployees(res.data)).catch(() => {});
+
+    // Offline handlers
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Live products sync: reload products whenever window gains focus
   useEffect(() => {
     const handleWindowFocusSync = () => {
@@ -602,18 +614,6 @@ function CashierPOS() {
     window.addEventListener('focus', handleWindowFocusSync);
     return () => window.removeEventListener('focus', handleWindowFocusSync);
   }, []);
-api.get('/employees').then(res => setEmployees(res.data)).catch(() => {});
-
- // Offline handlers
- const handleOnline = () => setIsOnline(true);
- const handleOffline = () => setIsOnline(false);
- window.addEventListener('online', handleOnline);
- window.addEventListener('offline', handleOffline);
- return () => {
- window.removeEventListener('online', handleOnline);
- window.removeEventListener('offline', handleOffline);
- };
- }, []);
 
  useEffect(() => {
  const phone = customerPhone.trim();

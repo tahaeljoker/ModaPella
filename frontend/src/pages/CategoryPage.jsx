@@ -18,7 +18,7 @@ function CategoryPage() {
 
  useEffect(() => {
  const decoded = decodeURIComponent(slug);
- api.get('/products')
+ api.get('/products?context=storefront')
  .then((res) => {
  const filtered = (res.data || []).filter((p) => p.category === decoded && (p.stock ?? 0) > 0);
  setProducts(filtered);

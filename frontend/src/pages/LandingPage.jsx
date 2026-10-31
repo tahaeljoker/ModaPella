@@ -36,7 +36,7 @@ function LandingPage() {
  const [siteConfig, setSiteConfig] = useState(defaultSiteConfig);
 
  useEffect(() => {
- api.get('/products')
+ api.get('/products?context=storefront')
  .then((res) => {
  const active = (res.data || []).filter(p => (p.stock ?? 0) > 0);
  setProducts(active.slice(0, 16));

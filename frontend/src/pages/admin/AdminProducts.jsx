@@ -447,18 +447,19 @@ function RestockModal({ product, onClose, onRestocked }) {
  );
 }
 
-const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', mannequinImage: '', colorImages: [], sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
+const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', mannequinImage: '', colorImages: [], sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, showOnWebsite: true, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
 const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, colors, and variants
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
-function ProductModal({ product, onClose, onSave, categories, catAr, onAddCategory }) {
+function ProductModal({ product, onClose, onSave, categories, catAr, onAddCategory, siteConfig }) {
  const [form, setForm] = useState(() => {
  if (product) {
  return {
  ...product,
  season: product.season || 'all',
  isSeasonArchived: Boolean(product.isSeasonArchived),
+    showOnWebsite: product.showOnWebsite !== false,
  totalReceived: product.totalReceived !== undefined ? product.totalReceived : ((product.stock || 0) + (product.sold || 0)),
  discountPrice: product.discountPrice ?? '',
  discountStartDate: product.discountStartDate ? new Date(product.discountStartDate).toISOString().split('T')[0] : '',
@@ -1041,6 +1042,41 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  {form.isSeasonArchived ? 'مخزن موسمي' : 'نشط بالمعرض'}
  </button>
  </div>
+
+ {/* Online Storefront Visibility Toggle */}
+ <div className="flex items-center justify-between pt-2 border-t border-burgundy/10">
+ <div>
+ <p className="text-xs font-bold text-burgundy flex items-center gap-1">
+ <span>عرض المنتج في المتجر الإلكتروني (الموقع أونلاين) 🌐</span>
+ </p>
+ <p className="text-[11px] text-burgundy/60">
+ {form.showOnWebsite !== false
+ ? 'متاح ومعروض للعملاء على الموقع'
+ : 'مخفي من الموقع أونلاين (متاح للبيع داخل المحل والكاشير فقط)'}
+ </p>
+ </div>
+ <button
+ type="button"
+ onClick={() => setForm(p => ({ ...p, showOnWebsite: !(p.showOnWebsite !== false) }))}
+ className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+ form.showOnWebsite !== false
+ ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200'
+ : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
+ }`}
+ >
+ <span>{form.showOnWebsite !== false ? '🌐 معروض أونلاين' : '🚫 مخفي من الموقع'}</span>
+ </button>
+ </div>
+
+ {/* Off-Season Warning Notice */}
+ {siteConfig?.websiteSeason && siteConfig.websiteSeason !== 'all' && form.season !== 'all' && form.season !== siteConfig.websiteSeason && (
+ <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center gap-2 mt-2">
+ <span>⚠️</span>
+ <span>
+ <strong>تنبيه موسمي:</strong> موسم المتجر أونلاين مضبوط حالياً على <strong>({siteConfig.websiteSeason === 'winter' ? 'الشتوي ❄️' : 'الصيفي ☀️'})</strong>، وهذا الصنف مصنف <strong>({form.season === 'winter' ? 'شتوي' : 'صيفي'})</strong>، لذلك لن يظهر لزوار الموقع أونلاين حتى تحويل موسم الموقع.
+ </span>
+ </div>
+ )}
  </div>
 
  <div className="sm:col-span-2">
@@ -1270,7 +1306,23 @@ const normalizeDigits = (str) => {
  return mc && ms && mSup && mSz && mSeason;
  });
 
- const handleBulkSeason = async (action, extra = {}) => {
+  const handleSetWebsiteSeason = async (targetSeason) => {
+    try {
+      setBulkLoading(true);
+      const res = await api.post('/admin/products/bulk-season', {
+        action: 'setWebsiteSeason',
+        season: targetSeason
+      });
+      showToast?.(res.data?.message || 'تم تحديث موسم المتجر أونلاين');
+      setSiteConfig(prev => ({ ...prev, websiteSeason: targetSeason }));
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'فشل تحديث موسم المتجر أونلاين');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkSeason = async (action, extra = {}) => {
  if (selectedIds.length === 0) return;
  try {
  setBulkLoading(true);
@@ -1322,6 +1374,65 @@ const normalizeDigits = (str) => {
  <p className="text-xs text-burgundy/60 mt-1 max-w-xl leading-relaxed">
  يمكنك هنا تحديد بضاعة الصيف لتخزينها بالمستودع بضغطة زر فتختفي فوراً من الجرد والكاشير دون أن تفقد أي كمية أو كود باركود، وإتاحة بضاعة الشتاء للبيع والجرد.
  </p>
+
+ {/* Online Website Season Control */}
+ <div className="mt-3 p-3 rounded-2xl bg-white/80 border border-sky-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+ <div className="flex items-center gap-2">
+ <span className="text-base">🌐</span>
+ <div>
+ <span className="text-xs font-bold text-burgundy">موسم المتجر الإلكتروني (الموقع أونلاين):</span>
+ <span className={`mr-2 text-xs font-black px-2 py-0.5 rounded-full border ${
+ siteConfig?.websiteSeason === 'winter'
+ ? 'bg-sky-100 text-sky-800 border-sky-300'
+ : siteConfig?.websiteSeason === 'summer'
+ ? 'bg-amber-100 text-amber-800 border-amber-300'
+ : 'bg-purple-100 text-purple-800 border-purple-300'
+ }`}>
+ {siteConfig?.websiteSeason === 'winter' ? 'الموقع شتوي ❄️ (يمنع الصيفي)' : siteConfig?.websiteSeason === 'summer' ? 'الموقع صيفي ☀️ (يمنع الشتوي)' : 'كل المواسم معروضة 🔄'}
+ </span>
+ </div>
+ </div>
+
+ <div className="flex items-center gap-1.5">
+ <span className="text-[11px] text-burgundy/60 font-medium">التحويل السريع للموقع:</span>
+ <button
+ type="button"
+ onClick={() => handleSetWebsiteSeason('winter')}
+ disabled={bulkLoading}
+ className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+ siteConfig?.websiteSeason === 'winter'
+ ? 'bg-sky-600 text-white shadow-xs'
+ : 'bg-white text-sky-800 border border-sky-200 hover:bg-sky-50'
+ }`}
+ >
+ <span>❄️ شتوي</span>
+ </button>
+ <button
+ type="button"
+ onClick={() => handleSetWebsiteSeason('summer')}
+ disabled={bulkLoading}
+ className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+ siteConfig?.websiteSeason === 'summer'
+ ? 'bg-amber-500 text-white shadow-xs'
+ : 'bg-white text-amber-800 border border-amber-200 hover:bg-amber-50'
+ }`}
+ >
+ <span>☀️ صيفي</span>
+ </button>
+ <button
+ type="button"
+ onClick={() => handleSetWebsiteSeason('all')}
+ disabled={bulkLoading}
+ className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+ siteConfig?.websiteSeason === 'all'
+ ? 'bg-burgundy text-white shadow-xs'
+ : 'bg-white text-burgundy border border-burgundy/20 hover:bg-burgundy/5'
+ }`}
+ >
+ <span>🔄 الكل</span>
+ </button>
+ </div>
+ </div>
  </div>
 
  <div className="flex flex-wrap items-center gap-2">
@@ -1820,6 +1931,30 @@ const normalizeDigits = (str) => {
 
  <button
  type="button"
+ onClick={() => handleBulkSeason('setShowOnWebsite', { showOnWebsite: true })}
+ disabled={bulkLoading}
+ className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60 flex items-center gap-1"
+ title="إتاحة ظهور المنتجات المحددة على الموقع أونلاين"
+ >
+ <span>🌐</span>
+ <span>عرض بالموقع</span>
+ </button>
+
+ <button
+ type="button"
+ onClick={() => handleBulkSeason('setShowOnWebsite', { showOnWebsite: false })}
+ disabled={bulkLoading}
+ className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60 flex items-center gap-1"
+ title="إخفاء المنتجات المحددة من المتجر الإلكتروني فقط"
+ >
+ <span>🚫</span>
+ <span>إخفاء من الموقع</span>
+ </button>
+
+ <div className="h-5 w-[1px] bg-white/20 mx-1 hidden sm:block" />
+
+ <button
+ type="button"
  onClick={() => handleBulkSeason('archiveSeason')}
  disabled={bulkLoading}
  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 border border-white/20 rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-60"
@@ -2227,7 +2362,7 @@ function AdminProducts() {
  const loadProducts = async () => {
  try {
  setLoading(true);
- const res = await api.get('/products?includeOffSeason=true');
+ const res = await Promise.all([api.get('/products?includeOffSeason=true'), api.get('/admin/site-config')]);
  setProducts(res.data);
  } catch (e) { console.error(e); }
  finally { setLoading(false); }
@@ -2302,6 +2437,7 @@ function AdminProducts() {
  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
  const [productToDelete, setProductToDelete] = useState(null);
  const [restockingProduct, setRestockingProduct] = useState(null);
+  const [siteConfig, setSiteConfig] = useState(null);
 
  const handleDelete = async (id) => {
  await api.delete(`/admin/products/${id}`);
@@ -2391,6 +2527,7 @@ function AdminProducts() {
  categories={categories}
  catAr={catAr}
  onAddCategory={handleAddCategory}
+ siteConfig={siteConfig}
  />
  )}
 

@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const SiteConfigSchema = new mongoose.Schema({
   key: { type: String, unique: true, default: 'default' },
   published: { type: Boolean, default: true },
+  websiteSeason: { type: String, enum: ['winter', 'summer', 'all'], default: 'winter' },
+  enforceWebsiteSeason: { type: Boolean, default: true },
   heroTitle: { type: String, default: 'أزياء تليق بكِ' },
   heroSubtitle: { type: String, default: 'تصفحي أحدث الموديلات النسائية واطلبي بسهولة، أو زوري محلنا مباشرة في بني مزار.' },
   heroCtaLabel: { type: String, default: 'تسوقي الآن' },

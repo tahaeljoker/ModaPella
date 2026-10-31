@@ -2,6 +2,7 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const Product = require('../models/Product');
 const StockHistory = require('../models/StockHistory');
+const SiteConfig = require('../models/SiteConfig');
 
 const router = express.Router();
 
@@ -65,15 +66,29 @@ const ensureMissingSkus = async (products) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { search, category, excludeId, limit, includeOffSeason, season } = req.query;
+    const { search, category, excludeId, limit, includeOffSeason, season, context, storefront } = req.query;
     let query = { active: true };
 
-    if (includeOffSeason !== 'true' && (!search || search.trim() === '')) {
-      query.isSeasonArchived = { $ne: true };
-    }
+    const isStorefront = context === 'storefront' || storefront === 'true';
 
-    if (season && ['summer', 'winter', 'all'].includes(season)) {
-      query.season = season;
+    if (isStorefront) {
+      const siteConfig = await SiteConfig.findOne({ key: 'default' }).lean();
+      const websiteSeason = siteConfig?.websiteSeason || 'winter';
+
+      query.showOnWebsite = { $ne: false };
+      query.isSeasonArchived = { $ne: true };
+
+      if (siteConfig?.enforceWebsiteSeason !== false && websiteSeason && websiteSeason !== 'all') {
+        query.season = { $in: [websiteSeason, 'all'] };
+      }
+    } else {
+      if (includeOffSeason !== 'true' && (!search || search.trim() === '')) {
+        query.isSeasonArchived = { $ne: true };
+      }
+
+      if (season && ['summer', 'winter', 'all'].includes(season)) {
+        query.season = season;
+      }
     }
     
     if (category && category.trim() !== '') {
@@ -216,6 +231,23 @@ router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    if (req.query.context === 'storefront' || req.query.storefront === 'true') {
+      const siteConfig = await SiteConfig.findOne({ key: 'default' }).lean();
+      const websiteSeason = siteConfig?.websiteSeason || 'winter';
+      const isSeasonAllowed = !websiteSeason || websiteSeason === 'all' || product.season === 'all' || product.season === websiteSeason;
+      const isVisibleOnline = product.showOnWebsite !== false && product.isSeasonArchived !== true && product.active !== false;
+
+      if (!isSeasonAllowed || !isVisibleOnline) {
+        return res.status(404).json({
+          message: 'هذا الموديل غير متاح في الموسم الحالي على المتجر أونلاين',
+          isOffSeason: !isSeasonAllowed,
+          season: product.season,
+          websiteSeason
+        });
+      }
+    }
+
     res.json(product);
   } catch (error) {
     res.status(500).json({ message: 'Unable to fetch product', error: error.message });

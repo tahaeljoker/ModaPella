@@ -29,7 +29,7 @@ function CollectionsPage() {
  const [siteConfig, setSiteConfig] = useState(null);
 
  useEffect(() => {
- api.get('/products')
+ api.get('/products?context=storefront')
  .then((response) => {
  const active = (response.data || []).filter(p => (p.stock ?? 0) > 0);
  setProducts(active);

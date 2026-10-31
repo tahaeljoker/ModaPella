@@ -40,7 +40,7 @@ function ProductDetailsPage() {
  }, []);
 
  useEffect(() => {
- api.get(`/products/${id}`)
+ api.get(`/products/${id}?context=storefront`)
  .then((response) => setProduct(response.data))
  .catch(() => {
  const sample = sampleProducts.find((item) => item._id === id);
