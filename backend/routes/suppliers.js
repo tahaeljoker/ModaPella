@@ -43,6 +43,380 @@ router.get('/', auth, requireRole(ADMIN), async (req, res) => {
   }
 });
 
+
+// Helper to delete transaction and sync stock, safe, and supplier balance
+async function executeDeleteSupplierTx(txId, req) {
+  const tx = await SupplierTransaction.findById(txId);
+  if (!tx) {
+    const err = new Error('العملية غير موجودة');
+    err.status = 404;
+    throw err;
+  }
+
+  const supplierId = tx.supplier;
+  const supplier = supplierId ? await Supplier.findById(supplierId) : null;
+
+  // 1. Identify paired transaction (e.g. from cash_purchase)
+  let pairedTx = null;
+  if (tx.pairTxId) {
+    pairedTx = await SupplierTransaction.findById(tx.pairTxId);
+  } else {
+    const oppositeType = tx.type === 'purchase' ? 'payment' : tx.type === 'payment' ? 'purchase' : null;
+    if (oppositeType) {
+      pairedTx = await SupplierTransaction.findOne({
+        _id: { $ne: tx._id },
+        supplier: tx.supplier,
+        type: oppositeType,
+        amount: tx.amount,
+        createdAt: {
+          $gte: new Date(new Date(tx.createdAt).getTime() - 60000),
+          $lte: new Date(new Date(tx.createdAt).getTime() + 60000)
+        }
+      });
+    }
+  }
+
+  const txIdsToDelete = [tx._id];
+  if (pairedTx) txIdsToDelete.push(pairedTx._id);
+
+  // 2. If it was a return that had items, restore stock back into inventory!
+  if (tx.type === 'return' && Array.isArray(tx.items) && tx.items.length > 0) {
+    const userId = (req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id)) ? req.user.id : undefined;
+    const userName = req.user?.name || req.user?.email || 'Admin';
+
+    for (const item of tx.items) {
+      if (item.product && item.quantity > 0) {
+        const product = await Product.findById(item.product);
+        if (product) {
+          const prevStock = product.stock || 0;
+          const itemSize = item.size || '';
+          const itemColor = item.color || '';
+          if (product.variants && product.variants.length > 0 && (itemSize || itemColor)) {
+            const v = product.variants.find(it => (it.size || '') === itemSize && (it.color || '') === itemColor);
+            if (v) {
+              v.stock = (v.stock || 0) + item.quantity;
+            }
+            product.stock = product.variants.reduce((sum, it) => sum + (it.stock || 0), 0);
+          } else {
+            product.stock = (product.stock || 0) + item.quantity;
+          }
+          await product.save();
+
+          await StockHistory.create({
+            product: product._id,
+            productName: product.name,
+            size: itemSize,
+            color: itemColor,
+            variantKey: itemSize || itemColor ? `${itemSize}_${itemColor}` : '',
+            changeType: 'Restock',
+            quantityChanged: item.quantity,
+            previousStock: prevStock,
+            newStock: product.stock,
+            performedBy: userId,
+            performedByName: userName,
+            notes: `إلغاء مرتجع للمورد (${supplier?.name || ''}) - إعادة القطع للمخزن`
+          });
+          req.app.locals.io?.emit('inventory:update', product);
+        }
+      }
+    }
+  }
+
+  // 3. Find and delete linked cashier safe transactions (both referenceId and description matches)
+  await Transaction.deleteMany({ referenceId: { $in: txIdsToDelete } });
+
+  if (supplier) {
+    await Transaction.deleteMany({
+      category: { $in: ['Expense', 'SupplierPayment', 'Deposit'] },
+      amount: tx.amount,
+      createdAt: {
+        $gte: new Date(new Date(tx.createdAt).getTime() - 120000),
+        $lte: new Date(new Date(tx.createdAt).getTime() + 120000)
+      },
+      description: new RegExp(supplier.name, 'i')
+    });
+  }
+
+  // 4. Delete the supplier transaction records
+  await SupplierTransaction.deleteMany({ _id: { $in: txIdsToDelete } });
+
+  // 5. Recalculate supplier totals
+  let totalPurchased = 0;
+  let totalPaid = 0;
+  let totalReturned = 0;
+  let balance = 0;
+
+  if (supplierId) {
+    const remainingTxs = await SupplierTransaction.find({ supplier: supplierId });
+    totalPurchased = remainingTxs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
+    totalPaid      = remainingTxs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
+    totalReturned  = remainingTxs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
+    balance = totalPurchased - totalPaid - totalReturned;
+  }
+
+  req.app.locals.io?.emit('safe:update');
+  if (supplierId) {
+    req.app.locals.io?.emit('supplier:update', { supplierId: supplierId.toString() });
+  }
+
+  return {
+    message: 'تم حذف الفاتورة بنجاح وتحديث كافة الحسابات والمصروفات بالخزينة',
+    deletedCount: txIdsToDelete.length,
+    supplierId,
+    totalPurchased,
+    totalPaid,
+    totalReturned,
+    balance
+  };
+}
+
+// Helper to update transaction and sync safe and supplier balance
+async function executeUpdateSupplierTx(txId, body, req) {
+  const { amount, type, description, reference, date, paymentSource } = body;
+  const tx = await SupplierTransaction.findById(txId);
+  if (!tx) {
+    const err = new Error('العملية غير موجودة');
+    err.status = 404;
+    throw err;
+  }
+
+  const supplierId = tx.supplier;
+  const supplier = supplierId ? await Supplier.findById(supplierId) : null;
+  if (!supplier) {
+    const err = new Error('المورد غير موجود');
+    err.status = 404;
+    throw err;
+  }
+
+  const oldAmount = tx.amount;
+  const newAmount = Number(amount !== undefined ? amount : tx.amount);
+
+  if (newAmount <= 0) {
+    const err = new Error('المبلغ يجب أن يكون أكبر من صفر');
+    err.status = 400;
+    throw err;
+  }
+
+  // 1. Identify paired transaction (if cash_purchase pair)
+  let pairedTx = null;
+  if (tx.pairTxId) {
+    pairedTx = await SupplierTransaction.findById(tx.pairTxId);
+  } else {
+    const oppositeType = tx.type === 'purchase' ? 'payment' : tx.type === 'payment' ? 'purchase' : null;
+    if (oppositeType) {
+      pairedTx = await SupplierTransaction.findOne({
+        _id: { $ne: tx._id },
+        supplier: tx.supplier,
+        type: oppositeType,
+        amount: oldAmount,
+        createdAt: {
+          $gte: new Date(new Date(tx.createdAt).getTime() - 60000),
+          $lte: new Date(new Date(tx.createdAt).getTime() + 60000)
+        }
+      });
+    }
+  }
+
+  // 2. Update primary transaction
+  tx.amount = newAmount;
+  if (type && ['purchase', 'payment', 'return'].includes(type)) {
+    tx.type = type;
+  }
+  if (paymentSource && ['StoreSafe', 'PersonalPocket'].includes(paymentSource)) {
+    tx.paymentSource = paymentSource;
+  }
+  if (description !== undefined) tx.description = description;
+  if (reference !== undefined) tx.reference = reference;
+  if (date) tx.date = new Date(date);
+  await tx.save();
+
+  // 3. Update paired transaction if exists
+  if (pairedTx) {
+    pairedTx.amount = newAmount;
+    if (paymentSource) pairedTx.paymentSource = paymentSource;
+    if (reference !== undefined) pairedTx.reference = reference;
+    if (date) pairedTx.date = new Date(date);
+    await pairedTx.save();
+  }
+
+  // 4. Update linked Safe transactions
+  const safeTxQuery = {
+    $or: [
+      { referenceId: { $in: [tx._id, pairedTx?._id].filter(Boolean) } },
+      {
+        category: { $in: ['Expense', 'SupplierPayment', 'Deposit'] },
+        amount: oldAmount,
+        createdAt: {
+          $gte: new Date(new Date(tx.createdAt).getTime() - 120000),
+          $lte: new Date(new Date(tx.createdAt).getTime() + 120000)
+        },
+        description: new RegExp(supplier.name, 'i')
+      }
+    ]
+  };
+
+  const linkedSafeTxs = await Transaction.find(safeTxQuery);
+
+  if (tx.paymentSource === 'StoreSafe') {
+    if (linkedSafeTxs.length > 0) {
+      for (const st of linkedSafeTxs) {
+        st.amount = newAmount;
+        st.referenceId = tx._id;
+        if (description) {
+          st.description = `${tx.type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} | ${description}`;
+        }
+        await st.save();
+      }
+    } else {
+      const openShift = await Shift.findOne({ status: 'open' });
+      const newSafeTx = new Transaction({
+        amount: newAmount,
+        type: tx.type === 'return' ? 'IN' : 'OUT',
+        category: 'SupplierPayment',
+        paymentMethod: 'Cash',
+        description: `${tx.type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} | ${description || ''}`,
+        user: req.user?.id,
+        shift: openShift?._id,
+        referenceId: tx._id,
+        createdAt: tx.date || new Date()
+      });
+      await newSafeTx.save();
+    }
+  } else if (tx.paymentSource === 'PersonalPocket') {
+    if (linkedSafeTxs.length > 0) {
+      await Transaction.deleteMany(safeTxQuery);
+    }
+  }
+
+  // 5. Recalculate supplier totals
+  const remainingTxs = await SupplierTransaction.find({ supplier: supplierId });
+  const totalPurchased = remainingTxs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
+  const totalPaid      = remainingTxs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
+  const totalReturned  = remainingTxs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
+  const balance = totalPurchased - totalPaid - totalReturned;
+
+  req.app.locals.io?.emit('safe:update');
+  if (supplierId) {
+    req.app.locals.io?.emit('supplier:update', { supplierId: supplierId.toString() });
+  }
+
+  return {
+    message: 'تم تعديل الفاتورة بنجاح وتحديث الحسابات والمصروفات بالخزينة',
+    transaction: tx,
+    supplierId,
+    totalPurchased,
+    totalPaid,
+    totalReturned,
+    balance
+  };
+}
+
+// GET /api/suppliers/all-transactions — Search & list transactions across all suppliers
+router.get('/all-transactions', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const { search, supplierId, type, limit = 200 } = req.query;
+    const filter = {};
+
+    if (supplierId && mongoose.Types.ObjectId.isValid(supplierId)) {
+      filter.supplier = supplierId;
+    }
+
+    if (type && ['purchase', 'payment', 'return'].includes(type)) {
+      filter.type = type;
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      const escaped = q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\// GET /api/suppliers/:id/transactions');
+      const searchRegex = new RegExp(escaped, 'i');
+
+      const matchingSuppliers = await Supplier.find({ name: searchRegex }).select('_id');
+      const matchingSupplierIds = matchingSuppliers.map(s => s._id);
+
+      const matchingProducts = await Product.find({
+        $or: [
+          { name: searchRegex },
+          { sku: searchRegex },
+          { barcode: searchRegex }
+        ]
+      }).select('_id');
+      const matchingProductIds = matchingProducts.map(p => p._id);
+
+      filter.$or = [
+        { description: searchRegex },
+        { reference: searchRegex },
+        { 'items.name': searchRegex },
+        { 'items.product': { $in: matchingProductIds } },
+        { supplier: { $in: matchingSupplierIds } }
+      ];
+    }
+
+    const txs = await SupplierTransaction.find(filter)
+      .populate('supplier', 'name phone email address')
+      .populate('items.product', 'name sku images variants')
+      .sort({ date: -1, createdAt: -1 })
+      .limit(Number(limit) || 200);
+
+    res.json({ transactions: txs });
+  } catch (e) {
+    console.error('All transactions fetch error:', e);
+    res.status(500).json({ message: 'Unable to load all transactions', error: e.message });
+  }
+});
+
+// GET /api/suppliers/product-transactions/:productId — List supplier transactions for a specific product
+router.get('/product-transactions/:productId', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const { productId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: 'Invalid product id' });
+    }
+
+    const product = await Product.findById(productId);
+    const filter = {
+      $or: [
+        { 'items.product': productId }
+      ]
+    };
+    if (product?.name) {
+      const escaped = product.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\// GET /api/suppliers/:id/transactions');
+      filter.$or.push({ description: new RegExp(escaped, 'i') });
+    }
+
+    const txs = await SupplierTransaction.find(filter)
+      .populate('supplier', 'name phone email address')
+      .populate('items.product', 'name sku images variants')
+      .sort({ date: -1, createdAt: -1 });
+
+    res.json({ transactions: txs, product });
+  } catch (e) {
+    console.error('Product transactions fetch error:', e);
+    res.status(500).json({ message: 'Unable to load product supplier transactions', error: e.message });
+  }
+});
+
+// DELETE /api/suppliers/transactions/:txId — Global delete by transaction ID
+router.delete('/transactions/:txId', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const result = await executeDeleteSupplierTx(req.params.txId, req);
+    res.json(result);
+  } catch (e) {
+    console.error('Global supplier transaction delete error:', e);
+    res.status(e.status || 500).json({ message: e.message || 'تعذر حذف العملية', error: e.message });
+  }
+});
+
+// PUT /api/suppliers/transactions/:txId — Global edit by transaction ID
+router.put('/transactions/:txId', auth, requireRole(ADMIN), async (req, res) => {
+  try {
+    const result = await executeUpdateSupplierTx(req.params.txId, req.body, req);
+    res.json(result);
+  } catch (e) {
+    console.error('Global supplier transaction edit error:', e);
+    res.status(e.status || 500).json({ message: e.message || 'تعذر تعديل الفاتورة', error: e.message });
+  }
+});
+
 // GET /api/suppliers/:id/transactions
 router.get('/:id/transactions', auth, requireRole(ADMIN), async (req, res) => {
   try {
@@ -353,250 +727,22 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
 // PUT /api/suppliers/:id/transactions/:txId — Edit existing transaction/bill
 router.put('/:id/transactions/:txId', auth, requireRole(ADMIN), async (req, res) => {
   try {
-    const { amount, type, description, reference, date, paymentSource } = req.body;
-    const tx = await SupplierTransaction.findById(req.params.txId);
-    if (!tx) return res.status(404).json({ message: 'العملية غير موجودة' });
-
-    const supplier = await Supplier.findById(req.params.id);
-    if (!supplier) return res.status(404).json({ message: 'المورد غير موجود' });
-
-    const oldAmount = tx.amount;
-    const newAmount = Number(amount !== undefined ? amount : tx.amount);
-
-    if (newAmount <= 0) {
-      return res.status(400).json({ message: 'المبلغ يجب أن يكون أكبر من صفر' });
-    }
-
-    // 1. Identify paired transaction (if cash_purchase pair)
-    let pairedTx = null;
-    if (tx.pairTxId) {
-      pairedTx = await SupplierTransaction.findById(tx.pairTxId);
-    } else {
-      const oppositeType = tx.type === 'purchase' ? 'payment' : tx.type === 'payment' ? 'purchase' : null;
-      if (oppositeType) {
-        pairedTx = await SupplierTransaction.findOne({
-          _id: { $ne: tx._id },
-          supplier: tx.supplier,
-          type: oppositeType,
-          amount: oldAmount,
-          createdAt: {
-            $gte: new Date(new Date(tx.createdAt).getTime() - 60000),
-            $lte: new Date(new Date(tx.createdAt).getTime() + 60000)
-          }
-        });
-      }
-    }
-
-    // 2. Update primary transaction
-    tx.amount = newAmount;
-    if (type && ['purchase', 'payment', 'return'].includes(type)) {
-      tx.type = type;
-    }
-    if (paymentSource && ['StoreSafe', 'PersonalPocket'].includes(paymentSource)) {
-      tx.paymentSource = paymentSource;
-    }
-    if (description !== undefined) tx.description = description;
-    if (reference !== undefined) tx.reference = reference;
-    if (date) tx.date = new Date(date);
-    await tx.save();
-
-    // 3. Update paired transaction if exists
-    if (pairedTx) {
-      pairedTx.amount = newAmount;
-      if (paymentSource) pairedTx.paymentSource = paymentSource;
-      if (reference !== undefined) pairedTx.reference = reference;
-      if (date) pairedTx.date = new Date(date);
-      await pairedTx.save();
-    }
-
-    // 4. Update linked Safe transactions
-    const safeTxQuery = {
-      $or: [
-        { referenceId: { $in: [tx._id, pairedTx?._id].filter(Boolean) } },
-        {
-          category: { $in: ['Expense', 'SupplierPayment', 'Deposit'] },
-          amount: oldAmount,
-          createdAt: {
-            $gte: new Date(new Date(tx.createdAt).getTime() - 120000),
-            $lte: new Date(new Date(tx.createdAt).getTime() + 120000)
-          },
-          description: new RegExp(supplier.name, 'i')
-        }
-      ]
-    };
-
-    const linkedSafeTxs = await Transaction.find(safeTxQuery);
-
-    if (tx.paymentSource === 'StoreSafe') {
-      if (linkedSafeTxs.length > 0) {
-        for (const st of linkedSafeTxs) {
-          st.amount = newAmount;
-          st.referenceId = tx._id;
-          if (description) {
-            st.description = `${tx.type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} | ${description}`;
-          }
-          await st.save();
-        }
-      } else {
-        // Safe transaction didn't exist yet, create it now!
-        const openShift = await Shift.findOne({ status: 'open' });
-        const newSafeTx = new Transaction({
-          amount: newAmount,
-          type: tx.type === 'return' ? 'IN' : 'OUT',
-          category: 'SupplierPayment',
-          paymentMethod: 'Cash',
-          description: `${tx.type === 'purchase' ? 'شراء بضاعة (مورد)' : 'سداد دفعة (مورد)'} - ${supplier.name} ${reference ? `(مرجع: ${reference})` : ''} | ${description || ''}`,
-          user: req.user?.id,
-          shift: openShift?._id,
-          referenceId: tx._id,
-          createdAt: tx.date || new Date()
-        });
-        await newSafeTx.save();
-      }
-    } else if (tx.paymentSource === 'PersonalPocket') {
-      // If switched from StoreSafe to PersonalPocket, delete from safe!
-      if (linkedSafeTxs.length > 0) {
-        await Transaction.deleteMany(safeTxQuery);
-      }
-    }
-
-    // 5. Recalculate supplier totals
-    const remainingTxs = await SupplierTransaction.find({ supplier: req.params.id });
-    const totalPurchased = remainingTxs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
-    const totalPaid      = remainingTxs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
-    const totalReturned  = remainingTxs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
-    const balance = totalPurchased - totalPaid - totalReturned;
-
-    req.app.locals.io?.emit('safe:update');
-    req.app.locals.io?.emit('supplier:update', { supplierId: req.params.id });
-
-    res.json({
-      message: 'تم تعديل الفاتورة بنجاح وتحديث الحسابات والمصروفات بالخزينة',
-      transaction: tx,
-      totalPurchased,
-      totalPaid,
-      totalReturned,
-      balance
-    });
+    const result = await executeUpdateSupplierTx(req.params.txId, req.body, req);
+    res.json(result);
   } catch (e) {
     console.error('Supplier transaction edit error:', e);
-    res.status(500).json({ message: 'تعذر تعديل الفاتورة', error: e.message });
+    res.status(e.status || 500).json({ message: e.message || 'تعذر تعديل الفاتورة', error: e.message });
   }
 });
 
 // DELETE /api/suppliers/:id/transactions/:txId — Delete transaction and clean all paired + safe records
 router.delete('/:id/transactions/:txId', auth, requireRole(ADMIN), async (req, res) => {
   try {
-    const tx = await SupplierTransaction.findById(req.params.txId);
-    if (!tx) return res.status(404).json({ message: 'العملية غير موجودة' });
-
-    const supplier = await Supplier.findById(req.params.id);
-
-    // 1. Identify any paired transaction (e.g. from cash_purchase)
-    let pairedTx = null;
-    if (tx.pairTxId) {
-      pairedTx = await SupplierTransaction.findById(tx.pairTxId);
-    } else {
-      const oppositeType = tx.type === 'purchase' ? 'payment' : tx.type === 'payment' ? 'purchase' : null;
-      if (oppositeType) {
-        pairedTx = await SupplierTransaction.findOne({
-          _id: { $ne: tx._id },
-          supplier: tx.supplier,
-          type: oppositeType,
-          amount: tx.amount,
-          createdAt: {
-            $gte: new Date(new Date(tx.createdAt).getTime() - 60000),
-            $lte: new Date(new Date(tx.createdAt).getTime() + 60000)
-          }
-        });
-      }
-    }
-
-    const txIdsToDelete = [tx._id];
-    if (pairedTx) txIdsToDelete.push(pairedTx._id);
-
-    // 2. If it was a return that had items, restore stock back into inventory!
-    if (tx.type === 'return' && Array.isArray(tx.items) && tx.items.length > 0) {
-      const userId = (req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id)) ? req.user.id : undefined;
-      const userName = req.user?.name || req.user?.email || 'Admin';
-
-      for (const item of tx.items) {
-        if (item.product && item.quantity > 0) {
-          const product = await Product.findById(item.product);
-          if (product) {
-            const prevStock = product.stock || 0;
-            const itemSize = item.size || '';
-            const itemColor = item.color || '';
-            if (product.variants && product.variants.length > 0 && (itemSize || itemColor)) {
-              const v = product.variants.find(it => (it.size || '') === itemSize && (it.color || '') === itemColor);
-              if (v) {
-                v.stock = (v.stock || 0) + item.quantity;
-              }
-              product.stock = product.variants.reduce((sum, it) => sum + (it.stock || 0), 0);
-            } else {
-              product.stock = (product.stock || 0) + item.quantity;
-            }
-            await product.save();
-
-            await StockHistory.create({
-              product: product._id,
-              productName: product.name,
-              size: itemSize,
-              color: itemColor,
-              variantKey: itemSize || itemColor ? `${itemSize}_${itemColor}` : '',
-              changeType: 'Restock',
-              quantityChanged: item.quantity,
-              previousStock: prevStock,
-              newStock: product.stock,
-              performedBy: userId,
-              performedByName: userName,
-              notes: `إلغاء مرتجع للمورد (${supplier?.name || ''}) - إعادة القطع للمخزن`
-            });
-            req.app.locals.io?.emit('inventory:update', product);
-          }
-        }
-      }
-    }
-
-    // 3. Find and delete linked cashier safe transactions (both referenceId and description matches)
-    await Transaction.deleteMany({ referenceId: { $in: txIdsToDelete } });
-
-    if (supplier) {
-      await Transaction.deleteMany({
-        category: { $in: ['Expense', 'SupplierPayment', 'Deposit'] },
-        amount: tx.amount,
-        createdAt: {
-          $gte: new Date(new Date(tx.createdAt).getTime() - 120000),
-          $lte: new Date(new Date(tx.createdAt).getTime() + 120000)
-        },
-        description: new RegExp(supplier.name, 'i')
-      });
-    }
-
-    // 4. Delete the supplier transaction records
-    await SupplierTransaction.deleteMany({ _id: { $in: txIdsToDelete } });
-
-    // 5. Recalculate supplier totals
-    const remainingTxs = await SupplierTransaction.find({ supplier: req.params.id });
-    const totalPurchased = remainingTxs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + t.amount, 0);
-    const totalPaid      = remainingTxs.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0);
-    const totalReturned  = remainingTxs.filter(t => t.type === 'return').reduce((sum, t) => sum + t.amount, 0);
-    const balance = totalPurchased - totalPaid - totalReturned;
-
-    req.app.locals.io?.emit('safe:update');
-    req.app.locals.io?.emit('supplier:update', { supplierId: req.params.id });
-
-    res.json({
-      message: 'تم حذف الفاتورة بنجاح وتحديث كافة الحسابات والمصروفات بالخزينة',
-      deletedCount: txIdsToDelete.length,
-      totalPurchased,
-      totalPaid,
-      totalReturned,
-      balance
-    });
+    const result = await executeDeleteSupplierTx(req.params.txId, req);
+    res.json(result);
   } catch (e) {
     console.error('Supplier transaction delete error:', e);
-    res.status(500).json({ message: 'تعذر حذف العملية', error: e.message });
+    res.status(e.status || 500).json({ message: e.message || 'تعذر حذف العملية', error: e.message });
   }
 });
 

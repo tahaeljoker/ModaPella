@@ -534,7 +534,12 @@ function EditTransactionModal({ transaction, supplierId, onClose, onSave }) {
     if (!form.amount || Number(form.amount) <= 0) return alert('الرجاء إدخال مبلغ صحيح أكبر من صفر');
     setLoading(true);
     try {
-      await api.put(`/suppliers/${supplierId}/transactions/${transaction._id}`, form);
+      const targetSupId = supplierId || transaction.supplier?._id || transaction.supplier;
+      if (targetSupId) {
+        await api.put(`/suppliers/${targetSupId}/transactions/${transaction._id}`, form);
+      } else {
+        await api.put(`/suppliers/transactions/${transaction._id}`, form);
+      }
       onSave();
       onClose();
     } catch (err) {
@@ -1428,150 +1433,532 @@ function SupplierDetailModal({ supplierId, onClose }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 function AdminSuppliers() {
- const navigate = useNavigate();
- const [suppliers, setSuppliers] = useState([]);
- const [unassignedCount, setUnassignedCount] = useState(0);
- const [loading, setLoading] = useState(true);
- const [modal, setModal] = useState(null);
- const [detail, setDetail] = useState(null);
- const [toast, setToast] = useState('');
- const [deleteId, setDeleteId] = useState(null);
+  const navigate = useNavigate();
+  const [activeMainTab, setActiveMainTab] = useState('suppliers'); // 'suppliers' | 'all-transactions'
+  const [suppliers, setSuppliers] = useState([]);
+  const [unassignedCount, setUnassignedCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [toast, setToast] = useState('');
+  const [deleteId, setDeleteId] = useState(null);
 
- const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  // All transactions state
+  const [allTxs, setAllTxs] = useState([]);
+  const [allLoading, setAllLoading] = useState(false);
+  const [txSearch, setTxSearch] = useState('');
+  const [txTypeFilter, setTxTypeFilter] = useState('all');
+  const [txSupplierFilter, setTxSupplierFilter] = useState('all');
+  const [deleteTx, setDeleteTx] = useState(null);
+  const [editingTx, setEditingTx] = useState(null);
 
- const load = async () => {
- setLoading(true);
- try { 
- const [rSup, rInv] = await Promise.all([
- api.get('/suppliers'),
- api.get('/cashier/inventory')
- ]);
- setSuppliers(rSup.data);
- const unassigned = rInv.data.filter(p => !p.supplier || p.supplier.trim() === '').length;
- setUnassignedCount(unassigned);
- }
- catch (e) { console.error(e); }
- finally { setLoading(false); }
- };
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
- useEffect(() => { load(); }, []);
+  const load = async () => {
+    setLoading(true);
+    try { 
+      const [rSup, rInv] = await Promise.all([
+        api.get('/suppliers'),
+        api.get('/cashier/inventory')
+      ]);
+      setSuppliers(rSup.data);
+      const unassigned = rInv.data.filter(p => !p.supplier || p.supplier.trim() === '').length;
+      setUnassignedCount(unassigned);
+    }
+    catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
 
- const handleSave = async (form) => {
- if (form._id) { await api.put(`/suppliers/${form._id}`, form); showToast(' تم تحديث المورد'); }
- else { await api.post('/suppliers', form); showToast(' تم إضافة المورد'); }
- await load();
- };
+  const loadAllTransactions = async (searchOverride, typeOverride, supplierOverride) => {
+    setAllLoading(true);
+    try {
+      const qSearch = searchOverride !== undefined ? searchOverride : txSearch;
+      const qType = typeOverride !== undefined ? typeOverride : txTypeFilter;
+      const qSup = supplierOverride !== undefined ? supplierOverride : txSupplierFilter;
 
- const handleDelete = async () => {
- await api.delete(`/suppliers/${deleteId}`);
- showToast(' تم الحذف'); setDeleteId(null); await load();
- };
+      const params = new URLSearchParams();
+      if (qSearch && qSearch.trim()) params.append('search', qSearch.trim());
+      if (qType && qType !== 'all') params.append('type', qType);
+      if (qSup && qSup !== 'all') params.append('supplierId', qSup);
 
- const totalDebt = suppliers.reduce((s, sup) => s + (sup.balance || 0), 0);
+      const res = await api.get(`/suppliers/all-transactions?${params.toString()}`);
+      setAllTxs(res.data?.transactions || []);
+    } catch (err) {
+      console.error('Failed to load all transactions:', err);
+    } finally {
+      setAllLoading(false);
+    }
+  };
 
- return (
- <div className="space-y-6 text-burgundy">
- {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-xl">{toast}</div>}
+  useEffect(() => {
+    load();
+  }, []);
 
- {/* Header */}
- <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
- <div>
- <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
- <h2 className="text-2xl font-bold"> حسابات الموردين</h2>
- <p className="text-sm text-burgundy/50 mt-0.5">تتبع تعاملاتك مع الموردين والرصيد المستحق</p>
- </div>
- <button onClick={() => setModal({})} className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018]">
- + إضافة مورد
- </button>
- </div>
+  const handleSave = async (form) => {
+    if (form._id) { await api.put(`/suppliers/${form._id}`, form); showToast('تم تحديث المورد بنجاح'); }
+    else { await api.post('/suppliers', form); showToast('تم إضافة المورد بنجاح'); }
+    await load();
+  };
 
- {/* Context Banner: Suppliers page = management & purchases, Statement page = accounting detail */}
- <div className="flex items-center justify-between gap-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl px-4 py-3">
- <div className="flex items-center gap-2 text-amber-800">
- <span className="text-sm font-bold shrink-0">حسابات الموردين:</span>
- <p className="text-xs">هذه الصفحة لإدارة بيانات الموردين وتسجيل المشتريات والسدادات. لكشف الحساب التفصيلي والرصيد التراكمي لكل مورد، اضغط كشف الحساب.</p>
- </div>
- <button
- type="button"
- onClick={() => navigate('/admin/statements?tab=suppliers')}
- className="shrink-0 text-xs font-bold text-amber-700 border border-amber-300 bg-white hover:bg-amber-50 px-3 py-1.5 rounded-xl transition"
- >
- كشف حساب الموردين
- </button>
- </div>
+  const handleDelete = async () => {
+    await api.delete(`/suppliers/${deleteId}`);
+    showToast('تم حذف المورد بنجاح');
+    setDeleteId(null);
+    await load();
+  };
 
- {unassignedCount > 0 && (
- <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 p-4 rounded-2xl">
- <p className="text-2xl"></p>
- <div>
- <p className="font-bold text-amber-800">تنبيه: {unassignedCount} منتج بدون مورد</p>
- <p className="text-xs text-amber-700/70 mt-0.5">يوجد منتجات غير مسجل لها مورد. يمكنك الدخول لشاشة "جرد المخزون" وفلترتها لمعرفتها.</p>
- </div>
- </div>
- )}
+  const handleDeleteTransaction = async () => {
+    if (!deleteTx) return;
+    try {
+      await api.delete(`/suppliers/transactions/${deleteTx._id}`);
+      showToast('تم حذف الفاتورة وتحديث الحسابات والمصروفات بالخزينة بنجاح');
+      setDeleteTx(null);
+      await loadAllTransactions();
+      await load();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'تعذر حذف العملية');
+    }
+  };
 
- {/* Summary card */}
- {suppliers.length > 0 && (
- <div className="grid sm:grid-cols-3 gap-4">
- <div className="rounded-[1.75rem] bg-burgundy p-5 text-white shadow-lg shadow-burgundy/15">
- <p className="text-xs opacity-70">إجمالي الديون للموردين</p>
- <p className="text-2xl font-extrabold mt-2">{EGP(totalDebt)}</p>
- </div>
- <div className="rounded-[1.75rem] border border-burgundy/10 bg-white p-5 shadow-sm">
- <p className="text-xs text-burgundy/60">عدد الموردين</p>
- <p className="text-2xl font-extrabold mt-2 text-burgundy">{suppliers.length}</p>
- </div>
- <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-5">
- <p className="text-xs text-emerald-700/70">موردين بدون دين</p>
- <p className="text-2xl font-extrabold mt-2 text-emerald-700">{suppliers.filter(s => s.balance <= 0).length}</p>
- </div>
- </div>
- )}
+  const totalDebt = suppliers.reduce((s, sup) => s + (sup.balance || 0), 0);
 
- {/* Suppliers Table */}
- {loading ? (
- <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" /></div>
- ) : suppliers.length === 0 ? (
- <div className="rounded-[2rem] border border-burgundy/10 bg-white py-20 text-center">
- <p className="text-5xl mb-3"></p>
- <p className="text-lg font-semibold text-burgundy/40">لا يوجد موردون بعد</p>
- <p className="text-sm text-burgundy/30 mt-1">أضف مورديك لتتبع تعاملاتك معهم</p>
- </div>
- ) : (
- <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
- <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
- <span>المورد</span><span>الهاتف</span><span>إجمالي المشتريات</span><span>إجمالي المدفوع</span><span>الرصيد المتبقي</span><span>الإجراءات</span>
- </div>
- <div className="divide-y divide-burgundy/6">
- {suppliers.map(sup => (
- <div key={sup._id} className="grid sm:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
- <div>
- <p className="font-semibold text-sm">{sup.name}</p>
- {sup.address && <p className="text-xs text-burgundy/40 mt-0.5"> {sup.address}</p>}
- <p className="text-xs text-emerald-700 font-bold mt-1"> {sup.totalPieces || 0} قطعة / {sup.productCount || 0} منتج</p>
- </div>
- <p className="text-sm text-burgundy/60 font-mono">{sup.phone || '—'}</p>
- <p className="text-sm font-bold text-red-600">{EGP(sup.totalPurchased)}</p>
- <p className="text-sm font-bold text-emerald-700">{EGP(sup.totalPaid)}</p>
- <span className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-bold ${sup.balance > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
- {sup.balance > 0 ? ' ' : ' '}{EGP(sup.balance)}
- </span>
- <div className="flex gap-1.5">
- <button onClick={() => setDetail(sup._id)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white"> التفاصيل</button>
- <button onClick={() => setModal(sup)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
- <button onClick={() => setDeleteId(sup._id)} className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-500 hover:text-white">حذف</button>
- </div>
- </div>
- ))}
- </div>
- </div>
- )}
+  // Filtered transactions metrics
+  const totalFilteredPurchased = allTxs.filter(t => t.type === 'purchase').reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalFilteredPaid = allTxs.filter(t => t.type === 'payment').reduce((sum, t) => sum + (t.amount || 0), 0);
 
- {modal !== null && <SupplierModal supplier={modal?._id ? modal : null} onClose={() => setModal(null)} onSave={handleSave} />}
- {detail && <SupplierDetailModal supplierId={detail} onClose={() => { setDetail(null); load(); }} />}
- <ConfirmModal isOpen={!!deleteId} title="حذف المورد" message="هل أنت متأكد من حذف هذا المورد وجميع تعاملاته؟" onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />
- </div>
- );
+  return (
+    <div className="space-y-6 text-burgundy" dir="rtl">
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-xl animate-fade-in flex items-center gap-2">
+          <span>✓</span>
+          <span>{toast}</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40 font-semibold">الإدارة والمشتريات</p>
+          <h2 className="text-2xl font-bold mt-1">حسابات وفواتير الموردين</h2>
+          <p className="text-sm text-burgundy/50 mt-0.5">تتبع الموردين، كشوفات الحسابات، وفحص وتعديل وحذف الفواتير والمعاملات</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setModal({})}
+            className="rounded-full bg-burgundy px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-burgundy/20 transition hover:bg-[#650018] flex items-center gap-1.5"
+          >
+            <span>+</span>
+            <span>إضافة مورد جديد</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tabs Navigation */}
+      <div className="flex border-b border-burgundy/10 gap-3">
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('suppliers')}
+          className={`flex items-center gap-2 pb-3.5 px-4 font-bold text-sm transition border-b-2 ${
+            activeMainTab === 'suppliers'
+              ? 'border-burgundy text-burgundy'
+              : 'border-transparent text-burgundy/40 hover:text-burgundy'
+          }`}
+        >
+          <span>🏢</span>
+          <span>بطاقات الموردين ({suppliers.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveMainTab('all-transactions');
+            if (allTxs.length === 0) loadAllTransactions();
+          }}
+          className={`flex items-center gap-2 pb-3.5 px-4 font-bold text-sm transition border-b-2 ${
+            activeMainTab === 'all-transactions'
+              ? 'border-burgundy text-burgundy'
+              : 'border-transparent text-burgundy/40 hover:text-burgundy'
+          }`}
+        >
+          <span>📋</span>
+          <span>سجل وبحث جميع الفواتير والمعاملات</span>
+          <span className="rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-0.5">
+            تعديل وحذف
+          </span>
+        </button>
+      </div>
+
+      {/* ─── TAB 1: SUPPLIERS LIST ─── */}
+      {activeMainTab === 'suppliers' && (
+        <div className="space-y-6">
+          {/* Context Banner */}
+          <div className="flex items-center justify-between gap-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl px-4 py-3">
+            <div className="flex items-center gap-2 text-amber-800">
+              <span className="text-sm font-bold shrink-0">حسابات الموردين:</span>
+              <p className="text-xs">هذه الصفحة لإدارة بيانات الموردين وتسجيل المشتريات والسدادات. لكشف الحساب التفصيلي والرصيد التراكمي، اضغط كشف الحساب.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/statements?tab=suppliers')}
+              className="shrink-0 text-xs font-bold text-amber-700 border border-amber-300 bg-white hover:bg-amber-50 px-3 py-1.5 rounded-xl transition"
+            >
+              كشف حساب الموردين
+            </button>
+          </div>
+
+          {unassignedCount > 0 && (
+            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="font-bold text-amber-800">تنبيه: {unassignedCount} منتج بدون مورد</p>
+                <p className="text-xs text-amber-700/70 mt-0.5">يوجد منتجات غير مسجل لها مورد. يمكنك الدخول لشاشة "جرد المخزون" وفلترتها لمعرفتها.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Summary cards */}
+          {suppliers.length > 0 && (
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="rounded-[1.75rem] bg-burgundy p-5 text-white shadow-lg shadow-burgundy/15">
+                <p className="text-xs opacity-70">إجمالي الديون للموردين</p>
+                <p className="text-2xl font-extrabold mt-2">{EGP(totalDebt)}</p>
+              </div>
+              <div className="rounded-[1.75rem] border border-burgundy/10 bg-white p-5 shadow-sm">
+                <p className="text-xs text-burgundy/60">عدد الموردين</p>
+                <p className="text-2xl font-extrabold mt-2 text-burgundy">{suppliers.length}</p>
+              </div>
+              <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-5">
+                <p className="text-xs text-emerald-700/70">موردين بدون دين</p>
+                <p className="text-2xl font-extrabold mt-2 text-emerald-700">{suppliers.filter(s => s.balance <= 0).length}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Suppliers Table */}
+          {loading ? (
+            <div className="flex h-40 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
+            </div>
+          ) : suppliers.length === 0 ? (
+            <div className="rounded-[2rem] border border-burgundy/10 bg-white py-20 text-center">
+              <p className="text-5xl mb-3">🏢</p>
+              <p className="text-lg font-semibold text-burgundy/40">لا يوجد موردون بعد</p>
+              <p className="text-sm text-burgundy/30 mt-1">أضف مورديك لتتبع تعاملاتك معهم</p>
+            </div>
+          ) : (
+            <div className="rounded-[2rem] border border-burgundy/10 bg-white shadow-sm overflow-hidden">
+              <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 bg-[#F7F0EC] px-6 py-3 text-xs font-bold uppercase tracking-wide text-burgundy/50 border-b border-burgundy/8">
+                <span>المورد</span><span>الهاتف</span><span>إجمالي المشتريات</span><span>إجمالي المدفوع</span><span>الرصيد المتبقي</span><span>الإجراءات</span>
+              </div>
+              <div className="divide-y divide-burgundy/6">
+                {suppliers.map(sup => (
+                  <div key={sup._id} className="grid sm:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 transition hover:bg-burgundy/3">
+                    <div>
+                      <p className="font-semibold text-sm">{sup.name}</p>
+                      {sup.address && <p className="text-xs text-burgundy/40 mt-0.5">{sup.address}</p>}
+                      <p className="text-xs text-emerald-700 font-bold mt-1">📦 {sup.totalPieces || 0} قطعة / {sup.productCount || 0} منتج</p>
+                    </div>
+                    <p className="text-sm text-burgundy/60 font-mono">{sup.phone || '—'}</p>
+                    <p className="text-sm font-bold text-red-600">{EGP(sup.totalPurchased)}</p>
+                    <p className="text-sm font-bold text-emerald-700">{EGP(sup.totalPaid)}</p>
+                    <span className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-bold ${sup.balance > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {EGP(sup.balance)}
+                    </span>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setDetail(sup._id)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">التفاصيل</button>
+                      <button onClick={() => setModal(sup)} className="rounded-xl border border-burgundy/20 px-3 py-1.5 text-xs font-medium text-burgundy transition hover:bg-burgundy hover:text-white">تعديل</button>
+                      <button onClick={() => setDeleteId(sup._id)} className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-500 hover:text-white">حذف</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB 2: ALL TRANSACTIONS (سجل وبحث جميع الفواتير والمعاملات) ─── */}
+      {activeMainTab === 'all-transactions' && (
+        <div className="space-y-5">
+          {/* Information & instructions banner */}
+          <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-2xl shrink-0 mt-0.5">💡</span>
+            <div className="space-y-1 text-xs text-amber-900 leading-relaxed">
+              <p className="font-bold text-sm">البحث الشامل وإدارة الفواتير وحذف العمليات الخاطئة أو المكررة:</p>
+              <p>
+                إذا تمت إضافة صنف إلى مورد/مكتب بالخطأ ثم تم تغييره لمورد آخر واحتسب مرتين، أو تم تسجيل فاتورة مكررة، يمكنك البحث هنا باسم المنتج أو المورد أو رقم الفاتورة والضغط على زر <strong>[حذف 🗑️]</strong> لإلغاء الفاتورة الخاطئة فوراً وسيتم تحديث رصيد المورد وحذف أي مصروف مرتبط بها بالخزينة تلقائياً.
+              </p>
+            </div>
+          </div>
+
+          {/* Search & Filters Bar */}
+          <div className="bg-white rounded-2xl border border-burgundy/10 p-4 shadow-sm flex flex-col md:flex-row items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 w-full">
+              <input
+                type="text"
+                value={txSearch}
+                onChange={e => setTxSearch(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') loadAllTransactions(); }}
+                placeholder="ابحث باسم المنتج، كود الصنف، رقم الفاتورة/المرجع، أو اسم المورد..."
+                className="w-full rounded-xl border border-burgundy/20 bg-[#F7F0EC]/50 pr-10 pl-4 py-2.5 text-xs font-bold text-burgundy outline-none transition focus:border-burgundy focus:bg-white"
+              />
+              <span className="absolute right-3.5 top-2.5 text-burgundy/40 text-sm">🔍</span>
+            </div>
+
+            {/* Transaction Type Filter */}
+            <div className="w-full md:w-48 shrink-0">
+              <select
+                value={txTypeFilter}
+                onChange={e => {
+                  setTxTypeFilter(e.target.value);
+                  loadAllTransactions(txSearch, e.target.value, txSupplierFilter);
+                }}
+                className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2.5 text-xs font-bold text-burgundy outline-none focus:border-burgundy"
+              >
+                <option value="all">كل أنواع المعاملات</option>
+                <option value="purchase">🛒 فواتير مشتريات (مديونية)</option>
+                <option value="payment">💵 سدادات ودفعات كاش</option>
+                <option value="return">↩️ مرتجعات للمورد</option>
+              </select>
+            </div>
+
+            {/* Supplier Filter */}
+            <div className="w-full md:w-48 shrink-0">
+              <select
+                value={txSupplierFilter}
+                onChange={e => {
+                  setTxSupplierFilter(e.target.value);
+                  loadAllTransactions(txSearch, txTypeFilter, e.target.value);
+                }}
+                className="w-full rounded-xl border border-burgundy/20 bg-white px-3 py-2.5 text-xs font-bold text-burgundy outline-none focus:border-burgundy"
+              >
+                <option value="all">كل الموردين ({suppliers.length})</option>
+                {suppliers.map(s => (
+                  <option key={s._id} value={s._id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Action Search Button */}
+            <button
+              type="button"
+              onClick={() => loadAllTransactions()}
+              className="w-full md:w-auto shrink-0 rounded-xl bg-burgundy px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#650018] transition flex items-center justify-center gap-1.5"
+            >
+              <span>تحديث وفحص</span>
+            </button>
+          </div>
+
+          {/* Quick Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-white rounded-2xl p-3 border border-burgundy/10 shadow-xs">
+              <p className="text-[11px] text-burgundy/60 font-semibold">عدد المعاملات المسجلة</p>
+              <p className="text-lg font-extrabold text-burgundy mt-0.5">{allTxs.length} معاملة</p>
+            </div>
+            <div className="bg-red-50/70 rounded-2xl p-3 border border-red-200/60 shadow-xs">
+              <p className="text-[11px] text-red-700/70 font-semibold">إجمالي فواتير الشراء المعروضة</p>
+              <p className="text-lg font-extrabold text-red-700 mt-0.5">{EGP(totalFilteredPurchased)}</p>
+            </div>
+            <div className="bg-emerald-50/70 rounded-2xl p-3 border border-emerald-200/60 shadow-xs col-span-2 sm:col-span-1">
+              <p className="text-[11px] text-emerald-700/70 font-semibold">إجمالي المدفوعات المسددة</p>
+              <p className="text-lg font-extrabold text-emerald-700 mt-0.5">{EGP(totalFilteredPaid)}</p>
+            </div>
+          </div>
+
+          {/* Transactions List */}
+          {allLoading ? (
+            <div className="flex h-40 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
+            </div>
+          ) : allTxs.length === 0 ? (
+            <div className="rounded-[2rem] border border-burgundy/10 bg-white py-16 text-center space-y-2">
+              <p className="text-4xl">📋</p>
+              <p className="text-base font-bold text-burgundy/50">لا توجد فواتير أو معاملات مطابقة لمعايير البحث</p>
+              <p className="text-xs text-burgundy/30">جرب البحث بكلمات أخرى أو تغيير الفلتر لعرض جميع المعاملات</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {allTxs.map(tx => {
+                const supName = tx.supplier?.name || 'مورد غير محدد';
+                const isPurchase = tx.type === 'purchase';
+                const isReturn = tx.type === 'return';
+                const isPayment = tx.type === 'payment';
+
+                return (
+                  <div
+                    key={tx._id}
+                    className={`rounded-2xl p-4 border transition flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs ${
+                      isPurchase
+                        ? 'bg-red-50/50 border-red-100 hover:border-red-200'
+                        : isReturn
+                        ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
+                        : 'bg-emerald-50/50 border-emerald-100 hover:border-emerald-200'
+                    }`}
+                  >
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      {/* Badges row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Supplier Badge */}
+                        <span className="rounded-lg bg-burgundy/10 text-burgundy font-bold text-xs px-2.5 py-1 border border-burgundy/15 flex items-center gap-1">
+                          <span>🏢</span>
+                          <span>{supName}</span>
+                        </span>
+
+                        {/* Type Badge */}
+                        <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
+                          isPurchase
+                            ? 'bg-red-100 text-red-700'
+                            : isReturn
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {isPurchase ? '🛒 فاتورة مشتريات' : isReturn ? '↩️ مرتجع للمورد' : '💵 سداد دفعة'}
+                        </span>
+
+                        {/* Payment Source */}
+                        <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${
+                          tx.paymentSource === 'StoreSafe'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {tx.paymentSource === 'StoreSafe' ? '🏦 خزينة المحل' : '👤 جيب شخصي'}
+                        </span>
+
+                        {/* Invoice Reference */}
+                        {tx.reference && (
+                          <span className="font-mono text-xs bg-white text-burgundy/70 px-2 py-0.5 rounded-lg border border-burgundy/10">
+                            فاتورة #{tx.reference}
+                          </span>
+                        )}
+
+                        {/* Date */}
+                        <span className="text-[11px] text-burgundy/40">
+                          {new Date(tx.date || tx.createdAt).toLocaleDateString('ar-EG-u-nu-latn', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      {tx.description && (
+                        <p className="text-xs font-semibold text-burgundy/80 leading-relaxed">
+                          {tx.description}
+                        </p>
+                      )}
+
+                      {/* Linked Items / Products */}
+                      {tx.items && tx.items.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {tx.items.map((it, idx) => (
+                            <span key={idx} className="text-[11px] bg-white border border-amber-300 text-amber-900 px-2.5 py-1 rounded-xl shadow-2xs font-medium flex items-center gap-1">
+                              <span>👕</span>
+                              <strong>{it.name || it.product?.name || 'صنف'}</strong>
+                              <span>({it.quantity} قطعة {it.unitPrice ? `× ${it.unitPrice} ج.م` : ''} {it.size ? `• ${it.size}` : ''} {it.color ? `• ${it.color}` : ''})</span>
+                              {it.reason && <span className="bg-amber-100 text-amber-800 font-bold px-1 rounded text-[9px]">سبب: {it.reason}</span>}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Amount & Actions */}
+                    <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-burgundy/5">
+                      <div className="text-left">
+                        <span className="block text-[10px] text-burgundy/40 font-semibold">المبلغ</span>
+                        <p className={`text-base font-extrabold ${
+                          isPurchase ? 'text-red-600' : isReturn ? 'text-amber-700' : 'text-emerald-700'
+                        }`}>
+                          {isPurchase ? '+' : '-'} {EGP(tx.amount)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingTx(tx)}
+                          title="تعديل الفاتورة والمبلغ"
+                          className="rounded-xl border border-burgundy/20 bg-white hover:bg-burgundy hover:text-white px-3 py-1.5 text-xs font-bold text-burgundy transition shadow-2xs flex items-center gap-1"
+                        >
+                          <span>✏️</span>
+                          <span>تعديل</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTx(tx)}
+                          title="حذف الفاتورة وتعديل الخزينة ورصيد المورد"
+                          className="rounded-xl border border-red-200 bg-white hover:bg-red-600 hover:text-white px-3 py-1.5 text-xs font-bold text-red-600 transition shadow-2xs flex items-center gap-1"
+                        >
+                          <span>🗑️</span>
+                          <span>حذف</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modals */}
+      {modal !== null && (
+        <SupplierModal
+          supplier={modal?._id ? modal : null}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+        />
+      )}
+
+      {detail && (
+        <SupplierDetailModal
+          supplierId={detail}
+          onClose={() => {
+            setDetail(null);
+            load();
+            if (activeMainTab === 'all-transactions') loadAllTransactions();
+          }}
+        />
+      )}
+
+      {editingTx && (
+        <EditTransactionModal
+          transaction={editingTx}
+          supplierId={editingTx.supplier?._id || editingTx.supplier}
+          onClose={() => setEditingTx(null)}
+          onSave={() => {
+            loadAllTransactions();
+            load();
+            showToast('تم تعديل الفاتورة بنجاح وتحديث الحسابات');
+          }}
+        />
+      )}
+
+      {/* Delete Supplier Modal */}
+      <ConfirmModal
+        isOpen={!!deleteId}
+        title="حذف المورد"
+        message="هل أنت متأكد من حذف هذا المورد وجميع تعاملاته؟"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
+
+      {/* Delete Transaction Modal */}
+      <ConfirmModal
+        isOpen={!!deleteTx}
+        title="حذف الفاتورة / المعاملة"
+        message={`هل أنت متأكد من حذف هذه المعاملة بقيمة ${EGP(deleteTx?.amount || 0)} للمورد (${deleteTx?.supplier?.name || 'مورد'})؟ سيتم خصمها من رصيد المورد وحذف أي مصروف مرتبط بها من الخزينة تلقائياً.`}
+        onConfirm={handleDeleteTransaction}
+        onCancel={() => setDeleteTx(null)}
+      />
+    </div>
+  );
 }
 
 export default AdminSuppliers;
