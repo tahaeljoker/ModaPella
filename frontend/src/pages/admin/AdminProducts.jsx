@@ -1227,7 +1227,7 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
 }
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
-function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onShowAnalytics, onRestock, categories, catAr, onRefresh, showToast, onOpenCategoryAnalytics }) {
+function CatalogTab({ products, loading, onAdd, onEdit, onDelete, onShowHistory, onShowAnalytics, onRestock, categories, catAr, onRefresh, showToast, onOpenCategoryAnalytics, siteConfig = null, setSiteConfig = () => {} }) {
  const [filter, setFilter] = useState('All');
  const [filterSeason, setFilterSeason] = useState('All'); // 'All' | 'summer' | 'winter' | 'all' | 'archived'
  const [search, setSearch] = useState('');
@@ -2501,6 +2501,8 @@ function AdminProducts() {
  loading={loading}
  categories={categories}
  catAr={catAr}
+ siteConfig={siteConfig}
+ setSiteConfig={setSiteConfig}
  onAdd={() => setModal('create')}
  onEdit={p => setModal({ ...p, images: (p.images || []).join('\n'), sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', ') })}
  onDelete={id => { setProductToDelete(id); setIsDeleteOpen(true); }}
