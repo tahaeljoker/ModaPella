@@ -1268,22 +1268,23 @@ const normalizeDigits = (str) => {
  return res;
 };
 
- const summerProducts = products.filter(p => p.season === 'summer');
- const winterProducts = products.filter(p => p.season === 'winter');
- const allYearProducts = products.filter(p => !p.season || p.season === 'all');
+ const productList = Array.isArray(products) ? products : [];
+ const summerProducts = productList.filter(p => p.season === 'summer');
+ const winterProducts = productList.filter(p => p.season === 'winter');
+ const allYearProducts = productList.filter(p => !p.season || p.season === 'all');
  const archivedSummer = summerProducts.filter(p => p.isSeasonArchived).length;
  const activeSummer = summerProducts.length - archivedSummer;
  const archivedWinter = winterProducts.filter(p => p.isSeasonArchived).length;
  const activeWinter = winterProducts.length - archivedWinter;
- const totalArchived = products.filter(p => p.isSeasonArchived).length;
+ const totalArchived = productList.filter(p => p.isSeasonArchived).length;
 
- const suppliersList = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
- const sizesList = Array.from(new Set(products.flatMap(p => p.sizes || []).filter(Boolean))).sort();
+ const suppliersList = Array.from(new Set(productList.map(p => p.supplier).filter(Boolean))).sort();
+ const sizesList = Array.from(new Set(productList.flatMap(p => p.sizes || []).filter(Boolean))).sort();
 
  const translatedSearch = translateArabicKeyboard(search);
  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
 
- const filtered = products.filter(p => {
+ const filtered = productList.filter(p => {
  const mc = filter === 'All' || p.category === filter;
  const pName = (p.name || '').toLowerCase();
  const pSku = (p.sku || '').toLowerCase();
@@ -1512,7 +1513,7 @@ const normalizeDigits = (str) => {
  onClick={() => setFilterSeason('All')}
  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${filterSeason === 'All' ? 'bg-burgundy text-white shadow-sm' : 'text-burgundy/60 hover:text-burgundy hover:bg-burgundy/5'}`}
  >
- الكل ({products.length})
+ الكل ({productList.length})
  </button>
  <button
  type="button"
@@ -2069,9 +2070,10 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
 
  const stockBadge = (s) => s === 0 ? 'bg-red-100 text-red-600' : s <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
 
- const uniqueSuppliers = Array.from(new Set(products.map(p => p.supplier).filter(Boolean))).sort();
+ const uniqueSuppliers = Array.from(new Set(productList.map(p => p.supplier).filter(Boolean))).sort();
 
- const filtered = products.filter(p => {
+ const productList = Array.isArray(products) ? products : [];
+ const filtered = productList.filter(p => {
  const pName = (p.name || '').toLowerCase();
  const pSku = (p.sku || '').toLowerCase();
  const pOldSku = (p.oldSku || '').toLowerCase();
@@ -2362,15 +2364,20 @@ function AdminProducts() {
  const loadProducts = async () => {
  try {
  setLoading(true);
- const res = await Promise.all([api.get('/products?includeOffSeason=true'), api.get('/admin/site-config')]);
- setProducts(res.data);
- } catch (e) { console.error(e); }
- finally { setLoading(false); }
+ const res = await api.get('/products?includeOffSeason=true');
+ setProducts(Array.isArray(res?.data) ? res.data : []);
+ } catch (e) {
+ console.error(e);
+ setProducts([]);
+ } finally {
+ setLoading(false);
+ }
  };
 
  const fetchConfig = async () => {
  try {
  const res = await api.get('/admin/site-config');
+ if (res?.data) setSiteConfig(res.data);
  if (res.data && res.data.categories && res.data.categories.length > 0) {
  const cats = res.data.categories.map(c => c.key);
  const mapAr = {};
