@@ -15,6 +15,37 @@ const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pa
 const DEFAULT_CAT_AR = { Blazer: 'بليزر', Blouse: 'بلوزة', Chemise: 'شميز', Skirt: 'جيبة', Dress: 'فستان', Pantalon: 'بنطلون', 'T-shirt': 'تيشيرت', Bag: 'شنطة', Cardigan: 'كاردن', Suit: 'سوت', Tonic: 'تونيك', Takem: 'طقم' };
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
+const arabicKeyboardMap = {
+  'ض': 'Q', 'ص': 'W', 'ث': 'E', 'ق': 'R', 'ف': 'T', 'غ': 'Y', 'ع': 'U', 'ه': 'I', 'خ': 'O', 'ح': 'P',
+  'ج': 'C', 'د': 'D', 'ش': 'A', 'س': 'S', 'ي': 'D', 'ب': 'F', 'ل': 'G', 'ا': 'H', 'ت': 'J', 'ن': 'K',
+  'م': 'L', 'ك': 'K', 'ط': 'T', 'ئ': 'Z', 'ء': 'X', 'ؤ': 'C', 'ر': 'V', 'ى': 'N', 'ة': 'M', 'و': 'W',
+  'ز': 'Z', 'ظ': 'Z', 'ذ': 'Z', 'أ': 'H', 'إ': 'H', 'آ': 'H'
+};
+
+const translateArabicKeyboard = (str) => {
+  if (!str) return '';
+  let res = '';
+  for (let char of str) {
+    if (arabicKeyboardMap[char]) {
+      res += arabicKeyboardMap[char];
+    } else {
+      res += char;
+    }
+  }
+  return res;
+};
+
+const normalizeDigits = (str) => {
+  if (!str) return '';
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  let res = String(str);
+  for (let i = 0; i < 10; i++) {
+    res = res.replaceAll(arabicDigits[i], String(i));
+  }
+  return res;
+};
+
+
 const getProductIcon = () => (
  <svg className="w-5 h-5 text-burgundy/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -2266,36 +2297,39 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
 
  const stockBadge = (s) => s === 0 ? 'bg-red-100 text-red-600' : s <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
 
- const uniqueSuppliers = Array.from(new Set(productList.map(p => p.supplier).filter(Boolean))).sort();
+  const productList = Array.isArray(products) ? products : [];
+  const uniqueSuppliers = Array.from(new Set(productList.map(p => p.supplier).filter(Boolean))).sort();
 
- const productList = Array.isArray(products) ? products : [];
- const filtered = productList.filter(p => {
- const pName = (p.name || '').toLowerCase();
- const pSku = (p.sku || '').toLowerCase();
- const pOldSku = (p.oldSku || '').toLowerCase();
- const pCat = ((catAr[p.category] || p.category) || '').toLowerCase();
+  const translatedSearch = translateArabicKeyboard(search);
+  const normalizedSearch = normalizeDigits(translatedSearch).trim().toLowerCase();
 
- const ms = !search ||
- pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
- pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
- pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch) ||
- pCat.includes(search.toLowerCase()) || pCat.includes(normalizedSearch);
+  const filtered = productList.filter(p => {
+    const pName = (p.name || '').toLowerCase();
+    const pSku = (p.sku || '').toLowerCase();
+    const pOldSku = (p.oldSku || '').toLowerCase();
+    const pCat = ((catAr[p.category] || p.category) || '').toLowerCase();
 
- const mc = filterCat === 'الكل' || p.category === filterCat;
- const mk = filterStock === 'all' ? true : filterStock === 'low' ? (p.stock > 0 && p.stock <= 5) : p.stock === 0;
- const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
+    const ms = !search ||
+      pName.includes(search.toLowerCase()) || pName.includes(normalizedSearch) ||
+      pSku.includes(search.toLowerCase()) || pSku.includes(normalizedSearch) ||
+      pOldSku.includes(search.toLowerCase()) || pOldSku.includes(normalizedSearch) ||
+      pCat.includes(search.toLowerCase()) || pCat.includes(normalizedSearch);
 
- let mSeason = true;
- if (filterSeason === 'summer') mSeason = p.season === 'summer';
- else if (filterSeason === 'winter') mSeason = p.season === 'winter';
- else if (filterSeason === 'all') mSeason = (!p.season || p.season === 'all');
- else if (filterSeason === 'archived') mSeason = Boolean(p.isSeasonArchived);
+    const mc = filterCat === 'الكل' || p.category === filterCat;
+    const mk = filterStock === 'all' ? true : filterStock === 'low' ? ((p.stock || 0) > 0 && (p.stock || 0) <= 5) : (p.stock || 0) === 0;
+    const mSup = filterSupplier === 'الكل' ? true : (filterSupplier === 'بدون مورد' ? !p.supplier : p.supplier === filterSupplier);
 
- return ms && mc && mk && mSup && mSeason;
- });
+    let mSeason = true;
+    if (filterSeason === 'summer') mSeason = p.season === 'summer';
+    else if (filterSeason === 'winter') mSeason = p.season === 'winter';
+    else if (filterSeason === 'all') mSeason = (!p.season || p.season === 'all');
+    else if (filterSeason === 'archived') mSeason = Boolean(p.isSeasonArchived);
 
- const totalItems = filtered.reduce((s, p) => s + p.stock, 0);
- const totalValue = filtered.reduce((s, p) => s + p.stock * p.price, 0);
+    return ms && mc && mk && mSup && mSeason;
+  });
+
+  const totalItems = filtered.reduce((s, p) => s + (Number(p.stock) || 0), 0);
+  const totalValue = filtered.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.price) || 0), 0);
  const lowCount = filtered.filter(p => p.stock > 0 && p.stock <= 5).length;
  const outCount = filtered.filter(p => p.stock === 0).length;
 
@@ -2545,6 +2579,7 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
 function AdminProducts() {
  const navigate = useNavigate();
  const [products, setProducts] = useState([]);
+ const [siteConfig, setSiteConfig] = useState(null);
  const [loading, setLoading] = useState(true);
  const [tab, setTab] = useState('catalog'); // 'catalog' | 'inventory'
  const [modal, setModal] = useState(null);
@@ -2640,7 +2675,6 @@ function AdminProducts() {
  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
  const [productToDelete, setProductToDelete] = useState(null);
  const [restockingProduct, setRestockingProduct] = useState(null);
-  const [siteConfig, setSiteConfig] = useState(null);
 
  const handleDelete = async (id) => {
  await api.delete(`/admin/products/${id}`);
