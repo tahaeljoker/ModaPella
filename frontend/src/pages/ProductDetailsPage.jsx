@@ -23,6 +23,7 @@ function ProductDetailsPage() {
  const [quantity, setQuantity] = useState(1);
  const [added, setAdded] = useState(false);
  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [colorOverride, setColorOverride] = useState(null);
  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
  const [similarProducts, setSimilarProducts] = useState([]);
  const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
@@ -82,6 +83,32 @@ function ProductDetailsPage() {
  }
 
  const image = product.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80';
+
+  // Find assigned real photo for selected color
+  const getColorPhoto = (colorName) => {
+    if (!colorName) return null;
+    if (Array.isArray(product?.colorImages)) {
+      const match = product.colorImages.find(
+        ci => ci.color && ci.color.trim().toLowerCase() === colorName.trim().toLowerCase() && ci.image
+      );
+      if (match) return match.image;
+    }
+    return null;
+  };
+
+  const handleSelectColor = (colorName) => {
+    setSelectedColor(colorName);
+    const photo = getColorPhoto(colorName);
+    if (photo) {
+      setColorOverride(photo);
+    }
+  };
+
+  const defaultImage = (product?.images && product.images.length > 0)
+    ? (product.images[activeImageIdx] || product.images[0])
+    : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80';
+
+  const displayedImage = colorOverride || (selectedColor && getColorPhoto(selectedColor)) || defaultImage;
 
  const handleAddToCart = () => {
  const activeDiscount = isDiscountActive(product);
@@ -387,7 +414,7 @@ function ProductDetailsPage() {
  {/* Large image */}
  <div className="relative max-w-full max-h-[85vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
  <img 
- src={product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80'} 
+ src={displayedImage || (product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80')} 
  alt={cleanProductName(product)} 
  className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl" 
  />
