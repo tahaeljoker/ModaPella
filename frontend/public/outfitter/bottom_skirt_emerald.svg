@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" width="800" height="1200">
+  <defs>
+    <filter id="bottomShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="rgba(10,5,5,0.3)"/>
+    </filter>
+    <linearGradient id="bottomShade_skirt" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.32"/>
+      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#bottomShadow)">
+    
+    <!-- Pleated A-Line Midi Skirt -->
+    <path d="M320 540
+             Q400 555 480 540
+             C495 620 530 750 560 920
+             Q400 950 240 920
+             C270 750 305 620 320 540 Z"
+          fill="#0F4D3A"/>
+
+    <!-- Skirt Gradient Sheen -->
+    <path d="M320 540
+             Q400 555 480 540
+             C495 620 530 750 560 920
+             Q400 950 240 920
+             C270 750 305 620 320 540 Z"
+          fill="url(#bottomShade_skirt)" mix-blend-mode="overlay"/>
+
+    <!-- High Waistband -->
+    <path d="M320 540 Q400 555 480 540 L482 565 Q400 580 318 565 Z" fill="#0F4D3A" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+    
+    <!-- Fine Accordion Pleats -->
+    <line x1="340" y1="565" x2="280" y2="925" stroke="rgba(0,0,0,0.25)" stroke-width="2"/>
+    <line x1="360" y1="568" x2="320" y2="930" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+    <line x1="380" y1="570" x2="360" y2="934" stroke="rgba(0,0,0,0.2)" stroke-width="2"/>
+    <line x1="400" y1="572" x2="400" y2="937" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+    <line x1="420" y1="570" x2="440" y2="934" stroke="rgba(0,0,0,0.2)" stroke-width="2"/>
+    <line x1="440" y1="568" x2="480" y2="930" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+    <line x1="460" y1="565" x2="520" y2="925" stroke="rgba(0,0,0,0.25)" stroke-width="2"/>
+    
+  </g>
+</svg>

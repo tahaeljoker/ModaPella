@@ -11,6 +11,7 @@ import CollectionsPage from './pages/CollectionsPage';
 import CartPage from './pages/CartPage';
 import api from './services/api';
 import ProductDetailsPage from './pages/ProductDetailsPage';
+import OutfitterPage from './pages/OutfitterPage';
 import LoginPage from './pages/LoginPage';
 import CategoryPage from './pages/CategoryPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -173,6 +174,7 @@ function AppContent() {
  <nav className="hidden md:flex flex-wrap gap-2">
  {navItem('الرئيسية', '/')}
  {navItem('الملابس', '/shop')}
+	{navItem('غرفة التنسيق ✨', '/outfitter')}
           <button
             type="button"
             onClick={() => setIsCompareOpen(true)}
@@ -222,6 +224,15 @@ function AppContent() {
  >
  الملابس
  </NavLink>
+          <NavLink
+            to="/outfitter"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={({ isActive }) =>
+              `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+            }
+          >
+            غرفة التنسيق ✨
+          </NavLink>
           <button
             type="button"
             onClick={() => {
@@ -271,6 +282,7 @@ function AppContent() {
  {/* Public Routes */}
  <Route path="/" element={<LandingPage />} />
  <Route path="/shop" element={<CollectionsPage />} />
+          <Route path="/outfitter" element={<OutfitterPage />} />
  <Route path="/collections" element={<CollectionsPage />} />
  <Route path="/about" element={<AboutPage />} />
  <Route path="/contact" element={<ContactPage />} />

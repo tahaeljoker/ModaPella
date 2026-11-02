@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" width="800" height="1200">
+  <defs>
+    <filter id="topShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(20,10,10,0.25)"/>
+    </filter>
+    <linearGradient id="fabricShade_blouse" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.35"/>
+      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.12"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#topShadow)">
+    
+    <!-- Silk Royal Blouse -->
+    <!-- Blouse Body with Flowing Drapes -->
+    <path d="M400 215
+             C350 215 310 240 280 280
+             C260 305 240 370 230 460
+             C225 500 240 515 255 505
+             C270 490 280 440 285 400
+             C290 450 295 530 290 600
+             C290 630 330 645 400 645
+             C470 645 510 630 510 600
+             C505 530 510 450 515 400
+             C520 440 530 490 545 505
+             C560 515 575 500 570 460
+             C560 370 540 305 520 280
+             C490 240 450 215 400 215 Z"
+          fill="#0F4D3A"/>
+
+    <!-- Silk Highlights & Folds -->
+    <path d="M400 215
+             C350 215 310 240 280 280
+             C260 305 240 370 230 460
+             C225 500 240 515 255 505
+             C270 490 280 440 285 400
+             C290 450 295 530 290 600
+             C290 630 330 645 400 645
+             C470 645 510 630 510 600
+             C505 530 510 450 515 400
+             C520 440 530 490 545 505
+             C560 515 575 500 570 460
+             C560 370 540 305 520 280
+             C490 240 450 215 400 215 Z"
+          fill="url(#fabricShade_blouse)" mix-blend-mode="screen" opacity="0.75"/>
+
+    <!-- Mandarin / Ruffle Collar -->
+    <path d="M370 215 C385 230 415 230 430 215 C440 225 430 240 400 245 C370 240 360 225 370 215 Z" fill="#0F4D3A" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+    <!-- Elegant Button Placket -->
+    <path d="M396 245 L396 640 L404 640 L404 245 Z" fill="rgba(0,0,0,0.15)"/>
+    <circle cx="400" cy="275" r="3.5" fill="#FFF" opacity="0.85"/>
+    <circle cx="400" cy="330" r="3.5" fill="#FFF" opacity="0.85"/>
+    <circle cx="400" cy="385" r="3.5" fill="#FFF" opacity="0.85"/>
+    <circle cx="400" cy="440" r="3.5" fill="#FFF" opacity="0.85"/>
+    <circle cx="400" cy="495" r="3.5" fill="#FFF" opacity="0.85"/>
+    <circle cx="400" cy="550" r="3.5" fill="#FFF" opacity="0.85"/>
+
+    <!-- Soft Draping Creases -->
+    <path d="M330 260 Q360 380 340 550" stroke="rgba(0,0,0,0.18)" stroke-width="2" fill="none"/>
+    <path d="M470 260 Q440 380 460 550" stroke="rgba(0,0,0,0.18)" stroke-width="2" fill="none"/>
+    <path d="M375 280 Q385 450 370 610" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" fill="none"/>
+    <path d="M425 280 Q415 450 430 610" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" fill="none"/>
+    
+  </g>
+</svg>

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" width="800" height="1200">
+  <defs>
+    <filter id="bottomShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="rgba(10,5,5,0.3)"/>
+    </filter>
+    <linearGradient id="bottomShade_pants" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.32"/>
+      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#bottomShadow)">
+    
+    <!-- High-Waisted Tailored Trousers -->
+    <!-- Left Leg & Right Leg -->
+    <path d="M315 530
+             Q400 545 485 530
+             C505 610 515 720 500 850
+             L485 1060
+             C480 1070 450 1070 445 1060
+             L420 850
+             C410 780 405 730 400 710
+             C395 730 390 780 380 850
+             L355 1060
+             C350 1070 320 1070 315 1060
+             L300 850
+             C285 720 295 610 315 530 Z"
+          fill="#7C0A12"/>
+
+    <!-- Fabric Shading Overlay -->
+    <path d="M315 530
+             Q400 545 485 530
+             C505 610 515 720 500 850
+             L485 1060
+             C480 1070 450 1070 445 1060
+             L420 850
+             C410 780 405 730 400 710
+             C395 730 390 780 380 850
+             L355 1060
+             C350 1070 320 1070 315 1060
+             L300 850
+             C285 720 295 610 315 530 Z"
+          fill="url(#bottomShade_pants)" mix-blend-mode="overlay"/>
+
+    <!-- High Tailored Waistband with Belt Loops -->
+    <path d="M314 530 Q400 546 486 530 L488 560 Q400 576 312 560 Z" fill="#7C0A12" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+    <rect x="335" y="534" width="4" height="24" rx="2" fill="rgba(0,0,0,0.25)"/>
+    <rect x="380" y="538" width="4" height="24" rx="2" fill="rgba(0,0,0,0.25)"/>
+    <rect x="416" y="538" width="4" height="24" rx="2" fill="rgba(0,0,0,0.25)"/>
+    <rect x="461" y="534" width="4" height="24" rx="2" fill="rgba(0,0,0,0.25)"/>
+
+    <!-- Crisp Center Press Creases -->
+    <line x1="365" y1="580" x2="350" y2="1055" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>
+    <line x1="435" y1="580" x2="450" y2="1055" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>
+
+    <!-- Slant Pockets & Fly Detail -->
+    <line x1="330" y1="565" x2="310" y2="620" stroke="rgba(0,0,0,0.3)" stroke-width="2"/>
+    <line x1="470" y1="565" x2="490" y2="620" stroke="rgba(0,0,0,0.3)" stroke-width="2"/>
+    <path d="M400 560 L400 640 C400 660 410 675 418 680" stroke="rgba(0,0,0,0.25)" stroke-width="2" fill="none"/>
+    
+  </g>
+</svg>
