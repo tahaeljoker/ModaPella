@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import ImageUploader from './ImageUploader';
+import MannequinImageUploader from './MannequinImageUploader';
 import { cleanProductName } from '../utils/discount';
 import { Icon } from './Icon';
 
@@ -59,7 +60,8 @@ export default function AdminOnlineCatalog({ onToast }) {
       onlineName: p.onlineName || '',
       images: Array.isArray(p.images) ? p.images : [],
       showOnWebsite: p.showOnWebsite !== false,
-      season: p.season || 'winter'
+      season: p.season || 'winter',
+      mannequinImage: p.mannequinImage || ''
     });
   };
 
@@ -73,7 +75,8 @@ export default function AdminOnlineCatalog({ onToast }) {
         onlineName: (editForm.onlineName || '').trim(),
         images: editForm.images,
         showOnWebsite: editForm.showOnWebsite,
-        season: editForm.season
+        season: editForm.season,
+        mannequinImage: editForm.mannequinImage || ''
       };
 
       await api.put(`/admin/products/${selectedProduct._id}`, payload);
@@ -599,11 +602,17 @@ export default function AdminOnlineCatalog({ onToast }) {
                 {/* Direct Image Uploader */}
                 <div className="pt-2 border-t border-burgundy/10">
                   <ImageUploader
-                    images={editForm.images}
-                    onChange={(imgs) => setEditForm(p => ({ ...p, images: imgs }))}
-                    label="صور المنتج في الموقع"
-                  />
-                </div>
+  images={editForm.images}
+  onChange={(imgs) => setEditForm(p => ({ ...p, images: imgs }))}
+  label="صور المنتج في الموقع"
+/>
+</div>
+<div className="pt-2">
+  <MannequinImageUploader
+    value={editForm.mannequinImage || ''}
+    onChange={(newUrl) => setEditForm(p => ({ ...p, mannequinImage: newUrl }))}
+  />
+</div>
 
                 {/* Submit button */}
                 <div className="pt-4 border-t border-burgundy/10 flex gap-3">

@@ -1,4 +1,5 @@
 import AdminOnlineCatalog from '../../components/AdminOnlineCatalog';
+import MannequinImageUploader from '../../components/MannequinImageUploader';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -503,7 +504,25 @@ function AdminSiteSettings() {
  </div>
  </div>
 
- {/* Featured Section */}
+ 
+        {/* Base Mannequin Photo for Outfitter Studio */}
+        <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="p-2 rounded-2xl bg-burgundy/10 text-burgundy text-lg">✨</span>
+            <div>
+              <h3 className="text-lg font-bold text-burgundy">صورة مانيكان المحل الأساسي (غرفة التنسيق)</h3>
+              <p className="text-xs text-burgundy/60">
+                الصورة الأساسية لمانيكان محلك التي تركب وتتبدل فوقها قطع الملابس في غرفة التنسيق
+              </p>
+            </div>
+          </div>
+          <MannequinImageUploader
+            value={config.baseMannequinPhoto || ''}
+            onChange={(url) => setConfig({ ...config, baseMannequinPhoto: url })}
+          />
+        </div>
+
+        {/* Featured Section */}
  <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
  <h3 className="mb-4 text-lg font-bold">قسم المجموعات والمنتجات المميزة</h3>
  <div className="space-y-4">

@@ -1,10 +1,13 @@
-import { useState, useEffect, useMemo, useContext, useRef } from 'react';
+import { useState, useEffect, useMemo, useContext } from 'react';
 import CartContext from '../context/CartContext';
+import api from '../services/api';
+import { cleanProductName } from '../utils/discount';
+import { getColorHex } from '../utils/colorSwatches';
 
-// Default Luxury Outfits Dataset
+// Default Luxury Outfits Dataset (Curated Demo)
 export const DEFAULT_OUTFITTER_DATA = {
   mannequinBase: '/outfitter/mannequin.svg',
-  bundleDiscountPercent: 15, // 15% bundle discount when buying Top + Bottom
+  bundleDiscountPercent: 15,
   tops: [
     {
       id: 'top-blouse-silk',
@@ -14,6 +17,7 @@ export const DEFAULT_OUTFITTER_DATA = {
       price: 650,
       originalPrice: 790,
       availableSizes: ['S', 'M', 'L', 'XL'],
+      isDemo: true,
       variants: [
         {
           colorName: 'بورجوندي ملكي',
@@ -46,6 +50,7 @@ export const DEFAULT_OUTFITTER_DATA = {
       price: 980,
       originalPrice: 1150,
       availableSizes: ['M', 'L', 'XL', 'XXL'],
+      isDemo: true,
       variants: [
         {
           colorName: 'كحلي داكن',
@@ -80,6 +85,7 @@ export const DEFAULT_OUTFITTER_DATA = {
       price: 540,
       originalPrice: 650,
       availableSizes: ['S', 'M', 'L', 'XL', 'XXL'],
+      isDemo: true,
       variants: [
         {
           colorName: 'أسود كلاسيك',
@@ -112,6 +118,7 @@ export const DEFAULT_OUTFITTER_DATA = {
       price: 590,
       originalPrice: 720,
       availableSizes: ['M', 'L', 'XL'],
+      isDemo: true,
       variants: [
         {
           colorName: 'بيج لؤلؤي',
@@ -146,6 +153,7 @@ export const DEFAULT_OUTFITTER_DATA = {
       price: 420,
       originalPrice: 510,
       availableSizes: ['مقاس موحد'],
+      isDemo: true,
       variants: [
         {
           colorName: 'كونياك عسلي',
@@ -168,7 +176,54 @@ export const DEFAULT_OUTFITTER_DATA = {
   ]
 };
 
-// Animated Layer Component with Smooth Crossfade
+// Helper to transform a MongoDB Product document into an Outfitter item
+function mapProductToOutfitterItem(p) {
+  const effectivePrice = Number(
+    (p.discountPrice && p.discountPrice > 0 && p.isDiscountActive) ? p.discountPrice : p.price
+  );
+
+  // Build color variants
+  let variants = [];
+  if (Array.isArray(p.colorImages) && p.colorImages.length > 0) {
+    variants = p.colorImages.map((ci) => ({
+      colorName: ci.color || 'لون افتراضي',
+      colorHex: getColorHex(ci.color),
+      image: ci.image || p.mannequinImage || p.images?.[0] || '/outfitter/top_blouse_burgundy.svg',
+      badge: 'متوفر'
+    }));
+  } else if (Array.isArray(p.colors) && p.colors.length > 0) {
+    variants = p.colors.map((c) => ({
+      colorName: c,
+      colorHex: getColorHex(c),
+      image: p.mannequinImage || p.images?.[0] || '/outfitter/top_blouse_burgundy.svg'
+    }));
+  } else {
+    variants = [
+      {
+        colorName: 'اللون الأساسي',
+        colorHex: '#7C0A12',
+        image: p.mannequinImage || p.images?.[0] || '/outfitter/top_blouse_burgundy.svg'
+      }
+    ];
+  }
+
+  return {
+    id: p._id,
+    realProductId: p._id,
+    name: p.onlineName || cleanProductName(p.name),
+    rawName: p.name,
+    categoryName: p.category,
+    description: p.description || 'من منتجات وتشكيلات مودة بيلا الحصرية',
+    price: effectivePrice,
+    originalPrice: Number(p.price || effectivePrice),
+    availableSizes: Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : ['S', 'M', 'L', 'XL'],
+    hasMannequinCutout: Boolean(p.mannequinImage && p.mannequinImage.trim()),
+    isRealProduct: true,
+    variants
+  };
+}
+
+// Canvas Layer with Smooth Transition
 function CanvasLayer({ src, alt, zIndex, isFading = false }) {
   const [loaded, setLoaded] = useState(false);
 
@@ -178,7 +233,7 @@ function CanvasLayer({ src, alt, zIndex, isFading = false }) {
     const img = new Image();
     img.src = src;
     img.onload = () => setLoaded(true);
-    img.onerror = () => setLoaded(true); // show fallback
+    img.onerror = () => setLoaded(true);
   }, [src]);
 
   if (!src) return null;
@@ -208,6 +263,14 @@ export default function OutfitterCanvas({
 }) {
   const { addItem } = useContext(CartContext);
 
+  // Dynamic Data States (fetched from Store DB)
+  const [siteConfig, setSiteConfig] = useState(null);
+  const [storeTops, setStoreTops] = useState([]);
+  const [storeBottoms, setStoreBottoms] = useState([]);
+  const [storeAccessories, setStoreAccessories] = useState([]);
+  const [activeDataSource, setActiveDataSource] = useState('store'); // 'store' | 'demo'
+  const [isLoadingStoreData, setIsLoadingStoreData] = useState(true);
+
   // Active Selections
   const [selectedTopIdx, setSelectedTopIdx] = useState(0);
   const [selectedTopColorIdx, setSelectedTopColorIdx] = useState(0);
@@ -221,7 +284,7 @@ export default function OutfitterCanvas({
   const [selectedAccIdx, setSelectedAccIdx] = useState(0);
   const [selectedAccColorIdx, setSelectedAccColorIdx] = useState(0);
 
-  // Active Category Tab for options panel: 'tops' | 'bottoms' | 'accessories'
+  // Tabs: 'tops' | 'bottoms' | 'accessories'
   const [activeTab, setActiveTab] = useState('tops');
 
   // UI States
@@ -238,30 +301,115 @@ export default function OutfitterCanvas({
     accessory: null
   });
 
-  // Current Selected Objects
-  const currentTop = initialData.tops[selectedTopIdx] || initialData.tops[0];
-  const currentTopVariant = currentTop?.variants[selectedTopColorIdx] || currentTop?.variants[0];
-
-  const currentBottom = initialData.bottoms[selectedBottomIdx] || initialData.bottoms[0];
-  const currentBottomVariant = currentBottom?.variants[selectedBottomColorIdx] || currentBottom?.variants[0];
-
-  const currentAccessory = initialData.accessories?.[selectedAccIdx] || initialData.accessories?.[0];
-  const currentAccVariant = currentAccessory?.variants[selectedAccColorIdx] || currentAccessory?.variants[0];
-
-  // Preload next variant images for silky 0ms instant swaps
+  // Fetch real products from database on mount
   useEffect(() => {
-    const urlsToPreload = [];
-    currentTop?.variants?.forEach((v) => v.image && urlsToPreload.push(v.image));
-    currentBottom?.variants?.forEach((v) => v.image && urlsToPreload.push(v.image));
-    currentAccessory?.variants?.forEach((v) => v.image && urlsToPreload.push(v.image));
+    let isMounted = true;
+    setIsLoadingStoreData(true);
 
-    urlsToPreload.forEach((url) => {
+    Promise.all([
+      api.get('/products?context=storefront').catch(() => ({ data: [] })),
+      api.get('/admin/site-config').catch(() => ({ data: {} }))
+    ])
+      .then(([prodRes, configRes]) => {
+        if (!isMounted) return;
+
+        const allProducts = Array.isArray(prodRes.data) ? prodRes.data : [];
+        const config = configRes.data || {};
+        setSiteConfig(config);
+
+        // Categorize real products
+        const topCats = ['blouse', 'chemise', 'blazer', 't-shirt', 'cardigan', 'tonic', 'بلوزة', 'شميز', 'بليزر', 'تيشيرت', 'كاردن', 'تونيك'];
+        const bottomCats = ['pantalon', 'skirt', 'بنطلون', 'جيبة', 'تنورة'];
+        const accCats = ['bag', 'شنطة', 'حقيبة'];
+
+        const realTops = allProducts
+          .filter((p) => {
+            const cat = (p.category || '').toLowerCase().trim();
+            return topCats.some((tc) => cat.includes(tc)) || p.type === 'top';
+          })
+          .map(mapProductToOutfitterItem);
+
+        const realBottoms = allProducts
+          .filter((p) => {
+            const cat = (p.category || '').toLowerCase().trim();
+            return bottomCats.some((bc) => cat.includes(bc)) || p.type === 'bottom';
+          })
+          .map(mapProductToOutfitterItem);
+
+        const realAccessories = allProducts
+          .filter((p) => {
+            const cat = (p.category || '').toLowerCase().trim();
+            return accCats.some((ac) => cat.includes(ac));
+          })
+          .map(mapProductToOutfitterItem);
+
+        setStoreTops(realTops);
+        setStoreBottoms(realBottoms);
+        setStoreAccessories(realAccessories);
+
+        // If real store products exist, default to 'store', otherwise 'demo'
+        if (realTops.length > 0 || realBottoms.length > 0) {
+          setActiveDataSource('store');
+        } else {
+          setActiveDataSource('demo');
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load store outfitter items:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingStoreData(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Determine which dataset to use based on activeDataSource
+  const activeTops = useMemo(() => {
+    if (activeDataSource === 'store' && storeTops.length > 0) {
+      return storeTops;
+    }
+    return initialData.tops;
+  }, [activeDataSource, storeTops, initialData.tops]);
+
+  const activeBottoms = useMemo(() => {
+    if (activeDataSource === 'store' && storeBottoms.length > 0) {
+      return storeBottoms;
+    }
+    return initialData.bottoms;
+  }, [activeDataSource, storeBottoms, initialData.bottoms]);
+
+  const activeAccessories = useMemo(() => {
+    if (activeDataSource === 'store' && storeAccessories.length > 0) {
+      return storeAccessories;
+    }
+    return initialData.accessories || [];
+  }, [activeDataSource, storeAccessories, initialData.accessories]);
+
+  // Current Selected Objects
+  const currentTop = activeTops[selectedTopIdx] || activeTops[0];
+  const currentTopVariant = currentTop?.variants?.[selectedTopColorIdx] || currentTop?.variants?.[0];
+
+  const currentBottom = activeBottoms[selectedBottomIdx] || activeBottoms[0];
+  const currentBottomVariant = currentBottom?.variants?.[selectedBottomColorIdx] || currentBottom?.variants?.[0];
+
+  const currentAccessory = activeAccessories[selectedAccIdx] || activeAccessories[0];
+  const currentAccVariant = currentAccessory?.variants?.[selectedAccColorIdx] || currentAccessory?.variants?.[0];
+
+  // Preload images
+  useEffect(() => {
+    const urls = [];
+    currentTop?.variants?.forEach((v) => v.image && urls.push(v.image));
+    currentBottom?.variants?.forEach((v) => v.image && urls.push(v.image));
+    currentAccessory?.variants?.forEach((v) => v.image && urls.push(v.image));
+    urls.forEach((u) => {
       const img = new Image();
-      img.src = url;
+      img.src = u;
     });
   }, [currentTop, currentBottom, currentAccessory]);
 
-  // Trigger brief transition animation on item switch
   const triggerTransition = () => {
     setIsLayerTransitioning(true);
     setTimeout(() => setIsLayerTransitioning(false), 180);
@@ -281,7 +429,6 @@ export default function OutfitterCanvas({
     const baseSum = topPrice + bottomPrice + accPrice;
     const originalSum = topOriginal + bottomOriginal + accOriginal;
 
-    // Apply bundle discount if at least top and bottom are selected
     const discountRate = (initialData.bundleDiscountPercent || 15) / 100;
     const bundleDiscountAmount = Math.round(baseSum * discountRate);
     const finalBundlePrice = baseSum - bundleDiscountAmount;
@@ -300,36 +447,36 @@ export default function OutfitterCanvas({
     };
   }, [currentTop, currentBottom, currentAccessory, includeAccessory, initialData.bundleDiscountPercent]);
 
-  // Add Complete Bundle to Cart
+  // Add Complete Bundle to Cart (Direct integration with CartContext)
   const handleAddBundleToCart = () => {
     if (!currentTop || !currentBottom) return;
 
     // 1. Top Cart Item
     const topCartItem = {
-      _id: `${currentTop.id}_${Date.now()}`,
-      name: `${currentTop.name} (${currentTopVariant.colorName})`,
+      _id: currentTop.realProductId || `${currentTop.id}_${Date.now()}`,
+      name: `${currentTop.name} (${currentTopVariant?.colorName || 'افتراضي'})`,
       price: Math.round(currentTop.price * (1 - (initialData.bundleDiscountPercent / 100))),
-      originalPrice: currentTop.price,
+      originalPrice: currentTop.originalPrice || currentTop.price,
       isDiscountActive: true,
       selectedSize: selectedTopSize,
-      selectedColor: currentTopVariant.colorName,
-      images: [currentTopVariant.image],
-      category: 'ملابس علوية',
-      cartId: `${currentTop.id}_${selectedTopSize}_${currentTopVariant.colorName}_bundle`
+      selectedColor: currentTopVariant?.colorName,
+      images: [currentTopVariant?.image || currentTop.variants?.[0]?.image],
+      category: currentTop.categoryName || 'ملابس علوية',
+      cartId: `${currentTop.id}_${selectedTopSize}_${currentTopVariant?.colorName || 'default'}_bundle`
     };
 
     // 2. Bottom Cart Item
     const bottomCartItem = {
-      _id: `${currentBottom.id}_${Date.now() + 1}`,
-      name: `${currentBottom.name} (${currentBottomVariant.colorName})`,
+      _id: currentBottom.realProductId || `${currentBottom.id}_${Date.now() + 1}`,
+      name: `${currentBottom.name} (${currentBottomVariant?.colorName || 'افتراضي'})`,
       price: Math.round(currentBottom.price * (1 - (initialData.bundleDiscountPercent / 100))),
-      originalPrice: currentBottom.price,
+      originalPrice: currentBottom.originalPrice || currentBottom.price,
       isDiscountActive: true,
       selectedSize: selectedBottomSize,
-      selectedColor: currentBottomVariant.colorName,
-      images: [currentBottomVariant.image],
-      category: 'ملابس سفلية',
-      cartId: `${currentBottom.id}_${selectedBottomSize}_${currentBottomVariant.colorName}_bundle`
+      selectedColor: currentBottomVariant?.colorName,
+      images: [currentBottomVariant?.image || currentBottom.variants?.[0]?.image],
+      category: currentBottom.categoryName || 'ملابس سفلية',
+      cartId: `${currentBottom.id}_${selectedBottomSize}_${currentBottomVariant?.colorName || 'default'}_bundle`
     };
 
     addItem(topCartItem, 1);
@@ -338,10 +485,10 @@ export default function OutfitterCanvas({
     // 3. Accessory if enabled
     if (includeAccessory && currentAccessory && currentAccVariant) {
       const accCartItem = {
-        _id: `${currentAccessory.id}_${Date.now() + 2}`,
+        _id: currentAccessory.realProductId || `${currentAccessory.id}_${Date.now() + 2}`,
         name: `${currentAccessory.name} (${currentAccVariant.colorName})`,
         price: Math.round(currentAccessory.price * (1 - (initialData.bundleDiscountPercent / 100))),
-        originalPrice: currentAccessory.price,
+        originalPrice: currentAccessory.originalPrice || currentAccessory.price,
         isDiscountActive: true,
         selectedSize: 'مقاس موحد',
         selectedColor: currentAccVariant.colorName,
@@ -360,37 +507,44 @@ export default function OutfitterCanvas({
   // Surprise Me / Randomize Look
   const handleRandomizeLook = () => {
     triggerTransition();
-    const randomTopIdx = Math.floor(Math.random() * initialData.tops.length);
-    const topItem = initialData.tops[randomTopIdx];
-    const randomTopColor = Math.floor(Math.random() * topItem.variants.length);
+    if (activeTops.length > 0) {
+      const randomTopIdx = Math.floor(Math.random() * activeTops.length);
+      const topItem = activeTops[randomTopIdx];
+      setSelectedTopIdx(randomTopIdx);
+      if (topItem?.variants?.length > 0) {
+        setSelectedTopColorIdx(Math.floor(Math.random() * topItem.variants.length));
+      }
+    }
 
-    const randomBottomIdx = Math.floor(Math.random() * initialData.bottoms.length);
-    const bottomItem = initialData.bottoms[randomBottomIdx];
-    const randomBottomColor = Math.floor(Math.random() * bottomItem.variants.length);
+    if (activeBottoms.length > 0) {
+      const randomBottomIdx = Math.floor(Math.random() * activeBottoms.length);
+      const bottomItem = activeBottoms[randomBottomIdx];
+      setSelectedBottomIdx(randomBottomIdx);
+      if (bottomItem?.variants?.length > 0) {
+        setSelectedBottomColorIdx(Math.floor(Math.random() * bottomItem.variants.length));
+      }
+    }
 
-    setSelectedTopIdx(randomTopIdx);
-    setSelectedTopColorIdx(randomTopColor);
-    setSelectedBottomIdx(randomBottomIdx);
-    setSelectedBottomColorIdx(randomBottomColor);
-
-    if (initialData.accessories?.length > 0) {
-      const randomAcc = Math.floor(Math.random() * initialData.accessories.length);
-      const accItem = initialData.accessories[randomAcc];
+    if (activeAccessories.length > 0) {
+      const randomAcc = Math.floor(Math.random() * activeAccessories.length);
+      const accItem = activeAccessories[randomAcc];
       setSelectedAccIdx(randomAcc);
-      setSelectedAccColorIdx(Math.floor(Math.random() * accItem.variants.length));
+      if (accItem?.variants?.length > 0) {
+        setSelectedAccColorIdx(Math.floor(Math.random() * accItem.variants.length));
+      }
     }
   };
 
-  // Reset to Signature Look
+  // Reset Look
   const handleResetLook = () => {
     triggerTransition();
     setSelectedTopIdx(0);
     setSelectedTopColorIdx(0);
-    setSelectedTopSize(initialData.tops[0]?.availableSizes[1] || 'M');
+    setSelectedTopSize(activeTops[0]?.availableSizes?.[0] || 'M');
 
     setSelectedBottomIdx(0);
     setSelectedBottomColorIdx(0);
-    setSelectedBottomSize(initialData.bottoms[0]?.availableSizes[1] || 'M');
+    setSelectedBottomSize(activeBottoms[0]?.availableSizes?.[0] || 'M');
 
     setIncludeAccessory(true);
     setSelectedAccIdx(0);
@@ -399,7 +553,7 @@ export default function OutfitterCanvas({
     setCustomLayers({ mannequin: null, top: null, bottom: null, accessory: null });
   };
 
-  // Handle Local Custom PNG File Uploads for Instant Testing
+  // Local Custom File Upload for Instant Testing
   const handleCustomFileUpload = (e, layerKey) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -414,11 +568,20 @@ export default function OutfitterCanvas({
     reader.readAsDataURL(file);
   };
 
-  // Effective Image Sources (custom override takes precedence if loaded)
-  const effectiveMannequinSrc = customLayers.mannequin || initialData.mannequinBase;
+  // Effective Base Mannequin Image:
+  // Priority 1: User's custom layer upload in tester
+  // Priority 2: Store's base mannequin photo saved in site settings
+  // Priority 3: Default SVG Studio Mannequin
+  const effectiveMannequinSrc =
+    customLayers.mannequin ||
+    siteConfig?.baseMannequinPhoto ||
+    initialData.mannequinBase;
+
   const effectiveBottomSrc = customLayers.bottom || currentBottomVariant?.image;
   const effectiveTopSrc = customLayers.top || currentTopVariant?.image;
   const effectiveAccSrc = customLayers.accessory || (includeAccessory ? currentAccVariant?.image : null);
+
+  const hasStoreProducts = storeTops.length > 0 || storeBottoms.length > 0;
 
   return (
     <div className={`w-full text-burgundy ${className}`} dir="rtl">
@@ -430,7 +593,7 @@ export default function OutfitterCanvas({
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-              <span>غرفة تنسيق الإطلالات الذكية</span>
+              <span>غرفة تنسيق وتبديل الملابس</span>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-900 border border-amber-500/30">
                 Mix & Match Studio
               </span>
@@ -441,8 +604,51 @@ export default function OutfitterCanvas({
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex items-center gap-2">
+        {/* Source Switcher: Real Store Products vs Curated Demo */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {hasStoreProducts && (
+            <div className="flex items-center p-1 rounded-xl bg-burgundy/5 border border-burgundy/15 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveDataSource('store');
+                  setSelectedTopIdx(0);
+                  setSelectedBottomIdx(0);
+                  triggerTransition();
+                }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 ${
+                  activeDataSource === 'store'
+                    ? 'bg-burgundy text-white shadow-xs'
+                    : 'text-burgundy/70 hover:text-burgundy'
+                }`}
+              >
+                <span>🏷️</span>
+                <span>منتجات محلك الحقيقية</span>
+                <span className="text-[10px] font-mono px-1 rounded bg-white/20">
+                  {storeTops.length + storeBottoms.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveDataSource('demo');
+                  setSelectedTopIdx(0);
+                  setSelectedBottomIdx(0);
+                  triggerTransition();
+                }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 ${
+                  activeDataSource === 'demo'
+                    ? 'bg-burgundy text-white shadow-xs'
+                    : 'text-burgundy/70 hover:text-burgundy'
+                }`}
+              >
+                <span>✨</span>
+                <span>التشكيلة المقترحة</span>
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleRandomizeLook}
@@ -474,27 +680,27 @@ export default function OutfitterCanvas({
             title="تجربة رفع صور مفرغة خاصة بك"
           >
             <span>🧪</span>
-            <span>تجربة الصور</span>
+            <span>معاينة الصور المفرغة</span>
           </button>
         </div>
       </div>
 
-      {/* Expandable Image Tester Drawer for User/Admin Custom PNG testing */}
+      {/* Expandable Image Tester Drawer */}
       {isTesterOpen && (
         <div className="mb-6 p-5 rounded-2xl bg-amber-50/70 border-2 border-dashed border-amber-300 space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-xl">📸</span>
               <h3 className="text-sm font-black text-amber-950">
-                وضع تجربة الصور المفرغة (Custom PNG Tester Mode)
+                وضع معاينة صور المانيكان والملابس المفرغة (Custom Layer Tester)
               </h3>
             </div>
             <span className="text-[11px] text-amber-800 bg-amber-200/60 px-2.5 py-0.5 rounded-full font-bold">
-              معاينة فورية بدون رفع على السيرفر
+              معاينة فورية لتطابق الطبقات
             </span>
           </div>
           <p className="text-xs text-amber-900/80 leading-relaxed">
-            تقدري هنا تختاري أي صورة مفرغة الخلفية (Transparent PNG) عندك من الجهاز للقطعة العلوية أو السفلية أو المانيكان، وهتظهر فوراً في طبقتها المحددة على المانيكان عشان تشوفي التطابق والأبعاد!
+            اختاري صورة مانيكان محلك الأساسي وصور القطع المفرغة (Transparent PNG) لمعاينة تركيب البلوزة والبنطلون على المانيكان لحظياً!
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -502,10 +708,10 @@ export default function OutfitterCanvas({
             <div className="p-3 bg-white rounded-xl border border-amber-200 text-center space-y-2">
               <span className="text-xs font-bold block text-burgundy">1. صورة المانيكان (Base)</span>
               <label className="cursor-pointer block text-[11px] py-1.5 px-3 rounded-lg bg-beige/40 hover:bg-beige border border-burgundy/15 font-semibold text-burgundy truncate">
-                {customLayers.mannequin ? '✓ تم تحديد صورة' : 'اختاري ملف PNG...'}
+                {customLayers.mannequin ? '✓ تم تحديد صورة' : 'اختاري مانيكان المحل...'}
                 <input
                   type="file"
-                  accept="image/png,image/webp,image/svg+xml"
+                  accept="image/png,image/webp,image/jpeg,image/svg+xml"
                   className="hidden"
                   onChange={(e) => handleCustomFileUpload(e, 'mannequin')}
                 />
@@ -593,10 +799,10 @@ export default function OutfitterCanvas({
         </div>
       )}
 
-      {/* Main Studio Grid: Left Canvas, Right Selectors */}
+      {/* Main Studio Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* ======================================================== */}
-        {/* LEFT / CENTER: The 2D Layered Mannequin Canvas (5 cols)  */}
+        {/* LEFT: The 2D Layered Mannequin Canvas (5 cols)           */}
         {/* ======================================================== */}
         <div className="lg:col-span-5 flex flex-col items-center">
           <div className="w-full max-w-md mx-auto sticky top-24">
@@ -652,6 +858,11 @@ export default function OutfitterCanvas({
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black shadow-sm">
                   خصم {pricing.discountPercent}% للطقم
                 </span>
+                {siteConfig?.baseMannequinPhoto && !customLayers.mannequin && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[9px] font-bold">
+                    👤 مانيكان المحل
+                  </span>
+                )}
               </div>
 
               {/* Zoom hint badge */}
@@ -660,7 +871,7 @@ export default function OutfitterCanvas({
                 <span>تكبير اللوك</span>
               </div>
 
-              {/* Active Color Palette indicators at the bottom */}
+              {/* Active Color Palette indicators */}
               <div className="absolute bottom-4 right-4 z-50 flex items-center gap-1.5 bg-white/85 backdrop-blur-md px-2.5 py-1 rounded-full border border-burgundy/10 shadow-xs">
                 <span className="text-[10px] font-bold text-burgundy/70 ml-1">الألوان:</span>
                 {currentTopVariant && (
@@ -688,33 +899,35 @@ export default function OutfitterCanvas({
             </div>
 
             {/* Accessory On/Off Quick Switcher */}
-            <div className="mt-3 w-full flex items-center justify-between p-3 rounded-2xl bg-white border border-burgundy/10 shadow-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">👜</span>
-                <div>
-                  <span className="text-xs font-bold block text-burgundy">إضافة حقيبة يد متناسقة</span>
-                  <span className="text-[10px] text-burgundy/60">
-                    +{pricing.accPrice} ج.م مع خصم الطقم
-                  </span>
+            {activeAccessories.length > 0 && (
+              <div className="mt-3 w-full flex items-center justify-between p-3 rounded-2xl bg-white border border-burgundy/10 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">👜</span>
+                  <div>
+                    <span className="text-xs font-bold block text-burgundy">إضافة حقيبة يد متناسقة</span>
+                    <span className="text-[10px] text-burgundy/60">
+                      +{pricing.accPrice} ج.م مع خصم الطقم
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIncludeAccessory(!includeAccessory);
-                  triggerTransition();
-                }}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                  includeAccessory ? 'bg-burgundy' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    includeAccessory ? '-translate-x-6' : '-translate-x-1'
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIncludeAccessory(!includeAccessory);
+                    triggerTransition();
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                    includeAccessory ? 'bg-burgundy' : 'bg-gray-300'
                   }`}
-                />
-              </button>
-            </div>
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      includeAccessory ? '-translate-x-6' : '-translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -735,7 +948,10 @@ export default function OutfitterCanvas({
             >
               <span>👚</span>
               <span>القطعة العلوية</span>
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentTopVariant?.colorHex || '#7C0A12' }} />
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: currentTopVariant?.colorHex || '#7C0A12' }}
+              />
             </button>
 
             <button
@@ -749,32 +965,47 @@ export default function OutfitterCanvas({
             >
               <span>👖</span>
               <span>القطعة السفلية</span>
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentBottomVariant?.colorHex || '#18181B' }} />
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: currentBottomVariant?.colorHex || '#18181B' }}
+              />
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('accessories')}
-              className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 ${
-                activeTab === 'accessories'
-                  ? 'bg-burgundy text-white shadow-md'
-                  : 'text-burgundy/70 hover:text-burgundy hover:bg-white/60'
-              }`}
-            >
-              <span>👜</span>
-              <span>الإكسسوار</span>
-              {includeAccessory && (
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentAccVariant?.colorHex || '#8B4513' }} />
-              )}
-            </button>
+            {activeAccessories.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('accessories')}
+                className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 ${
+                  activeTab === 'accessories'
+                    ? 'bg-burgundy text-white shadow-md'
+                    : 'text-burgundy/70 hover:text-burgundy hover:bg-white/60'
+                }`}
+              >
+                <span>👜</span>
+                <span>الإكسسوار</span>
+                {includeAccessory && (
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: currentAccVariant?.colorHex || '#8B4513' }}
+                  />
+                )}
+              </button>
+            )}
           </div>
 
           {/* ==================== TAB 1: TOPS ==================== */}
-          {activeTab === 'tops' && (
+          {activeTab === 'tops' && currentTop && (
             <div className="p-5 sm:p-6 rounded-3xl bg-white border border-burgundy/10 shadow-soft space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between border-b border-burgundy/10 pb-4">
                 <div>
-                  <h3 className="text-base font-black text-burgundy">{currentTop.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-burgundy">{currentTop.name}</h3>
+                    {currentTop.isRealProduct && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        من مخزون المحل 🏷️
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-burgundy/60 mt-0.5">{currentTop.description}</p>
                 </div>
                 <div className="text-left">
@@ -789,9 +1020,11 @@ export default function OutfitterCanvas({
 
               {/* Models Switcher */}
               <div className="space-y-2.5">
-                <label className="text-xs font-black text-burgundy block">اختاري موديل القطعة العلوية:</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {initialData.tops.map((top, idx) => (
+                <label className="text-xs font-black text-burgundy block">
+                  اختاري موديل القطعة العلوية ({activeTops.length} متاح):
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-1">
+                  {activeTops.map((top, idx) => (
                     <button
                       key={top.id}
                       type="button"
@@ -801,19 +1034,23 @@ export default function OutfitterCanvas({
                         setSelectedTopSize(top.availableSizes[0] || 'M');
                         triggerTransition();
                       }}
-                      className={`p-3 rounded-2xl border text-right transition flex items-center justify-between ${
+                      className={`p-3 rounded-2xl border text-right transition flex items-center justify-between gap-2 ${
                         selectedTopIdx === idx
                           ? 'border-burgundy bg-burgundy/5 ring-2 ring-burgundy/20 shadow-xs'
                           : 'border-burgundy/15 bg-white hover:border-burgundy/40'
                       }`}
                     >
-                      <div>
-                        <span className="text-xs font-bold block text-burgundy">{top.name}</span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold block text-burgundy truncate">{top.name}</span>
                         <span className="text-[11px] text-burgundy/60">{top.price} ج.م</span>
                       </div>
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                        selectedTopIdx === idx ? 'bg-burgundy text-white font-bold' : 'border border-burgundy/20'
-                      }`}>
+                      <span
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${
+                          selectedTopIdx === idx
+                            ? 'bg-burgundy text-white font-bold'
+                            : 'border border-burgundy/20'
+                        }`}
+                      >
                         {selectedTopIdx === idx ? '✓' : ''}
                       </span>
                     </button>
@@ -835,9 +1072,9 @@ export default function OutfitterCanvas({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  {currentTop.variants.map((v, cIdx) => (
+                  {currentTop.variants?.map((v, cIdx) => (
                     <button
-                      key={v.colorName}
+                      key={v.colorName || cIdx}
                       type="button"
                       onClick={() => {
                         setSelectedTopColorIdx(cIdx);
@@ -865,7 +1102,7 @@ export default function OutfitterCanvas({
                   المقاس للقطعة العلوية:
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
-                  {currentTop.availableSizes.map((sz) => (
+                  {currentTop.availableSizes?.map((sz) => (
                     <button
                       key={sz}
                       type="button"
@@ -885,11 +1122,18 @@ export default function OutfitterCanvas({
           )}
 
           {/* ==================== TAB 2: BOTTOMS ==================== */}
-          {activeTab === 'bottoms' && (
+          {activeTab === 'bottoms' && currentBottom && (
             <div className="p-5 sm:p-6 rounded-3xl bg-white border border-burgundy/10 shadow-soft space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between border-b border-burgundy/10 pb-4">
                 <div>
-                  <h3 className="text-base font-black text-burgundy">{currentBottom.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-burgundy">{currentBottom.name}</h3>
+                    {currentBottom.isRealProduct && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        من مخزون المحل 🏷️
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-burgundy/60 mt-0.5">{currentBottom.description}</p>
                 </div>
                 <div className="text-left">
@@ -904,9 +1148,11 @@ export default function OutfitterCanvas({
 
               {/* Models Switcher */}
               <div className="space-y-2.5">
-                <label className="text-xs font-black text-burgundy block">اختاري موديل القطعة السفلية:</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {initialData.bottoms.map((bottom, idx) => (
+                <label className="text-xs font-black text-burgundy block">
+                  اختاري موديل القطعة السفلية ({activeBottoms.length} متاح):
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-1">
+                  {activeBottoms.map((bottom, idx) => (
                     <button
                       key={bottom.id}
                       type="button"
@@ -916,19 +1162,23 @@ export default function OutfitterCanvas({
                         setSelectedBottomSize(bottom.availableSizes[0] || 'M');
                         triggerTransition();
                       }}
-                      className={`p-3 rounded-2xl border text-right transition flex items-center justify-between ${
+                      className={`p-3 rounded-2xl border text-right transition flex items-center justify-between gap-2 ${
                         selectedBottomIdx === idx
                           ? 'border-burgundy bg-burgundy/5 ring-2 ring-burgundy/20 shadow-xs'
                           : 'border-burgundy/15 bg-white hover:border-burgundy/40'
                       }`}
                     >
-                      <div>
-                        <span className="text-xs font-bold block text-burgundy">{bottom.name}</span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold block text-burgundy truncate">{bottom.name}</span>
                         <span className="text-[11px] text-burgundy/60">{bottom.price} ج.م</span>
                       </div>
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                        selectedBottomIdx === idx ? 'bg-burgundy text-white font-bold' : 'border border-burgundy/20'
-                      }`}>
+                      <span
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${
+                          selectedBottomIdx === idx
+                            ? 'bg-burgundy text-white font-bold'
+                            : 'border border-burgundy/20'
+                        }`}
+                      >
                         {selectedBottomIdx === idx ? '✓' : ''}
                       </span>
                     </button>
@@ -950,9 +1200,9 @@ export default function OutfitterCanvas({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  {currentBottom.variants.map((v, cIdx) => (
+                  {currentBottom.variants?.map((v, cIdx) => (
                     <button
-                      key={v.colorName}
+                      key={v.colorName || cIdx}
                       type="button"
                       onClick={() => {
                         setSelectedBottomColorIdx(cIdx);
@@ -980,7 +1230,7 @@ export default function OutfitterCanvas({
                   المقاس للقطعة السفلية:
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
-                  {currentBottom.availableSizes.map((sz) => (
+                  {currentBottom.availableSizes?.map((sz) => (
                     <button
                       key={sz}
                       type="button"
@@ -1000,7 +1250,7 @@ export default function OutfitterCanvas({
           )}
 
           {/* ==================== TAB 3: ACCESSORIES ==================== */}
-          {activeTab === 'accessories' && (
+          {activeTab === 'accessories' && currentAccessory && (
             <div className="p-5 sm:p-6 rounded-3xl bg-white border border-burgundy/10 shadow-soft space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between border-b border-burgundy/10 pb-4">
                 <div>
@@ -1053,9 +1303,9 @@ export default function OutfitterCanvas({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  {currentAccessory.variants.map((v, cIdx) => (
+                  {currentAccessory.variants?.map((v, cIdx) => (
                     <button
-                      key={v.colorName}
+                      key={v.colorName || cIdx}
                       type="button"
                       onClick={() => {
                         setSelectedAccColorIdx(cIdx);
@@ -1101,29 +1351,48 @@ export default function OutfitterCanvas({
 
             {/* Itemized Line Items */}
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between text-burgundy/80">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentTopVariant?.colorHex }} />
-                  <span>{currentTop.name} ({currentTopVariant?.colorName} - {selectedTopSize})</span>
+              {currentTop && (
+                <div className="flex items-center justify-between text-burgundy/80">
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: currentTopVariant?.colorHex }}
+                    />
+                    <span className="truncate">
+                      {currentTop.name} ({currentTopVariant?.colorName} - {selectedTopSize})
+                    </span>
+                  </div>
+                  <span className="font-bold shrink-0">{pricing.topPrice} ج.م</span>
                 </div>
-                <span className="font-bold">{pricing.topPrice} ج.م</span>
-              </div>
+              )}
 
-              <div className="flex items-center justify-between text-burgundy/80">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentBottomVariant?.colorHex }} />
-                  <span>{currentBottom.name} ({currentBottomVariant?.colorName} - {selectedBottomSize})</span>
+              {currentBottom && (
+                <div className="flex items-center justify-between text-burgundy/80">
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: currentBottomVariant?.colorHex }}
+                    />
+                    <span className="truncate">
+                      {currentBottom.name} ({currentBottomVariant?.colorName} - {selectedBottomSize})
+                    </span>
+                  </div>
+                  <span className="font-bold shrink-0">{pricing.bottomPrice} ج.م</span>
                 </div>
-                <span className="font-bold">{pricing.bottomPrice} ج.م</span>
-              </div>
+              )}
 
               {includeAccessory && currentAccessory && (
                 <div className="flex items-center justify-between text-burgundy/80">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentAccVariant?.colorHex }} />
-                    <span>{currentAccessory.name} ({currentAccVariant?.colorName})</span>
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: currentAccVariant?.colorHex }}
+                    />
+                    <span className="truncate">
+                      {currentAccessory.name} ({currentAccVariant?.colorName})
+                    </span>
                   </div>
-                  <span className="font-bold">{pricing.accPrice} ج.م</span>
+                  <span className="font-bold shrink-0">{pricing.accPrice} ج.م</span>
                 </div>
               )}
 

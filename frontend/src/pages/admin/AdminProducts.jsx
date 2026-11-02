@@ -1,4 +1,5 @@
 import ImageUploader from '../../components/ImageUploader';
+import MannequinImageUploader from '../../components/MannequinImageUploader';
 import { getColorHex } from '../../utils/colorSwatches';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -815,6 +816,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  ? product.variants.map(v => ({ size: v.size, color: v.color, stock: v.stock || 0 }))
  : [],
  onlineName: (form.onlineName || '').trim(),
+        mannequinImage: form.mannequinImage || '',
 images: form.images ? (typeof form.images === 'string' ? form.images.split('\n').map(s => s.trim()).filter(Boolean) : form.images) : [],
  sizes: activeSizes, colors: activeColors,
  };
@@ -1329,6 +1331,12 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
   onChange={(newImages) => setForm(p => ({ ...p, images: newImages }))}
   label="صور المنتج للمعرض والموقع"
 />
+</div>
+<div className="pt-2">
+  <MannequinImageUploader
+    value={form.mannequinImage || ''}
+    onChange={(newUrl) => setForm(p => ({ ...p, mannequinImage: newUrl }))}
+  />
 </div>
 {ENABLE_VARIANTS && (
 <div className="space-y-4">
