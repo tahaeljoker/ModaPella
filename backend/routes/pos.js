@@ -903,7 +903,6 @@ router.put('/orders/:id', auth, async (req, res) => {
       order.debtAmount = 0;
       await order.save();
     }
-    }
 
     res.json({ order, message: 'Order updated successfully' });
   } catch (error) {

@@ -37,7 +37,7 @@ function LoginPage() {
  setError('');
 
  try {
- const response = await api.post('/auth/login', form);
+ const response = await api.post('/auth/login', { email: form.email.trim().toLowerCase(), password: form.password });
  const data = response.data;
 
  if (data.requireOtp) {
@@ -55,7 +55,13 @@ function LoginPage() {
  navigate(isAdminOrDev ? '/admin' : user.role === 'employee' ? '/employee' : '/cashier');
  }
  } catch (err) {
- setError(err.response?.data?.message || 'فشل تسجيل الدخول. تحقق من البيانات.');
+ if (err.response?.data?.message) {
+ setError(err.response.data.message);
+ } else if (err.code === 'ERR_NETWORK' || !err.response) {
+ setError('تعذر الاتصال بالسيرفر! يرجى التأكد من تشغيل السيرفر (Backend Server).');
+ } else {
+ setError('فشل تسجيل الدخول. تحقق من صحة البيانات المدخلة.');
+ }
  } finally {
  setLoading(false);
  }
