@@ -78,24 +78,31 @@ router.post('/sell', auth, async (req, res) => {
     const finalAmountPaid = isDebt ? Math.min(totalAmount, Math.max(0, Number(amountPaid))) : totalAmount;
     const debtAmount = isDebt ? Math.max(0, totalAmount - finalAmountPaid) : 0;
 
-    let dbCustomer = null;
-    if (customerPhone && customerPhone.trim() !== '') {
-      dbCustomer = await Customer.findOne({ phone: customerPhone.trim() });
+        let dbCustomer = null;
+    const cleanPhone = (customerPhone || '').trim();
+    const cleanName = (customerName || '').trim();
+
+    if (cleanPhone || cleanName) {
+      if (cleanPhone) {
+        dbCustomer = await Customer.findOne({ phone: cleanPhone });
+      } else if (cleanName) {
+        dbCustomer = await Customer.findOne({ name: cleanName });
+      }
+
       if (!dbCustomer) {
         dbCustomer = new Customer({
-          name: customerName || 'عميل غير معروف',
-          phone: customerPhone.trim(),
+          name: cleanName || 'عميل غير معروف',
+          phone: cleanPhone || 'بدون هاتف',
           points: 0,
           debt: 0
         });
-      } else {
-        if (customerName && customerName.trim() !== '') {
-          dbCustomer.name = customerName.trim();
-        }
+      } else if (cleanName) {
+        dbCustomer.name = cleanName;
       }
+
       dbCustomer.points += Math.floor(totalAmount / 100);
-      if (isDebt) {
-        dbCustomer.debt += debtAmount;
+      if (isDebt && debtAmount > 0) {
+        dbCustomer.debt = Math.max(0, (dbCustomer.debt || 0) + debtAmount);
       }
       await dbCustomer.save();
     }
@@ -649,6 +656,10 @@ router.patch('/storage/:productId', auth, async (req, res) => {
 // PUT /api/pos/orders/:id — Edit an entire order
 router.put('/orders/:id', auth, async (req, res) => {
   try {
+    // Prevent cashier role from editing invoices
+    if (req.user && req.user.role === 'cashier') {
+      return res.status(403).json({ message: 'غير مصرح لحساب الكاشير بتعديل الفواتير السابقة. التعديل متاح للإدارة فقط.' });
+    }
     const { customerName, customerPhone, employeeId, items, paymentMethod, discount = 0, type = 'Offline', notes = '' } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -838,24 +849,60 @@ router.put('/orders/:id', auth, async (req, res) => {
       await newTransaction.save();
     }
 
-    // 4. Recalculate debt if this is a debt order
-    if (isDebtOrder && order.customer) {
+        // 4. Recalculate debt if this is a debt order
+    order.isDebt = Boolean(isDebtOrder);
+    
+    if (isDebtOrder) {
       const oldDebt = order.debtAmount || 0;
       const newAmountPaid = Math.min(totalAmount, finalAmountPaidEdit);
       const newDebt = Math.max(0, totalAmount - newAmountPaid);
-      const debtDelta = newDebt - oldDebt; // positive = debt increased, negative = debt decreased
+      const debtDelta = newDebt - oldDebt;
 
       order.amountPaid = newAmountPaid;
       order.debtAmount = newDebt;
-      await order.save();
 
-      if (debtDelta !== 0) {
+      // Link or find customer
+      const cleanPhone = (customerPhone || order.customerPhone || '').trim();
+      const cleanName = (customerName || order.customerName || '').trim();
+
+      let customer = null;
+      if (order.customer) {
+        customer = await Customer.findById(order.customer);
+      }
+      if (!customer && cleanPhone) {
+        customer = await Customer.findOne({ phone: cleanPhone });
+      }
+      if (!customer && cleanName) {
+        customer = await Customer.findOne({ name: cleanName });
+      }
+      if (!customer && (cleanPhone || cleanName)) {
+        customer = new Customer({
+          name: cleanName || 'عميل غير معروف',
+          phone: cleanPhone || 'بدون هاتف',
+          points: 0,
+          debt: 0
+        });
+      }
+
+      if (customer) {
+        customer.debt = Math.max(0, (customer.debt || 0) + debtDelta);
+        await customer.save();
+        order.customer = customer._id;
+      }
+      await order.save();
+    } else {
+      // If order was changed from debt to fully paid
+      if (order.isDebt && order.customer) {
         const customer = await Customer.findById(order.customer);
         if (customer) {
-          customer.debt = Math.max(0, (customer.debt || 0) + debtDelta);
+          customer.debt = Math.max(0, (customer.debt || 0) - (order.debtAmount || 0));
           await customer.save();
         }
       }
+      order.amountPaid = totalAmount;
+      order.debtAmount = 0;
+      await order.save();
+    }
     }
 
     res.json({ order, message: 'Order updated successfully' });

@@ -14,6 +14,8 @@ function OrderDetailModal({ order, onClose }) {
  const navigate = useNavigate();
  if (!order) return null;
  const isReturned = order.status === 'Returned';
+ const userRole = localStorage.getItem('modapella_role');
+ const canEditInvoice = userRole === 'admin' || userRole === 'manager' || userRole === 'developer';
  return (
  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
  <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -203,7 +205,7 @@ function OrderDetailModal({ order, onClose }) {
  >
  طباعة كود
  </button>
- {!isReturned && (
+ {!isReturned && canEditInvoice && (
  <button
  onClick={() => navigate(`/cashier/pos?edit=${order._id}`)}
  className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-100 transition"

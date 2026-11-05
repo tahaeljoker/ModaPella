@@ -962,23 +962,46 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
 // GET /api/cashier/debts — get all customers with outstanding debts
 router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
-    const orders = await Order.find({ isDebt: true, debtAmount: { $gt: 0 } }).populate('employee').sort({ createdAt: -1 });
+    const orders = await Order.find({
+      status: { $ne: 'Returned' },
+      $or: [
+        { isDebt: true, debtAmount: { $gt: 0 } },
+        { debtAmount: { $gt: 0 } },
+        { isDebt: true, $expr: { $gt: ['$totalAmount', { $ifNull: ['$amountPaid', 0] }] } },
+        { notes: { $regex: /آجل|اجل|دين/i }, $expr: { $gt: ['$totalAmount', { $ifNull: ['$amountPaid', 0] }] } }
+      ]
+    }).populate('employee').sort({ createdAt: -1 });
+
     const debtsMap = {};
 
     for (const order of orders) {
+      // Auto-compute debtAmount if it was 0 or uncalculated on an unpaid debt order
+      let effectiveDebt = Number(order.debtAmount || 0);
+      if (effectiveDebt <= 0 && order.totalAmount > (order.amountPaid || 0)) {
+        effectiveDebt = Math.max(0, order.totalAmount - (order.amountPaid || 0));
+        order.debtAmount = effectiveDebt;
+        order.isDebt = true;
+        await order.save();
+      }
+
       // Auto-clear negligible fractional dust (< 0.50 EGP)
-      if (order.debtAmount < 0.5) {
+      if (effectiveDebt < 0.5) {
         order.debtAmount = 0;
         order.isDebt = false;
         await order.save();
         continue;
       }
 
-      const key = order.customerPhone || order.customerName || 'unknown';
+      const cleanPhone = (order.customerPhone || '').trim();
+      const cleanName = (order.customerName || '').trim();
+      const key = (cleanPhone && cleanPhone !== 'بدون هاتف')
+        ? cleanPhone
+        : (cleanName || order._id.toString());
+
       if (!debtsMap[key]) {
         debtsMap[key] = {
-          name: order.customerName || 'عميل غير معروف',
-          phone: order.customerPhone || 'بدون هاتف',
+          name: cleanName || 'عميل غير معروف',
+          phone: cleanPhone || 'بدون هاتف',
           totalDebt: 0,
           ordersCount: 0,
           lastActivity: order.createdAt,
@@ -986,13 +1009,13 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
         };
       }
 
-      debtsMap[key].totalDebt = Math.round((debtsMap[key].totalDebt + order.debtAmount) * 100) / 100;
+      debtsMap[key].totalDebt = Math.round((debtsMap[key].totalDebt + effectiveDebt) * 100) / 100;
       debtsMap[key].ordersCount += 1;
       debtsMap[key].orders.push({
         _id: order._id,
         totalAmount: order.totalAmount,
-        amountPaid: order.amountPaid,
-        debtAmount: Math.round(order.debtAmount * 100) / 100,
+        amountPaid: order.amountPaid || 0,
+        debtAmount: Math.round(effectiveDebt * 100) / 100,
         createdAt: order.createdAt,
         isManual: (order.items && order.items.length === 0) || order.isManualDebt,
         notes: order.notes || '',
@@ -1082,7 +1105,13 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
     }
 
     // Find all outstanding debt orders for this customer (prefer phone, fallback to name)
-    const query = { isDebt: true, debtAmount: { $gt: 0 } };
+    const query = {
+      status: { $ne: 'Returned' },
+      $or: [
+        { isDebt: true, debtAmount: { $gt: 0 } },
+        { debtAmount: { $gt: 0 } }
+      ]
+    };
     if (customerPhone && customerPhone !== 'بدون هاتف') {
       query.customerPhone = customerPhone;
     } else if (customerName) {

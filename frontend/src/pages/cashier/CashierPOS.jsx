@@ -634,16 +634,26 @@ function CashierPOS() {
  }, [customerPhone]);
 
  useEffect(() => {
- if (editOrderId) {
- api.get(`/orders/${editOrderId}`)
- .then(res => {
- const order = res.data;
- setCustomerName(order.customerName || '');
- setCustomerPhone(order.customerPhone || '');
- setNotes(order.notes || '');
- setDiscount(order.discount || 0);
- setPaymentMethod(order.paymentMethod || 'Cash');
- setSelectedEmployee(order.employee?._id || '');
+    if (editOrderId) {
+      const userRole = localStorage.getItem('modapella_role');
+      const canEdit = userRole === 'admin' || userRole === 'manager' || userRole === 'developer';
+      if (!canEdit) {
+        showToast('غير مصرح لحساب الكاشير بتعديل الفواتير السابقة، التعديل متاح للإدارة فقط', 'error');
+        navigate('/cashier/pos', { replace: true });
+        return;
+      }
+
+      api.get(`/orders/${editOrderId}`)
+        .then(res => {
+          const order = res.data;
+          setCustomerName(order.customerName || '');
+          setCustomerPhone(order.customerPhone || '');
+          setNotes(order.notes || '');
+          setDiscount(order.discount || 0);
+          setPaymentMethod(order.paymentMethod || 'Cash');
+          setSelectedEmployee(order.employee?._id || '');
+          setIsDebt(Boolean(order.isDebt));
+          setDebtPaidAmount(order.isDebt && order.amountPaid !== undefined ? String(order.amountPaid) : '');
  
  const loadedCart = (order.items || [])
  .filter(item => item)
@@ -984,10 +994,10 @@ function CashierPOS() {
  const handleCheckout = async () => {
  if (cart.length === 0) return;
 
- if (isDebt && (!customerName.trim() || !customerPhone.trim())) {
- showToast(' يجب إدخال اسم العميل ورقم هاتفه لتسجيل البيع الآجل (الدين)', 'error');
- return;
- }
+ if (isDebt && !customerName.trim()) {
+      showToast('يجب إدخال اسم العميل لتسجيل البيع الآجل (الدين)', 'error');
+      return;
+    }
 
  setSubmitting(true);
 
@@ -1718,20 +1728,31 @@ function CashierPOS() {
  {/* Payment Method */}
  <div>
  <p className="text-xs text-burgundy/50 mb-1.5 font-medium">طريقة الدفع</p>
- <div className="grid grid-cols-3 gap-2">
- {[
- { id: 'Cash', label: ' كاش', },
- { id: 'Instapay', label: ' انستا باي', },
- { id: 'Wallet', label: ' محفظة كاش', },
- ].map(method => (
+ <div className="grid grid-cols-4 gap-2">
+            {[
+              { id: 'Cash', label: '💵 كاش' },
+              { id: 'Instapay', label: '📱 انستا باي' },
+              { id: 'Wallet', label: '👛 محفظة' },
+              { id: 'Debt', label: '⏳ بيع آجل' },
+            ].map(method => (
  <button
  key={method.id}
- onClick={() => setPaymentMethod(method.id)}
- className={`py-2.5 rounded-xl text-[10px] font-bold border-2 transition-all ${
- paymentMethod === method.id
- ? 'border-burgundy bg-burgundy text-white shadow-md shadow-burgundy/20'
- : 'border-burgundy/15 text-burgundy hover:border-burgundy/30'
- }`}
+ onClick={() => {
+                if (method.id === 'Debt') {
+                  setIsDebt(true);
+                  setPaymentMethod('Cash');
+                } else {
+                  setPaymentMethod(method.id);
+                  if (isDebt && method.id !== 'Debt') {
+                    // keep debt on or let user toggle
+                  }
+                }
+              }}
+              className={`py-2.5 rounded-xl text-[10px] font-bold border-2 transition-all ${
+                (method.id === 'Debt' && isDebt) || (method.id !== 'Debt' && !isDebt && paymentMethod === method.id)
+                  ? 'border-burgundy bg-burgundy text-white shadow-md shadow-burgundy/20'
+                  : 'border-burgundy/15 text-burgundy hover:border-burgundy/30'
+              }`}
  >
  {method.label}
  </button>
