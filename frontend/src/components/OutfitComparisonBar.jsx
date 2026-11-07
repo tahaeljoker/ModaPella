@@ -5,10 +5,10 @@ import { cleanProductName } from '../utils/discount';
 import { resolveImageUrl } from '../utils/imageUrl';
 
 export default function OutfitComparisonBar() {
-  const { compareItems, clearCompare, setIsCompareOpen, isCompareOpen } = useContext(CompareContext);
+  const { compareItems, clearCompare, setIsCompareOpen, isCompareOpen, compareEnabled } = useContext(CompareContext);
   const location = useLocation();
 
-  if (compareItems.length === 0 || isCompareOpen) return null;
+  if (compareEnabled === false || compareItems.length === 0 || isCompareOpen) return null;
 
   // Elevate higher on mobile product page to avoid sticky bottom bar
   const isProductPage = location.pathname.startsWith('/product/');

@@ -8,12 +8,12 @@ import { resolveImageUrl } from '../utils/imageUrl';
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 export default function OutfitComparisonModal({ whatsappNumber = '201090048832' }) {
-  const { compareItems, removeFromCompare, clearCompare, isCompareOpen, setIsCompareOpen } = useContext(CompareContext);
+  const { compareItems, removeFromCompare, clearCompare, isCompareOpen, setIsCompareOpen, compareEnabled } = useContext(CompareContext);
   const navigate = useNavigate();
 
   const [quickOrderProduct, setQuickOrderProduct] = useState(null);
 
-  if (!isCompareOpen) return null;
+  if (compareEnabled === false || !isCompareOpen) return null;
 
   const item1 = compareItems[0] || null;
   const item2 = compareItems[1] || null;

@@ -27,6 +27,18 @@ const getSiteConfig = async () => {
   let config = await SiteConfig.findOne({ key: 'default' });
   if (!config) {
     config = await SiteConfig.create({ key: 'default' });
+  } else if (!config.features) {
+    config.features = {
+      outfitter: false,
+      lookbook: false,
+      mannequinComparison: true,
+      productComparison: true,
+      coupons: true,
+      shareOutfit: true,
+      bestSellers: true,
+      socialProof: true
+    };
+    await config.save();
   }
   return config;
 };
@@ -1215,6 +1227,12 @@ router.get('/site-config', async (req, res) => {
 router.put('/site-config', auth, requireRole(['admin']), async (req, res) => {
   try {
     const siteConfig = await getSiteConfig();
+    if (req.body.features) {
+      const currentFeatures = siteConfig.features ? (siteConfig.features.toObject ? siteConfig.features.toObject() : siteConfig.features) : {};
+      siteConfig.features = { ...currentFeatures, ...req.body.features };
+      siteConfig.markModified('features');
+      delete req.body.features;
+    }
     Object.assign(siteConfig, req.body);
     await siteConfig.save();
     res.json(siteConfig);

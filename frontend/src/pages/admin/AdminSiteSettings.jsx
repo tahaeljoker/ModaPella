@@ -1,4 +1,5 @@
 import AdminOnlineCatalog from '../../components/AdminOnlineCatalog';
+import AdminFeatureFlags from '../../components/AdminFeatureFlags';
 import AdminLookbook from './AdminLookbook';
 import MannequinImageUploader from '../../components/MannequinImageUploader';
 import { useEffect, useState } from 'react';
@@ -414,6 +415,12 @@ function AdminSiteSettings() {
   >
     <span>إطلالات الموديلز (Lookbook)</span>
   </button>
+  <button
+    onClick={() => handleTabChange('features')}
+    className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'features' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+  >
+    <span>🎛️ ميزات ومفاتيح الموقع</span>
+  </button>
  <button
  onClick={() => handleTabChange('appearance')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
@@ -478,6 +485,10 @@ function AdminSiteSettings() {
 
  {activeTab === 'looks' && (
   <AdminLookbook onToast={showToast} />
+)}
+
+ {activeTab === 'features' && (
+  <AdminFeatureFlags config={config} onUpdateConfig={setConfig} onToast={showToast} />
 )}
 
 {activeTab === 'appearance' && config && (

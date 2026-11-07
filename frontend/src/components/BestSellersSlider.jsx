@@ -19,7 +19,7 @@ const fallbackImages = {
 
 export default function BestSellersSlider({ products = [] }) {
   const navigate = useNavigate();
-  const { addToCompare, isComparing } = useContext(CompareContext);
+  const { addToCompare, isComparing, compareEnabled } = useContext(CompareContext);
   const sliderRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -169,21 +169,23 @@ export default function BestSellersSlider({ products = [] }) {
                 </div>
 
                 {/* Compare Button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addToCompare(product);
-                  }}
-                  className={`absolute top-2.5 left-2.5 z-10 h-7 w-7 rounded-full flex items-center justify-center transition shadow-md backdrop-blur-sm ${
-                    isComparing(product._id)
-                      ? 'bg-amber-400 text-burgundy font-black ring-2 ring-amber-300'
-                      : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy'
-                  }`}
-                  title={isComparing(product._id) ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
-                >
-                  <span className="text-[10px] font-bold">{isComparing(product._id) ? '✓' : 'مقارنة'}</span>
-                </button>
+                {compareEnabled !== false && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToCompare(product);
+                    }}
+                    className={`absolute top-2.5 left-2.5 z-10 h-7 w-7 rounded-full flex items-center justify-center transition shadow-md backdrop-blur-sm ${
+                      isComparing(product._id)
+                        ? 'bg-amber-400 text-burgundy font-black ring-2 ring-amber-300'
+                        : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy'
+                    }`}
+                    title={isComparing(product._id) ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
+                  >
+                    <span className="text-[10px] font-bold">{isComparing(product._id) ? '✓' : 'مقارنة'}</span>
+                  </button>
+                )}
 
                 {/* Discount Badge */}
                 {isDiscountActive(product) && (

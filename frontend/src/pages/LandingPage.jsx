@@ -236,10 +236,10 @@ function LandingPage() {
  </div>
 
  {/* ━━━━━━━━━━━━ سلايدر الأكثر مبيعاً ━━━━━━━━━━━━ */}
- <BestSellersSlider products={products} />
+ {siteConfig?.features?.bestSellers !== false && <BestSellersSlider products={products} />}
 
       {/* ━━━━━━━━━━━━ تسوقي الإطلالة كاملة (إطلالات الموديلز) ━━━━━━━━━━━━ */}
-      <ShopTheLookSection />
+      {Boolean(siteConfig?.features?.lookbook) && <ShopTheLookSection />}
 
  {/* ━━━━━━━━━━━━ أحدث الموديلات ━━━━━━━━━━━━ */}
  <div className="space-y-5 sm:space-y-8">

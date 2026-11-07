@@ -30,6 +30,16 @@ const SiteConfigSchema = new mongoose.Schema({
   tiktokUrl: { type: String, default: 'https://www.tiktok.com/@moda.pella?_r=1&_t=ZS-9AfaJHoDzJk' },
   locationMapUrl: { type: String, default: '' },
   whatsappMessageTemplate: { type: String, default: 'أهلاً بكِ يا أ/ *{{name}}* في ModaPella 🎠✨\n\nتم تسجيل طلبكِ رقم *#{{id}}* بنجاح بقيمة *{{amount}} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لتأكيد الطلب! 🌸' },
+  features: {
+    outfitter: { type: Boolean, default: false }, // غرفة التنسيق
+    lookbook: { type: Boolean, default: false }, // إطلالات الموديلز
+    mannequinComparison: { type: Boolean, default: true }, // مانيكان المحل
+    productComparison: { type: Boolean, default: true }, // مقارنة الموديلات
+    coupons: { type: Boolean, default: true }, // كوبونات الخصم
+    shareOutfit: { type: Boolean, default: true }, // شير اللوك
+    bestSellers: { type: Boolean, default: true }, // الأكثر مبيعاً
+    socialProof: { type: Boolean, default: true } // إشعارات الشراء المباشرة
+  },
   categories: {
     type: [{ key: String, nameAr: String }],
     default: [

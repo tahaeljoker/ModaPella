@@ -20,7 +20,7 @@ const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 function ProductCard({ product }) {
   const navigate = useNavigate();
-  const { addToCompare, isComparing } = useContext(CompareContext);
+  const { addToCompare, isComparing, compareEnabled } = useContext(CompareContext);
   const isItemComparing = isComparing(product?._id);
   const [selectedColor, setSelectedColor] = useState(null);
 
@@ -58,20 +58,22 @@ function ProductCard({ product }) {
     >
       <div className="relative overflow-hidden aspect-[3/4] sheen-wrapper bg-[#FAF7F5] flex items-center justify-center">
         {/* Compare Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            addToCompare(product);
-          }}
-          className={`absolute top-2 sm:top-4 right-2 sm:right-4 h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md backdrop-blur-sm z-20 ${isItemComparing
-              ? 'bg-amber-400 text-burgundy font-black scale-105 ring-2 ring-amber-300 shadow-amber-900/30'
-              : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy hover:scale-105'
-            }`}
-          title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
-        >
-          <span className="text-xs sm:text-sm">{isItemComparing ? '✓' : 'مقارنة'}</span>
-        </button>
+        {compareEnabled !== false && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              addToCompare(product);
+            }}
+            className={`absolute top-2 sm:top-4 right-2 sm:right-4 h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md backdrop-blur-sm z-20 ${isItemComparing
+                ? 'bg-amber-400 text-burgundy font-black scale-105 ring-2 ring-amber-300 shadow-amber-900/30'
+                : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy hover:scale-105'
+              }`}
+            title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
+          >
+            <span className="text-xs sm:text-sm">{isItemComparing ? '✓' : 'مقارنة'}</span>
+          </button>
+        )}
 
         {/* Real Product Image (changes cleanly to the real photo of the selected color) */}
         <img

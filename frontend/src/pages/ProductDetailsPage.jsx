@@ -33,10 +33,12 @@ function ProductDetailsPage() {
   const [isColorLabOpen, setIsColorLabOpen] = useState(false);
   const [isDigitalRecolorActive, setIsDigitalRecolorActive] = useState(false);
   const [fitMode, setFitMode] = useState('contain'); // 'contain' | 'cover'
+  const [siteConfig, setSiteConfig] = useState(null);
 
  useEffect(() => {
   api.get('/admin/site-config')
    .then(res => {
+    if (res.data) setSiteConfig(res.data);
     if (res.data?.whatsappNumber) setWhatsappNumber(res.data.whatsappNumber);
    })
    .catch(() => {});
@@ -137,7 +139,7 @@ function ProductDetailsPage() {
  <div className="mt-6 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
  {/* Image Slider Container */}
  <div className="flex flex-col gap-4">
-  {product.mannequinImage ? (
+  {product.mannequinImage && siteConfig?.features?.mannequinComparison !== false ? (
     <MannequinComparisonSlider
       flatImage={product.images && product.images.length > 0 ? resolveImageUrl(product.images[activeImageIdx]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80"}
       mannequinImage={resolveImageUrl(product.mannequinImage)}
@@ -419,25 +421,29 @@ function ProductDetailsPage() {
  </div>
 
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-    <button
-     type="button"
-     onClick={() => addToCompare(product)}
-     className={`rounded-xl sm:rounded-2xl py-3 px-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border transition ${
-      isItemComparing
-       ? 'bg-amber-50 border-amber-400 text-burgundy font-black shadow-sm'
-       : 'bg-white hover:bg-beige/20 border-burgundy/15 text-burgundy/80 hover:text-burgundy'
-     }`}
-    >
-     <span className="truncate">{isItemComparing ? '✓ في المقارنة' : 'مقارنة الموديل'}</span>
-    </button>
+    {siteConfig?.features?.productComparison !== false && (
+      <button
+       type="button"
+       onClick={() => addToCompare(product)}
+       className={`rounded-xl sm:rounded-2xl py-3 px-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border transition ${
+        isItemComparing
+         ? 'bg-amber-50 border-amber-400 text-burgundy font-black shadow-sm'
+         : 'bg-white hover:bg-beige/20 border-burgundy/15 text-burgundy/80 hover:text-burgundy'
+       }`}
+      >
+       <span className="truncate">{isItemComparing ? '✓ في المقارنة' : 'مقارنة الموديل'}</span>
+      </button>
+    )}
 
-    <button
-     type="button"
-     onClick={() => setIsShareModalOpen(true)}
-     className="rounded-xl sm:rounded-2xl py-3 px-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-amber-500/30 bg-gradient-to-r from-amber-50 via-white to-amber-50 hover:from-amber-100 hover:to-amber-100 text-burgundy transition shadow-xs active:scale-95"
-    >
-     <span>شاركي اللوك مع صديقتكِ</span>
-    </button>
+    {siteConfig?.features?.shareOutfit !== false && (
+      <button
+       type="button"
+       onClick={() => setIsShareModalOpen(true)}
+       className="rounded-xl sm:rounded-2xl py-3 px-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-amber-500/30 bg-gradient-to-r from-amber-50 via-white to-amber-50 hover:from-amber-100 hover:to-amber-100 text-burgundy transition shadow-xs active:scale-95"
+      >
+       <span>شاركي اللوك مع صديقتكِ</span>
+      </button>
+    )}
   </div>
  </div>
  </div>
@@ -545,27 +551,31 @@ function ProductDetailsPage() {
     </div>
 
     <div className="flex items-center gap-2 flex-1 justify-end max-w-[240px]">
-            <button
-        type="button"
-        onClick={() => setIsShareModalOpen(true)}
-        className="h-11 px-3 rounded-xl border border-burgundy/20 bg-[#FAF5F2] hover:bg-amber-50 text-burgundy flex items-center justify-center transition shrink-0"
-        title="شاركي اللوك مع صديقتكِ"
-      >
-        <span className="text-[11px] font-bold">شير</span>
-      </button>
+      {siteConfig?.features?.shareOutfit !== false && (
+        <button
+          type="button"
+          onClick={() => setIsShareModalOpen(true)}
+          className="h-11 px-3 rounded-xl border border-burgundy/20 bg-[#FAF5F2] hover:bg-amber-50 text-burgundy flex items-center justify-center transition shrink-0"
+          title="شاركي اللوك مع صديقتكِ"
+        >
+          <span className="text-[11px] font-bold">شير</span>
+        </button>
+      )}
 
-      <button
-        type="button"
-        onClick={() => addToCompare(product)}
-        className={`h-11 px-3 rounded-xl border flex items-center justify-center transition shrink-0 ${
-          isItemComparing
-            ? 'bg-amber-400 text-burgundy border-amber-500 font-bold'
-            : 'bg-[#FAF5F2] text-burgundy border-burgundy/20'
-        }`}
-        title="مقارنة هذا الموديل"
-      >
-        <span className="text-[11px] font-bold">{isItemComparing ? '✓' : 'مقارنة'}</span>
-      </button>
+      {siteConfig?.features?.productComparison !== false && (
+        <button
+          type="button"
+          onClick={() => addToCompare(product)}
+          className={`h-11 px-3 rounded-xl border flex items-center justify-center transition shrink-0 ${
+            isItemComparing
+              ? 'bg-amber-400 text-burgundy border-amber-500 font-bold'
+              : 'bg-[#FAF5F2] text-burgundy border-burgundy/20'
+          }`}
+          title="مقارنة هذا الموديل"
+        >
+          <span className="text-[11px] font-bold">{isItemComparing ? '✓' : 'مقارنة'}</span>
+        </button>
+      )}
 
 <button
         type="button"

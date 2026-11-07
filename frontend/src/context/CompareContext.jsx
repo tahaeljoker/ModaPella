@@ -8,6 +8,8 @@ const defaultContextValue = {
   isComparing: () => false,
   isCompareOpen: false,
   setIsCompareOpen: () => {},
+  compareEnabled: true,
+  setCompareEnabled: () => {},
 };
 
 const CompareContext = createContext(defaultContextValue);
@@ -22,6 +24,7 @@ export const CompareProvider = ({ children }) => {
     }
   });
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [compareEnabled, setCompareEnabled] = useState(true);
 
   useEffect(() => {
     try {
@@ -32,7 +35,7 @@ export const CompareProvider = ({ children }) => {
   }, [compareItems]);
 
   const addToCompare = (product) => {
-    if (!product || !product._id) return false;
+    if (!compareEnabled || !product || !product._id) return false;
     
     // Check if already in list: open compare screen directly
     if (compareItems.some((item) => item._id === product._id)) {
@@ -76,6 +79,8 @@ export const CompareProvider = ({ children }) => {
         isComparing,
         isCompareOpen,
         setIsCompareOpen,
+        compareEnabled,
+        setCompareEnabled,
       }}
     >
       {children}

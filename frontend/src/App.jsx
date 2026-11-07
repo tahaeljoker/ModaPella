@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect } from 'react';
-import { Routes, Route, NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
+import { Routes, Route, NavLink, useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import CartContext from './context/CartContext';
 import { initTrafficTracking } from './utils/trafficTracker';
@@ -75,7 +75,7 @@ const navItem = (label, to) => (
 
 function AppContent() {
  const { cart, removeItem, updateQuantity, total } = useContext(CartContext);
-  const { compareItems, setIsCompareOpen } = useContext(CompareContext);
+  const { compareItems, setIsCompareOpen, setCompareEnabled } = useContext(CompareContext);
  const location = useLocation();
  const navigate = useNavigate();
  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -107,6 +107,9 @@ function AppContent() {
  setSiteConfig(res.data);
  if (res.data.whatsappNumber) {
  setWhatsappNumber(res.data.whatsappNumber);
+ }
+ if (res.data.features?.productComparison !== undefined) {
+ setCompareEnabled(res.data.features.productComparison);
  }
  }
  })
@@ -177,20 +180,22 @@ function AppContent() {
  <nav className="hidden md:flex flex-wrap gap-2">
  {navItem('الرئيسية', '/')}
  {navItem('الملابس', '/shop')}
-	{navItem('غرفة التنسيق', '/outfitter')}
-	{navItem('إطلالات الموديلز', '/lookbook')}
-          <button
-            type="button"
-            onClick={() => setIsCompareOpen(true)}
-            className="relative px-3.5 py-2 rounded-lg transition text-burgundy/80 hover:text-burgundy font-semibold text-sm flex items-center gap-1.5"
-          >
-            <span>مقارنة</span>
-            {compareItems.length > 0 && (
-              <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
-                {compareItems.length}
-              </span>
-            )}
-          </button>
+	{Boolean(siteConfig?.features?.outfitter) && navItem('غرفة التنسيق', '/outfitter')}
+	{Boolean(siteConfig?.features?.lookbook) && navItem('إطلالات الموديلز', '/lookbook')}
+          {siteConfig?.features?.productComparison !== false && (
+            <button
+              type="button"
+              onClick={() => setIsCompareOpen(true)}
+              className="relative px-3.5 py-2 rounded-lg transition text-burgundy/80 hover:text-burgundy font-semibold text-sm flex items-center gap-1.5"
+            >
+              <span>مقارنة</span>
+              {compareItems.length > 0 && (
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
+                  {compareItems.length}
+                </span>
+              )}
+            </button>
+          )}
  <button
  type="button"
  onClick={() => setIsCartDrawerOpen(true)}
@@ -228,39 +233,45 @@ function AppContent() {
  >
  الملابس
  </NavLink>
-          <NavLink
-            to="/outfitter"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={({ isActive }) =>
-              `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
-            }
-          >
-            غرفة التنسيق
-          </NavLink>
-          <NavLink
-            to="/lookbook"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={({ isActive }) =>
-              `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
-            }
-          >
-            إطلالات الموديلز
-          </NavLink>
-          <button
-            type="button"
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              setIsCompareOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-xl transition font-semibold text-sm flex justify-between items-center text-burgundy/80 hover:bg-burgundy/5"
-          >
-            <span>مقارنة الإطلالات</span>
-            {compareItems.length > 0 && (
-              <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-amber-500 px-2 text-xs font-bold text-white">
-                {compareItems.length}
-              </span>
-            )}
-          </button>
+          {Boolean(siteConfig?.features?.outfitter) && (
+            <NavLink
+              to="/outfitter"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+              }
+            >
+              غرفة التنسيق
+            </NavLink>
+          )}
+          {Boolean(siteConfig?.features?.lookbook) && (
+            <NavLink
+              to="/lookbook"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+              }
+            >
+              إطلالات الموديلز
+            </NavLink>
+          )}
+          {siteConfig?.features?.productComparison !== false && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsCompareOpen(true);
+              }}
+              className="px-4 py-2.5 rounded-xl transition font-semibold text-sm flex justify-between items-center text-burgundy/80 hover:bg-burgundy/5"
+            >
+              <span>مقارنة الإطلالات</span>
+              {compareItems.length > 0 && (
+                <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-amber-500 px-2 text-xs font-bold text-white">
+                  {compareItems.length}
+                </span>
+              )}
+            </button>
+          )}
  <button
  type="button"
  onClick={() => {
@@ -295,8 +306,8 @@ function AppContent() {
  {/* Public Routes */}
  <Route path="/" element={<LandingPage />} />
  <Route path="/shop" element={<CollectionsPage />} />
-          <Route path="/outfitter" element={<OutfitterPage />} />
-          <Route path="/lookbook" element={<LookbookPage />} />
+          <Route path="/outfitter" element={siteConfig?.features?.outfitter ? <OutfitterPage /> : <Navigate to="/shop" replace />} />
+          <Route path="/lookbook" element={siteConfig?.features?.lookbook ? <LookbookPage /> : <Navigate to="/shop" replace />} />
  <Route path="/collections" element={<CollectionsPage />} />
  <Route path="/about" element={<AboutPage />} />
  <Route path="/contact" element={<ContactPage />} />
@@ -351,7 +362,7 @@ function AppContent() {
 
  {/* Social Proof Live Sales Notification */}
  {!isDashboard && (
- <SocialProofPopup active={siteConfig?.socialProofActive !== false} />
+ <SocialProofPopup active={siteConfig?.socialProofActive !== false && siteConfig?.features?.socialProof !== false} />
  )}
 
  {/* Interactive WhatsApp Concierge Widget */}
@@ -360,7 +371,7 @@ function AppContent() {
  )}
 
   {/* Outfit Comparison Floating Bar & Modal */}
-  {!isDashboard && (
+  {!isDashboard && siteConfig?.features?.productComparison !== false && (
     <>
       <OutfitComparisonBar />
       <OutfitComparisonModal whatsappNumber={whatsappNumber} />
