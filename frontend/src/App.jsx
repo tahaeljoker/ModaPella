@@ -176,8 +176,8 @@ function AppContent() {
  <nav className="hidden md:flex flex-wrap gap-2">
  {navItem('الرئيسية', '/')}
  {navItem('الملابس', '/shop')}
-	{navItem('غرفة التنسيق ✨', '/outfitter')}
-	{navItem('إطلالات الموديلز 👗', '/lookbook')}
+	{navItem('غرفة التنسيق', '/outfitter')}
+	{navItem('إطلالات الموديلز', '/lookbook')}
           <button
             type="button"
             onClick={() => setIsCompareOpen(true)}
@@ -234,7 +234,7 @@ function AppContent() {
               `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
             }
           >
-            غرفة التنسيق ✨
+            غرفة التنسيق
           </NavLink>
           <NavLink
             to="/lookbook"
@@ -243,7 +243,7 @@ function AppContent() {
               `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
             }
           >
-            إطلالات الموديلز 👗
+            إطلالات الموديلز
           </NavLink>
           <button
             type="button"

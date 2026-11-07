@@ -63,3 +63,4 @@ export function compressImage(file, maxDimension = 1600, quality = 0.82) {
     reader.onerror = reject;
   });
 }
+
