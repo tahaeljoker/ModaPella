@@ -32,3 +32,4 @@ export function resolveImageUrl(url) {
 
   return trimmed;
 }
+

@@ -32,6 +32,7 @@ function ProductDetailsPage() {
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
   const [isColorLabOpen, setIsColorLabOpen] = useState(false);
   const [isDigitalRecolorActive, setIsDigitalRecolorActive] = useState(false);
+  const [fitMode, setFitMode] = useState('contain'); // 'contain' | 'cover'
 
  useEffect(() => {
   api.get('/admin/site-config')
@@ -138,56 +139,96 @@ function ProductDetailsPage() {
  <div className="flex flex-col gap-4">
   {product.mannequinImage ? (
     <MannequinComparisonSlider
-      flatImage={product.images && product.images.length > 0 ? product.images[activeImageIdx] : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80"}
-      mannequinImage={product.mannequinImage}
+      flatImage={product.images && product.images.length > 0 ? resolveImageUrl(product.images[activeImageIdx]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80"}
+      mannequinImage={resolveImageUrl(product.mannequinImage)}
       productName={cleanProductName(product)}
+      aspectRatio="aspect-[3/4] sm:aspect-[4/5]"
       onImageClick={() => setIsLightboxOpen(true)}
     />
   ) : (
- <div className="relative overflow-hidden rounded-xl sm:rounded-[2rem] bg-beige/10 aspect-[4/3] sm:aspect-[3/2] group border border-burgundy/5 shadow-inner">
- <div 
- onClick={() => setIsLightboxOpen(true)}
- className="w-full h-full cursor-zoom-in transition-all duration-300 hover:scale-[1.02]"
- >
- <LazyImage 
- src={displayedImage} 
- alt={cleanProductName(product)} 
- className="w-full h-full object-cover" 
- />
+ <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-[#FAF7F5] aspect-[3/4] sm:aspect-[4/5] max-h-[640px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none">
  
+ {/* Fit Toggle (Contain <-> Cover) */}
+ <button
+   type="button"
+   onClick={(e) => {
+     e.stopPropagation();
+     setFitMode(prev => prev === "contain" ? "cover" : "contain");
+   }}
+   className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-burgundy text-xs font-bold shadow-md border border-burgundy/10 backdrop-blur-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+   title={fitMode === "contain" ? "ملء الإطار" : "إظهار القطعة بالكامل"}
+ >
+   <span>{fitMode === "contain" ? "⛶ ملء الإطار" : "🔍 إظهار كامل"}</span>
+ </button>
+
+ {/* Zoom Hint */}
+ <button
+   type="button"
+   onClick={() => setIsLightboxOpen(true)}
+   className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-burgundy text-xs font-bold shadow-md border border-burgundy/10 backdrop-blur-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+   title="تكبير الصورة"
+ >
+   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+   </svg>
+   <span>تكبير</span>
+ </button>
+
+ <div 
+   onClick={() => setIsLightboxOpen(true)}
+   className="w-full h-full cursor-zoom-in transition-all duration-300 hover:scale-[1.01] flex items-center justify-center p-2"
+ >
+   <LazyImage 
+     src={displayedImage} 
+     alt={cleanProductName(product)} 
+     className="w-full h-full" 
+     fit={fitMode} 
+   />
  </div>
 
  {/* Arrow controls */}
  {product.images && product.images.length > 1 && (
  <>
  <button
- type="button"
- onClick={() => setActiveImageIdx(prev => (prev === 0 ? product.images.length - 1 : prev - 1))}
- className="absolute left-4 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/85 border border-burgundy/10 text-burgundy shadow-md transition hover:bg-white hover:scale-105 active:scale-95 z-10"
- aria-label="Previous image"
+   type="button"
+   onClick={(e) => {
+     e.stopPropagation();
+     setActiveImageIdx(prev => (prev === 0 ? product.images.length - 1 : prev - 1));
+     setColorOverride(null);
+   }}
+   className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/90 border border-burgundy/15 text-burgundy shadow-md transition hover:bg-white hover:scale-110 active:scale-95 z-20 cursor-pointer"
+   aria-label="Previous image"
  >
- 
+   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+   </svg>
  </button>
  <button
- type="button"
- onClick={() => setActiveImageIdx(prev => (prev === product.images.length - 1 ? 0 : prev + 1))}
- className="absolute right-4 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/85 border border-burgundy/10 text-burgundy shadow-md transition hover:bg-white hover:scale-105 active:scale-95 z-10"
- aria-label="Next image"
+   type="button"
+   onClick={(e) => {
+     e.stopPropagation();
+     setActiveImageIdx(prev => (prev === product.images.length - 1 ? 0 : prev + 1));
+     setColorOverride(null);
+   }}
+   className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/90 border border-burgundy/15 text-burgundy shadow-md transition hover:bg-white hover:scale-110 active:scale-95 z-20 cursor-pointer"
+   aria-label="Next image"
  >
- 
+   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+   </svg>
  </button>
  </>
  )}
 
  {/* Dots indicator */}
  {product.images && product.images.length > 1 && (
- <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 bg-black/20 px-3 py-1.5 rounded-full backdrop-blur-[2px]">
+ <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/30 px-3 py-1.5 rounded-full backdrop-blur-xs">
  {product.images.map((_, idx) => (
  <button
- key={idx}
- type="button"
- onClick={() => { setActiveImageIdx(idx); setColorOverride(null); }}
- className={`h-2 rounded-full transition-all duration-300 ${activeImageIdx === idx ? 'w-5 bg-white' : 'w-2 bg-white/55 hover:bg-white'}`}
+   key={idx}
+   type="button"
+   onClick={(e) => { e.stopPropagation(); setActiveImageIdx(idx); setColorOverride(null); }}
+   className={`h-2 rounded-full transition-all duration-300 ${activeImageIdx === idx ? "w-5 bg-white" : "w-2 bg-white/60 hover:bg-white"}`}
  />
  ))}
  </div>
@@ -202,10 +243,10 @@ function ProductDetailsPage() {
  <button
  key={idx}
  type="button"
- onClick={() => setActiveImageIdx(idx)}
- className={`relative w-20 h-20 rounded-xl overflow-hidden bg-beige/5 border-2 transition ${activeImageIdx === idx ? 'border-burgundy scale-95 shadow-md' : 'border-transparent opacity-75 hover:opacity-100 hover:scale-95'}`}
+ onClick={() => { setActiveImageIdx(idx); setColorOverride(null); }}
+ className={`relative w-20 h-20 rounded-xl overflow-hidden bg-[#FAF7F5] border-2 transition p-1 flex items-center justify-center cursor-pointer ${activeImageIdx === idx ? "border-burgundy scale-95 shadow-md" : "border-transparent opacity-75 hover:opacity-100 hover:scale-95"}`}
  >
- <img src={resolveImageUrl(img)} alt={`thumbnail ${idx}`} className="w-full h-full object-cover" />
+ <img src={resolveImageUrl(img)} alt={`thumbnail ${idx}`} className="w-full h-full object-contain" />
  </button>
  ))}
  </div>
@@ -383,11 +424,12 @@ function ProductDetailsPage() {
  onClick={() => window.scrollTo(0, 0)}
  className="group block rounded-[1.25rem] overflow-hidden border border-burgundy/5 bg-[#F7F0EC]/20 p-2 transition hover:shadow-soft animate-fade-in"
  >
- <div className="aspect-[4/3] overflow-hidden relative rounded-xl bg-beige/5">
+ <div className="aspect-[3/4] overflow-hidden relative rounded-xl bg-[#FAF7F5] flex items-center justify-center">
  <LazyImage 
- src={p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80'} 
+ src={p.images && p.images.length > 0 ? resolveImageUrl(p.images[0]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80"} 
  alt={cleanProductName(p)} 
- className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105" 
+ className="w-full h-full object-contain p-1 transition duration-300 group-hover:scale-105" 
+ fit="contain"
  />
  </div>
  <div className="mt-2 text-right px-1">
@@ -402,24 +444,25 @@ function ProductDetailsPage() {
  {/* Lightbox Modal */}
  {isLightboxOpen && (
  <div 
- className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+ className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-3 sm:p-6 backdrop-blur-md"
  onClick={() => setIsLightboxOpen(false)}
  >
  {/* Close button */}
  <button
  type="button"
  onClick={() => setIsLightboxOpen(false)}
- className="absolute top-6 right-6 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-all duration-200 z-50 font-bold"
+ className="absolute top-5 right-5 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white text-lg transition z-50 font-bold border border-white/20 cursor-pointer"
+ aria-label="إغلاق"
  >
- 
+ ✕
  </button>
 
  {/* Large image */}
- <div className="relative max-w-full max-h-[85vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
+ <div className="relative max-w-full max-h-[90vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
  <img 
- src={displayedImage || (product.images && product.images.length > 0 ? product.images[activeImageIdx] : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80')} 
+ src={displayedImage || (product.images && product.images.length > 0 ? resolveImageUrl(product.images[activeImageIdx]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80")} 
  alt={cleanProductName(product)} 
- className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl" 
+ className="max-w-[95vw] max-h-[88vh] rounded-2xl object-contain shadow-2xl" 
  />
 
  {/* Arrow controls in lightbox */}
@@ -428,16 +471,22 @@ function ProductDetailsPage() {
  <button
  type="button"
  onClick={() => setActiveImageIdx(prev => (prev === 0 ? product.images.length - 1 : prev - 1))}
- className="absolute left-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl font-bold shadow-md transition z-50"
+ className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white shadow-md transition z-50 border border-white/20 cursor-pointer"
+ aria-label="Previous"
  >
- 
+ <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+ </svg>
  </button>
  <button
  type="button"
  onClick={() => setActiveImageIdx(prev => (prev === product.images.length - 1 ? 0 : prev + 1))}
- className="absolute right-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl font-bold shadow-md transition z-50"
+ className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white shadow-md transition z-50 border border-white/20 cursor-pointer"
+ aria-label="Next"
  >
- 
+ <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+ </svg>
  </button>
  </>
  )}

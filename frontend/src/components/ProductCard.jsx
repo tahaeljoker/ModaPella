@@ -56,7 +56,7 @@ function ProductCard({ product }) {
       onClick={() => navigate(`/product/${product._id}`)}
       className="reveal-on-scroll group stagger-item interactive-card flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white shadow-sm hover:shadow-md transition-all duration-300"
     >
-      <div className="relative overflow-hidden aspect-[4/3] sheen-wrapper bg-[#FBF7F4]">
+      <div className="relative overflow-hidden aspect-[3/4] sheen-wrapper bg-[#FAF7F5] flex items-center justify-center">
         {/* Compare Button */}
         <button
           type="button"
@@ -64,11 +64,10 @@ function ProductCard({ product }) {
             e.stopPropagation();
             addToCompare(product);
           }}
-          className={`absolute top-2 sm:top-4 right-2 sm:right-4 h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md backdrop-blur-sm z-20 ${
-            isItemComparing
+          className={`absolute top-2 sm:top-4 right-2 sm:right-4 h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-md backdrop-blur-sm z-20 ${isItemComparing
               ? 'bg-amber-400 text-burgundy font-black scale-105 ring-2 ring-amber-300 shadow-amber-900/30'
               : 'bg-white/90 text-burgundy/80 hover:bg-white hover:text-burgundy hover:scale-105'
-          }`}
+            }`}
           title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
         >
           <span className="text-xs sm:text-sm">{isItemComparing ? '✓' : 'مقارنة'}</span>
@@ -79,7 +78,7 @@ function ProductCard({ product }) {
           key={currentImage}
           src={currentImage}
           alt={cleanProductName(product)}
-          className="w-full h-full object-cover transition-all duration-500 ease-out group-hover:scale-105"
+          className="w-full h-full object-contain p-1 transition-all duration-500 ease-out group-hover:scale-105"
           loading="lazy"
         />
 
@@ -138,9 +137,8 @@ function ProductCard({ product }) {
                     key={i}
                     type="button"
                     onClick={(e) => handleColorClick(e, c)}
-                    className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 hover:scale-125 cursor-pointer shadow-xs ${
-                      selectedColor === c ? 'scale-125 ring-2 ring-burgundy border-white shadow-sm' : 'border-black/20'
-                    }`}
+                    className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 hover:scale-125 cursor-pointer shadow-xs ${selectedColor === c ? 'scale-125 ring-2 ring-burgundy border-white shadow-sm' : 'border-black/20'
+                      }`}
                     style={{ backgroundColor: getColorHex(c) }}
                     title={`عرض ${c}`}
                   />

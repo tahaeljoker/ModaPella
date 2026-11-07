@@ -12,7 +12,7 @@ export default function MannequinComparisonSlider({
   mannequinImage,
   productName = 'المنتج',
   className = '',
-  aspectRatio = 'aspect-[4/3] sm:aspect-[3/2]',
+  aspectRatio = 'aspect-[3/4] sm:aspect-[4/5]',
   onImageClick = null
 }) {
   const [mode, setMode] = useState('toggle'); // 'toggle' | 'slider'
@@ -67,12 +67,12 @@ export default function MannequinComparisonSlider({
       {/* Visual Canvas Area */}
       <div
         ref={containerRef}
-        className={`relative overflow-hidden rounded-2xl sm:rounded-[2rem] bg-beige/10 ${aspectRatio} select-none border border-burgundy/10 shadow-inner group`}
+        className={`relative overflow-hidden rounded-2xl sm:rounded-[2rem] bg-[#FAF7F5] ${aspectRatio} select-none border border-burgundy/10 shadow-inner group flex items-center justify-center`}
       >
         {mode === 'slider' && hasMannequin ? (
           /* ─── Mode A: Interactive Split-Screen Slider ─── */
           <div
-            className="relative w-full h-full cursor-ew-resize overflow-hidden"
+            className="relative w-full h-full cursor-ew-resize overflow-hidden flex items-center justify-center"
             onMouseDown={(e) => {
               setIsDragging(true);
               handleMove(e.clientX);
@@ -86,7 +86,7 @@ export default function MannequinComparisonSlider({
             <img
               src={effectiveMannequin}
               alt={`${productName} على المانيكان بالمحل`}
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1"
             />
             <div className="absolute top-3 left-3 bg-burgundy/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xs pointer-events-none shadow-sm flex items-center gap-1 z-10">
               <span>👤</span>
@@ -101,7 +101,7 @@ export default function MannequinComparisonSlider({
               <img
                 src={flatImage}
                 alt={`${productName} فلات`}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain p-1"
               />
               <div className="absolute top-3 right-3 bg-white/90 text-burgundy text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xs shadow-sm flex items-center gap-1 z-10">
                 <span>👕</span>
@@ -128,13 +128,13 @@ export default function MannequinComparisonSlider({
           /* ─── Mode B: Animated Toggle Crossfade ─── */
           <div
             onClick={onImageClick}
-            className="w-full h-full relative cursor-pointer"
+            className="w-full h-full relative cursor-pointer flex items-center justify-center"
           >
             {/* Flat Image */}
             <img
               src={flatImage}
               alt={`${productName} فلات`}
-              className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-out ${
+              className={`absolute inset-0 w-full h-full object-contain p-1 transition-all duration-500 ease-out ${
                 activeView === 'flat'
                   ? 'opacity-100 scale-100 rotate-0'
                   : 'opacity-0 scale-95 pointer-events-none'
@@ -146,7 +146,7 @@ export default function MannequinComparisonSlider({
               <img
                 src={effectiveMannequin}
                 alt={`${productName} على المانيكان`}
-                className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-out ${
+                className={`absolute inset-0 w-full h-full object-contain p-1 transition-all duration-500 ease-out ${
                   activeView === 'mannequin'
                     ? 'opacity-100 scale-100 rotate-0'
                     : 'opacity-0 scale-105 pointer-events-none'
