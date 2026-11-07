@@ -3,19 +3,63 @@ const fs = require('fs');
 const path = require('path');
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const Media = require('../models/Media');
 
 const router = express.Router();
 
 const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
-if (!fs.existsSync(UPLOADS_DIR)) {
-  try {
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  } catch (err) {
-    console.error('Failed to create uploads dir:', err.message);
   }
+} catch (err) {
+  // Read-only filesystem on serverless platforms (e.g. Vercel)
+  console.log('Uploads directory creation skipped (read-only filesystem):', err.message);
 }
 
-// POST /api/upload - Accepts base64 image or video data and writes to static uploads folder
+// GET /api/upload/:filename — Serve media directly from MongoDB or disk
+router.get('/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    // 1. Try local disk first if file exists
+    const localFilePath = path.join(UPLOADS_DIR, filename);
+    if (fs.existsSync(localFilePath)) {
+      return res.sendFile(localFilePath);
+    }
+
+    // 2. Fetch from MongoDB Media collection (works seamlessly on Vercel & serverless)
+    const media = await Media.findOne({ filename });
+    if (!media || !media.data) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    const matches = media.data.match(/^data:([a-zA-Z0-9+\/.-]+);base64,(.+)$/);
+    let buffer;
+    let contentType = media.contentType || 'image/jpeg';
+
+    if (matches && matches.length === 3) {
+      contentType = matches[1];
+      buffer = Buffer.from(matches[2], 'base64');
+    } else {
+      buffer = Buffer.from(media.data, 'base64');
+    }
+
+    res.set({
+      'Content-Type': contentType,
+      'Content-Length': buffer.length,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*'
+    });
+
+    return res.send(buffer);
+  } catch (error) {
+    console.error('Error serving media file:', error);
+    res.status(500).json({ message: 'Error serving file', error: error.message });
+  }
+});
+
+// POST /api/upload - Accepts base64 image or video data, saves to MongoDB and disk
 router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (req, res) => {
   try {
     const { image, file, name } = req.body;
@@ -27,7 +71,8 @@ router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (re
     // Match base64 regex e.g. "data:image/png;base64,..." or "data:video/mp4;base64,..."
     const matches = mediaData.match(/^data:(image|video)\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
     let ext = 'jpg';
-    let buffer;
+    let mimeType = 'image/jpeg';
+    let rawBase64 = mediaData;
 
     if (matches && matches.length === 4) {
       let subType = matches[2].toLowerCase();
@@ -35,24 +80,37 @@ router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (re
       else if (subType === 'quicktime') ext = 'mov';
       else ext = subType;
 
-      buffer = Buffer.from(matches[3], 'base64');
-    } else {
-      // Direct raw base64 string
-      buffer = Buffer.from(mediaData, 'base64');
-    }
-
-    // Ensure uploads directory exists
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      mimeType = `${matches[1]}/${subType}`;
+      rawBase64 = matches[3];
     }
 
     const cleanBaseName = (name || 'media')
       .replace(/[^a-zA-Z0-9_-]/g, '_')
       .slice(0, 30);
     const fileName = `${Date.now()}-${cleanBaseName}.${ext}`;
-    const filePath = path.join(UPLOADS_DIR, fileName);
 
-    fs.writeFileSync(filePath, buffer);
+    const buffer = Buffer.from(rawBase64, 'base64');
+
+    // 1. Save to MongoDB (Permanent storage that works on Vercel Serverless)
+    await Media.findOneAndUpdate(
+      { filename: fileName },
+      {
+        filename: fileName,
+        contentType: mimeType,
+        data: mediaData,
+        size: buffer.length
+      },
+      { upsert: true, new: true }
+    );
+
+    // 2. Try saving to local disk if writable (dev / VPS environments)
+    try {
+      const filePath = path.join(UPLOADS_DIR, fileName);
+      fs.writeFileSync(filePath, buffer);
+    } catch (diskErr) {
+      // Ignored silently on serverless platforms where disk is read-only
+      console.log('Disk write skipped (serverless environment)');
+    }
 
     const publicUrl = `/uploads/${fileName}`;
     return res.json({

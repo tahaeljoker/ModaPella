@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
 import { Icon } from '../../components/Icon';
+import { compressImage } from '../../utils/imageCompressor';
 
 export default function AdminLookbook() {
   const [looks, setLooks] = useState([]);
@@ -101,7 +102,7 @@ export default function AdminLookbook() {
   };
 
   // Upload file (Image or Video)
-  const handleFileUpload = (e, fieldName) => {
+  const handleFileUpload = async (e, fieldName) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -111,30 +112,34 @@ export default function AdminLookbook() {
     }
 
     setUploadingMedia(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64Data = reader.result;
-        const res = await api.post('/upload', {
-          file: base64Data,
-          name: `${file.name.split('.')[0]}_${Date.now()}`
-        });
+    try {
+      const base64Data = file.type.startsWith('image/')
+        ? await compressImage(file, 1600, 0.85)
+        : await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
 
-        if (res.data?.url) {
-          setFormData((prev) => ({
-            ...prev,
-            [fieldName]: res.data.url
-          }));
-          showToast('تم رفع الملف بنجاح ✓');
-        }
-      } catch (err) {
-        console.error('File upload failed:', err);
-        showToast('فشل رفع الملف، يرجى المحاولة مرة أخرى');
-      } finally {
-        setUploadingMedia(false);
+      const res = await api.post('/upload', {
+        file: base64Data,
+        name: `${file.name.split('.')[0]}_${Date.now()}`
+      });
+
+      if (res.data?.url) {
+        setFormData((prev) => ({
+          ...prev,
+          [fieldName]: res.data.url
+        }));
+        showToast('تم رفع الملف بنجاح ✓');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('File upload failed:', err);
+      showToast('فشل رفع الملف، يرجى المحاولة مرة أخرى');
+    } finally {
+      setUploadingMedia(false);
+    }
   };
 
   // Add a product item to the look
@@ -908,3 +913,4 @@ export default function AdminLookbook() {
     </div>
   );
 }
+

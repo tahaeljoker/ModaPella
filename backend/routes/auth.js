@@ -10,7 +10,7 @@ const { sendWhatsAppOTP, formatPhone } = require('../services/whatsappService');
 
 const generateToken = (user) => {
   return jwt.sign({ user: { id: user.id, role: user.role, email: user.email } }, process.env.JWT_SECRET || 'modapella-secret', {
-    expiresIn: '12h'
+    expiresIn: '30d'
   });
 };
 

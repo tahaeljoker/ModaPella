@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import api from '../services/api';
+import { compressImage } from '../utils/imageCompressor';
 
 /**
  * MannequinImageUploader
@@ -39,7 +40,7 @@ export default function MannequinImageUploader({ value = '', onChange }) {
     setUploading(true);
 
     try {
-      const base64 = await readFileAsBase64(file);
+      const base64 = await compressImage(file, 1600, 0.85);
       const res = await api.post('/upload', {
         image: base64,
         name: `mannequin_${Date.now()}_${file.name}`

@@ -181,3 +181,4 @@ router.delete('/admin/:id', auth, requireRole(['admin', 'manager', 'developer'])
 });
 
 module.exports = router;
+

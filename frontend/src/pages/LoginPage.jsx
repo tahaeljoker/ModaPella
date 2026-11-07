@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 
 function LoginPage() {
- const [step, setStep] = useState('credentials'); // 'credentials' | 'otp'
- const [form, setForm] = useState({ email: '', password: '' });
- const [otp, setOtp] = useState('');
- const [otpInfoMessage, setOtpInfoMessage] = useState('');
- const [error, setError] = useState('');
- const [loading, setLoading] = useState(false);
- const [resendTimer, setResendTimer] = useState(60);
- const [canResend, setCanResend] = useState(false);
- const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [step, setStep] = useState('credentials'); // 'credentials' | 'otp'
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [otp, setOtp] = useState('');
+  const [otpInfoMessage, setOtpInfoMessage] = useState('');
+  const [error, setError] = useState(() => searchParams.get('expired') ? 'انتهت جلسة تسجيل الدخول السابقة. يرجى تسجيل الدخول مجدداً.' : '');
+  const [loading, setLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [canResend, setCanResend] = useState(false);
+  const navigate = useNavigate();
 
  // Timer countdown for resend OTP
  useEffect(() => {

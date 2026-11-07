@@ -98,15 +98,58 @@ app.use(cors({
   },
   credentials: true
 }));
+app.options('*', cors());
+
+// Ensure CORS headers on all requests (including preflights & error responses)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (origin.endsWith('.vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-demo-token, x-role');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
-// Serve uploaded product photos statically
+// Serve uploaded product photos statically (Disk + MongoDB fallback for Vercel Serverless)
 const uploadsStaticPath = path.resolve(__dirname, '../uploads');
 if (!fs.existsSync(uploadsStaticPath)) {
   try { fs.mkdirSync(uploadsStaticPath, { recursive: true }); } catch (e) {}
 }
 app.use('/uploads', express.static(uploadsStaticPath));
+
+const Media = require('./models/Media');
+app.get('/uploads/:filename', async (req, res) => {
+  try {
+    const media = await Media.findOne({ filename: req.params.filename });
+    if (!media || !media.data) return res.status(404).send('Image not found');
+
+    const matches = media.data.match(/^data:([a-zA-Z0-9+\/.-]+);base64,(.+)$/);
+    let buffer;
+    let contentType = media.contentType || 'image/jpeg';
+    if (matches && matches.length === 3) {
+      contentType = matches[1];
+      buffer = Buffer.from(matches[2], 'base64');
+    } else {
+      buffer = Buffer.from(media.data, 'base64');
+    }
+    res.set({
+      'Content-Type': contentType,
+      'Content-Length': buffer.length,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*'
+    });
+    return res.send(buffer);
+  } catch (e) {
+    return res.status(500).send('Error serving image');
+  }
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);

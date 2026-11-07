@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import api from '../services/api';
+import { compressImage } from '../utils/imageCompressor';
 
 /**
  * ImageUploader component for uploading product images
@@ -40,7 +41,7 @@ export default function ImageUploader({ images = [], onChange, label = 'صور �
       }
 
       try {
-        const base64 = await readFileAsBase64(file);
+        const base64 = await compressImage(file, 1600, 0.82);
         const res = await api.post('/upload', {
           image: base64,
           name: file.name

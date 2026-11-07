@@ -830,7 +830,7 @@ router.get('/activities', auth, requireRole(['admin', 'cashier', 'manager']), as
         type: 'sale',
         user: order.seller?.name || order.employeeName || 'غير معروف',
         title: `عملية بيع ${order.type === 'Offline' ? 'كاشير' : 'أونلاين'}${order.customerName ? ` (لـ ${order.customerName})` : ''}`,
-        description: order.items.map(i => `${i.name} (${i.size || '-'}/${i.color || '-'}) ×${i.quantity}`).join('، '),
+        description: (order.items || []).filter(Boolean).map(i => `${i?.name || 'صنف'} (${i?.size || '-'}/${i?.color || '-'}) ×${i?.quantity || 1}`).join('، ') || 'بدون تفاصيل أصناف',
         amount: order.totalAmount,
         paymentMethod: order.paymentMethod,
         referenceId: order._id,
