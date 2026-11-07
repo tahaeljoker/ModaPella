@@ -67,7 +67,7 @@ export default function MannequinComparisonSlider({
       {/* Visual Canvas Area */}
       <div
         ref={containerRef}
-        className={`relative overflow-hidden rounded-2xl sm:rounded-[2rem] bg-[#FAF7F5] ${aspectRatio} select-none border border-burgundy/10 shadow-inner group flex items-center justify-center`}
+        className={`relative overflow-hidden rounded-2xl sm:rounded-[2rem] bg-[#FAF7F5] ${aspectRatio} select-none border border-burgundy/10 shadow-inner group flex items-center justify-center w-full max-w-full min-w-0`}
       >
         {mode === 'slider' && hasMannequin ? (
           /* ─── Mode A: Interactive Split-Screen Slider ─── */

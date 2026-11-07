@@ -134,8 +134,8 @@ function ProductDetailsPage() {
  };
 
  return (
- <section className="space-y-6 sm:space-y-10 py-4 sm:py-10 pb-28 sm:pb-12 text-burgundy">
- <div className="rounded-2xl sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-4 sm:p-10 shadow-soft">
+ <section className="space-y-6 sm:space-y-10 py-4 sm:py-10 pb-28 sm:pb-12 text-burgundy w-full max-w-full overflow-hidden">
+ <div className="rounded-2xl sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-4 sm:p-10 shadow-soft overflow-hidden w-full max-w-full">
  <div className="flex items-center justify-between border-b border-burgundy/10 pb-3 mb-4">
    <button
      type="button"
@@ -155,9 +155,9 @@ function ProductDetailsPage() {
      تصفح كل التشكيلة
    </Link>
  </div>
- <div className="mt-4 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+ <div className="mt-4 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr] w-full max-w-full min-w-0">
  {/* Image Slider Container */}
- <div className="flex flex-col gap-4">
+ <div className="flex flex-col gap-4 w-full max-w-full min-w-0 overflow-hidden">
   {product.mannequinImage && siteConfig?.features?.mannequinComparison !== false ? (
     <MannequinComparisonSlider
       flatImage={product.images && product.images.length > 0 ? resolveImageUrl(product.images[activeImageIdx]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80"}
@@ -167,7 +167,7 @@ function ProductDetailsPage() {
       onImageClick={() => setIsLightboxOpen(true)}
     />
   ) : (
- <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-[#FAF7F5] aspect-[4/5] max-h-[380px] sm:max-h-[620px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none w-full">
+ <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-[#FAF7F5] aspect-[4/5] max-h-[380px] sm:max-h-[620px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none w-full max-w-full min-w-0">
  
  {/* Fit Toggle (Contain <-> Cover) */}
  <button
@@ -197,12 +197,12 @@ function ProductDetailsPage() {
 
  <div 
    onClick={() => setIsLightboxOpen(true)}
-   className="w-full h-full cursor-zoom-in transition-all duration-300 hover:scale-[1.01] flex items-center justify-center p-2"
+   className="w-full h-full min-w-0 min-h-0 max-w-full max-h-full cursor-zoom-in transition-all duration-300 hover:scale-[1.01] flex items-center justify-center p-2"
  >
    <LazyImage 
      src={displayedImage} 
      alt={cleanProductName(product)} 
-     className="w-full h-full" 
+     className="w-full h-full min-w-0 min-h-0 max-w-full max-h-full" 
      fit={fitMode} 
    />
  </div>

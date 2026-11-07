@@ -46,3 +46,4 @@ export const setCachedSiteConfig = (config) => {
     sessionStorage.setItem('mp_site_config', JSON.stringify(config));
   } catch (e) {}
 };
+
