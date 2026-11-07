@@ -6,6 +6,7 @@ import { cleanProductName } from '../utils/discount';
 import { Icon } from '../components/Icon';
 import MarqueeTicker from '../components/MarqueeTicker';
 import BestSellersSlider from '../components/BestSellersSlider';
+import ShopTheLookSection from '../components/ShopTheLookSection';
 import logoSrc from '../assets/logo.png';
 
 const defaultSiteConfig = {
@@ -236,6 +237,9 @@ function LandingPage() {
 
  {/* ━━━━━━━━━━━━ سلايدر الأكثر مبيعاً ━━━━━━━━━━━━ */}
  <BestSellersSlider products={products} />
+
+      {/* ━━━━━━━━━━━━ تسوقي الإطلالة كاملة (إطلالات الموديلز) ━━━━━━━━━━━━ */}
+      <ShopTheLookSection />
 
  {/* ━━━━━━━━━━━━ أحدث الموديلات ━━━━━━━━━━━━ */}
  <div className="space-y-5 sm:space-y-8">

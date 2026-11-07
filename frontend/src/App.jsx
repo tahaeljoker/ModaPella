@@ -12,6 +12,7 @@ import CartPage from './pages/CartPage';
 import api from './services/api';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import OutfitterPage from './pages/OutfitterPage';
+import LookbookPage from './pages/LookbookPage';
 import LoginPage from './pages/LoginPage';
 import CategoryPage from './pages/CategoryPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -31,6 +32,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminProductAnalytics from './pages/admin/AdminProductAnalytics';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminSiteSettings from './pages/admin/AdminSiteSettings';
+import AdminLookbook from './pages/admin/AdminLookbook';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminBarcodeLabels from './pages/admin/AdminBarcodeLabels';
 import AdminCustomers from './pages/admin/AdminCustomers';
@@ -175,6 +177,7 @@ function AppContent() {
  {navItem('الرئيسية', '/')}
  {navItem('الملابس', '/shop')}
 	{navItem('غرفة التنسيق ✨', '/outfitter')}
+	{navItem('إطلالات الموديلز 👗', '/lookbook')}
           <button
             type="button"
             onClick={() => setIsCompareOpen(true)}
@@ -233,6 +236,15 @@ function AppContent() {
           >
             غرفة التنسيق ✨
           </NavLink>
+          <NavLink
+            to="/lookbook"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={({ isActive }) =>
+              `px-4 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-burgundy text-white' : 'text-burgundy/80 hover:bg-burgundy/5'}`
+            }
+          >
+            إطلالات الموديلز 👗
+          </NavLink>
           <button
             type="button"
             onClick={() => {
@@ -283,6 +295,7 @@ function AppContent() {
  <Route path="/" element={<LandingPage />} />
  <Route path="/shop" element={<CollectionsPage />} />
           <Route path="/outfitter" element={<OutfitterPage />} />
+          <Route path="/lookbook" element={<LookbookPage />} />
  <Route path="/collections" element={<CollectionsPage />} />
  <Route path="/about" element={<AboutPage />} />
  <Route path="/contact" element={<ContactPage />} />
@@ -305,6 +318,7 @@ function AppContent() {
  <Route path="/admin/inventory-count" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminInventoryCount /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/barcodes" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminBarcodeLabels /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/site" element={<ProtectedRoute allowedRoles={['admin', 'manager', 'developer']}><AdminLayout><AdminSiteSettings /></AdminLayout></ProtectedRoute>} />
+ <Route path="/admin/looks" element={<ProtectedRoute allowedRoles={['admin', 'manager', 'developer']}><AdminLayout><AdminLookbook /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUsers /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/activities" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminActivities /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/debts" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminDebts /></AdminLayout></ProtectedRoute>} />

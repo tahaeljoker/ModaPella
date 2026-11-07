@@ -20,6 +20,7 @@ const inventoryTaskRoutes = require('./routes/inventoryTasks');
 const reportRoutes = require('./routes/reports');
 const couponRoutes = require('./routes/coupons');
 const uploadRoutes = require('./routes/upload');
+const lookRoutes = require('./routes/looks');
 const User = require('./models/User');
 const { attachInventorySync } = require('./services/inventorySync');
 const { checkAndAutoClosePreviousMonths } = require('./services/monthlyReportService');
@@ -121,6 +122,7 @@ app.use('/api/inventory-tasks', inventoryTaskRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/looks', lookRoutes);
 
 app.get('/api/status', (req, res) => {
   res.json({ service: 'Moda Pella POS & E-commerce API', status: 'ok' });

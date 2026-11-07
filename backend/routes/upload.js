@@ -15,25 +15,30 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   }
 }
 
-// POST /api/upload - Accepts base64 image data and writes to static uploads folder
-router.post('/', auth, requireRole(['admin', 'developer']), async (req, res) => {
+// POST /api/upload - Accepts base64 image or video data and writes to static uploads folder
+router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (req, res) => {
   try {
-    const { image, name } = req.body;
-    if (!image) {
-      return res.status(400).json({ message: 'No image data provided' });
+    const { image, file, name } = req.body;
+    const mediaData = file || image;
+    if (!mediaData) {
+      return res.status(400).json({ message: 'No media data provided' });
     }
 
-    // Match base64 regex e.g. "data:image/png;base64,..."
-    const matches = image.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+    // Match base64 regex e.g. "data:image/png;base64,..." or "data:video/mp4;base64,..."
+    const matches = mediaData.match(/^data:(image|video)\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
     let ext = 'jpg';
     let buffer;
 
-    if (matches && matches.length === 3) {
-      ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
-      buffer = Buffer.from(matches[2], 'base64');
+    if (matches && matches.length === 4) {
+      let subType = matches[2].toLowerCase();
+      if (subType === 'jpeg') ext = 'jpg';
+      else if (subType === 'quicktime') ext = 'mov';
+      else ext = subType;
+
+      buffer = Buffer.from(matches[3], 'base64');
     } else {
       // Direct raw base64 string
-      buffer = Buffer.from(image, 'base64');
+      buffer = Buffer.from(mediaData, 'base64');
     }
 
     // Ensure uploads directory exists
@@ -41,7 +46,7 @@ router.post('/', auth, requireRole(['admin', 'developer']), async (req, res) => 
       fs.mkdirSync(UPLOADS_DIR, { recursive: true });
     }
 
-    const cleanBaseName = (name || 'product')
+    const cleanBaseName = (name || 'media')
       .replace(/[^a-zA-Z0-9_-]/g, '_')
       .slice(0, 30);
     const fileName = `${Date.now()}-${cleanBaseName}.${ext}`;
@@ -57,7 +62,7 @@ router.post('/', auth, requireRole(['admin', 'developer']), async (req, res) => 
     });
   } catch (err) {
     console.error('Upload error:', err);
-    return res.status(500).json({ message: 'فشل رفع الصورة', error: err.message });
+    return res.status(500).json({ message: 'فشل رفع الملف', error: err.message });
   }
 });
 

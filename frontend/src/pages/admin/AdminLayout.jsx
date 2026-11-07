@@ -42,6 +42,7 @@ const sections = [
     title: 'المتجر الإلكتروني',
     items: [
       { to: '/admin/site', label: 'إدارة المتجر الإلكتروني 🌐', icon: 'site' },
+      { to: '/admin/looks', label: 'إطلالات الموديلز (Lookbook) 👗', icon: 'products' },
     ]
   },
   {
