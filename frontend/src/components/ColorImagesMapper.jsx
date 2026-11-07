@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import api from '../services/api';
 import { getColorHex } from '../utils/colorSwatches';
+import { compressImage } from '../utils/imageCompressor';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 /**
  * ColorImagesMapper
@@ -63,7 +65,7 @@ export default function ColorImagesMapper({
     setUploadingColor(targetColor);
 
     try {
-      const base64 = await readFileAsBase64(file);
+      const base64 = await compressImage(file, 1600, 0.85);
       const res = await api.post('/upload', {
         image: base64,
         name: `color_${targetColor}_${Date.now()}_${file.name}`
@@ -165,7 +167,7 @@ export default function ColorImagesMapper({
               {assignedImage ? (
                 <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-burgundy/10 bg-white group">
                   <img
-                    src={assignedImage}
+                    src={resolveImageUrl(assignedImage)}
                     alt={colorName}
                     className="w-full h-full object-cover"
                   />
@@ -220,7 +222,7 @@ export default function ColorImagesMapper({
                         className="w-8 h-8 rounded border border-burgundy/20 overflow-hidden shrink-0 hover:scale-105 transition"
                         title="استخدام هذه الصورة لهذا اللون"
                       >
-                        <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={resolveImageUrl(imgUrl)} alt="" className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>

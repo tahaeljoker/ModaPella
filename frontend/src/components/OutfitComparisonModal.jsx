@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import CompareContext from '../context/CompareContext';
 import { cleanProductName, isDiscountActive } from '../utils/discount';
 import QuickOrderModal from './QuickOrderModal';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -168,7 +169,7 @@ function CompareProductCard({ product, onRemove, onView, onQuickOrder }) {
       {/* Product Image & Badges */}
       <div className="relative aspect-[4/3] sm:aspect-[4/3] bg-beige/10 overflow-hidden group">
         <img
-          src={product.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80'}
+          src={resolveImageUrl(product.images?.[0]) || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80'}
           alt={product.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />

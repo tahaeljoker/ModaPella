@@ -3,6 +3,7 @@ import api from '../services/api';
 import ImageUploader from './ImageUploader';
 import MannequinImageUploader from './MannequinImageUploader';
 import { cleanProductName } from '../utils/discount';
+import { resolveImageUrl } from '../utils/imageUrl';
 import { Icon } from './Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -368,7 +369,7 @@ export default function AdminOnlineCatalog({ onToast }) {
                   >
                     <div className="w-12 h-12 rounded-xl bg-burgundy/5 overflow-hidden flex-shrink-0 border border-burgundy/10 relative">
                       {p.images?.[0] ? (
-                        <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                        <img src={resolveImageUrl(p.images[0])} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-[10px] text-burgundy/40 font-bold">
                           بلا صورة

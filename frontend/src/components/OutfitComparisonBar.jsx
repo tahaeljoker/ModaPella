@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import CompareContext from '../context/CompareContext';
 import { cleanProductName } from '../utils/discount';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 export default function OutfitComparisonBar() {
   const { compareItems, clearCompare, setIsCompareOpen, isCompareOpen } = useContext(CompareContext);
@@ -33,7 +34,7 @@ export default function OutfitComparisonBar() {
                   className="relative h-11 w-11 rounded-xl overflow-hidden border-2 border-amber-400/40 bg-black/40 shadow"
                 >
                   <img
-                    src={item.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=300&q=80'}
+                    src={resolveImageUrl(item.images?.[0]) || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=300&q=80'}
                     alt={item.name}
                     className="h-full w-full object-cover"
                   />

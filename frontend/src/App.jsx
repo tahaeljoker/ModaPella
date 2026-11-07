@@ -24,6 +24,7 @@ import WhatsAppWidget from './components/WhatsAppWidget';
 import CompareContext, { CompareProvider } from './context/CompareContext';
 import OutfitComparisonBar from './components/OutfitComparisonBar';
 import OutfitComparisonModal from './components/OutfitComparisonModal';
+import { resolveImageUrl } from './utils/imageUrl';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -408,7 +409,7 @@ function AppContent() {
  cart.map((item) => (
  <div key={item.cartId} className="flex gap-4 p-3 bg-white rounded-xl border border-burgundy/5 shadow-sm">
  <img
- src={item.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80'}
+ src={resolveImageUrl(item.image || item.images?.[0]) || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80'}
  alt={item.name}
  className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
  />

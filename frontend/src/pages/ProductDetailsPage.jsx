@@ -10,6 +10,7 @@ import QuickOrderModal from '../components/QuickOrderModal';
 import ShareOutfitModal from '../components/ShareOutfitModal';
 import MannequinComparisonSlider from '../components/MannequinComparisonSlider';
 import { getColorHex } from '../utils/colorSwatches';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 function ProductDetailsPage() {
  const { id } = useParams();
@@ -104,11 +105,13 @@ function ProductDetailsPage() {
     }
   };
 
-  const defaultImage = (product?.images && product.images.length > 0)
+  const rawDefault = (product?.images && product.images.length > 0)
     ? (product.images[activeImageIdx] || product.images[0])
     : 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80';
 
-  const displayedImage = colorOverride || (selectedColor && getColorPhoto(selectedColor)) || defaultImage;
+  const defaultImage = resolveImageUrl(rawDefault);
+  const colorPhoto = selectedColor ? resolveImageUrl(getColorPhoto(selectedColor)) : null;
+  const displayedImage = resolveImageUrl(colorOverride) || colorPhoto || defaultImage;
 
  const handleAddToCart = () => {
  const activeDiscount = isDiscountActive(product);
@@ -202,7 +205,7 @@ function ProductDetailsPage() {
  onClick={() => setActiveImageIdx(idx)}
  className={`relative w-20 h-20 rounded-xl overflow-hidden bg-beige/5 border-2 transition ${activeImageIdx === idx ? 'border-burgundy scale-95 shadow-md' : 'border-transparent opacity-75 hover:opacity-100 hover:scale-95'}`}
  >
- <img src={img} alt={`thumbnail ${idx}`} className="w-full h-full object-cover" />
+ <img src={resolveImageUrl(img)} alt={`thumbnail ${idx}`} className="w-full h-full object-cover" />
  </button>
  ))}
  </div>

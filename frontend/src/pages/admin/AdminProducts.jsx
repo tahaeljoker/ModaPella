@@ -8,6 +8,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { Icon } from '../../components/Icon';
 import { isDiscountActive } from '../../utils/discount';
 import { renderBarcodeDataUrl } from '../../utils/barcode';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
 import CategoryAnalyticsModal from '../../components/CategoryAnalyticsModal';
 
@@ -2419,7 +2420,7 @@ function InventoryTab({ products, loading, onRefresh, onRestock, onEdit, onShowH
  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_160px] gap-4 px-5 py-4 items-center hover:bg-[#F7F0EC]/40 transition">
  {/* Product */}
  <div className="flex items-center gap-3 min-w-0">
- {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
+ {p.images?.[0] ? <img src={resolveImageUrl(p.images[0])} alt={p.name} className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm" />
  : <div className="h-12 w-12 rounded-xl bg-burgundy/8 flex items-center justify-center flex-shrink-0"><span className="text-xs text-burgundy/50 font-bold">صورة</span></div>}
  <div className="min-w-0">
  <div className="flex items-center gap-1.5 flex-wrap">

@@ -112,7 +112,11 @@ router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (re
       console.log('Disk write skipped (serverless environment)');
     }
 
-    const publicUrl = `/uploads/${fileName}`;
+    const host = req.get('host') || '';
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const publicUrl = (host && !host.includes('localhost'))
+      ? `${protocol}://${host}/uploads/${fileName}`
+      : `/uploads/${fileName}`;
     return res.json({
       success: true,
       url: publicUrl,

@@ -3,6 +3,7 @@ import CompareContext from '../context/CompareContext';
 import { Link, useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -132,8 +133,9 @@ export default function BestSellersSlider({ products = [] }) {
         className="flex gap-3.5 sm:gap-5 overflow-x-auto pb-4 pt-1 no-scrollbar snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0"
       >
         {bestSellers.map((product, index) => {
-          const image = product.images?.[0] || fallbackImages[product.category] || fallbackImages.Blouse;
-          const secondImage = product.images?.[1];
+          const rawImg = product.images?.[0] || fallbackImages[product.category] || fallbackImages.Blouse;
+          const image = resolveImageUrl(rawImg);
+          const secondImage = product.images?.[1] ? resolveImageUrl(product.images[1]) : null;
 
           return (
             <div

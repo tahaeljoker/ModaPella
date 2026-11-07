@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import { cleanProductName } from '../utils/discount';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 function CartPage() {
  const { cart, removeItem, updateQuantity, clearCart, total } = useContext(CartContext);
@@ -25,7 +26,7 @@ function CartPage() {
  {cart.map((item) => (
  <div key={item.cartId} className="rounded-xl sm:rounded-[2rem] border border-burgundy/10 bg-white p-3 sm:p-5 shadow-soft flex gap-3 sm:gap-5 items-start sm:items-center">
  <div className="aspect-square h-20 w-20 sm:h-32 sm:w-32 overflow-hidden rounded-lg sm:rounded-[1.5rem] flex-shrink-0">
- <img src={item.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80'} alt={cleanProductName(item)} className="h-full w-full object-cover" />
+ <img src={resolveImageUrl(item.image || item.images?.[0]) || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80'} alt={cleanProductName(item)} className="h-full w-full object-cover" />
  </div>
  <div className="flex-1 min-w-0">
  <div className="flex justify-between items-start">

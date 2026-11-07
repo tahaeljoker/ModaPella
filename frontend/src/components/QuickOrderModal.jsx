@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { cleanProductName, isDiscountActive } from '../utils/discount';
 import { getTrafficSource } from '../utils/trafficTracker';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 const EGYPT_GOVERNORATES = [
   'القاهرة',
@@ -96,7 +97,8 @@ export default function QuickOrderModal({
   const totalPrice = unitPrice * qty;
   const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const finalPrice = Math.max(0, totalPrice - discountAmount);
-  const mainImage = product.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80';
+  const rawMainImage = product.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80';
+  const mainImage = resolveImageUrl(rawMainImage);
 
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import { cleanProductName, isDiscountActive } from '../utils/discount';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -84,7 +85,7 @@ export default function SocialAdCreator() {
     // Load Image
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = selectedProduct.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80';
+    img.src = resolveImageUrl(selectedProduct.images?.[0]) || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80';
 
     img.onload = () => {
       // Draw product image in center frame
@@ -350,7 +351,7 @@ export default function SocialAdCreator() {
             {/* Middle Image Card */}
             <div className="relative my-auto rounded-2xl overflow-hidden border border-white/20 aspect-[4/3] bg-black/20 shadow-lg">
               <img
-                src={selectedProduct?.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80'}
+                src={resolveImageUrl(selectedProduct?.images?.[0]) || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80'}
                 alt="Product Preview"
                 className="w-full h-full object-cover"
               />

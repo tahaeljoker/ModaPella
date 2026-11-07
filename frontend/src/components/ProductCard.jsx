@@ -4,6 +4,7 @@ import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import CompareContext from '../context/CompareContext';
 import { getColorHex } from '../utils/colorSwatches';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 const fallbackImages = {
   Blouse: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
@@ -40,8 +41,10 @@ function ProductCard({ product }) {
     return null;
   };
 
-  const defaultImage = product?.images?.[0] || fallbackImages[product?.category] || fallbackImages.Blouse;
-  const currentImage = (selectedColor && getColorPhoto(selectedColor)) || defaultImage;
+  const rawDefault = product?.images?.[0] || fallbackImages[product?.category] || fallbackImages.Blouse;
+  const defaultImage = resolveImageUrl(rawDefault);
+  const colorPhoto = selectedColor ? resolveImageUrl(getColorPhoto(selectedColor)) : null;
+  const currentImage = colorPhoto || defaultImage;
 
   const handleColorClick = (e, colorName) => {
     e.stopPropagation();

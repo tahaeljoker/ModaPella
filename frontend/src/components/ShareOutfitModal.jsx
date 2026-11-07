@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { cleanProductName, isDiscountActive } from '../utils/discount';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -97,7 +98,7 @@ export default function ShareOutfitModal({ isOpen, onClose, product }) {
               {/* Product Thumbnail */}
               <div className="relative h-24 w-20 sm:h-28 sm:w-24 rounded-xl overflow-hidden shrink-0 border border-amber-400/30 bg-beige/10">
                 <img
-                  src={product.images?.[0] || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=400&q=80'}
+                  src={resolveImageUrl(product.images?.[0]) || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=400&q=80'}
                   alt={product.name}
                   className="h-full w-full object-cover"
                 />

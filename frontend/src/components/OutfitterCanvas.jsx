@@ -3,6 +3,7 @@ import CartContext from '../context/CartContext';
 import api from '../services/api';
 import { cleanProductName } from '../utils/discount';
 import { getColorHex } from '../utils/colorSwatches';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 // Default Luxury Outfits Dataset (Curated Demo)
 export const DEFAULT_OUTFITTER_DATA = {
@@ -572,14 +573,15 @@ export default function OutfitterCanvas({
   // Priority 1: User's custom layer upload in tester
   // Priority 2: Store's base mannequin photo saved in site settings
   // Priority 3: Default SVG Studio Mannequin
-  const effectiveMannequinSrc =
+  const effectiveMannequinSrc = resolveImageUrl(
     customLayers.mannequin ||
     siteConfig?.baseMannequinPhoto ||
-    initialData.mannequinBase;
+    initialData.mannequinBase
+  );
 
-  const effectiveBottomSrc = customLayers.bottom || currentBottomVariant?.image;
-  const effectiveTopSrc = customLayers.top || currentTopVariant?.image;
-  const effectiveAccSrc = customLayers.accessory || (includeAccessory ? currentAccVariant?.image : null);
+  const effectiveBottomSrc = resolveImageUrl(customLayers.bottom || currentBottomVariant?.image);
+  const effectiveTopSrc = resolveImageUrl(customLayers.top || currentTopVariant?.image);
+  const effectiveAccSrc = resolveImageUrl(customLayers.accessory || (includeAccessory ? currentAccVariant?.image : null));
 
   const hasStoreProducts = storeTops.length > 0 || storeBottoms.length > 0;
 

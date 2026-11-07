@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import api from '../services/api';
 import { compressImage } from '../utils/imageCompressor';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 /**
  * MannequinImageUploader
@@ -120,7 +121,7 @@ export default function MannequinImageUploader({ value = '', onChange }) {
         <div className="relative overflow-hidden rounded-xl border border-burgundy/15 bg-black/5 p-2 flex items-center gap-4">
           <div className="relative w-20 h-24 sm:w-24 sm:h-28 rounded-lg overflow-hidden shrink-0 border border-burgundy/10 bg-white shadow-xs">
             <img
-              src={value}
+              src={resolveImageUrl(value)}
               alt="صورة المانيكان"
               className="w-full h-full object-cover"
             />

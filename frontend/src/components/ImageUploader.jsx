@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import api from '../services/api';
 import { compressImage } from '../utils/imageCompressor';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 /**
  * ImageUploader component for uploading product images
@@ -160,7 +161,7 @@ export default function ImageUploader({ images = [], onChange, label = 'صور �
               className="relative aspect-square rounded-2xl border border-burgundy/15 overflow-hidden group shadow-sm bg-white"
             >
               <img
-                src={url}
+                src={resolveImageUrl(url)}
                 alt=""
                 className="w-full h-full object-cover"
                 onError={(e) => {
