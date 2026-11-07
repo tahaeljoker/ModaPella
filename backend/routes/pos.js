@@ -910,6 +910,166 @@ router.put('/orders/:id', auth, async (req, res) => {
   }
 });
 
+// GET /api/pos/online-reservations — get pending online orders / reservations for cashier
+router.get('/online-reservations', auth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    let query = { type: 'Online', status: 'Pending' };
+
+    if (q && typeof q === 'string' && q.trim()) {
+      const trimmed = q.trim();
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(trimmed);
+
+      const orConditions = [
+        { customerPhone: { $regex: trimmed, $options: 'i' } },
+        { customerName: { $regex: trimmed, $options: 'i' } }
+      ];
+
+      if (isObjectId) {
+        orConditions.push({ _id: trimmed });
+      }
+
+      query = {
+        ...query,
+        $or: orConditions
+      };
+    }
+
+    const orders = await Order.find(query)
+      .populate('items.product', 'name images mannequinImage price category stock')
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch online reservations', error: error.message });
+  }
+});
+
+// POST /api/pos/fulfill-reservation/:id — cashier fulfills / completes an online order upon store pickup
+router.post('/fulfill-reservation/:id', auth, async (req, res) => {
+  try {
+    const { employeeId, paymentMethod = 'Cash', amountPaid, notes } = req.body;
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'طلب الحجز غير موجود' });
+    }
+
+    if (order.status === 'Completed') {
+      return res.status(400).json({ message: 'تم تسليم هذا الطلب بالفعل مسبقاً' });
+    }
+
+    order.status = 'Completed';
+    order.seller = req.user.id;
+    if (employeeId) order.employee = employeeId;
+    if (paymentMethod) order.paymentMethod = paymentMethod;
+    if (notes) order.notes = order.notes ? `${order.notes} | ${notes}` : notes;
+
+    const finalAmount = amountPaid !== undefined ? Number(amountPaid) : order.totalAmount;
+    order.amountPaid = finalAmount;
+
+    await order.save();
+
+    // Create Transaction for cashier's shift so the cash register / safe is credited
+    if (finalAmount > 0) {
+      let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+      if (!openShift) {
+        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+      }
+
+      const transaction = new Transaction({
+        amount: finalAmount,
+        type: 'IN',
+        category: 'Sale',
+        paymentMethod: order.paymentMethod,
+        description: `تسليم حجز أونلاين بالمحل #${order._id.toString().slice(-6).toUpperCase()} - العميل: ${order.customerName || order.customerPhone}`,
+        referenceId: order._id,
+        user: req.user.id,
+        shift: openShift?._id
+      });
+      await transaction.save();
+    }
+
+    req.app.locals.io?.emit('order:update', order);
+
+    res.json({ success: true, order, message: 'تم تسليم الحجز وتحصيل المبلغ بنجاح' });
+  } catch (error) {
+    res.status(500).json({ message: 'فشل إتمام تسليم الحجز', error: error.message });
+  }
+});
+
+// POST /api/pos/cancel-reservation/:id — cancel reservation and restore stock to inventory
+router.post('/cancel-reservation/:id', auth, async (req, res) => {
+  try {
+    const { reason = 'إلغاء حجز من قبل الكاشير' } = req.body;
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'طلب الحجز غير موجود' });
+    }
+
+    if (order.status !== 'Pending') {
+      return res.status(400).json({ message: 'لا يمكن إلغاء طلب غير معلق' });
+    }
+
+    order.status = 'Returned';
+    order.notes = order.notes ? `${order.notes} | تم الإلغاء: ${reason}` : `تم الإلغاء: ${reason}`;
+    await order.save();
+
+    // Restore stock if not already recovered
+    if (!order.recovered) {
+      await Promise.all(order.items.map(async (item) => {
+        const product = await Product.findById(item.product);
+        if (!product) return;
+
+        const qty = Number(item.quantity) || 1;
+        let prevStock = 0;
+
+        if (product.variants && product.variants.length > 0) {
+          const variant = product.variants.find(v => v.size === item.size && v.color === item.color);
+          if (variant) {
+            prevStock = variant.stock;
+            variant.stock += qty;
+          }
+          product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+        } else {
+          prevStock = product.stock;
+          product.stock += qty;
+        }
+
+        product.sold = Math.max(0, (product.sold || 0) - qty);
+        await product.save();
+
+        await StockHistory.create({
+          product: product._id,
+          productName: product.name,
+          size: item.size || '',
+          color: item.color || '',
+          changeType: 'Refund',
+          quantityChanged: qty,
+          previousStock: prevStock,
+          newStock: prevStock + qty,
+          performedBy: req.user.id,
+          referenceId: order._id,
+          notes: `إلغاء حجز أونلاين #${order._id.toString().slice(-6).toUpperCase()} - ${reason}`
+        });
+
+        req.app.locals.io?.emit('inventory:update', product);
+      }));
+
+      order.recovered = true;
+      await order.save();
+    }
+
+    req.app.locals.io?.emit('order:update', order);
+
+    res.json({ success: true, message: 'تم إلغاء الحجز وإرجاع الكميات للمخزن بنجاح' });
+  } catch (error) {
+    res.status(500).json({ message: 'فشل إلغاء الحجز', error: error.message });
+  }
+});
+
 // GET /api/pos/customers/lookup — look up a customer by phone
 router.get('/customers/lookup', auth, async (req, res) => {
   try {

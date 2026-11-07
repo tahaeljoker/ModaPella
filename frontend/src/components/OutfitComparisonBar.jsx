@@ -16,9 +16,8 @@ export default function OutfitComparisonBar() {
   return (
     <div
       dir="rtl"
-      className={`fixed z-40 transition-all duration-500 ease-out left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md ${
-        isProductPage ? 'bottom-20 sm:bottom-6' : 'bottom-4 sm:bottom-6'
-      }`}
+      className={`fixed z-40 transition-all duration-500 ease-out left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md ${isProductPage ? 'bottom-20 sm:bottom-6' : 'bottom-4 sm:bottom-6'
+        }`}
     >
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#2A050E] via-[#3E0A16] to-[#1F040A] p-3 sm:p-4 text-white shadow-2xl border border-amber-400/30 backdrop-blur-md">
         {/* Subtle Luxury Ambient Glow */}
@@ -72,7 +71,7 @@ export default function OutfitComparisonBar() {
               className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-burgundy font-black text-xs px-3.5 py-2.5 shadow-md shadow-amber-900/40 active:scale-95 transition flex items-center gap-1"
             >
               <span>{compareItems.length === 1 ? 'فتح' : 'قارني الآن'}</span>
-              
+
             </button>
             <button
               type="button"

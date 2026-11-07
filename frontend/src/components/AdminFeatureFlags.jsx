@@ -236,3 +236,4 @@ export default function AdminFeatureFlags({ config, onUpdateConfig, onToast }) {
     </div>
   );
 }
+

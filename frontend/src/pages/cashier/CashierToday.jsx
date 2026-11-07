@@ -242,8 +242,15 @@ function CashierToday() {
 
  const completed = data.orders.filter(o => o.status === 'Completed');
  const returned = data.orders.filter(o => o.status === 'Returned');
- const cashTotal = completed.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0);
- const instaTotal = completed.filter(o => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.totalAmount, 0);
+ const cashCollected = data.cashSalesCollected !== undefined
+   ? data.cashSalesCollected
+   : completed.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + (o.isDebt ? Number(o.amountPaid || 0) : Number(o.totalAmount || 0)), 0);
+ const instaCollected = data.instapaySalesCollected !== undefined
+   ? data.instapaySalesCollected
+   : completed.filter(o => o.paymentMethod !== 'Cash').reduce((s, o) => s + (o.isDebt ? Number(o.amountPaid || 0) : Number(o.totalAmount || 0)), 0);
+ const debtRemaining = data.debtRemaining !== undefined
+   ? data.debtRemaining
+   : completed.reduce((s, o) => s + (o.isDebt ? Number(o.debtAmount || 0) : 0), 0);
 
  const filtered = data.orders.filter(o => {
  const ms = !search || o._id?.toLowerCase().includes(search.toLowerCase()) ||
@@ -286,12 +293,13 @@ function CashierToday() {
  </div>
 
  {/* Stats Cards */}
- <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+ <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
  {[
- { label: 'إجمالي اليوم', value: EGP(data.totalRevenue), icon: '', cls: 'bg-burgundy text-white', vcls: 'text-white/90', lcls: 'text-white/70' },
- { label: 'مبيعات مكتملة', value: completed.length, icon: '', cls: 'bg-emerald-50 border border-emerald-200', vcls: 'text-emerald-800', lcls: 'text-emerald-600' },
- { label: 'كاش', value: EGP(cashTotal), icon: '', cls: 'bg-white border border-burgundy/10', vcls: 'text-burgundy', lcls: 'text-burgundy/50' },
- { label: 'انستا باي', value: EGP(instaTotal), icon: '', cls: 'bg-white border border-burgundy/10', vcls: 'text-burgundy', lcls: 'text-burgundy/50' },
+ { label: 'إجمالي المبيعات', value: EGP(data.totalRevenue), icon: '📊', cls: 'bg-burgundy text-white', vcls: 'text-white/90', lcls: 'text-white/70' },
+ { label: 'كاش محصل بالدرج', value: EGP(cashCollected), icon: '💵', cls: 'bg-emerald-50 border border-emerald-200', vcls: 'text-emerald-800', lcls: 'text-emerald-600' },
+ { label: 'متبقي آجل (ديون)', value: EGP(debtRemaining), icon: '⏳', cls: 'bg-amber-50 border border-amber-200', vcls: 'text-amber-800', lcls: 'text-amber-600' },
+ { label: 'انستا باي', value: EGP(instaCollected), icon: '📱', cls: 'bg-white border border-burgundy/10', vcls: 'text-burgundy', lcls: 'text-burgundy/50' },
+ { label: 'مبيعات مكتملة', value: completed.length, icon: '🧾', cls: 'bg-white border border-burgundy/10', vcls: 'text-burgundy', lcls: 'text-burgundy/50' },
  ].map(s => (
  <div key={s.label} className={`rounded-[1.5rem] p-5 ${s.cls}`}>
  <div className="flex items-center gap-2 mb-2">

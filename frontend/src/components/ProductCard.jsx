@@ -46,6 +46,11 @@ function ProductCard({ product }) {
   const colorPhoto = selectedColor ? resolveImageUrl(getColorPhoto(selectedColor)) : null;
   const currentImage = colorPhoto || defaultImage;
 
+  // Secondary flip image (when hovering on card)
+  const secondaryImage = !selectedColor && product?.images && product.images.length > 1
+    ? resolveImageUrl(product.images[1])
+    : (!selectedColor && product?.mannequinImage ? resolveImageUrl(product.mannequinImage) : null);
+
   const handleColorClick = (e, colorName) => {
     e.stopPropagation();
     setSelectedColor(prev => (prev === colorName ? null : colorName));
@@ -54,9 +59,9 @@ function ProductCard({ product }) {
   return (
     <div
       onClick={() => navigate(`/product/${product._id}`)}
-      className="reveal-on-scroll group stagger-item interactive-card flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white shadow-sm hover:shadow-md transition-all duration-300"
+      className="reveal-on-scroll group stagger-item interactive-card flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white shadow-xs hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 ease-out"
     >
-      <div className="relative overflow-hidden aspect-[3/4] sheen-wrapper bg-[#FAF7F5] flex items-center justify-center">
+      <div className="relative overflow-hidden aspect-[3/4] bg-[#FAF7F5] flex items-center justify-center">
         {/* Compare Button */}
         {compareEnabled !== false && (
           <button
@@ -75,14 +80,26 @@ function ProductCard({ product }) {
           </button>
         )}
 
-        {/* Real Product Image (changes cleanly to the real photo of the selected color) */}
+        {/* Primary Product Image */}
         <img
           key={currentImage}
           src={currentImage}
           alt={cleanProductName(product)}
-          className="w-full h-full object-contain p-1 transition-all duration-500 ease-out group-hover:scale-105"
+          className={`w-full h-full object-contain p-1.5 transition-all duration-500 ease-out ${
+            secondaryImage ? 'group-hover:opacity-0 group-hover:scale-95' : 'group-hover:scale-105'
+          }`}
           loading="lazy"
         />
+
+        {/* Secondary Flip Image (Shows smoothly on hover) */}
+        {secondaryImage && (
+          <img
+            src={secondaryImage}
+            alt={`${cleanProductName(product)} - صورة إضافية`}
+            className="absolute inset-0 w-full h-full object-contain p-1.5 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-105 pointer-events-none"
+            loading="lazy"
+          />
+        )}
 
         {/* Selected Color Badge */}
         {selectedColor && (
@@ -92,31 +109,40 @@ function ProductCard({ product }) {
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-burgundy/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-90" />
-        <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-white/60 bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-medium tracking-[0.15em] text-burgundy shadow-sm">
+        {/* Floating View Details Pill */}
+        <div className="absolute left-2 sm:left-4 top-2 sm:top-4 rounded-full border border-burgundy/10 bg-white/95 px-2.5 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold tracking-wide text-burgundy shadow-sm opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none z-10">
           عرض التفاصيل
         </div>
 
+        {/* Multiple Photos Pill */}
+        {product?.images && product.images.length > 1 && (
+          <div className="absolute left-2 sm:left-4 bottom-2 sm:bottom-4 rounded-full bg-white/90 border border-burgundy/10 px-2 py-0.5 text-[8px] sm:text-[9px] font-bold text-burgundy/70 shadow-xs flex items-center gap-1 z-10 transition-opacity duration-300 group-hover:opacity-0">
+            <span>📷 {product.images.length} صور</span>
+          </div>
+        )}
+
+        {/* Discount Badge */}
         {isDiscountActive(product) && (
           <div className="absolute left-2 sm:left-4 top-9 sm:top-12 rounded-full bg-red-600 px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-sm z-10">
             خصم {Math.round((1 - product.discountPrice / product.price) * 100)}%
           </div>
         )}
 
+        {/* Stock Status Badge (Clean, No Pulsing, Elegant) */}
         {product.stock === 0 ? (
-          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-red-600 text-white px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm z-10">
+          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-stone-900/90 text-white px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm z-10">
             نفذت الكمية
           </div>
         ) : product.stock <= 5 ? (
-          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-amber-500 text-white px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-md flex items-center gap-1 pulse-glow z-10">
+          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-amber-600 text-white px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm z-10">
             <span>متبقي {product.stock} قطع فقط</span>
           </div>
         ) : product.stock <= 10 ? (
-          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-burgundy/90 text-white px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm flex items-center gap-1 z-10">
-            <span className="text-[9px] font-bold">طلب متزايد</span>
+          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-burgundy/90 text-white px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold shadow-sm z-10">
+            <span>طلب متزايد</span>
           </div>
         ) : (
-          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/95 px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-semibold text-burgundy shadow-sm z-10">
+          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 rounded-full bg-white/95 border border-burgundy/10 px-2.5 sm:px-3 py-0.5 text-[9px] sm:text-[10px] font-bold text-burgundy shadow-sm z-10">
             متوفر
           </div>
         )}

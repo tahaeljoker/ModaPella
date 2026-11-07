@@ -42,11 +42,29 @@ router.get('/today', auth, requireRole(['admin', 'cashier', 'manager']), async (
 
     const netRevenue = Math.max(0, Math.round(grossRevenue - totalRefunds));
 
+    let cashSalesCollected = 0;
+    let instapaySalesCollected = 0;
+    let debtRemaining = 0;
+
+    orders.filter((o) => o.status === 'Completed').forEach((o) => {
+      const paid = o.isDebt ? Number(o.amountPaid || 0) : Number(o.totalAmount || 0);
+      const debt = o.isDebt ? Number(o.debtAmount || 0) : 0;
+      debtRemaining += debt;
+      if (o.paymentMethod === 'Cash') {
+        cashSalesCollected += paid;
+      } else {
+        instapaySalesCollected += paid;
+      }
+    });
+
     res.json({
       orders,
       grossRevenue,
       totalRevenue: netRevenue,
       netRevenue,
+      cashSalesCollected,
+      instapaySalesCollected,
+      debtRemaining,
       totalRefunds,
       refundsCash,
       refundsInstapay,
