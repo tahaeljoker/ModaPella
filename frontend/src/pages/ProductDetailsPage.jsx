@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import CartContext from '../context/CartContext';
 import CompareContext from '../context/CompareContext';
@@ -14,6 +14,7 @@ import { resolveImageUrl } from '../utils/imageUrl';
 
 function ProductDetailsPage() {
  const { id } = useParams();
+ const navigate = useNavigate();
  const { addItem } = useContext(CartContext);
  const { addToCompare, isComparing } = useContext(CompareContext);
  const [product, setProduct] = useState(null);
@@ -135,8 +136,26 @@ function ProductDetailsPage() {
  return (
  <section className="space-y-6 sm:space-y-10 py-4 sm:py-10 pb-28 sm:pb-12 text-burgundy">
  <div className="rounded-2xl sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-4 sm:p-10 shadow-soft">
- <Link to="/shop" className="text-sm text-burgundy/70 underline">عودة إلى المتجر</Link>
- <div className="mt-6 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+ <div className="flex items-center justify-between border-b border-burgundy/10 pb-3 mb-4">
+   <button
+     type="button"
+     onClick={() => {
+       if (window.history.length > 1) {
+         navigate(-1);
+       } else {
+         navigate('/shop');
+       }
+     }}
+     className="inline-flex items-center gap-2 rounded-full border border-burgundy/20 bg-[#FAF7F5] px-4 py-2 text-xs sm:text-sm font-bold text-burgundy transition hover:bg-burgundy hover:text-white cursor-pointer shadow-xs active:scale-95"
+   >
+     <span className="text-base leading-none">←</span>
+     <span>الرجوع</span>
+   </button>
+   <Link to="/shop" className="text-xs text-burgundy/60 hover:text-burgundy underline">
+     تصفح كل التشكيلة
+   </Link>
+ </div>
+ <div className="mt-4 sm:mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
  {/* Image Slider Container */}
  <div className="flex flex-col gap-4">
   {product.mannequinImage && siteConfig?.features?.mannequinComparison !== false ? (
@@ -144,11 +163,11 @@ function ProductDetailsPage() {
       flatImage={product.images && product.images.length > 0 ? resolveImageUrl(product.images[activeImageIdx]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80"}
       mannequinImage={resolveImageUrl(product.mannequinImage)}
       productName={cleanProductName(product)}
-      aspectRatio="aspect-[3/4] sm:aspect-[4/5]"
+      aspectRatio="aspect-[4/5] max-h-[380px] sm:max-h-[620px]"
       onImageClick={() => setIsLightboxOpen(true)}
     />
   ) : (
- <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-[#FAF7F5] aspect-[3/4] sm:aspect-[4/5] max-h-[640px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none">
+ <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-[#FAF7F5] aspect-[4/5] max-h-[380px] sm:max-h-[620px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none w-full">
  
  {/* Fit Toggle (Contain <-> Cover) */}
  <button
@@ -246,7 +265,7 @@ function ProductDetailsPage() {
  key={idx}
  type="button"
  onClick={() => { setActiveImageIdx(idx); setColorOverride(null); }}
- className={`relative w-20 h-20 rounded-xl overflow-hidden bg-[#FAF7F5] border-2 transition p-1 flex items-center justify-center cursor-pointer ${activeImageIdx === idx ? "border-burgundy scale-95 shadow-md" : "border-transparent opacity-75 hover:opacity-100 hover:scale-95"}`}
+ className={`relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#FAF7F5] border-2 transition p-1 flex items-center justify-center cursor-pointer shrink-0 ${activeImageIdx === idx ? "border-burgundy scale-95 shadow-md" : "border-transparent opacity-75 hover:opacity-100 hover:scale-95"}`}
  >
  <img src={resolveImageUrl(img)} alt={`thumbnail ${idx}`} className="w-full h-full object-contain" />
  </button>

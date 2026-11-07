@@ -8,6 +8,12 @@ import MarqueeTicker from '../components/MarqueeTicker';
 import BestSellersSlider from '../components/BestSellersSlider';
 import ShopTheLookSection from '../components/ShopTheLookSection';
 import logoSrc from '../assets/logo.png';
+import { 
+  getCachedStorefrontProducts, 
+  setCachedStorefrontProducts, 
+  getCachedSiteConfig, 
+  setCachedSiteConfig 
+} from '../services/storefrontCache';
 
 const defaultSiteConfig = {
  published: true,
@@ -33,19 +39,25 @@ const heroImages = [
 ];
 
 function LandingPage() {
- const [products, setProducts] = useState([]);
- const [siteConfig, setSiteConfig] = useState(defaultSiteConfig);
+ const [products, setProducts] = useState(() => (getCachedStorefrontProducts() || []).slice(0, 16));
+ const [siteConfig, setSiteConfig] = useState(() => getCachedSiteConfig() || defaultSiteConfig);
 
  useEffect(() => {
  api.get('/products?context=storefront')
  .then((res) => {
  const active = (res.data || []).filter(p => (p.stock ?? 0) > 0);
  setProducts(active.slice(0, 16));
+ setCachedStorefrontProducts(active);
  })
- .catch(() => setProducts([]));
+ .catch(() => {
+ if (!products.length) setProducts([]);
+ });
 
  api.get('/admin/site-config')
- .then((res) => setSiteConfig(res.data))
+ .then((res) => {
+ setSiteConfig(res.data);
+ setCachedSiteConfig(res.data);
+ })
  .catch(() => setSiteConfig(defaultSiteConfig));
  }, []);
 

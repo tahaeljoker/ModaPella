@@ -24,6 +24,7 @@ import WhatsAppWidget from './components/WhatsAppWidget';
 import CompareContext, { CompareProvider } from './context/CompareContext';
 import OutfitComparisonBar from './components/OutfitComparisonBar';
 import OutfitComparisonModal from './components/OutfitComparisonModal';
+import ScrollRestoration from './components/ScrollRestoration';
 import { resolveImageUrl } from './utils/imageUrl';
 
 // Admin Pages
@@ -121,6 +122,7 @@ function AppContent() {
 
  return (
  <div className="min-h-screen bg-[#fcf9f8] text-burgundy">
+ <ScrollRestoration />
  {/* Global Top Announcement Bar */}
  {!isDashboard && !isBannerDismissed && siteConfig?.announcementBarActive && siteConfig?.announcementBar && (
  <div

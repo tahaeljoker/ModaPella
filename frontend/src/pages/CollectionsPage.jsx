@@ -2,6 +2,12 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { 
+  getCachedStorefrontProducts, 
+  setCachedStorefrontProducts, 
+  getCachedSiteConfig, 
+  setCachedSiteConfig 
+} from '../services/storefrontCache';
 
 const categoryLabels = {
   All: 'كل الفئات',
@@ -43,24 +49,30 @@ function CollectionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState(() => getCachedStorefrontProducts() || []);
+  const [loading, setLoading] = useState(() => !getCachedStorefrontProducts());
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'price-asc' | 'price-desc' | 'discount'
-  const [siteConfig, setSiteConfig] = useState(null);
+  const [siteConfig, setSiteConfig] = useState(() => getCachedSiteConfig());
 
   useEffect(() => {
     api.get('/products?context=storefront')
       .then((response) => {
         const active = (response.data || []).filter(p => (p.stock ?? 0) > 0);
         setProducts(active);
+        setCachedStorefrontProducts(active);
       })
-      .catch(() => setProducts([]))
+      .catch(() => {
+        if (!products.length) setProducts([]);
+      })
       .finally(() => setLoading(false));
 
     api.get('/admin/site-config')
-      .then((response) => setSiteConfig(response.data))
+      .then((response) => {
+        setSiteConfig(response.data);
+        setCachedSiteConfig(response.data);
+      })
       .catch(console.error);
   }, []);
 

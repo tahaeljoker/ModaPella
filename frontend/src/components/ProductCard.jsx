@@ -61,7 +61,7 @@ function ProductCard({ product }) {
       onClick={() => navigate(`/product/${product._id}`)}
       className="reveal-on-scroll group stagger-item interactive-card flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white shadow-xs hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 ease-out"
     >
-      <div className="relative overflow-hidden aspect-[3/4] bg-[#FAF7F5] flex items-center justify-center">
+      <div className="relative overflow-hidden aspect-[3/4] max-h-[230px] sm:max-h-none bg-[#FAF7F5] flex items-center justify-center">
         {/* Compare Button */}
         {compareEnabled !== false && (
           <button
