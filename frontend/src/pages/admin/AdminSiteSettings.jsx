@@ -1,4 +1,5 @@
 import AdminOnlineCatalog from '../../components/AdminOnlineCatalog';
+import AdminLookbook from './AdminLookbook';
 import MannequinImageUploader from '../../components/MannequinImageUploader';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -407,6 +408,12 @@ function AdminSiteSettings() {
   >
     <Icon name="products" className="w-4 h-4" /> منتجات المتجر والصور
   </button>
+  <button
+    onClick={() => handleTabChange('looks')}
+    className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'looks' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
+  >
+    <span>إطلالات الموديلز (Lookbook)</span>
+  </button>
  <button
  onClick={() => handleTabChange('appearance')}
  className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
@@ -467,6 +474,10 @@ function AdminSiteSettings() {
  {/* Tab Contents */}
  {activeTab === 'online-products' && (
   <AdminOnlineCatalog onToast={showToast} />
+)}
+
+ {activeTab === 'looks' && (
+  <AdminLookbook onToast={showToast} />
 )}
 
 {activeTab === 'appearance' && config && (

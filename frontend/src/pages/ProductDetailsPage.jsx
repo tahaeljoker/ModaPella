@@ -271,9 +271,26 @@ function ProductDetailsPage() {
  </div>
  <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
  <h2 className="text-xs sm:text-sm font-semibold text-burgundy">حالة المخزون</h2>
- <p className="mt-1.5 sm:mt-3 text-lg sm:text-2xl font-bold text-burgundy">
- {product.stock > 10 ? 'متوفر' : product.stock > 0 ? 'كمية محدودة' : 'نفد من المخزن'}
- </p>
+ <div className="mt-1.5 sm:mt-3">
+   {product.stock === 0 ? (
+     <span className="text-base sm:text-xl font-bold text-red-600 flex items-center gap-1.5">
+       <span>نفد من المخزن</span>
+     </span>
+   ) : product.stock <= 5 ? (
+     <div className="flex flex-col">
+       <span className="text-base sm:text-xl font-extrabold text-amber-600 flex items-center gap-1">
+         <span>متبقي {product.stock} قطع فقط</span>
+         <span className="text-sm">🔥</span>
+       </span>
+       <span className="text-[10px] text-amber-700/80 font-medium">سارعي بالطلب قبل النفاذ</span>
+     </div>
+   ) : (
+     <span className="text-base sm:text-xl font-bold text-emerald-700 flex items-center gap-1">
+       <span>متوفر بالمحل</span>
+       <span className="text-xs">✓</span>
+     </span>
+   )}
+ </div>
  </div>
  </div>
  <div className="grid gap-4">
@@ -349,19 +366,34 @@ function ProductDetailsPage() {
 )}
 
  <div className="rounded-[1.25rem] border border-burgundy/10 bg-beige/10 p-4">
- <h3 className="text-sm font-semibold">الكمية المطلوبة</h3>
+ <h3 className="text-sm font-semibold text-burgundy">الكمية المطلوبة</h3>
  <div className="mt-3 flex items-center gap-3">
- <select
- value={quantity}
- onChange={(e) => setQuantity(Number(e.target.value))}
- disabled={product.stock === 0}
- className="rounded-2xl border border-burgundy/20 bg-white px-4 py-2 text-burgundy"
- >
- {Array.from({ length: Math.min(product.stock, 10) }, (_, index) => index + 1).map((qty) => (
- <option key={qty} value={qty}>{qty} قطعة</option>
- ))}
- </select>
- <span className="text-sm text-burgundy/70">من أصل {product.stock} قطع</span>
+   <div className="flex items-center border border-burgundy/20 bg-white rounded-xl overflow-hidden shadow-xs">
+     <button
+       type="button"
+       disabled={quantity <= 1 || product.stock === 0}
+       onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+       className="w-10 h-10 flex items-center justify-center text-lg font-bold text-burgundy hover:bg-burgundy/10 disabled:opacity-40 transition cursor-pointer"
+       aria-label="تقليل الكمية"
+     >
+       −
+     </button>
+     <span className="w-12 text-center font-extrabold text-sm text-burgundy">
+       {product.stock === 0 ? 0 : quantity}
+     </span>
+     <button
+       type="button"
+       disabled={quantity >= product.stock || product.stock === 0}
+       onClick={() => setQuantity(prev => Math.min(product.stock, prev + 1))}
+       className="w-10 h-10 flex items-center justify-center text-lg font-bold text-burgundy hover:bg-burgundy/10 disabled:opacity-40 transition cursor-pointer"
+       aria-label="زيادة الكمية"
+     >
+       +
+     </button>
+   </div>
+   <span className="text-xs text-burgundy/70 font-medium">
+     {product.stock === 0 ? 'القطعة غير متوفرة حالياً' : product.stock <= 5 ? `أقصى كمية متاحة: ${product.stock} قطع` : 'جاهز للطلب والشحن الفوري'}
+   </span>
  </div>
  </div>
 
