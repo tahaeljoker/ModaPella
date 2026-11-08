@@ -212,3 +212,4 @@ export default function FavoritesDrawer({ isOpen, onClose }) {
     </div>
   );
 }
+

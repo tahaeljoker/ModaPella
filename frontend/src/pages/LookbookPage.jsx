@@ -43,8 +43,8 @@ export default function LookbookPage() {
     <div className="space-y-6 sm:space-y-8 py-4 sm:py-8 pb-28 sm:pb-16 text-burgundy" dir="rtl">
       {/* Editorial Fashion Studio Header */}
       <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/15 bg-gradient-to-l from-white via-[#FAF7F5] to-white p-6 sm:p-8 lg:p-10 shadow-xs">
-        {/* Subtle Fashion Watermark Accent */}
-        <div className="absolute -top-10 -left-10 text-[90px] font-black text-burgundy/[0.03] select-none pointer-events-none tracking-widest">
+        {/* Editorial Fashion Watermark Accent */}
+        <div className="absolute -top-6 sm:-top-10 -left-6 sm:-left-10 text-[85px] sm:text-[130px] lg:text-[170px] font-black text-burgundy/[0.12] select-none pointer-events-none tracking-[0.18em] leading-none uppercase">
           MODAPELLA
         </div>
 
