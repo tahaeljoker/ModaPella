@@ -97,68 +97,26 @@ function ProductCard({ product }) {
     >
       {/* Framed Image Box */}
       <div className="relative overflow-hidden aspect-[3/4] max-h-[220px] sm:max-h-[290px] rounded-xl sm:rounded-2xl bg-[#FAF7F5] flex items-center justify-center">
-        {/* Floating Quick Action Buttons (Top Row) */}
-        <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
-          {/* Favorite Heart Button */}
-          <button
-            type="button"
-            onClick={handleFavoriteClick}
-            className={`h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-sm cursor-pointer ${
-              isItemFav
-                ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-300 scale-105'
-                : 'bg-white/90 text-burgundy/60 hover:text-rose-600 hover:bg-white hover:scale-105'
-            }`}
-            title={isItemFav ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
-            aria-label="المفضلة"
+        {/* Floating Favorite Heart Button (Top Right) */}
+        <button
+          type="button"
+          onClick={handleFavoriteClick}
+          className={`absolute top-2 right-2 z-20 h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 shadow-xs backdrop-blur-md cursor-pointer ${
+            isItemFav
+              ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-300 scale-105'
+              : 'bg-white/85 text-burgundy/60 hover:text-rose-600 hover:bg-white hover:scale-110 active:scale-95'
+          }`}
+          title={isItemFav ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+          aria-label="المفضلة"
+        >
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${isItemFav ? 'fill-rose-600 stroke-rose-600 scale-110' : 'fill-none stroke-current'}`}
+            viewBox="0 0 24 24"
+            strokeWidth={2}
           >
-            <svg
-              className={`w-3.5 h-3.5 transition-transform duration-200 ${isItemFav ? 'fill-rose-600 stroke-rose-600 scale-110' : 'fill-none stroke-current'}`}
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-            </svg>
-          </button>
-
-          {/* Quick Share Button */}
-          <button
-            type="button"
-            onClick={handleShareClick}
-            className="h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-sm bg-white/90 text-burgundy/60 hover:text-burgundy hover:bg-white hover:scale-105 cursor-pointer"
-            title={copiedShare ? 'تم نسخ الرابط' : 'مشاركة الموديل'}
-            aria-label="مشاركة"
-          >
-            {copiedShare ? (
-              <span className="text-[10px] font-bold text-emerald-600">✓</span>
-            ) : (
-              <svg className="w-3.5 h-3.5 stroke-current fill-none" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-              </svg>
-            )}
-          </button>
-
-          {/* Compare Button */}
-          {compareEnabled !== false && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                addToCompare(product);
-              }}
-              className={`h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-sm cursor-pointer ${
-                isItemComparing
-                  ? 'bg-amber-400 text-burgundy font-black scale-105 ring-2 ring-amber-300 shadow-amber-900/30'
-                  : 'bg-white/90 text-burgundy/60 hover:bg-white hover:text-burgundy hover:scale-105'
-              }`}
-              title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة هذا الموديل'}
-              aria-label="مقارنة"
-            >
-              <svg className="w-3.5 h-3.5 stroke-current fill-none" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-              </svg>
-            </button>
-          )}
-        </div>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+          </svg>
+        </button>
 
         {/* Primary Product Image */}
         <img
@@ -254,8 +212,8 @@ function ProductCard({ product }) {
           </h3>
         </div>
 
-        {/* Price Section */}
-        <div className="flex items-baseline justify-between pt-1 border-t border-burgundy/5">
+        {/* Price & Action Section */}
+        <div className="flex items-center justify-between pt-1.5 border-t border-burgundy/5">
           <div className="flex items-baseline gap-1.5">
             <span className="text-xs sm:text-sm font-black text-burgundy">
               {isDiscountActive(product) ? EGP(product.discountPrice) : EGP(product.price)}
@@ -267,9 +225,49 @@ function ProductCard({ product }) {
             )}
           </div>
 
-          <span className="text-[10px] font-bold text-burgundy/40 group-hover:text-burgundy transition-colors">
-            عرض ←
-          </span>
+          {/* Quick Tools (Compare & Share) */}
+          <div className="flex items-center gap-1">
+            {compareEnabled !== false && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToCompare(product);
+                }}
+                className={`h-6 w-6 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer ${
+                  isItemComparing
+                    ? 'bg-amber-400 text-burgundy font-black ring-1 ring-amber-300 scale-105'
+                    : 'text-burgundy/40 hover:text-burgundy hover:bg-burgundy/5'
+                }`}
+                title={isItemComparing ? 'إزالة من المقارنة' : 'مقارنة الموديل'}
+                aria-label="مقارنة"
+              >
+                <svg className="w-3 h-3 stroke-current fill-none" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                </svg>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleShareClick}
+              className="h-6 w-6 rounded-full flex items-center justify-center text-burgundy/40 hover:text-burgundy hover:bg-burgundy/5 transition-all duration-150 cursor-pointer"
+              title={copiedShare ? 'تم نسخ الرابط' : 'مشاركة الموديل'}
+              aria-label="مشاركة"
+            >
+              {copiedShare ? (
+                <span className="text-[9px] font-bold text-emerald-600">✓</span>
+              ) : (
+                <svg className="w-3 h-3 stroke-current fill-none" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                </svg>
+              )}
+            </button>
+
+            <span className="text-[10px] font-bold text-burgundy/40 group-hover:text-burgundy transition-colors mr-0.5">
+              ←
+            </span>
+          </div>
         </div>
       </div>
     </div>

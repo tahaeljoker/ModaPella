@@ -164,11 +164,11 @@ function ProductDetailsPage() {
       flatImage={product.images && product.images.length > 0 ? resolveImageUrl(product.images[activeImageIdx]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80"}
       mannequinImage={resolveImageUrl(product.mannequinImage)}
       productName={cleanProductName(product)}
-      aspectRatio="aspect-[4/5] max-h-[380px] sm:max-h-[620px]"
+      aspectRatio="aspect-[3/4] sm:aspect-[4/5] max-h-[340px] sm:max-h-[580px]"
       onImageClick={() => setIsLightboxOpen(true)}
     />
   ) : (
- <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-[#FAF7F5] aspect-[4/5] max-h-[380px] sm:max-h-[620px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none w-full max-w-full min-w-0">
+ <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-[#FAF7F5] aspect-[3/4] sm:aspect-[4/5] max-h-[340px] sm:max-h-[580px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none w-full max-w-full min-w-0">
  
  {/* Fit Toggle (Contain <-> Cover) */}
  <button
@@ -277,7 +277,7 @@ function ProductDetailsPage() {
  <div className="space-y-5 sm:space-y-6">
  <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] sm:tracking-[0.35em] text-burgundy/60">{product.category}</p>
  <h1 className="text-xl sm:text-3xl font-extrabold">{cleanProductName(product)}</h1>
- {Boolean(product.description && product.description.trim()) && (
+ {Boolean(product.description && product.description.trim() && !product.description.includes('وصف مميز للمنتج')) && (
   <p className="text-sm sm:text-base leading-6 sm:leading-8 text-burgundy/75">{product.description}</p>
 )}
  <div className="grid grid-cols-2 gap-3">
@@ -471,7 +471,7 @@ function ProductDetailsPage() {
  </div>
  </div>
  </div>
- <div className="rounded-[2rem] border border-burgundy/10 bg-white p-8 shadow-soft">
+ <div className="rounded-2xl sm:rounded-[2rem] border border-burgundy/10 bg-white p-3.5 sm:p-8 shadow-soft">
  <h3 className="text-2xl font-semibold">منتجات مشابهة</h3>
  <div className="mt-4 grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
  {similarProducts.length === 0 ? (
@@ -537,10 +537,10 @@ function ProductDetailsPage() {
  )}
 
   {/* Sticky Bottom Action Bar for Mobile Devices */}
-  <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-burgundy/15 px-3.5 py-2.5 shadow-[0_-6px_25px_rgba(0,0,0,0.12)] flex items-center justify-between gap-3 lg:hidden">
+  <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-burgundy/15 px-3 py-2 shadow-[0_-6px_25px_rgba(0,0,0,0.1)] flex items-center justify-between gap-2 lg:hidden w-full max-w-full">
     <div className="flex flex-col shrink-0 min-w-0">
-      <div className="flex items-center gap-1.5">
-        <span className="font-extrabold text-base text-burgundy">
+      <div className="flex items-center gap-1">
+        <span className="font-black text-sm sm:text-base text-burgundy whitespace-nowrap">
           {Number(isDiscountActive(product) ? product.discountPrice : product.price).toLocaleString('en-US')} ج.م
         </span>
         {isDiscountActive(product) && (
@@ -549,20 +549,23 @@ function ProductDetailsPage() {
           </span>
         )}
       </div>
-      <span className="text-[10px] text-emerald-700 font-semibold truncate">
-        {product.stock > 0 ? '✓ متوفر للشحن الفوري' : '✕ غير متوفر'}
+      <span className="text-[10px] text-emerald-700 font-bold truncate">
+        {product.stock > 0 ? '✓ متوفر بالمحل' : '✕ غير متوفر'}
       </span>
     </div>
 
-    <div className="flex items-center gap-2 flex-1 justify-end max-w-[240px]">
+    <div className="flex items-center gap-1.5 shrink-0">
       {siteConfig?.features?.shareOutfit !== false && (
         <button
           type="button"
           onClick={() => setIsShareModalOpen(true)}
-          className="h-11 px-3 rounded-xl border border-burgundy/20 bg-[#FAF5F2] hover:bg-amber-50 text-burgundy flex items-center justify-center transition shrink-0"
-          title="شاركي اللوك مع صديقتكِ"
+          className="h-10 w-10 rounded-xl border border-burgundy/15 bg-[#FAF5F2] hover:bg-amber-50 text-burgundy flex items-center justify-center transition shrink-0 active:scale-95 cursor-pointer"
+          title="شاركي اللوك"
+          aria-label="مشاركة"
         >
-          <span className="text-[11px] font-bold">شير</span>
+          <svg className="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+          </svg>
         </button>
       )}
 
@@ -570,37 +573,39 @@ function ProductDetailsPage() {
         <button
           type="button"
           onClick={() => addToCompare(product)}
-          className={`h-11 px-3 rounded-xl border flex items-center justify-center transition shrink-0 ${
+          className={`h-10 w-10 rounded-xl border flex items-center justify-center transition shrink-0 active:scale-95 cursor-pointer ${
             isItemComparing
               ? 'bg-amber-400 text-burgundy border-amber-500 font-bold'
-              : 'bg-[#FAF5F2] text-burgundy border-burgundy/20'
+              : 'bg-[#FAF5F2] text-burgundy border-burgundy/15'
           }`}
           title="مقارنة هذا الموديل"
+          aria-label="مقارنة"
         >
-          <span className="text-[11px] font-bold">{isItemComparing ? '✓' : 'مقارنة'}</span>
+          <svg className="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+          </svg>
         </button>
       )}
 
-<button
+      <button
         type="button"
         onClick={handleAddToCart}
         disabled={product.stock === 0}
-        className={`h-11 px-3.5 rounded-xl border border-burgundy/20 flex items-center justify-center transition shrink-0 ${
-          added ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-[#FAF5F2] text-burgundy active:scale-95'
+        className={`h-10 px-3 rounded-xl border border-burgundy/20 flex items-center justify-center transition shrink-0 active:scale-95 text-xs font-bold cursor-pointer ${
+          added ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-[#FAF5F2] text-burgundy hover:bg-burgundy/10'
         }`}
         title="أضف إلى السلة"
       >
-        <span className="text-xs font-bold">{added ? '✓' : 'سلة'}</span>
+        {added ? '✓ بالسلة' : 'السلة'}
       </button>
 
       <button
         type="button"
         onClick={() => setIsQuickOrderOpen(true)}
         disabled={product.stock === 0}
-        className="flex-1 h-11 px-3 rounded-xl bg-burgundy hover:bg-[#650018] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-burgundy/30 active:scale-95 disabled:bg-gray-400"
+        className="h-10 px-3.5 rounded-xl bg-burgundy hover:bg-[#650018] text-white font-extrabold text-xs flex items-center justify-center gap-1 shadow-md shadow-burgundy/20 active:scale-95 disabled:bg-gray-400 shrink-0 cursor-pointer"
       >
-        <span>شراء سريع</span>
-        
+        <span>شراء فوري</span>
       </button>
     </div>
   </div>

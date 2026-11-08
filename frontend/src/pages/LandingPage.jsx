@@ -131,31 +131,31 @@ function LandingPage() {
 
  {/* ━━━━━━━━━━━━ شريط الماركي التفاعلي اللانهائي ━━━━━━━━━━━━ */}
  <MarqueeTicker />
-      {/* ━━━━━━━━━━━━ لافتة غرفة التنسيق الذكية ━━━━━━━━━━━━ */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-burgundy via-[#680017] to-amber-950 p-6 sm:p-8 text-white shadow-soft">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 text-center md:text-right">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-bold border border-white/15">
-              
-              <span>ميزة حصرية جديدة في مودة بيلا</span>
-            </span>
-            <h3 className="text-xl sm:text-2xl font-black">
-              غرفة تنسيق وتبديل الملابس على المانيكان
-            </h3>
-            <p className="text-xs sm:text-sm text-white/80 max-w-xl">
-              اختاري البلوزة مع البنطلون وبدّلي الألوان وشوفي التناسق فوراً بدون انتظار. واحصلي على خصم 15% فوري عند شراء الطقم كاملاً!
-            </p>
-          </div>
-          <Link
-            to="/outfitter"
-            className="px-6 py-3.5 rounded-full bg-white text-burgundy font-black text-xs sm:text-sm hover:bg-beige transition shadow-lg active:scale-95 flex items-center gap-2 whitespace-nowrap"
-          >
-            <span>ادخلي غرفة التنسيق الآن</span>
-            
-          </Link>
+  {/* ━━━━━━━━━━━━ لافتة غرفة التنسيق الذكية ━━━━━━━━━━━━ */}
+  {siteConfig.outfitterBannerActive !== false && siteConfig.features?.outfitter !== false && (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-burgundy via-[#680017] to-amber-950 p-6 sm:p-8 text-white shadow-soft">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="space-y-2 text-center md:text-right">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-bold border border-white/15">
+            <span>{siteConfig.outfitterBannerBadge || 'ميزة حصرية جديدة في مودة بيلا'}</span>
+          </span>
+          <h3 className="text-xl sm:text-2xl font-black">
+            {siteConfig.outfitterBannerTitle || 'غرفة تنسيق وتبديل الملابس على المانيكان'}
+          </h3>
+          <p className="text-xs sm:text-sm text-white/80 max-w-xl">
+            {siteConfig.outfitterBannerDesc || 'اختاري البلوزة مع البنطلون وبدّلي الألوان وشوفي التناسق فوراً بدون انتظار. واحصلي على خصم 15% فوري عند شراء الطقم كاملاً!'}
+          </p>
         </div>
+        <Link
+          to={siteConfig.outfitterBannerCtaLink || '/outfitter'}
+          className="px-6 py-3.5 rounded-full bg-white text-burgundy font-black text-xs sm:text-sm hover:bg-beige transition shadow-lg active:scale-95 flex items-center gap-2 whitespace-nowrap"
+        >
+          <span>{siteConfig.outfitterBannerCtaText || 'ادخلي غرفة التنسيق الآن'}</span>
+        </Link>
       </div>
+    </div>
+  )}
 
 
  {/* ━━━━━━━━━━━━ مميزات وضمانات التسوق التفاعلية ━━━━━━━━━━━━ */}

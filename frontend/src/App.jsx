@@ -27,7 +27,7 @@ import OutfitComparisonModal from './components/OutfitComparisonModal';
 import ScrollRestoration from './components/ScrollRestoration';
 import { resolveImageUrl } from './utils/imageUrl';
 import StorefrontSearchModal from './components/StorefrontSearchModal';
-import { getCachedStorefrontProducts, setCachedStorefrontProducts } from './services/storefrontCache';
+import { getCachedStorefrontProducts, setCachedStorefrontProducts, getCachedSiteConfig, setCachedSiteConfig } from './services/storefrontCache';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -87,7 +87,7 @@ function AppContent() {
  const [storefrontProducts, setStorefrontProducts] = useState(() => getCachedStorefrontProducts() || []);
  const [prevCartLength, setPrevCartLength] = useState(cart.length);
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
- const [siteConfig, setSiteConfig] = useState(null);
+ const [siteConfig, setSiteConfig] = useState(() => getCachedSiteConfig());
 
  useEffect(() => {
    if (isSearchModalOpen && (!storefrontProducts || storefrontProducts.length === 0)) {
@@ -122,6 +122,7 @@ function AppContent() {
  .then(res => {
  if (res.data) {
  setSiteConfig(res.data);
+ setCachedSiteConfig(res.data);
  if (res.data.whatsappNumber) {
  setWhatsappNumber(res.data.whatsappNumber);
  }
@@ -366,8 +367,8 @@ function AppContent() {
  {/* Public Routes */}
  <Route path="/" element={<LandingPage />} />
  <Route path="/shop" element={<CollectionsPage />} />
-          <Route path="/outfitter" element={siteConfig?.features?.outfitter ? <OutfitterPage /> : <Navigate to="/shop" replace />} />
-          <Route path="/lookbook" element={siteConfig?.features?.lookbook ? <LookbookPage /> : <Navigate to="/shop" replace />} />
+          <Route path="/outfitter" element={siteConfig === null || siteConfig?.features?.outfitter !== false ? <OutfitterPage /> : <Navigate to="/shop" replace />} />
+          <Route path="/lookbook" element={siteConfig === null || siteConfig?.features?.lookbook !== false ? <LookbookPage /> : <Navigate to="/shop" replace />} />
  <Route path="/collections" element={<CollectionsPage />} />
  <Route path="/about" element={<AboutPage />} />
  <Route path="/contact" element={<ContactPage />} />

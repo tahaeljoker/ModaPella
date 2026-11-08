@@ -928,6 +928,117 @@ function AdminSiteSettings() {
  </button>
  </div>
 
+
+  {/* ━━━━━━━━━━━━ لافتة ميزة حصرية في الصفحة الرئيسية ━━━━━━━━━━━━ */}
+  <div className="pt-6 border-t border-burgundy/10 space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h4 className="text-base font-bold text-burgundy flex items-center gap-2">
+          <span>✦</span> لافتة ميزة حصرية جديدة في الصفحة الرئيسية (غرفة التنسيق)
+        </h4>
+        <p className="text-xs text-burgundy/60 mt-0.5">
+          التحكم الكامل في ظهور ونصوص لافتة الميزة الحصرية التي تظهر في الصفحة الرئيسية
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-burgundy/70">
+          {config.outfitterBannerActive !== false ? 'اللافتة مفعلة وظاهرة' : 'اللافتة ملغاة ومخفية'}
+        </span>
+        <button
+          type="button"
+          onClick={() => setConfig({ ...config, outfitterBannerActive: config.outfitterBannerActive === false ? true : false })}
+          className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer ${
+            config.outfitterBannerActive !== false ? 'bg-emerald-600' : 'bg-gray-300'
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+              config.outfitterBannerActive !== false ? 'translate-x-1' : 'translate-x-6'
+            }`}
+          />
+        </button>
+      </div>
+    </div>
+
+    {/* Live Preview */}
+    {config.outfitterBannerActive !== false && (
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-burgundy via-[#680017] to-amber-950 p-5 text-white shadow-sm">
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="space-y-1.5 text-center md:text-right">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 text-amber-300 text-[11px] font-bold border border-white/15">
+              <span>{config.outfitterBannerBadge || 'ميزة حصرية جديدة في مودة بيلا'}</span>
+            </span>
+            <h5 className="text-base sm:text-lg font-black">
+              {config.outfitterBannerTitle || 'غرفة تنسيق وتبديل الملابس على المانيكان'}
+            </h5>
+            <p className="text-xs text-white/80 max-w-lg">
+              {config.outfitterBannerDesc || 'اختاري البلوزة مع البنطلون وبدّلي الألوان وشوفي التناسق فوراً بدون انتظار. واحصلي على خصم 15% فوري عند شراء الطقم كاملاً!'}
+            </p>
+          </div>
+          <span className="px-5 py-2.5 rounded-full bg-white text-burgundy font-black text-xs shadow-md whitespace-nowrap">
+            {config.outfitterBannerCtaText || 'ادخلي غرفة التنسيق الآن'}
+          </span>
+        </div>
+      </div>
+    )}
+
+    {/* Inputs Grid */}
+    <div className="grid gap-3 sm:grid-cols-2 pt-2">
+      <div>
+        <label className="block text-xs font-bold text-burgundy/80 mb-1">الشارة الصغيرة أعلى العنوان</label>
+        <input
+          name="outfitterBannerBadge"
+          value={config.outfitterBannerBadge || ''}
+          onChange={handleChange}
+          placeholder="ميزة حصرية جديدة في مودة بيلا"
+          className={inputCls}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-burgundy/80 mb-1">العنوان الرئيسي للافتة</label>
+        <input
+          name="outfitterBannerTitle"
+          value={config.outfitterBannerTitle || ''}
+          onChange={handleChange}
+          placeholder="غرفة تنسيق وتبديل الملابس على المانيكان"
+          className={inputCls}
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <label className="block text-xs font-bold text-burgundy/80 mb-1">نص الوصف التفصيلي</label>
+        <textarea
+          name="outfitterBannerDesc"
+          value={config.outfitterBannerDesc || ''}
+          onChange={handleChange}
+          rows={2}
+          placeholder="اختاري البلوزة مع البنطلون وبدّلي الألوان وشوفي التناسق فوراً بدون انتظار..."
+          className={inputCls}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-burgundy/80 mb-1">نص زر الإجراء</label>
+        <input
+          name="outfitterBannerCtaText"
+          value={config.outfitterBannerCtaText || ''}
+          onChange={handleChange}
+          placeholder="ادخلي غرفة التنسيق الآن"
+          className={inputCls}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-burgundy/80 mb-1">رابط زر الإجراء</label>
+        <input
+          name="outfitterBannerCtaLink"
+          value={config.outfitterBannerCtaLink || ''}
+          onChange={handleChange}
+          placeholder="/outfitter"
+          dir="ltr"
+          className={inputCls}
+        />
+      </div>
+    </div>
+  </div>
+
  {/* Save Button */}
  <div className="pt-4 border-t border-burgundy/10 flex justify-end">
  <button
