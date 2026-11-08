@@ -137,7 +137,7 @@ function LandingPage() {
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 text-center md:text-right">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-bold border border-white/15">
-              <span>✨</span>
+              
               <span>ميزة حصرية جديدة في مودة بيلا</span>
             </span>
             <h3 className="text-xl sm:text-2xl font-black">
@@ -152,7 +152,7 @@ function LandingPage() {
             className="px-6 py-3.5 rounded-full bg-white text-burgundy font-black text-xs sm:text-sm hover:bg-beige transition shadow-lg active:scale-95 flex items-center gap-2 whitespace-nowrap"
           >
             <span>ادخلي غرفة التنسيق الآن</span>
-            <span>✨</span>
+            
           </Link>
         </div>
       </div>

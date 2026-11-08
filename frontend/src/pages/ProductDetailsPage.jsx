@@ -4,6 +4,7 @@ import api from '../services/api';
 import CartContext from '../context/CartContext';
 import CompareContext from '../context/CompareContext';
 import LazyImage from '../components/LazyImage';
+import ProductCard from '../components/ProductCard';
 import sampleProducts from '../data/sampleProducts';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import QuickOrderModal from '../components/QuickOrderModal';
@@ -179,7 +180,7 @@ function ProductDetailsPage() {
    className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-burgundy text-xs font-bold shadow-md border border-burgundy/10 backdrop-blur-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
    title={fitMode === "contain" ? "ملء الإطار" : "إظهار القطعة بالكامل"}
  >
-   <span>{fitMode === "contain" ? "⛶ ملء الإطار" : "🔍 إظهار كامل"}</span>
+   <span>{fitMode === "contain" ? "ملء الإطار" : "إظهار كامل"}</span>
  </button>
 
  {/* Zoom Hint */}
@@ -276,7 +277,9 @@ function ProductDetailsPage() {
  <div className="space-y-5 sm:space-y-6">
  <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] sm:tracking-[0.35em] text-burgundy/60">{product.category}</p>
  <h1 className="text-xl sm:text-3xl font-extrabold">{cleanProductName(product)}</h1>
- <p className="text-sm sm:text-base leading-6 sm:leading-8 text-burgundy/75">{product.description || 'وصف مميز للمنتج يعرض تفاصيل التصميم والجودة.'}</p>
+ {Boolean(product.description && product.description.trim()) && (
+  <p className="text-sm sm:text-base leading-6 sm:leading-8 text-burgundy/75">{product.description}</p>
+)}
  <div className="grid grid-cols-2 gap-3">
  <div className="rounded-xl sm:rounded-[1.75rem] border border-burgundy/10 bg-white p-3.5 sm:p-6 text-burgundy/80">
  <h2 className="text-xs sm:text-sm font-semibold text-burgundy">السعر</h2>
@@ -301,7 +304,7 @@ function ProductDetailsPage() {
      <div className="flex flex-col">
        <span className="text-base sm:text-xl font-extrabold text-amber-600 flex items-center gap-1">
          <span>متبقي {product.stock} قطع فقط</span>
-         <span className="text-sm">🔥</span>
+         
        </span>
        <span className="text-[10px] text-amber-700/80 font-medium">سارعي بالطلب قبل النفاذ</span>
      </div>
@@ -378,7 +381,7 @@ function ProductDetailsPage() {
               style={{ backgroundColor: hex }}
             />
             <span>{c}</span>
-            {hasPhoto && <span className="text-[10px] opacity-80" title="صورة خاصة بهذا اللون">📸</span>}
+            
           </button>
         );
       })}
@@ -470,30 +473,12 @@ function ProductDetailsPage() {
  </div>
  <div className="rounded-[2rem] border border-burgundy/10 bg-white p-8 shadow-soft">
  <h3 className="text-2xl font-semibold">منتجات مشابهة</h3>
- <div className="mt-4 grid gap-4 grid-cols-2 sm:grid-cols-4">
+ <div className="mt-4 grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
  {similarProducts.length === 0 ? (
  <p className="col-span-full py-10 text-center text-sm text-burgundy/40">لا توجد منتجات مشابهة حالياً</p>
  ) : (
  similarProducts.map(p => (
- <Link 
- key={p._id} 
- to={`/product/${p._id}`}
- onClick={() => window.scrollTo(0, 0)}
- className="group block rounded-[1.25rem] overflow-hidden border border-burgundy/5 bg-[#F7F0EC]/20 p-2 transition hover:shadow-soft animate-fade-in"
- >
- <div className="aspect-[3/4] overflow-hidden relative rounded-xl bg-[#FAF7F5] flex items-center justify-center">
- <LazyImage 
- src={p.images && p.images.length > 0 ? resolveImageUrl(p.images[0]) : "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80"} 
- alt={cleanProductName(p)} 
- className="w-full h-full object-contain p-1 transition duration-300 group-hover:scale-105" 
- fit="contain"
- />
- </div>
- <div className="mt-2 text-right px-1">
- <p className="text-xs font-bold text-burgundy truncate">{cleanProductName(p)}</p>
- <p className="text-xs font-extrabold text-burgundy/60 mt-0.5">{Number(p.price).toLocaleString('en-US')} ج.م</p>
- </div>
- </Link>
+ <ProductCard key={p._id} product={p} />
  ))
  )}
  </div>

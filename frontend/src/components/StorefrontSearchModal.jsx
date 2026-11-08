@@ -86,7 +86,7 @@ export default function StorefrontSearchModal({ isOpen, onClose, products = [] }
         {/* Header Search Box */}
         <div className="relative border-b border-burgundy/10 p-4 sm:p-5 bg-gradient-to-r from-[#FAF7F5] to-white">
           <div className="flex items-center gap-3">
-            <span className="text-xl sm:text-2xl text-burgundy/60">🔍</span>
+            <svg className="w-5 h-5 text-burgundy/60 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
             <input
               ref={inputRef}
               type="text"
@@ -117,7 +117,7 @@ export default function StorefrontSearchModal({ isOpen, onClose, products = [] }
           {/* Typo Correction Suggestion Pill */}
           {suggestedCorrection && suggestedCorrection !== query.trim() && (
             <div className="mt-3 flex items-center gap-2 text-xs text-burgundy/80 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-xl">
-              <span>💡 هل تقصدين:</span>
+              <span>هل تقصدين:</span>
               <button
                 type="button"
                 onClick={() => setQuery(suggestedCorrection)}
@@ -152,13 +152,13 @@ export default function StorefrontSearchModal({ isOpen, onClose, products = [] }
         <div className="max-h-[60vh] sm:max-h-[65vh] overflow-y-auto p-3 sm:p-5 space-y-2">
           {query.trim() === '' ? (
             <div className="py-12 text-center text-burgundy/50 space-y-2">
-              <span className="text-4xl block">✨</span>
+              
               <p className="text-sm font-bold">اكتبي ما تبحثين عنه أو اختاري من الكلمات المقترحة بالأعلى</p>
               <p className="text-xs text-burgundy/40">البحث ذكي ومرن ويتعرف على الموديلات حتى مع اختلاف طريقة الكتابة!</p>
             </div>
           ) : results.length === 0 ? (
             <div className="py-12 text-center text-burgundy/60 space-y-3">
-              <span className="text-4xl block">👗</span>
+              
               <h3 className="text-base font-bold text-burgundy">لم نجد نتائج مطابقة لـ "{query}"</h3>
               <p className="text-xs text-burgundy/60 max-w-sm mx-auto">
                 جربي البحث بكلمة عامة مثل "جاكيت" أو "فستان" أو تصفحي كامل المعروضات.
@@ -261,3 +261,4 @@ export default function StorefrontSearchModal({ isOpen, onClose, products = [] }
     </div>
   );
 }
+

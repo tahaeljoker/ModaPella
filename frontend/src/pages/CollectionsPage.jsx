@@ -243,9 +243,7 @@ function CollectionsPage() {
                 ✕
               </button>
             ) : (
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-burgundy/30 pointer-events-none">
-                🔍
-              </span>
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-burgundy/40 pointer-events-none fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
             )}
           </div>
 
@@ -257,10 +255,10 @@ function CollectionsPage() {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="appearance-none rounded-full border border-burgundy/15 bg-white px-3 py-1.5 pr-2.5 pl-6 text-[11px] font-bold text-burgundy outline-none focus:border-burgundy cursor-pointer shadow-2xs"
               >
-                <option value="newest">الأحدث ✨</option>
+                <option value="newest">الأحدث</option>
                 <option value="price-asc">الأقل سعراً</option>
                 <option value="price-desc">الأعلى سعراً</option>
-                <option value="discount">العروض 🔥</option>
+                <option value="discount">العروض الخاصة</option>
               </select>
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-burgundy/50 pointer-events-none">
                 ▼
@@ -289,7 +287,7 @@ function CollectionsPage() {
         {/* Typo Correction Helper Pill */}
         {suggestedCorrection && suggestedCorrection !== searchQuery.trim() && (
           <div className="flex items-center gap-2 px-3 py-1 bg-amber-50/80 border border-amber-200/60 rounded-xl text-xs text-burgundy animate-in fade-in">
-            <span>💡 هل تقصدين:</span>
+            <span>هل تقصدين:</span>
             <button
               type="button"
               onClick={() => handleSearchChange(suggestedCorrection)}
@@ -351,7 +349,7 @@ function CollectionsPage() {
         </div>
       ) : (
         <div className="rounded-[2.5rem] border border-dashed border-burgundy/20 bg-white p-12 text-center text-burgundy space-y-4 shadow-soft">
-          <span className="text-4xl block">🔍</span>
+          
           <h3 className="text-xl font-bold">لا توجد قطع مطابقة لاختيارك حالياً</h3>
           <p className="text-sm text-burgundy/70 max-w-md mx-auto">
             {searchQuery

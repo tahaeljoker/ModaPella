@@ -188,20 +188,20 @@ function AppContent() {
    <button
      type="button"
      onClick={() => setIsSearchModalOpen(true)}
-     className="p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full text-base cursor-pointer"
+     className="p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full cursor-pointer"
      aria-label="بحث في المنتجات"
      title="بحث"
    >
-     🔍
+     <svg className="w-5 h-5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
    </button>
    <button
      type="button"
      onClick={() => setIsCartDrawerOpen(true)}
-     className="relative p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full text-base cursor-pointer"
+     className="relative p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full cursor-pointer"
      aria-label="سلة التسوق"
      title="سلة التسوق"
    >
-     🛍️
+     <svg className="w-5 h-5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
      {cart.length > 0 && (
        <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-burgundy px-1 text-[9px] font-bold text-white">
          {cart.length}
@@ -230,7 +230,7 @@ function AppContent() {
    onClick={() => setIsSearchModalOpen(true)}
    className="relative px-3 py-1.5 rounded-full border border-burgundy/20 hover:border-burgundy text-burgundy/80 hover:text-burgundy text-xs font-bold flex items-center gap-1.5 transition bg-white/70 shadow-2xs cursor-pointer hover:bg-burgundy hover:text-white"
  >
-   <span>🔍</span>
+   <span></span>
    <span>بحث</span>
  </button>
           {siteConfig?.features?.productComparison !== false && (
@@ -274,7 +274,7 @@ function AppContent() {
    }}
    className="px-4 py-2.5 rounded-xl transition font-semibold text-sm text-right text-burgundy/80 hover:bg-burgundy/5 flex items-center gap-2 cursor-pointer bg-burgundy/5"
  >
-   <span>🔍</span>
+   <span></span>
    <span>بحث في الموديلات</span>
  </button>
  <NavLink

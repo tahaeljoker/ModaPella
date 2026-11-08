@@ -50,7 +50,6 @@ export default function LookbookPage() {
 
         <div className="relative z-10 max-w-3xl space-y-3.5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-bold text-amber-200">
-            <span>✨</span>
             <span>MODAPELLA ATELIER ✦ استوديو الموديل والتنسيقات</span>
           </div>
 
@@ -65,16 +64,16 @@ export default function LookbookPage() {
           {/* Quick Luxury Counters */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
             <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/90">
-              💎 {looks.length} إطلالة منسقة
+              {looks.length} إطلالة منسقة
             </span>
             {videoCount > 0 && (
               <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/90">
-                🎬 {videoCount} فيديو ريلز
+                {videoCount} فيديو ريلز
               </span>
             )}
             {photoCount > 0 && (
               <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/90">
-                📸 {photoCount} جلسة تصوير
+                {photoCount} جلسة تصوير
               </span>
             )}
             <Link
@@ -112,7 +111,6 @@ export default function LookbookPage() {
                   : 'text-burgundy/70 hover:text-burgundy'
               }`}
             >
-              <span>🎬</span>
               <span>فيديوهات ({videoCount})</span>
             </button>
             <button
@@ -124,7 +122,6 @@ export default function LookbookPage() {
                   : 'text-burgundy/70 hover:text-burgundy'
               }`}
             >
-              <span>📸</span>
               <span>صور ({photoCount})</span>
             </button>
           </div>
@@ -167,7 +164,7 @@ export default function LookbookPage() {
         </div>
       ) : filteredLooks.length === 0 ? (
         <div className="text-center py-16 px-4 rounded-3xl bg-white border border-burgundy/10 shadow-soft space-y-4">
-          <div className="text-5xl">👗</div>
+          
           <h3 className="text-xl font-black text-burgundy">لا توجد إطلالات مطابقة لهذا الفلتر حالياً</h3>
           <p className="text-xs sm:text-sm text-burgundy/60 max-w-md mx-auto">
             فريق مودة بيلا يجهز جلسات تصوير وفيديوهات جديدة قادمة قريباً جداً!

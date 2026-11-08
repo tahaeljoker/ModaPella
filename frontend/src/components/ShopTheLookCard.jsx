@@ -156,11 +156,11 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                   className="p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/80 text-white backdrop-blur-md transition shadow cursor-pointer text-xs sm:text-sm"
                   title={isVideoMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
                 >
-                  {isVideoMuted ? '🔇' : '🔊'}
+                  {isVideoMuted ? (<svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.208-1.605.572-2.296A2.25 2.25 0 014.51 8.25h4.24z"/></svg>) : (<svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.208-1.605.572-2.296A2.25 2.25 0 014.51 8.25h4.24z"/></svg>)}
                 </button>
                 <span className="px-2.5 py-1 rounded-full bg-black/55 text-[10px] sm:text-[11px] font-bold text-amber-300 backdrop-blur-md flex items-center gap-1 border border-white/10">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  <span>فيديو حي 🎥</span>
+                  <span>فيديو حي</span>
                 </span>
               </div>
 
@@ -182,7 +182,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
               />
               <div className="absolute top-3.5 right-3.5 z-20">
                 <span className="px-3 py-1 rounded-full bg-black/55 text-[10px] sm:text-[11px] font-bold text-amber-200 backdrop-blur-md border border-white/10">
-                  جلسة تصوير 📸
+                  جلسة تصوير
                 </span>
               </div>
             </div>
@@ -460,7 +460,6 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                 </>
               ) : (
                 <>
-                  <span>✨</span>
                   <span>أضيفي الإطلالة بالكامل للسلة {discountPercent > 0 ? `(وفرّي ${bundleSavings} ج.م)` : ''}</span>
                   <span>←</span>
                 </>
