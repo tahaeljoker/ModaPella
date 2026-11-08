@@ -129,8 +129,6 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* ━━━━━━━━━━━━ شريط الماركي التفاعلي اللانهائي ━━━━━━━━━━━━ */}
-      <MarqueeTicker />
       {/* ━━━━━━━━━━━━ لافتة غرفة التنسيق الذكية ━━━━━━━━━━━━ */}
       {siteConfig.outfitterBannerActive !== false && siteConfig.features?.outfitter !== false && (
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-burgundy via-[#680017] to-amber-950 p-6 sm:p-8 text-white shadow-soft">
