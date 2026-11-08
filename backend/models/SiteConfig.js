@@ -7,6 +7,16 @@ const SiteConfigSchema = new mongoose.Schema({
   enforceWebsiteSeason: { type: Boolean, default: true },
   heroTitle: { type: String, default: 'أزياء تليق بكِ' },
   heroSubtitle: { type: String, default: 'تصفحي أحدث الموديلات النسائية واطلبي بسهولة، أو زوري محلنا مباشرة في بني مزار.' },
+  heroBadge: { type: String, default: 'تشكيلة الموسم الحصرية' },
+  heroImages: {
+    type: [String],
+    default: [
+      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=85',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1600&q=85',
+      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=85'
+    ]
+  },
+  heroAutoplaySpeed: { type: Number, default: 5 },
   heroCtaLabel: { type: String, default: 'تسوقي الآن' },
   heroCtaLink: { type: String, default: '/shop' },
   secondaryCtaLabel: { type: String, default: 'شاهدي المجموعات' },

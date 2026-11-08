@@ -27,18 +27,32 @@ const getSiteConfig = async () => {
   let config = await SiteConfig.findOne({ key: 'default' });
   if (!config) {
     config = await SiteConfig.create({ key: 'default' });
-  } else if (!config.features) {
-    config.features = {
-      outfitter: false,
-      lookbook: false,
-      mannequinComparison: true,
-      productComparison: true,
-      coupons: true,
-      shareOutfit: true,
-      bestSellers: true,
-      socialProof: true
-    };
-    await config.save();
+  } else {
+    let needsSave = false;
+    if (!config.features) {
+      config.features = {
+        outfitter: false,
+        lookbook: false,
+        mannequinComparison: true,
+        productComparison: true,
+        coupons: true,
+        shareOutfit: true,
+        bestSellers: true,
+        socialProof: true
+      };
+      needsSave = true;
+    }
+    if (!config.heroImages || config.heroImages.length === 0) {
+      config.heroImages = [
+        'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=85',
+        'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1600&q=85',
+        'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=85'
+      ];
+      needsSave = true;
+    }
+    if (needsSave) {
+      await config.save();
+    }
   }
   return config;
 };

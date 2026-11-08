@@ -2,6 +2,7 @@ import AdminOnlineCatalog from '../../components/AdminOnlineCatalog';
 import AdminFeatureFlags from '../../components/AdminFeatureFlags';
 import AdminLookbook from './AdminLookbook';
 import MannequinImageUploader from '../../components/MannequinImageUploader';
+import HeroImagesManager from '../../components/HeroImagesManager';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -631,9 +632,23 @@ function AdminSiteSettings() {
 {activeTab === 'appearance' && config && (
  <form onSubmit={handleSave} className="space-y-6">
  {/* Hero Section */}
- <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm">
- <h3 className="mb-4 text-lg font-bold">قسم الواجهة الرئيسية (Hero Section)</h3>
+ <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-6">
+ <div>
+ <h3 className="text-lg font-bold text-burgundy">قسم الواجهة الرئيسية (Hero Section)</h3>
+ <p className="text-xs text-burgundy/60">التحكم الكامل في نصوص وصور وأزرار السلايدر المتحرك في أعلى الموقع</p>
+ </div>
+
  <div className="space-y-4">
+ <div>
+ <label className="mb-1 block text-xs font-semibold text-burgundy/60">الشارة العلوية (Badge / Tag)</label>
+ <input
+ name="heroBadge"
+ value={config.heroBadge || ''}
+ placeholder="مثال: MODAPELLA ATELIER ✦ إطلالات الموسم الحصرية"
+ onChange={handleChange}
+ className={inputCls}
+ />
+ </div>
  <div>
  <label className="mb-1 block text-xs font-semibold text-burgundy/60">العنوان الرئيسي للموقع</label>
  <input name="heroTitle" value={config.heroTitle || ''} onChange={handleChange} className={inputCls} />
@@ -661,13 +676,25 @@ function AdminSiteSettings() {
  </div>
  </div>
  </div>
+
+ {/* Dynamic Hero Images Manager */}
+ <HeroImagesManager
+ images={config.heroImages || []}
+ onChange={(newImages) => setConfig({ ...config, heroImages: newImages })}
+ autoplaySpeed={config.heroAutoplaySpeed || 5}
+ onSpeedChange={(newSpeed) => setConfig({ ...config, heroAutoplaySpeed: newSpeed })}
+ />
  </div>
 
  
         {/* Base Mannequin Photo for Outfitter Studio */}
         <div className="rounded-[2rem] border border-burgundy/10 bg-white p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-2xl bg-burgundy/10 text-burgundy text-lg">✨</span>
+            <span className="p-2 rounded-2xl bg-burgundy/10 text-burgundy flex items-center justify-center">
+              <svg className="w-5 h-5 stroke-current fill-none" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+            </span>
             <div>
               <h3 className="text-lg font-bold text-burgundy">صورة مانيكان المحل الأساسي (غرفة التنسيق)</h3>
               <p className="text-xs text-burgundy/60">

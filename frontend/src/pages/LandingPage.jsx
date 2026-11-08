@@ -4,6 +4,8 @@ import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { cleanProductName } from '../utils/discount';
 import { Icon } from '../components/Icon';
+import DynamicHeroSlider from '../components/DynamicHeroSlider';
+import OrderStepsVisualCards from '../components/OrderStepsVisualCards';
 import FeatureBannerShowcase from '../components/FeatureBannerShowcase';
 import BestSellersSlider from '../components/BestSellersSlider';
 import ShopTheLookSection from '../components/ShopTheLookSection';
@@ -17,12 +19,19 @@ import {
 
 const defaultSiteConfig = {
   published: true,
+  heroBadge: 'MODAPELLA ATELIER ✦ إطلالات الموسم الحصرية',
   heroTitle: 'أزياء تليق بكِ',
   heroSubtitle: 'تصفحي أحدث الموديلات النسائية واطلبي بسهولة، أو زوري محلنا مباشرة في بني مزار.',
   heroCtaLabel: 'تسوقي الآن',
   heroCtaLink: '/shop',
   secondaryCtaLabel: 'شاهدي المجموعات',
   secondaryCtaLink: '/collections',
+  heroImages: [
+    'https://i.postimg.cc/NFz9t4fC/Elegant-fashion-website-hero-banner-women-s-clothing-rack-background-soft-burgundy-overlay-modern.jpg',
+    'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=85',
+    'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1600&q=85'
+  ],
+  heroAutoplaySpeed: 5,
   featuredTitle: 'أحدث الموديلات',
   featuredSubtitle: 'قطع مختارة بعناية — شوفي اللي يعجبك واطلبيه على طول.',
   maintenanceMessage: 'الموقع غير متاح حالياً، سنعود قريباً.',
@@ -31,12 +40,6 @@ const defaultSiteConfig = {
   storePhone: '01090048832',
   aboutText: 'محل أزياء نسائي في قلب بني مزار، بنقدم فيه أحدث الموديلات العصرية بأسعار كويسة. تقدري تتصفحي اونلاين وتطلبي، أو تيجي المحل مباشرة وتشوفي القطع على عينك.'
 };
-
-const heroImages = [
-  'https://i.postimg.cc/NFz9t4fC/Elegant-fashion-website-hero-banner-women-s-clothing-rack-background-soft-burgundy-overlay-modern.jpg',
-  'https://images.unsplash.com/photo-1520975915070-3d4fa8f300fd?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1200&q=80'
-];
 
 function LandingPage() {
   const [products, setProducts] = useState(() => (getCachedStorefrontProducts() || []).slice(0, 16));
@@ -77,57 +80,8 @@ function LandingPage() {
 
 
 
-      {/* ━━━━━━━━━━━━ HERO ━━━━━━━━━━━━ */}
-      <div className="relative overflow-hidden rounded-[2rem] border border-burgundy/10 bg-white shadow-soft">
-        {/* صورة الخلفية */}
-        <div className="relative aspect-[16/9] sm:aspect-[12/5] max-h-[60vh] overflow-hidden">
-          {/* صورة الخلفية مثبتة من اليمين لإخفاء المساحة البيضاء الأيسر */}
-          <img
-            src={heroImages[0]}
-            alt="ModaPella"
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              height: '100%',
-              width: '100%',
-              objectFit: 'cover',
-              objectPosition: 'right center',
-              transform: 'scale(1.15)',
-              transformOrigin: 'right center',
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-burgundy/80 via-burgundy/30 to-transparent" />
-
-          {/* النص فوق الصورة */}
-          <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-10">
-            <span className="mb-3 inline-flex w-fit items-center gap-2 rounded-full bg-white/20 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white backdrop-blur-sm">
-              ModaPella
-              <span className="block h-2 w-2 rounded-full bg-white animate-pulse" />
-            </span>
-            <h1 className="text-2xl sm:text-4xl font-bold text-white leading-snug max-w-lg">
-              {siteConfig.heroTitle}
-            </h1>
-            <p className="mt-2 sm:mt-3 text-sm sm:text-base text-white/80 max-w-md leading-7">
-              {siteConfig.heroSubtitle}
-            </p>
-            <div className="mt-4 sm:mt-6 flex flex-wrap gap-3">
-              <Link
-                to={siteConfig.heroCtaLink || '/shop'}
-                className="rounded-full bg-white px-5 sm:px-7 py-2.5 sm:py-3 text-sm font-bold text-burgundy transition hover:bg-beige shadow"
-              >
-                {siteConfig.heroCtaLabel}
-              </Link>
-              <Link
-                to={siteConfig.secondaryCtaLink || '/collections'}
-                className="rounded-full border border-white/60 px-5 sm:px-7 py-2.5 sm:py-3 text-sm font-medium text-white transition hover:bg-white/10"
-              >
-                {siteConfig.secondaryCtaLabel}
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* ━━━━━━━━━━━━ HERO (Dynamic Motion Slider) ━━━━━━━━━━━━ */}
+      <DynamicHeroSlider siteConfig={siteConfig} />
 
       {/* ━━━━━━━━━━━━ لافتة غرفة التنسيق الذكية ━━━━━━━━━━━━ */}
       {siteConfig.outfitterBannerActive !== false && siteConfig.features?.outfitter !== false && (
@@ -155,6 +109,11 @@ function LandingPage() {
         </div>
       )}
 
+      {/* ━━━━━━━━━━━━ إزاي تطلبي بسهولة؟ (Visual Story Cards) ━━━━━━━━━━━━ */}
+      <OrderStepsVisualCards />
+
+      {/* ━━━━━━━━━━━━ سلايدر الأكثر مبيعاً ━━━━━━━━━━━━ */}
+      {siteConfig?.features?.bestSellers !== false && <BestSellersSlider products={products} />}
 
       {/* ━━━━━━━━━━━━ قسم استعراض الميزة والبراند التفاعلي (Scroll-Animated Showcase) ━━━━━━━━━━━━ */}
       <FeatureBannerShowcase
@@ -167,46 +126,6 @@ function LandingPage() {
         secondaryCtaLink="https://wa.me/201090048832?text=أهلاً%20ModaPella،%20أريد%20استشارة%20لتنسيق%20طقم%20مناسب"
         imageSrc="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=85"
       />
-
-      {/* ━━━━━━━━━━━━ خطوات الطلب ━━━━━━━━━━━━ */}
-      <div className="rounded-[2rem] border border-burgundy/10 bg-white p-5 sm:p-10 shadow-soft">
-        <div className="text-center mb-7 sm:mb-10 space-y-1">
-          <h2 className="text-xl sm:text-3xl font-bold text-burgundy">إزاي تطلبي بسهولة؟</h2>
-          <p className="text-sm text-burgundy/60">ثلاث خطوات وقطعتك في إيدك</p>
-        </div>
-        <div className="grid gap-3 sm:gap-6 grid-cols-3">
-          {[
-            { num: '١', icon: 'search', title: 'تصفحي المتجر', desc: 'اختاري القطعة والمقاس اللي بيعجبك' },
-            { num: '٢', icon: 'orders', title: 'سجلي طلبك', desc: 'أكملي بياناتك وأكدي الطلب بسهولة' },
-            { num: '٣', icon: 'store', title: 'استلمي من المحل', desc: 'تعالي بني مزار وخدي قطعتك جاهزة' },
-          ].map((step) => (
-            <div
-              key={step.num}
-              className="flex flex-col items-center text-center rounded-2xl sm:rounded-[2rem] border border-burgundy/10 bg-burgundy/5 p-3 sm:p-8"
-            >
-              <div className="flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-burgundy text-white text-base sm:text-xl font-extrabold mb-3 shadow">
-                {step.num}
-              </div>
-              <div className="mb-2 text-burgundy opacity-85">
-                <Icon name={step.icon} className="w-6 h-6 sm:w-10 sm:h-10" />
-              </div>
-              <h3 className="text-xs sm:text-base font-bold text-burgundy leading-tight">{step.title}</h3>
-              <p className="mt-1 text-[10px] sm:text-sm text-burgundy/60 leading-relaxed hidden sm:block">{step.desc}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-6 sm:mt-8 text-center">
-          <Link
-            to="/shop"
-            className="inline-flex items-center justify-center rounded-full bg-burgundy px-7 py-3 text-sm font-bold text-white transition hover:bg-[#650018] shadow"
-          >
-            ابدأي التسوق
-          </Link>
-        </div>
-      </div>
-
-      {/* ━━━━━━━━━━━━ سلايدر الأكثر مبيعاً ━━━━━━━━━━━━ */}
-      {siteConfig?.features?.bestSellers !== false && <BestSellersSlider products={products} />}
 
       {/* ━━━━━━━━━━━━ تسوقي الإطلالة كاملة (إطلالات الموديلز) ━━━━━━━━━━━━ */}
       {Boolean(siteConfig?.features?.lookbook) && <ShopTheLookSection />}
