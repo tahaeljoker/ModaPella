@@ -43,6 +43,7 @@ function AdminSiteSettings() {
  const [newCatKey, setNewCatKey] = useState('');
  const [newCatName, setNewCatName] = useState('');
  const [editingCatKey, setEditingCatKey] = useState(null);
+ const [editingCatKeyNew, setEditingCatKeyNew] = useState('');
  const [editingCatName, setEditingCatName] = useState('');
 
  // Online orders state
@@ -120,7 +121,7 @@ function AdminSiteSettings() {
  }, []);
 
  useEffect(() => {
-  if (activeTab === 'orders') loadOnlineOrders();
+  if (activeTab === 'orders' || activeTab === 'traffic') loadOnlineOrders();
   if (activeTab === 'stats') loadStats();
   if (activeTab === 'coupons') loadCoupons();
  }, [activeTab]);
@@ -267,22 +268,32 @@ function AdminSiteSettings() {
 
  const handleStartEditCategory = (cat) => {
  setEditingCatKey(cat.key);
- setEditingCatName(cat.nameAr);
+ setEditingCatKeyNew(cat.key);
+ setEditingCatName(cat.nameAr || '');
  };
 
- const handleSaveEditCategory = async (key) => {
- if (!editingCatName.trim()) return;
- const updatedCategories = config.categories.map(c => c.key === key ? { ...c, nameAr: editingCatName.trim() } : c);
+ const handleSaveEditCategory = async (oldKey) => {
+ if (!editingCatKeyNew.trim() || !editingCatName.trim()) {
+   showToast('يرجى إدخال الرمز الإنجليزي والاسم العربي');
+   return;
+ }
  try {
- setSaving(true);
- const res = await api.put('/admin/site-config', { ...config, categories: updatedCategories });
- setConfig(res.data);
- setEditingCatKey(null);
- showToast('تم تعديل اسم الفئة ');
+   setSaving(true);
+   const res = await api.put('/admin/categories/rename', {
+     oldKey,
+     newKey: editingCatKeyNew.trim(),
+     nameAr: editingCatName.trim()
+   });
+   if (res.data?.config) {
+     setConfig(res.data.config);
+   }
+   setEditingCatKey(null);
+   showToast('تم تعديل الفئة وتحديث كافة منتجاتها المرتبطة بنجاح');
  } catch (err) {
- showToast('فشل تعديل الفئة');
+   console.error(err);
+   showToast(err.response?.data?.message || 'فشل تعديل الفئة');
  } finally {
- setSaving(false);
+   setSaving(false);
  }
  };
 
@@ -401,84 +412,210 @@ function AdminSiteSettings() {
  </div>
  </div>
 
- {/* Navigation Tabs */}
- <div className="flex border-b border-burgundy/10 gap-1 overflow-x-auto pb-px">
-  <button
-    onClick={() => handleTabChange('online-products')}
-    className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'online-products' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
-  >
-    <Icon name="products" className="w-4 h-4" /> منتجات المتجر والصور
-  </button>
-  <button
-    onClick={() => handleTabChange('looks')}
-    className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'looks' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
-  >
-    <span>إطلالات الموديلز (Lookbook)</span>
-  </button>
-  <button
-    onClick={() => handleTabChange('features')}
-    className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'features' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
-  >
-    <span>🎛️ ميزات ومفاتيح الموقع</span>
-  </button>
- <button
- onClick={() => handleTabChange('appearance')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'appearance' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
- >
- <Icon name="site" className="w-4 h-4" /> المظهر والواجهة
- </button>
- <button
- onClick={() => handleTabChange('announcement')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'announcement' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
- >
- <span>شريط الإعلانات الترويجي</span>
- {config?.announcementBarActive && (
- <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
- )}
- </button>
- <button
- onClick={() => handleTabChange('coupons')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'coupons' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
- >
- <span>كوبونات الخصم</span>
- {coupons.filter(c => c.active).length > 0 && (
- <span className="bg-burgundy/10 text-burgundy rounded-full text-[10px] px-2 py-0.5 font-mono font-bold">
- {coupons.filter(c => c.active).length}
- </span>
- )}
- </button>
- <button
- onClick={() => handleTabChange('orders')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition relative flex items-center gap-1.5 ${activeTab === 'orders' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
- >
- <Icon name="orders" className="w-4 h-4" /> طلبات الأونلاين
- {orders.filter(o => o.status === 'Pending').length > 0 && (
- <span className="absolute -top-1 -left-1 bg-red-500 text-white rounded-full text-[10px] w-5 h-5 flex items-center justify-center font-mono">
- {orders.filter(o => o.status === 'Pending').length}
- </span>
- )}
- </button>
- <button
- onClick={() => handleTabChange('categories')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'categories' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
- >
- <Icon name="inventory" className="w-4 h-4" /> فئات وأقسام الموقع
- </button>
- <button
- onClick={() => handleTabChange('traffic')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'traffic' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
- >
- <span>مصادر الإعلانات (Ad Tracker)</span>
- </button>
- <button
- onClick={() => handleTabChange('creator')}
- className={`whitespace-nowrap px-4 py-3 text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${activeTab === 'creator' ? 'border-burgundy text-burgundy bg-burgundy/5 rounded-t-xl' : 'border-transparent text-burgundy/60 hover:text-burgundy'}`}
- >
- <span>مولد بوسترات الإعلانات</span>
- </button>
- </div>
+ {/* Navigation Tabs - Organized in 3 Logical Groups */}
+  <div className="space-y-3 bg-[#FAF7F5] p-3 rounded-2xl border border-burgundy/10">
+    <div className="flex flex-wrap items-center gap-2 justify-between">
+      <span className="text-xs font-extrabold text-burgundy/60 uppercase tracking-wider">
+        أقسام إدارة المتجر الإلكتروني
+      </span>
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="px-2.5 py-0.5 rounded-full bg-white border border-burgundy/10 text-burgundy/70 font-semibold">
+          12 قسم تحكم متاح
+        </span>
+      </div>
+    </div>
 
- {/* Tab Contents */}
+    {/* Segmented Groups */}
+    <div className="grid gap-3 lg:grid-cols-3">
+      {/* Group 1: المنتجات والتنسيقات */}
+      <div className="bg-white rounded-xl p-2 border border-burgundy/10 shadow-2xs space-y-1">
+        <span className="block text-[11px] font-black text-burgundy/50 px-2 pt-1">
+          المنتجات والتنسيقات
+        </span>
+        <div className="flex flex-wrap gap-1">
+          <button
+            type="button"
+            onClick={() => handleTabChange('online-products')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'online-products'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <Icon name="products" className="w-3.5 h-3.5" />
+            <span>منتجات المتجر والصور</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('looks')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'looks'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <span>إطلالات الموديلز</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('categories')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'categories'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <Icon name="inventory" className="w-3.5 h-3.5" />
+            <span>فئات وأقسام الموقع</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Group 2: الواجهة والمظهر */}
+      <div className="bg-white rounded-xl p-2 border border-burgundy/10 shadow-2xs space-y-1">
+        <span className="block text-[11px] font-black text-burgundy/50 px-2 pt-1">
+          الواجهة والهوية
+        </span>
+        <div className="flex flex-wrap gap-1">
+          <button
+            type="button"
+            onClick={() => handleTabChange('appearance')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'appearance'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <Icon name="site" className="w-3.5 h-3.5" />
+            <span>المظهر والواجهة</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('announcement')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'announcement'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <span>شريط الإعلانات</span>
+            {config?.announcementBarActive && (
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('features')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'features'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <span>مفاتيح الميزات</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('whatsapp')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'whatsapp'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <Icon name="whatsapp" className="w-3.5 h-3.5" />
+            <span>ربط الواتساب</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Group 3: المبيعات والتسويق */}
+      <div className="bg-white rounded-xl p-2 border border-burgundy/10 shadow-2xs space-y-1">
+        <span className="block text-[11px] font-black text-burgundy/50 px-2 pt-1">
+          المبيعات والتسويق
+        </span>
+        <div className="flex flex-wrap gap-1">
+          <button
+            type="button"
+            onClick={() => handleTabChange('orders')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer relative ${
+              activeTab === 'orders'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <Icon name="orders" className="w-3.5 h-3.5" />
+            <span>طلبات الأونلاين</span>
+            {orders.filter(o => o.status === 'Pending').length > 0 && (
+              <span className="bg-red-500 text-white rounded-full text-[9px] px-1.5 py-0.2 font-mono">
+                {orders.filter(o => o.status === 'Pending').length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('coupons')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'coupons'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <span>كوبونات الخصم</span>
+            {coupons.filter(c => c.active).length > 0 && (
+              <span className="bg-burgundy/10 text-burgundy rounded-full text-[9px] px-1.5 py-0.2 font-mono">
+                {coupons.filter(c => c.active).length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('stats')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'stats'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <span>الإحصائيات</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('traffic')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'traffic'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <span>تتبع الإعلانات</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('creator')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'creator'
+                ? 'bg-burgundy text-white shadow-xs'
+                : 'text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy'
+            }`}
+          >
+            <span>مولد البوسترات</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Tab Contents */}
  {activeTab === 'online-products' && (
   <AdminOnlineCatalog onToast={showToast} />
 )}
@@ -822,51 +959,69 @@ function AdminSiteSettings() {
  <tbody className="divide-y divide-burgundy/5">
  {config.categories?.map((cat) => (
  <tr key={cat.key} className="hover:bg-burgundy/3">
- <td className="py-3 px-4 font-mono text-xs font-bold text-burgundy/80">{cat.key}</td>
+ <td className="py-3 px-4 font-mono text-xs font-bold text-burgundy/80">
+ {editingCatKey === cat.key ? (
+   <input
+     type="text"
+     value={editingCatKeyNew}
+     onChange={(e) => setEditingCatKeyNew(e.target.value)}
+     placeholder="e.g. Blazer"
+     className="rounded-lg border border-burgundy/35 px-2.5 py-1 text-xs outline-none focus:border-burgundy w-28 sm:w-36 font-mono"
+   />
+ ) : (
+   <span>{cat.key}</span>
+ )}
+ </td>
  <td className="py-3 px-4">
  {editingCatKey === cat.key ? (
- <input
- type="text"
- value={editingCatName}
- onChange={(e) => setEditingCatName(e.target.value)}
- className="rounded-lg border border-burgundy/35 px-3 py-1 text-xs outline-none focus:border-burgundy"
- />
+   <input
+     type="text"
+     value={editingCatName}
+     onChange={(e) => setEditingCatName(e.target.value)}
+     placeholder="الاسم بالعربي"
+     className="rounded-lg border border-burgundy/35 px-2.5 py-1 text-xs outline-none focus:border-burgundy w-32 sm:w-44"
+   />
  ) : (
- <span className="font-semibold">{cat.nameAr}</span>
+   <span className="font-semibold">{cat.nameAr}</span>
  )}
  </td>
  <td className="py-3 px-4 text-center">
  <div className="flex justify-center gap-2">
  {editingCatKey === cat.key ? (
- <>
- <button
- onClick={() => handleSaveEditCategory(cat.key)}
- className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-emerald-700"
- >
- حفظ
- </button>
- <button
- onClick={() => setEditingCatKey(null)}
- className="rounded-lg border border-burgundy/20 px-3 py-1 text-xs font-bold text-burgundy transition hover:bg-burgundy/10"
- >
- إلغاء
- </button>
- </>
+   <>
+     <button
+       type="button"
+       onClick={() => handleSaveEditCategory(cat.key)}
+       className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-emerald-700 cursor-pointer"
+     >
+       حفظ
+     </button>
+     <button
+       type="button"
+       onClick={() => setEditingCatKey(null)}
+       className="rounded-lg border border-burgundy/20 px-3 py-1 text-xs font-bold text-burgundy transition hover:bg-burgundy/10 cursor-pointer"
+     >
+       إلغاء
+     </button>
+   </>
  ) : (
- <>
- <button
- onClick={() => handleStartEditCategory(cat)}
- className="rounded-lg border border-burgundy/25 px-2.5 py-1 text-xs font-bold text-burgundy/70 hover:bg-burgundy/10"
- >
- تعديل الاسم
- </button>
- <button
- onClick={() => handleDeleteCategory(cat.key)}
- className="rounded-lg bg-red-50 border border-red-200 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-100"
- >
- حذف
- </button>
- </>
+   <>
+     <button
+       type="button"
+       onClick={() => handleStartEditCategory(cat)}
+       className="rounded-lg border border-burgundy/25 px-2.5 py-1 text-xs font-bold text-burgundy/70 hover:bg-burgundy/10 cursor-pointer"
+       title="تعديل الاسم بالإنجليزي والعربي"
+     >
+       تعديل
+     </button>
+     <button
+       type="button"
+       onClick={() => handleDeleteCategory(cat.key)}
+       className="rounded-lg bg-red-50 border border-red-200 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-100 cursor-pointer"
+     >
+       حذف
+     </button>
+   </>
  )}
  </div>
  </td>

@@ -1224,6 +1224,55 @@ router.get('/site-config', async (req, res) => {
   }
 });
 
+
+router.put('/categories/rename', auth, requireRole(['admin']), async (req, res) => {
+  try {
+    const { oldKey, newKey, nameAr } = req.body;
+    if (!oldKey || !newKey) {
+      return res.status(400).json({ message: 'oldKey and newKey are required' });
+    }
+
+    const trimmedOld = oldKey.trim();
+    const trimmedNew = newKey.trim();
+    const trimmedNameAr = nameAr ? nameAr.trim() : '';
+
+    const siteConfig = await getSiteConfig();
+    const categories = siteConfig.categories || [];
+
+    // Check if newKey is already used by another category
+    if (trimmedOld.toLowerCase() !== trimmedNew.toLowerCase()) {
+      const exists = categories.some(c => c.key.toLowerCase() === trimmedNew.toLowerCase());
+      if (exists) {
+        return res.status(400).json({ message: 'الرمز الإنجليزي الجديد مستخدم بالفعل لفئة أخرى' });
+      }
+    }
+
+    // Update categories in SiteConfig
+    const updated = categories.map(c => {
+      if (c.key === trimmedOld) {
+        return {
+          key: trimmedNew,
+          nameAr: trimmedNameAr || c.nameAr
+        };
+      }
+      return c;
+    });
+
+    siteConfig.categories = updated;
+    siteConfig.markModified('categories');
+    await siteConfig.save();
+
+    // If key changed, update all products referencing old key
+    if (trimmedOld !== trimmedNew) {
+      await Product.updateMany({ category: trimmedOld }, { $set: { category: trimmedNew } });
+    }
+
+    res.json({ message: 'تم تحديث الفئة وتحديث المنتجات المرتبطة بنجاح', config: siteConfig });
+  } catch (error) {
+    res.status(500).json({ message: 'فشل تحديث الفئة', error: error.message });
+  }
+});
+
 router.put('/site-config', auth, requireRole(['admin']), async (req, res) => {
   try {
     const siteConfig = await getSiteConfig();

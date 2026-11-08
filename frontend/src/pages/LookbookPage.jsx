@@ -42,45 +42,65 @@ export default function LookbookPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 py-4 sm:py-8 pb-28 sm:pb-16 text-burgundy" dir="rtl">
-      {/* Editorial Luxury Header */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#38010c] via-[#520213] to-[#260108] text-white p-6 sm:p-10 shadow-[0_12px_40px_rgba(56,1,12,0.25)]">
-        {/* Subtle Ambient Glows */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Editorial Fashion Studio Header */}
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/15 bg-gradient-to-l from-white via-[#FAF7F5] to-white p-6 sm:p-8 lg:p-10 shadow-xs">
+        {/* Subtle Fashion Watermark Accent */}
+        <div className="absolute -top-10 -left-10 text-[90px] font-black text-burgundy/[0.03] select-none pointer-events-none tracking-widest">
+          MODAPELLA
+        </div>
 
-        <div className="relative z-10 max-w-3xl space-y-3.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-bold text-amber-200">
-            <span>MODAPELLA ATELIER ✦ استوديو الموديل والتنسيقات</span>
+        <div className="relative z-10 grid gap-6 lg:grid-cols-[1.3fr_0.7fr] items-center">
+          <div className="space-y-3.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-burgundy/5 text-burgundy text-[11px] sm:text-xs font-bold border border-burgundy/10">
+              <span className="w-1.5 h-1.5 rounded-full bg-burgundy" />
+              <span>MODAPELLA ATELIER ✦ استوديو الموديل والتنسيقات</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-4xl font-black text-burgundy tracking-tight leading-snug">
+              إطلالات وتنسيقات الموديل الحقيقية
+            </h1>
+
+            <p className="text-xs sm:text-sm text-burgundy/70 leading-relaxed max-w-xl">
+              شاهدي كل طقم وتناسق ألوانه على الطبيعة بالفيديو عالي الدقة وجلسات التصوير الحية للتعرف على تفاصيل القصة والخامة قبل الطلب. اضغطي على أي قطعة لمعرفة تفاصيلها ومقاساتها، واحصلي على خصم خاص فوري عند طلب اللوك كاملاً.
+            </p>
+
+            {/* Feature Pills */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="px-3 py-1 rounded-full bg-[#FAF7F5] border border-burgundy/10 text-burgundy/80 font-bold">
+                فيديوهات وريلز حيّة
+              </span>
+              <span className="px-3 py-1 rounded-full bg-[#FAF7F5] border border-burgundy/10 text-burgundy/80 font-bold">
+                تنسيقات متناسقة بالكامل
+              </span>
+              <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
+                خصم فوري للطقم الكامل
+              </span>
+            </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-snug">
-            شاهدي التنسيق على الموديل بالحركة الحقيقية وتسوقي اللوك كاملاً
-          </h1>
+          {/* Left Side: Stats & Outfitter Action */}
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-3 justify-center">
+            <div className="grid grid-cols-3 gap-2 bg-[#FAF7F5] border border-burgundy/10 rounded-2xl p-3.5 text-center">
+              <div>
+                <span className="block text-base sm:text-lg font-black text-burgundy">{looks.length}</span>
+                <span className="text-[10px] text-burgundy/60 font-semibold">إطلالة منسقة</span>
+              </div>
+              <div className="border-r border-burgundy/10 pr-2">
+                <span className="block text-base sm:text-lg font-black text-burgundy">{videoCount}</span>
+                <span className="text-[10px] text-burgundy/60 font-semibold">ريلز فيديو</span>
+              </div>
+              <div className="border-r border-burgundy/10 pr-2">
+                <span className="block text-base sm:text-lg font-black text-burgundy">{photoCount}</span>
+                <span className="text-[10px] text-burgundy/60 font-semibold">فوتوسيشن</span>
+              </div>
+            </div>
 
-          <p className="text-xs sm:text-sm text-white/80 leading-relaxed max-w-2xl">
-            جلسات تصوير وفيديوهات ريلز حية توضح تناسق كل قطعة مع مقاساتها وخامتها على أرض الواقع. انقري على أي قطعة لمعاينة تفاصيلها، أو اطلبي الطقم المتكامل بخصم خاص فوري!
-          </p>
-
-          {/* Quick Luxury Counters */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
-            <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/90">
-              {looks.length} إطلالة منسقة
-            </span>
-            {videoCount > 0 && (
-              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/90">
-                {videoCount} فيديو ريلز
-              </span>
-            )}
-            {photoCount > 0 && (
-              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/90">
-                {photoCount} جلسة تصوير
-              </span>
-            )}
             <Link
               to="/outfitter"
-              className="px-3.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/30 text-amber-200 font-bold transition flex items-center gap-1.5"
+              className="px-4 py-3 rounded-2xl bg-burgundy hover:bg-[#680017] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs group"
             >
-              <span>جربي غرفة تنسيق المانيكان أيضاً ←</span>
+              <span>تجربة غرفة تنسيق المانيكان أيضاً</span>
+              <span className="group-hover:translate-x-0.5 transition">←</span>
             </Link>
           </div>
         </div>

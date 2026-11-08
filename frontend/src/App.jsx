@@ -177,91 +177,89 @@ function AppContent() {
 
  {!isDashboard && (
  <header className="container mx-auto border-b border-burgundy/10 bg-[#fcf9f8] px-4 py-5 shadow-sm relative">
- <div className="flex items-center justify-between">
- <div>
- <Logo />
- <p className="text-xs sm:text-sm text-burgundy/70 mt-0.5">تسوق الأزياء النسائية بأناقة</p>
- </div>
- 
- {/* Mobile Action Buttons */}
- <div className="flex items-center gap-1.5 md:hidden">
-   <button
-     type="button"
-     onClick={() => setIsSearchModalOpen(true)}
-     className="p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full cursor-pointer"
-     aria-label="بحث في المنتجات"
-     title="بحث"
-   >
-     <svg className="w-5 h-5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
-   </button>
-   <button
-     type="button"
-     onClick={() => setIsCartDrawerOpen(true)}
-     className="relative p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full cursor-pointer"
-     aria-label="سلة التسوق"
-     title="سلة التسوق"
-   >
-     <svg className="w-5 h-5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
-     {cart.length > 0 && (
-       <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-burgundy px-1 text-[9px] font-bold text-white">
-         {cart.length}
-       </span>
-     )}
-   </button>
- <button
- onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
- className="md:hidden flex flex-col justify-between w-6 h-4 text-burgundy focus:outline-none"
- aria-label="Toggle Menu"
- >
- <span className={`h-0.5 w-full bg-burgundy rounded transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
- <span className={`h-0.5 w-full bg-burgundy rounded transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`} />
- <span className={`h-0.5 w-full bg-burgundy rounded transition-transform duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
- </button>
- </div>
+  <div className="flex items-center justify-between gap-4">
+    {/* Right in RTL: Logo */}
+    <div className="flex items-center gap-3">
+      <Logo />
+      <p className="hidden lg:block text-xs text-burgundy/60 border-r border-burgundy/15 pr-3">
+        تسوق الأزياء النسائية بأناقة
+      </p>
+    </div>
 
- {/* Desktop Navigation */}
- <nav className="hidden md:flex flex-wrap gap-2">
- {navItem('الرئيسية', '/')}
- {navItem('الملابس', '/shop')}
-	{Boolean(siteConfig?.features?.outfitter) && navItem('غرفة التنسيق', '/outfitter')}
-	{Boolean(siteConfig?.features?.lookbook) && navItem('إطلالات الموديلز', '/lookbook')}
- <button
-   type="button"
-   onClick={() => setIsSearchModalOpen(true)}
-   className="relative px-3 py-1.5 rounded-full border border-burgundy/20 hover:border-burgundy text-burgundy/80 hover:text-burgundy text-xs font-bold flex items-center gap-1.5 transition bg-white/70 shadow-2xs cursor-pointer hover:bg-burgundy hover:text-white"
- >
-   <span></span>
-   <span>بحث</span>
- </button>
-          {siteConfig?.features?.productComparison !== false && (
-            <button
-              type="button"
-              onClick={() => setIsCompareOpen(true)}
-              className="relative px-3.5 py-2 rounded-lg transition text-burgundy/80 hover:text-burgundy font-semibold text-sm flex items-center gap-1.5"
-            >
-              <span>مقارنة</span>
-              {compareItems.length > 0 && (
-                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
-                  {compareItems.length}
-                </span>
-              )}
-            </button>
+    {/* Center in RTL: Main Navigation Links */}
+    <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+      {navItem('الرئيسية', '/')}
+      {navItem('الملابس', '/shop')}
+      {Boolean(siteConfig?.features?.lookbook) && navItem('إطلالات الموديلز', '/lookbook')}
+      {Boolean(siteConfig?.features?.outfitter) && navItem('غرفة التنسيق', '/outfitter')}
+      {navItem('تواصل معنا', '/about')}
+    </nav>
+
+    {/* Left in RTL: Action Icons Group */}
+    <div className="flex items-center gap-2">
+      {/* Quick Search Button */}
+      <button
+        type="button"
+        onClick={() => setIsSearchModalOpen(true)}
+        className="h-9 w-9 rounded-full border border-burgundy/15 bg-white/80 hover:bg-burgundy hover:text-white text-burgundy/80 flex items-center justify-center transition shadow-2xs cursor-pointer"
+        title="بحث في الموديلات"
+        aria-label="بحث في الموديلات"
+      >
+        <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+        </svg>
+      </button>
+
+      {/* Compare Button */}
+      {siteConfig?.features?.productComparison !== false && (
+        <button
+          type="button"
+          onClick={() => setIsCompareOpen(true)}
+          className="relative h-9 w-9 rounded-full border border-burgundy/15 bg-white/80 hover:bg-burgundy hover:text-white text-burgundy/80 flex items-center justify-center transition shadow-2xs cursor-pointer"
+          title="مقارنة الموديلات"
+          aria-label="مقارنة الموديلات"
+        >
+          <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+          </svg>
+          {compareItems.length > 0 && (
+            <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white shadow-xs">
+              {compareItems.length}
+            </span>
           )}
- <button
- type="button"
- onClick={() => setIsCartDrawerOpen(true)}
- className="relative px-4 py-2 rounded-lg transition text-burgundy/80 hover:text-burgundy font-semibold text-sm"
- >
- سلة
- {cart.length > 0 && (
- <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-burgundy px-1.5 text-[10px] font-semibold text-white">
- {cart.length}
- </span>
- )}
- </button>
- {navItem('تواصل معنا', '/about')}
- </nav>
- </div>
+        </button>
+      )}
+
+      {/* Cart Button */}
+      <button
+        type="button"
+        onClick={() => setIsCartDrawerOpen(true)}
+        className="relative h-9 px-3.5 rounded-full border border-burgundy/20 bg-burgundy text-white hover:bg-[#680017] flex items-center gap-1.5 transition shadow-xs cursor-pointer text-xs font-bold"
+        aria-label="سلة التسوق"
+      >
+        <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+        </svg>
+        <span className="hidden sm:inline">السلة</span>
+        {cart.length > 0 && (
+          <span className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-white text-burgundy px-1 text-[9px] font-black">
+            {cart.length}
+          </span>
+        )}
+      </button>
+
+      {/* Hamburger Button for mobile */}
+      <button
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="md:hidden flex flex-col justify-between w-6 h-4 text-burgundy focus:outline-none p-0.5 mr-1 cursor-pointer"
+        aria-label="Toggle Menu"
+      >
+        <span className={`h-0.5 w-full bg-burgundy rounded transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+        <span className={`h-0.5 w-full bg-burgundy rounded transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`} />
+        <span className={`h-0.5 w-full bg-burgundy rounded transition-transform duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+      </button>
+    </div>
+  </div>
 
  {/* Mobile Navigation Dropdown */}
  {isMobileMenuOpen && (
