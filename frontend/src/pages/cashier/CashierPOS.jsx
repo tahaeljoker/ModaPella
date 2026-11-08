@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import InventoryDetailsModal from '../../components/InventoryDetailsModal';
 import { isDiscountActive } from '../../utils/discount';
 
 
@@ -397,6 +398,7 @@ function CashierPOS() {
  const navigate = useNavigate();
 
  const [products, setProducts] = useState([]);
+ const [isInventoryDetailsOpen, setIsInventoryDetailsOpen] = useState(false);
  const [loading, setLoading] = useState(true);
  const [search, setSearch] = useState('');
  const [searchFocused, setSearchFocused] = useState(false);
@@ -573,7 +575,7 @@ function CashierPOS() {
 
  if (successCount > 0) {
  showToast(` تم مزامنة ${successCount} فاتورة معلقة بنجاح!`);
- api.get('/products').then(res => setProducts(Array.isArray(res?.data) ? res.data : [])).catch(() => {});
+ api.get('/products?includeOffSeason=true').then(res => setProducts(Array.isArray(res?.data) ? res.data : [])).catch(() => {});
  } else {
  showToast(' فشلت المزامنة. تأكد من اتصال السيرفر بالإنترنت.', 'error');
  }
@@ -588,7 +590,7 @@ function CashierPOS() {
  };
 
    useEffect(() => {
-    api.get('/products')
+    api.get('/products?includeOffSeason=true')
       .then(res => setProducts(Array.isArray(res?.data) ? res.data : []))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -609,7 +611,7 @@ function CashierPOS() {
   // Live products sync: reload products whenever window gains focus
   useEffect(() => {
     const handleWindowFocusSync = () => {
-      api.get('/products').then(res => setProducts(res.data)).catch(() => {});
+      api.get('/products?includeOffSeason=true').then(res => setProducts(res.data)).catch(() => {});
     };
     window.addEventListener('focus', handleWindowFocusSync);
     return () => window.removeEventListener('focus', handleWindowFocusSync);

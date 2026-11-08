@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon';
 import InfoPopover from '../../components/InfoPopover';
 import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
 import CategoryAnalyticsModal from '../../components/CategoryAnalyticsModal';
+import InventoryDetailsModal from '../../components/InventoryDetailsModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -143,6 +144,7 @@ function AdminOverview() {
  const [productPerformance, setProductPerformance] = useState(null);
  const [selectedAnalyticsProduct, setSelectedAnalyticsProduct] = useState(null);
   const [selectedCategoryAnalytics, setSelectedCategoryAnalytics] = useState(null);
+  const [isInventoryDetailsOpen, setIsInventoryDetailsOpen] = useState(false);
  const [loading, setLoading] = useState(true);
  const [period, setPeriod] = useState('current');
  const navigate = useNavigate();
@@ -774,8 +776,20 @@ function AdminOverview() {
  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
  <StatCard label={dateFrom || dateTo ? 'الطلبات (الفترة)' : 'الطلبات المكتملة'} value={summary.completed} icon="" />
  <StatCard label={dateFrom || dateTo ? 'المرتجعات (الفترة)' : 'المرتجعات'} value={summary.returned} icon="" />
- <StatCard label="المنتجات المسجلة" value={overview?.products ?? 0} icon="" />
- <StatCard label="إجمالي القطع بالمخزن" value={overview?.totalStock ? `${overview.totalStock.toLocaleString('en-US')} قطعة` : '0 قطعة'} icon="" />
+ <StatCard
+    label="المنتجات المسجلة"
+    value={overview?.products ?? 0}
+    icon=""
+    sub="انقر لعرض تفاصيل وحسبة الموديلات ⓘ"
+    onClick={() => setIsInventoryDetailsOpen(true)}
+  />
+ <StatCard
+    label="إجمالي القطع بالمخزن"
+    value={overview?.totalStock ? `${overview.totalStock.toLocaleString('en-US')} قطعة` : '0 قطعة'}
+    icon=""
+    sub="انقر لعرض تفاصيل القطع والمعروض والمستودع ⓘ"
+    onClick={() => setIsInventoryDetailsOpen(true)}
+  />
  <StatCard
  label="تنبيهات المخزون"
  value={overview?.lowStock?.length ?? 0}
@@ -1252,7 +1266,14 @@ function AdminOverview() {
  />
  )}
 
- {/* Category Analytics Modal */}
+ {/* Inventory Details Modal */}
+  <InventoryDetailsModal
+    isOpen={isInventoryDetailsOpen}
+    onClose={() => setIsInventoryDetailsOpen(false)}
+    title="تفاصيل واشتقاق حساب المخزون والقطع (نظرة عامة)"
+  />
+
+  {/* Category Analytics Modal */}
  {selectedCategoryAnalytics && (
  <CategoryAnalyticsModal
  initialCategory={selectedCategoryAnalytics}

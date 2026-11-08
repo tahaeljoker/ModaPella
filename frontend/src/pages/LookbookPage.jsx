@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ShopTheLookCard from '../components/ShopTheLookCard';
 
@@ -78,7 +77,7 @@ export default function LookbookPage() {
             </div>
           </div>
 
-          {/* Left Side: Stats & Outfitter Action */}
+          {/* Left Side: Stats */}
           <div className="flex flex-col sm:flex-row lg:flex-col gap-3 justify-center">
             <div className="grid grid-cols-3 gap-2 bg-[#FAF7F5] border border-burgundy/10 rounded-2xl p-3.5 text-center">
               <div>
@@ -94,14 +93,6 @@ export default function LookbookPage() {
                 <span className="text-[10px] text-burgundy/60 font-semibold">فوتوسيشن</span>
               </div>
             </div>
-
-            <Link
-              to="/outfitter"
-              className="px-4 py-3 rounded-2xl bg-burgundy hover:bg-[#680017] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs group"
-            >
-              <span>تجربة غرفة تنسيق المانيكان أيضاً</span>
-              <span className="group-hover:translate-x-0.5 transition">←</span>
-            </Link>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import InventoryDetailsModal from '../../components/InventoryDetailsModal';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 const DEFAULT_CAT_AR = {
@@ -22,7 +23,8 @@ function AdminInventory() {
  const [selectedVariant, setSelectedVariant] = useState('');
  const [adjNote, setAdjNote] = useState('');
  const [toast, setToast] = useState({ msg: '', type: 'success' });
- const [expanded, setExpanded] = useState(null); // expanded product id
+ const [expanded, setExpanded] = useState(null);
+  const [isInventoryDetailsOpen, setIsInventoryDetailsOpen] = useState(false); // expanded product id
 
  const showToast = (msg, type = 'success') => {
  setToast({ msg, type });
@@ -182,12 +184,21 @@ function AdminInventory() {
  <p className="text-xs uppercase tracking-[0.35em] text-burgundy/40">الإدارة</p>
  <h2 className="text-2xl font-bold">إدارة المخزون</h2>
  </div>
- <button
- onClick={loadInventory}
- className="flex items-center gap-2 rounded-2xl border border-burgundy/20 px-4 py-2 text-sm font-medium text-burgundy transition hover:bg-burgundy hover:text-white"
- >
- تحديث
- </button>
+ <div className="flex items-center gap-2">
+  <button
+    onClick={() => setIsInventoryDetailsOpen(true)}
+    className="flex items-center gap-1.5 rounded-2xl bg-burgundy/10 hover:bg-burgundy hover:text-white px-4 py-2 text-sm font-bold text-burgundy transition cursor-pointer"
+  >
+    <span>📊</span>
+    <span>تفاصيل الحسبة والاشتقاق</span>
+  </button>
+  <button
+    onClick={loadInventory}
+    className="flex items-center gap-2 rounded-2xl border border-burgundy/20 px-4 py-2 text-sm font-medium text-burgundy transition hover:bg-burgundy hover:text-white cursor-pointer"
+  >
+    تحديث
+  </button>
+</div>
  </div>
 
  {/* Stats */}
@@ -198,12 +209,18 @@ function AdminInventory() {
  { label: 'مخزون منخفض', value: `${lowCount} منتج`, icon: '', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', warn: true },
  { label: 'نفد المخزون', value: `${outCount} منتج`, icon: '', color: 'text-red-600', bg: 'bg-red-50 border-red-200', warn: outCount > 0 },
  ].map(s => (
- <div key={s.label} className={`rounded-[1.5rem] border p-5 ${s.bg} border-burgundy/10`}>
+ <div
+    key={s.label}
+    onClick={() => setIsInventoryDetailsOpen(true)}
+    className={`rounded-[1.5rem] border p-5 ${s.bg} border-burgundy/10 cursor-pointer hover:shadow-md hover:border-burgundy/30 transition`}
+    title="انقر هنا لمعرفة تفاصيل اشتقاق هذه القيمة"
+  >
  <div className="flex items-center gap-2 mb-2">
  <span className="text-xl">{s.icon}</span>
  <p className={`text-xs font-semibold ${s.warn ? s.color : 'text-burgundy/50'}`}>{s.label}</p>
  </div>
  <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+   <span className="text-[10px] text-burgundy/40 block mt-1">انقر لمعرفة التفاصيل ⓘ</span>
  </div>
  ))}
  </div>

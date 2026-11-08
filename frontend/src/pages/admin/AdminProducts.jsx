@@ -11,6 +11,7 @@ import { renderBarcodeDataUrl } from '../../utils/barcode';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
 import CategoryAnalyticsModal from '../../components/CategoryAnalyticsModal';
+import InventoryDetailsModal from '../../components/InventoryDetailsModal';
 
 
 const DEFAULT_CATEGORIES = ['Blazer', 'Blouse', 'Chemise', 'Skirt', 'Dress', 'Pantalon', 'T-shirt', 'Bag', 'Cardigan', 'Suit', 'Tonic', 'Takem'];
@@ -2597,6 +2598,7 @@ function AdminProducts() {
  const [historyProduct, setHistoryProduct] = useState(null);
  const [analyticsProduct, setAnalyticsProduct] = useState(null);
   const [categoryAnalyticsTarget, setCategoryAnalyticsTarget] = useState(null);
+  const [isInventoryDetailsOpen, setIsInventoryDetailsOpen] = useState(false);
  const [toast, setToast] = useState('');
 
  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
@@ -2820,7 +2822,15 @@ function AdminProducts() {
  />
  )}
 
- {/* Delete Confirmation */}
+ {/* Inventory Details Modal */}
+  <InventoryDetailsModal
+    isOpen={isInventoryDetailsOpen}
+    onClose={() => setIsInventoryDetailsOpen(false)}
+    initialProducts={products}
+    title="تفاصيل واشتقاق حساب المنتجات والمخزون"
+  />
+
+  {/* Delete Confirmation */}
  <ConfirmModal
  isOpen={isDeleteOpen}
  title="تأكيد الأرشفة"
