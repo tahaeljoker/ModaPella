@@ -27,6 +27,8 @@ import OutfitComparisonModal from './components/OutfitComparisonModal';
 import ScrollRestoration from './components/ScrollRestoration';
 import { resolveImageUrl } from './utils/imageUrl';
 import StorefrontSearchModal from './components/StorefrontSearchModal';
+import FavoritesDrawer from './components/FavoritesDrawer';
+import { useFavorites } from './context/FavoritesContext';
 import { getCachedStorefrontProducts, setCachedStorefrontProducts, getCachedSiteConfig, setCachedSiteConfig } from './services/storefrontCache';
 
 // Admin Pages
@@ -49,7 +51,6 @@ import AdminMonthlyReports from './pages/admin/AdminMonthlyReports';
 import AdminSafe from './pages/admin/AdminSafe';
 import AdminAccountStatement from './pages/admin/AdminAccountStatement';
 import AdminFinancialCenter from './pages/admin/AdminFinancialCenter';
-import AdminUpdates from './pages/admin/AdminUpdates';
 
 // Cashier Pages
 import CashierLayout from './pages/cashier/CashierLayout';
@@ -84,6 +85,8 @@ function AppContent() {
  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isFavoritesDrawerOpen, setIsFavoritesDrawerOpen] = useState(false);
+  const { favorites } = useFavorites();
  const [storefrontProducts, setStorefrontProducts] = useState(() => getCachedStorefrontProducts() || []);
  const [prevCartLength, setPrevCartLength] = useState(cart.length);
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
@@ -231,6 +234,24 @@ function AppContent() {
         </button>
       )}
 
+      {/* Favorites Button */}
+      <button
+        type="button"
+        onClick={() => setIsFavoritesDrawerOpen(true)}
+        className="relative h-9 w-9 rounded-full border border-burgundy/15 bg-white/80 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-burgundy/80 flex items-center justify-center transition shadow-2xs cursor-pointer"
+        title="قائمة المفضلة"
+        aria-label="قائمة المفضلة"
+      >
+        <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+        </svg>
+        {favorites.length > 0 && (
+          <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-bold text-white shadow-xs">
+            {favorites.length}
+          </span>
+        )}
+      </button>
+
       {/* Cart Button */}
       <button
         type="button"
@@ -337,6 +358,26 @@ function AppContent() {
  type="button"
  onClick={() => {
  setIsMobileMenuOpen(false);
+ setIsFavoritesDrawerOpen(true);
+ }}
+ className="px-4 py-2.5 rounded-xl transition font-semibold text-sm flex justify-between items-center text-burgundy/80 hover:bg-burgundy/5"
+ >
+ <span className="flex items-center gap-2">
+   <svg className="w-4 h-4 fill-none stroke-current text-rose-600" viewBox="0 0 24 24" strokeWidth="2">
+     <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+   </svg>
+   <span>قائمة المفضلة</span>
+ </span>
+ {favorites.length > 0 && (
+ <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-rose-600 px-2 text-xs font-semibold text-white">
+ {favorites.length}
+ </span>
+ )}
+ </button>
+ <button
+ type="button"
+ onClick={() => {
+ setIsMobileMenuOpen(false);
  setIsCartDrawerOpen(true);
  }}
  className="px-4 py-2.5 rounded-xl transition font-semibold text-sm flex justify-between items-center text-burgundy/80 hover:bg-burgundy/5"
@@ -398,8 +439,7 @@ function AppContent() {
  <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminFinancialCenter defaultView="report" /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/safe" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminSafe /></AdminLayout></ProtectedRoute>} />
  <Route path="/admin/statements" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminFinancialCenter defaultView="ledger" /></AdminLayout></ProtectedRoute>} />
- <Route path="/admin/updates" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout><AdminUpdates /></AdminLayout></ProtectedRoute>} />
-
+ 
  {/* Cashier Routes */}
  <Route path="/cashier" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />
  <Route path="/cashier/pos" element={<ProtectedRoute allowedRoles={['admin', 'cashier', 'manager']}><CashierLayout><CashierPOS /></CashierLayout></ProtectedRoute>} />

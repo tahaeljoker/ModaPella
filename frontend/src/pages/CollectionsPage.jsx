@@ -278,7 +278,7 @@ function CollectionsPage() {
                 className="text-[11px] font-bold text-burgundy/60 hover:text-burgundy underline px-1 cursor-pointer whitespace-nowrap"
                 title="إعادة ضبط الفلاتر"
               >
-                إلغاء ↺
+                إلغاء الفلتر
               </button>
             )}
           </div>

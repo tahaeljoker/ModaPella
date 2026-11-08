@@ -15,7 +15,7 @@ export default function OutfitterPage() {
 
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-amber-300">
-            <span>✨</span>
+            
             <span>غرفة تنسيق وتبديل الملابس التفاعلية</span>
           </div>
 
@@ -41,7 +41,7 @@ export default function OutfitterPage() {
               onClick={() => setShowGuide(!showGuide)}
               className="px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm transition active:scale-95"
             >
-              {showGuide ? 'إخفاء دليل التصوير والأبعاد' : '📐 دليل رفع الصور المفرغة والأبعاد'}
+              {showGuide ? 'إخفاء دليل التصوير والأبعاد' : 'دليل رفع الصور المفرغة والأبعاد'}
             </button>
           </div>
         </div>
@@ -52,7 +52,7 @@ export default function OutfitterPage() {
         <div className="p-6 sm:p-8 rounded-3xl bg-white border border-burgundy/15 shadow-soft space-y-6 animate-in fade-in">
           <div className="flex items-center justify-between border-b border-burgundy/10 pb-4">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">📐</span>
+              
               <div>
                 <h3 className="text-base sm:text-lg font-black text-burgundy">
                   دليل مواصفات وتجهيز صور الملابس المفرغة (2D Layered Compositing)
@@ -108,13 +108,13 @@ export default function OutfitterPage() {
 
           {/* Upload paths guide */}
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-1">
-            <span className="font-bold block">📁 أين يتم وضع ملفات الصور على السيرفر؟</span>
+            <span className="font-bold block">أين يتم وضع ملفات الصور على السيرفر؟</span>
             <p className="leading-relaxed">
               • للصور الثابتة الافتراضية: يتم وضعها مباشرة في مجلد المشروع <code className="bg-amber-100 px-2 py-0.5 rounded font-mono">frontend/public/outfitter/</code>.
               <br />
               • أو من خلال لوحة تحكم الإدارة عبر رفع صور المنتجات، وسيتم توليد رابط تلقائي مثل <code className="bg-amber-100 px-2 py-0.5 rounded font-mono">/uploads/outfitter/...</code>.
               <br />
-              • يمكنكِ أيضاً تجربة أي صورة فوراً من جهازكِ بالضغط على زر <strong className="font-black">"🧪 تجربة الصور"</strong> بأعلى غرفة التنسيق!
+              • يمكنكِ أيضاً تجربة أي صورة فوراً من جهازكِ بالضغط على زر <strong className="font-black">"تجربة الصور"</strong> بأعلى غرفة التنسيق!
             </p>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function OutfitterPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
         <div className="p-6 rounded-3xl bg-white border border-burgundy/10 shadow-soft flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-2xl flex-shrink-0">
-            ⚡
+            ✦
           </div>
           <div className="space-y-1">
             <h4 className="text-sm font-black text-burgundy">تبديل ألوان فوري بدون انتظار</h4>
@@ -141,7 +141,7 @@ export default function OutfitterPage() {
 
         <div className="p-6 rounded-3xl bg-white border border-burgundy/10 shadow-soft flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-2xl flex-shrink-0">
-            🎁
+            ✦
           </div>
           <div className="space-y-1">
             <h4 className="text-sm font-black text-burgundy">خصم 15% فوري على الطقم</h4>
@@ -153,7 +153,7 @@ export default function OutfitterPage() {
 
         <div className="p-6 rounded-3xl bg-white border border-burgundy/10 shadow-soft flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-burgundy/10 flex items-center justify-center text-2xl flex-shrink-0">
-            🛡️
+            ✦
           </div>
           <div className="space-y-1">
             <h4 className="text-sm font-black text-burgundy">معاينة عند الاستلام</h4>
@@ -181,7 +181,7 @@ export default function OutfitterPage() {
           rel="noopener noreferrer"
           className="px-6 py-3 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm transition shadow flex items-center gap-2 whitespace-nowrap active:scale-95"
         >
-          <span>💬</span>
+          
           <span>تحدثي مع الستايلست على واتساب</span>
         </a>
       </div>

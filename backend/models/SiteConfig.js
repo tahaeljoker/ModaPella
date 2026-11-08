@@ -16,7 +16,7 @@ const SiteConfigSchema = new mongoose.Schema({
   maintenanceMessage: { type: String, default: 'الموقع غير متاح حالياً، سنعود قريباً.' },
   whatsappNumber: { type: String, default: '201090048832' },
   // New fields
-  announcementBar: { type: String, default: '🚚 شحن سريع لجميع المحافظات | تسوقي أحدث الموديلات الآن ✨' },
+  announcementBar: { type: String, default: 'شحن سريع لجميع المحافظات | تسوقي أحدث الموديلات الآن' },
   announcementBarActive: { type: Boolean, default: true },
   announcementBarLink: { type: String, default: '/shop' },
   announcementBarBg: { type: String, default: 'burgundy' },
@@ -35,7 +35,7 @@ const SiteConfigSchema = new mongoose.Schema({
   facebookUrl: { type: String, default: 'https://www.facebook.com/share/1HdfNYn5QX/' },
   tiktokUrl: { type: String, default: 'https://www.tiktok.com/@moda.pella?_r=1&_t=ZS-9AfaJHoDzJk' },
   locationMapUrl: { type: String, default: '' },
-  whatsappMessageTemplate: { type: String, default: 'أهلاً بكِ يا أ/ *{{name}}* في ModaPella 🎠✨\n\nتم تسجيل طلبكِ رقم *#{{id}}* بنجاح بقيمة *{{amount}} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لتأكيد الطلب! 🌸' },
+  whatsappMessageTemplate: { type: String, default: 'أهلاً بكِ يا أ/ *{{name}}* في ModaPella \n\nتم تسجيل طلبكِ رقم *#{{id}}* بنجاح بقيمة *{{amount}} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لتأكيد الطلب! ' },
   features: {
     outfitter: { type: Boolean, default: false }, // غرفة التنسيق
     lookbook: { type: Boolean, default: false }, // إطلالات الموديلز

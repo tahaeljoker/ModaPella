@@ -89,7 +89,7 @@ export default function MannequinComparisonSlider({
               className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1"
             />
             <div className="absolute top-3 left-3 bg-burgundy/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xs pointer-events-none shadow-sm flex items-center gap-1 z-10">
-              <span>👤</span>
+              <span className="text-[10px]">مانيكان</span>
               <span>على المانيكان بالمحل</span>
             </div>
 
@@ -104,7 +104,7 @@ export default function MannequinComparisonSlider({
                 className="absolute inset-0 w-full h-full object-contain p-1"
               />
               <div className="absolute top-3 right-3 bg-white/90 text-burgundy text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xs shadow-sm flex items-center gap-1 z-10">
-                <span>👕</span>
+                <span className="text-[10px]">مسطح</span>
                 <span>القطعة مسطحة</span>
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function MannequinComparisonSlider({
 
             {/* In-Store Authenticity Badge */}
             <div className="absolute top-3 right-3 bg-white/90 text-burgundy text-[10px] font-bold px-3 py-1 rounded-full shadow-sm backdrop-blur-sm flex items-center gap-1.5 z-10">
-              <span>{activeView === 'mannequin' ? '👤' : '👕'}</span>
+              <span className="text-[10px] font-bold">{activeView === "mannequin" ? "مانيكان" : "مسطح"}</span>
               <span>{activeView === 'mannequin' ? 'معروض على مانيكان المحل' : 'عرض مسطح'}</span>
             </div>
           </div>
@@ -180,7 +180,7 @@ export default function MannequinComparisonSlider({
                   : 'bg-white/80 text-burgundy/70 hover:bg-white hover:text-burgundy'
               }`}
             >
-              <span>👕</span>
+              <span className="text-[10px]">مسطح</span>
               <span>مسطح</span>
             </button>
 
@@ -196,7 +196,7 @@ export default function MannequinComparisonSlider({
                   : 'bg-white/80 text-burgundy/70 hover:bg-white hover:text-burgundy'
               }`}
             >
-              <span>👤</span>
+              <span className="text-[10px]">مانيكان</span>
               <span>على المانيكان</span>
             </button>
           </div>
@@ -213,7 +213,7 @@ export default function MannequinComparisonSlider({
                 : 'bg-gradient-to-r from-amber-100 to-amber-50 text-amber-900 border border-amber-300 hover:from-amber-200'
             }`}
           >
-            <span>✨</span>
+            
             <span>{mode === 'slider' ? 'الرجوع للعرض العادي' : 'مقارنة حية (سلايدر)'}</span>
           </button>
         </div>

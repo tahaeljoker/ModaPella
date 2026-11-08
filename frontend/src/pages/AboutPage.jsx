@@ -248,7 +248,7 @@ function AboutPage() {
                 </div>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-full group-hover:bg-[#25D366] group-hover:text-white transition-colors duration-300">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping group-hover:bg-white" />
-                  رد فوري ⚡
+                  رد فوري
                 </span>
               </div>
               <div>
@@ -399,7 +399,7 @@ function AboutPage() {
       <div className="anim-fade-in-up anim-delay-5 relative overflow-hidden rounded-[2.5rem] border border-burgundy/10 bg-gradient-to-r from-burgundy via-[#650018] to-burgundy p-8 sm:p-12 text-white text-center shadow-xl space-y-5">
         <div className="absolute top-0 right-0 w-60 h-60 bg-white/5 rounded-full blur-2xl pointer-events-none" />
         <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold backdrop-blur-sm border border-white/15">
-          أناقة تليق بكِ ✨
+          أناقة تليق بكِ
         </span>
         <h2 className="text-2xl sm:text-4xl font-black tracking-tight">
           جاهزة تكتشفي أحدث إطلالاتك؟
