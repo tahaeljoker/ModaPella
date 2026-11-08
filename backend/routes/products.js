@@ -29,6 +29,57 @@ const normalizeBarcodeString = (str) => {
   }
   return result.trim().toUpperCase();
 };
+const buildFlexibleArabicRegex = (term) => {
+  if (!term || typeof term !== 'string') return null;
+  let clean = term.trim().toLowerCase();
+  clean = clean.replace(/[\u064B-\u065F\u0670]/g, '');
+  clean = clean.replace(/\u0640/g, '');
+
+  const groups = [
+    { patterns: ['جاكيت', 'جاكت', 'جواكت', 'جواكيت', 'بليزر', 'كوت'], regex: '(جاكيت|جاكت|جواكت|جواكيت|بليزر|كوت|معطف)' },
+    { patterns: ['فستان', 'فساتين', 'دريس', 'سواريه'], regex: '(فستان|فساتين|دريس|دريسات|سواريه)' },
+    { patterns: ['بلوز', 'توب', 'شميز', 'قميص'], regex: '(بلوز|توب|شميز|قميص)' },
+    { patterns: ['بنطلون', 'بناطيل', 'جينز', 'ليجن'], regex: '(بنطلون|بناطيل|جينز|ليجن)' },
+    { patterns: ['عباي', 'قفطان', 'جلابي'], regex: '(عباي|قفطان|جلابي)' },
+    { patterns: ['طقم', 'اطقم', 'سوت'], regex: '(طقم|اطقم|سوت|بدل)' },
+    { patterns: ['شال', 'طرح', 'ايشارب', 'حجاب'], regex: '(شال|طرح|ايشارب|حجاب)' },
+    { patterns: ['تنور', 'جيب'], regex: '(تنور|جيب)' },
+    { patterns: ['سويت', 'هودي', 'بلوفر'], regex: '(سويت|هودي|بلوفر|سويتر)' }
+  ];
+
+  for (const g of groups) {
+    if (g.patterns.some(p => clean.includes(p))) {
+      return new RegExp(g.regex, 'i');
+    }
+  }
+
+  let flexPattern = '';
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (/[أإآا]/.test(ch)) {
+      flexPattern += '[أإآا]';
+    } else if (/[يى]/.test(ch)) {
+      flexPattern += '[يى]';
+    } else if (/[ةه]/.test(ch)) {
+      flexPattern += '[ةه]';
+    } else if (/[ؤو]/.test(ch)) {
+      flexPattern += '[ؤو]';
+    } else if (/[ئء]/.test(ch)) {
+      flexPattern += '[ئء]?';
+    } else if (/[a-zA-Z0-9\u0600-\u06FF]/.test(ch)) {
+      flexPattern += ch + '+';
+    } else {
+      flexPattern += '\\s*';
+    }
+  }
+
+  try {
+    return new RegExp(flexPattern, 'i');
+  } catch (e) {
+    return new RegExp(clean, 'i');
+  }
+};
+
 
 const generateNextSku = async () => {
   const allProducts = await Product.find({}, { sku: 1 }).lean();
@@ -101,7 +152,8 @@ router.get('/', async (req, res) => {
     if (search && search.trim() !== '') {
       const s = search.trim();
       const normS = normalizeBarcodeString(s);
-      query.$or = [
+      const flexRegex = buildFlexibleArabicRegex(s);
+      const orClauses = [
         { name: { $regex: s, $options: 'i' } },
         { sku: { $regex: s, $options: 'i' } },
         { sku: { $regex: normS, $options: 'i' } },
@@ -110,6 +162,12 @@ router.get('/', async (req, res) => {
         { category: { $regex: s, $options: 'i' } },
         { 'variants.sku': { $regex: s, $options: 'i' } }
       ];
+      if (flexRegex) {
+        orClauses.push({ name: flexRegex });
+        orClauses.push({ category: flexRegex });
+        orClauses.push({ description: flexRegex });
+      }
+      query.$or = orClauses;
     }
 
     let mongoQuery = Product.find(query).sort({ createdAt: -1 });

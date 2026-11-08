@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { filterAndRankProducts } from '../utils/arabicSearch';
 import { 
   getCachedStorefrontProducts, 
   setCachedStorefrontProducts, 
@@ -24,20 +25,6 @@ const categoryLabels = {
   Abaya: 'عباية'
 };
 
-const categoryIcons = {
-  All: '✨',
-  Dress: '👗',
-  Jacket: '🧥',
-  Blazer: '👔',
-  Blouse: '👚',
-  Chemise: '👔',
-  Skirt: '💃',
-  Pantalon: '👖',
-  'T-shirt': '👕',
-  Portefeuille: '👛',
-  Abaya: '🧕'
-};
-
 const sampleProducts = [
   { _id: 'sample-p1', name: 'Classic Pantalon', category: 'بنطال', price: 45.0, stock: 12, images: ['https://images.unsplash.com/photo-1520975915070-3d4fa8f300fd?auto=format&fit=crop&w=900&q=80'], sizes: ['S', 'M', 'L'], colors: ['#000', '#7C0A12'] },
   { _id: 'sample-b1', name: 'Soft Blouse', category: 'بلوزة', price: 29.0, stock: 8, images: ['https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80'], sizes: ['XS', 'S', 'M'], colors: ['#fff', '#f3e8e6'] },
@@ -48,13 +35,26 @@ const sampleProducts = [
 function CollectionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
+  const initialSearch = searchParams.get('q') || searchParams.get('search') || '';
 
   const [products, setProducts] = useState(() => getCachedStorefrontProducts() || []);
   const [loading, setLoading] = useState(() => !getCachedStorefrontProducts());
   const [activeCategory, setActiveCategory] = useState(initialCategory);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'price-asc' | 'price-desc' | 'discount'
   const [siteConfig, setSiteConfig] = useState(() => getCachedSiteConfig());
+
+  // Keep search state in sync if URL parameter changes
+  useEffect(() => {
+    const urlQ = searchParams.get('q') || searchParams.get('search') || '';
+    if (urlQ !== searchQuery) {
+      setSearchQuery(urlQ);
+    }
+    const urlCat = searchParams.get('category') || 'All';
+    if (urlCat !== activeCategory) {
+      setActiveCategory(urlCat);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     api.get('/products?context=storefront')
@@ -104,8 +104,8 @@ function CollectionsPage() {
     return counts;
   }, [products]);
 
-  // Filtered and sorted products
-  const filteredProducts = useMemo(() => {
+  // Filtered and sorted products with Smart Typo-Tolerant Search
+  const { filteredProducts, suggestedCorrection } = useMemo(() => {
     let result = [...products];
 
     // Category filter
@@ -113,17 +113,13 @@ function CollectionsPage() {
       result = result.filter(p => p.category === activeCategory);
     }
 
-    // Search query filter
+    let suggestion = null;
+
+    // Smart typo-tolerant fuzzy ranker
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(p => {
-        const nameMatch = (p.name || '').toLowerCase().includes(q);
-        const onlineNameMatch = (p.onlineName || '').toLowerCase().includes(q);
-        const catMatch = (mergedCategoryLabels[p.category] || p.category || '').toLowerCase().includes(q);
-        const descMatch = (p.description || '').toLowerCase().includes(q);
-        const colorMatch = Array.isArray(p.colors) && p.colors.some(c => c.toLowerCase().includes(q));
-        return nameMatch || onlineNameMatch || catMatch || descMatch || colorMatch;
-      });
+      const searchResult = filterAndRankProducts(result, searchQuery);
+      result = searchResult.results;
+      suggestion = searchResult.suggestedCorrection;
     }
 
     // Sort
@@ -139,24 +135,38 @@ function CollectionsPage() {
         if (!hasA && hasB) return 1;
         return 0;
       });
-    } else {
-      // Newest (default by createdAt or id)
+    } else if (!searchQuery.trim()) {
+      // Default newest by order when not actively searching
       result.reverse();
     }
 
-    return result;
-  }, [products, activeCategory, searchQuery, sortBy, mergedCategoryLabels]);
+    return { filteredProducts: result, suggestedCorrection: suggestion };
+  }, [products, activeCategory, searchQuery, sortBy]);
 
   const visibleProducts = products.length ? filteredProducts : sampleProducts;
 
+  const handleSearchChange = (val) => {
+    setSearchQuery(val);
+    const nextParams = new URLSearchParams(searchParams);
+    if (val.trim()) {
+      nextParams.set('q', val.trim());
+      nextParams.delete('search');
+    } else {
+      nextParams.delete('q');
+      nextParams.delete('search');
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const handleSelectCategory = (cat) => {
     setActiveCategory(cat);
+    const nextParams = new URLSearchParams(searchParams);
     if (cat === 'All') {
-      searchParams.delete('category');
+      nextParams.delete('category');
     } else {
-      searchParams.set('category', cat);
+      nextParams.set('category', cat);
     }
-    setSearchParams(searchParams, { replace: true });
+    setSearchParams(nextParams, { replace: true });
   };
 
   const handleResetFilters = () => {
@@ -214,21 +224,21 @@ function CollectionsPage() {
       {/* ━━━━━━━━━━━━ SLEEK CALM CATEGORY & FILTER BAR ━━━━━━━━━━━━ */}
       <div id="products-section" className="space-y-2.5 pt-2">
         {/* Top Minimalist Controls: Search, Sort & Results */}
-        <div className="flex items-center justify-between gap-2 px-1">
-          {/* Calm Search Input */}
-          <div className="relative flex-1 max-w-[220px] sm:max-w-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          {/* Smart Search Input with Typo Tolerance */}
+          <div className="relative flex-1 min-w-[200px] max-w-[280px] sm:max-w-xs">
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحثي بالاسم أو اللون..."
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="ابحثي عن جاكيت، فستان، بلوزة..."
               className="w-full rounded-full border border-burgundy/15 bg-white px-3 py-1.5 pl-7 text-xs text-burgundy placeholder:text-burgundy/40 outline-none focus:border-burgundy transition shadow-2xs"
             />
             {searchQuery ? (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-burgundy/40 hover:text-burgundy"
+                onClick={() => handleSearchChange('')}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-burgundy/40 hover:text-burgundy cursor-pointer"
               >
                 ✕
               </button>
@@ -275,6 +285,21 @@ function CollectionsPage() {
             )}
           </div>
         </div>
+
+        {/* Typo Correction Helper Pill */}
+        {suggestedCorrection && suggestedCorrection !== searchQuery.trim() && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-amber-50/80 border border-amber-200/60 rounded-xl text-xs text-burgundy animate-in fade-in">
+            <span>💡 هل تقصدين:</span>
+            <button
+              type="button"
+              onClick={() => handleSearchChange(suggestedCorrection)}
+              className="font-black text-burgundy underline hover:text-[#680017] cursor-pointer"
+            >
+              {suggestedCorrection}
+            </button>
+            <span className="text-[10px] text-burgundy/50">(البحث الذكي تعرف على الموديل وأظهر نتائجه فوراً)</span>
+          </div>
+        )}
 
         {/* Horizontal Category Pills Bar - Smooth swipe on phones */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 no-scrollbar select-none">

@@ -26,6 +26,8 @@ import OutfitComparisonBar from './components/OutfitComparisonBar';
 import OutfitComparisonModal from './components/OutfitComparisonModal';
 import ScrollRestoration from './components/ScrollRestoration';
 import { resolveImageUrl } from './utils/imageUrl';
+import StorefrontSearchModal from './components/StorefrontSearchModal';
+import { getCachedStorefrontProducts, setCachedStorefrontProducts } from './services/storefrontCache';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -81,9 +83,23 @@ function AppContent() {
  const navigate = useNavigate();
  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+ const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+ const [storefrontProducts, setStorefrontProducts] = useState(() => getCachedStorefrontProducts() || []);
  const [prevCartLength, setPrevCartLength] = useState(cart.length);
  const [whatsappNumber, setWhatsappNumber] = useState('201090048832');
  const [siteConfig, setSiteConfig] = useState(null);
+
+ useEffect(() => {
+   if (isSearchModalOpen && (!storefrontProducts || storefrontProducts.length === 0)) {
+     api.get('/products?context=storefront')
+       .then((res) => {
+         const active = (res.data || []).filter((p) => (p.stock ?? 0) > 0);
+         setStorefrontProducts(active);
+         setCachedStorefrontProducts(active);
+       })
+       .catch(console.error);
+   }
+ }, [isSearchModalOpen]);
 
   useEffect(() => {
     initTrafficTracking();
@@ -167,7 +183,31 @@ function AppContent() {
  <p className="text-xs sm:text-sm text-burgundy/70 mt-0.5">تسوق الأزياء النسائية بأناقة</p>
  </div>
  
- {/* Hamburger Button for mobile */}
+ {/* Mobile Action Buttons */}
+ <div className="flex items-center gap-1.5 md:hidden">
+   <button
+     type="button"
+     onClick={() => setIsSearchModalOpen(true)}
+     className="p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full text-base cursor-pointer"
+     aria-label="بحث في المنتجات"
+     title="بحث"
+   >
+     🔍
+   </button>
+   <button
+     type="button"
+     onClick={() => setIsCartDrawerOpen(true)}
+     className="relative p-1.5 text-burgundy hover:bg-burgundy/5 rounded-full text-base cursor-pointer"
+     aria-label="سلة التسوق"
+     title="سلة التسوق"
+   >
+     🛍️
+     {cart.length > 0 && (
+       <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-burgundy px-1 text-[9px] font-bold text-white">
+         {cart.length}
+       </span>
+     )}
+   </button>
  <button
  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
  className="md:hidden flex flex-col justify-between w-6 h-4 text-burgundy focus:outline-none"
@@ -177,6 +217,7 @@ function AppContent() {
  <span className={`h-0.5 w-full bg-burgundy rounded transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`} />
  <span className={`h-0.5 w-full bg-burgundy rounded transition-transform duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
  </button>
+ </div>
 
  {/* Desktop Navigation */}
  <nav className="hidden md:flex flex-wrap gap-2">
@@ -184,6 +225,14 @@ function AppContent() {
  {navItem('الملابس', '/shop')}
 	{Boolean(siteConfig?.features?.outfitter) && navItem('غرفة التنسيق', '/outfitter')}
 	{Boolean(siteConfig?.features?.lookbook) && navItem('إطلالات الموديلز', '/lookbook')}
+ <button
+   type="button"
+   onClick={() => setIsSearchModalOpen(true)}
+   className="relative px-3 py-1.5 rounded-full border border-burgundy/20 hover:border-burgundy text-burgundy/80 hover:text-burgundy text-xs font-bold flex items-center gap-1.5 transition bg-white/70 shadow-2xs cursor-pointer hover:bg-burgundy hover:text-white"
+ >
+   <span>🔍</span>
+   <span>بحث</span>
+ </button>
           {siteConfig?.features?.productComparison !== false && (
             <button
               type="button"
@@ -217,6 +266,17 @@ function AppContent() {
  {/* Mobile Navigation Dropdown */}
  {isMobileMenuOpen && (
  <nav className="md:hidden mt-4 flex flex-col gap-1.5 pb-2 border-t border-burgundy/5 pt-3 fade-in">
+ <button
+   type="button"
+   onClick={() => {
+     setIsMobileMenuOpen(false);
+     setIsSearchModalOpen(true);
+   }}
+   className="px-4 py-2.5 rounded-xl transition font-semibold text-sm text-right text-burgundy/80 hover:bg-burgundy/5 flex items-center gap-2 cursor-pointer bg-burgundy/5"
+ >
+   <span>🔍</span>
+   <span>بحث في الموديلات</span>
+ </button>
  <NavLink
  to="/"
  onClick={() => setIsMobileMenuOpen(false)}
@@ -379,6 +439,14 @@ function AppContent() {
       <OutfitComparisonModal whatsappNumber={whatsappNumber} />
     </>
   )}
+
+{!isDashboard && (
+   <StorefrontSearchModal
+     isOpen={isSearchModalOpen}
+     onClose={() => setIsSearchModalOpen(false)}
+     products={storefrontProducts}
+   />
+ )}
 
  {/* Cart Drawer */}
  {isCartDrawerOpen && (
