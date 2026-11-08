@@ -200,3 +200,4 @@ export default function HeroImagesManager({
     </div>
   );
 }
+

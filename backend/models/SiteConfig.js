@@ -5,22 +5,23 @@ const SiteConfigSchema = new mongoose.Schema({
   published: { type: Boolean, default: true },
   websiteSeason: { type: String, enum: ['winter', 'summer', 'all'], default: 'winter' },
   enforceWebsiteSeason: { type: Boolean, default: true },
-  heroTitle: { type: String, default: 'أزياء تليق بكِ' },
-  heroSubtitle: { type: String, default: 'تصفحي أحدث الموديلات النسائية واطلبي بسهولة، أو زوري محلنا مباشرة في بني مزار.' },
-  heroBadge: { type: String, default: 'تشكيلة الموسم الحصرية' },
+  heroTitle: { type: String, default: 'أشيك استايلات الموسم.. تليق بيكي وبجمال تفاصيلك' },
+  heroSubtitle: { type: String, default: 'كل قطعة في كولكشن مودة بيلا بنختارها على الفرازة، خامات ناعمة ومريحة وتفصيل مظبوط بدون تنازلات. اطلبي اللي يعجبك أونلاين وتعايني وتقيسي مع المندوب قبل ما تدفعي مليم، أو شرفينا في صالة العرض ببني مزار.' },
+  heroBadge: { type: String, default: 'ModaPella ✦ كولكشن الموسم الجديد' },
   heroImages: {
     type: [String],
     default: [
-      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=85',
-      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1600&q=85',
-      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=85'
+      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
+      'https://i.postimg.cc/NFz9t4fC/Elegant-fashion-website-hero-banner-women-s-clothing-rack-background-soft-burgundy-overlay-modern.jpg'
     ]
   },
-  heroAutoplaySpeed: { type: Number, default: 5 },
-  heroCtaLabel: { type: String, default: 'تسوقي الآن' },
+  heroAutoplaySpeed: { type: Number, default: 4.5 },
+  heroCtaLabel: { type: String, default: 'تصفحي أحدث الموديلات' },
   heroCtaLink: { type: String, default: '/shop' },
-  secondaryCtaLabel: { type: String, default: 'شاهدي المجموعات' },
-  secondaryCtaLink: { type: String, default: '/collections' },
+  secondaryCtaLabel: { type: String, default: 'استشيرينا على واتساب' },
+  secondaryCtaLink: { type: String, default: 'https://wa.me/201090048832?text=أهلاً%20ModaPella،%20عايزة%20استشارة%20لتنسيق%20طقم%20مناسب' },
   featuredTitle: { type: String, default: 'أحدث الموديلات' },
   featuredSubtitle: { type: String, default: 'قطع مختارة بعناية — شوفي اللي يعجبك واطلبيه.' },
   maintenanceMessage: { type: String, default: 'الموقع غير متاح حالياً، سنعود قريباً.' },

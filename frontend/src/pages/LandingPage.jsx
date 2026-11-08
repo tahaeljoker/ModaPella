@@ -4,9 +4,8 @@ import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { cleanProductName } from '../utils/discount';
 import { Icon } from '../components/Icon';
-import DynamicHeroSlider from '../components/DynamicHeroSlider';
-import OrderStepsVisualCards from '../components/OrderStepsVisualCards';
 import FeatureBannerShowcase from '../components/FeatureBannerShowcase';
+import OrderStepsVisualCards from '../components/OrderStepsVisualCards';
 import BestSellersSlider from '../components/BestSellersSlider';
 import ShopTheLookSection from '../components/ShopTheLookSection';
 import logoSrc from '../assets/logo.png';
@@ -19,19 +18,20 @@ import {
 
 const defaultSiteConfig = {
   published: true,
-  heroBadge: 'MODAPELLA ATELIER ✦ إطلالات الموسم الحصرية',
-  heroTitle: 'أزياء تليق بكِ',
-  heroSubtitle: 'تصفحي أحدث الموديلات النسائية واطلبي بسهولة، أو زوري محلنا مباشرة في بني مزار.',
-  heroCtaLabel: 'تسوقي الآن',
+  heroBadge: 'ModaPella ✦ كولكشن الموسم الجديد',
+  heroTitle: 'أشيك استايلات الموسم.. تليق بيكي وبجمال تفاصيلك',
+  heroSubtitle: 'كل قطعة بنختارها على الفرازة، خامات ناعمة ومريحة وتفصيل مظبوط بدون تنازلات. اطلبي اللي يعجبك أونلاين وتعايني وتقيسي مع المندوب قبل ما تدفعي مليم، أو شرفينا في صالة العرض ببني مزار.',
+  heroCtaLabel: 'تصفحي أحدث الموديلات',
   heroCtaLink: '/shop',
-  secondaryCtaLabel: 'شاهدي المجموعات',
-  secondaryCtaLink: '/collections',
+  secondaryCtaLabel: 'استشيرينا على واتساب',
+  secondaryCtaLink: 'https://wa.me/201090048832?text=أهلاً%20ModaPella،%20عايزة%20استشارة%20لتنسيق%20طقم%20مناسب',
   heroImages: [
-    'https://i.postimg.cc/NFz9t4fC/Elegant-fashion-website-hero-banner-women-s-clothing-rack-background-soft-burgundy-overlay-modern.jpg',
-    'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=85',
-    'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1600&q=85'
+    'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=85',
+    'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
+    'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
+    'https://i.postimg.cc/NFz9t4fC/Elegant-fashion-website-hero-banner-women-s-clothing-rack-background-soft-burgundy-overlay-modern.jpg'
   ],
-  heroAutoplaySpeed: 5,
+  heroAutoplaySpeed: 4.5,
   featuredTitle: 'أحدث الموديلات',
   featuredSubtitle: 'قطع مختارة بعناية — شوفي اللي يعجبك واطلبيه على طول.',
   maintenanceMessage: 'الموقع غير متاح حالياً، سنعود قريباً.',
@@ -80,8 +80,8 @@ function LandingPage() {
 
 
 
-      {/* ━━━━━━━━━━━━ HERO (Dynamic Motion Slider) ━━━━━━━━━━━━ */}
-      <DynamicHeroSlider siteConfig={siteConfig} />
+      {/* ━━━━━━━━━━━━ HERO (Modern Showcase with Dynamic Photos) ━━━━━━━━━━━━ */}
+      <FeatureBannerShowcase siteConfig={siteConfig} />
 
       {/* ━━━━━━━━━━━━ لافتة غرفة التنسيق الذكية ━━━━━━━━━━━━ */}
       {siteConfig.outfitterBannerActive !== false && siteConfig.features?.outfitter !== false && (
@@ -109,23 +109,8 @@ function LandingPage() {
         </div>
       )}
 
-      {/* ━━━━━━━━━━━━ إزاي تطلبي بسهولة؟ (Visual Story Cards) ━━━━━━━━━━━━ */}
-      <OrderStepsVisualCards />
-
       {/* ━━━━━━━━━━━━ سلايدر الأكثر مبيعاً ━━━━━━━━━━━━ */}
       {siteConfig?.features?.bestSellers !== false && <BestSellersSlider products={products} />}
-
-      {/* ━━━━━━━━━━━━ قسم استعراض الميزة والبراند التفاعلي (Scroll-Animated Showcase) ━━━━━━━━━━━━ */}
-      <FeatureBannerShowcase
-        tag="MODAPELLA ATELIER ✦ إطلالات الموسم الحصرية"
-        title="أناقة تليق بتفاصيل يومكِ — من صالة العرض لباب بيتكِ"
-        description="كل قطعة نختارها لكِ بعناية تجمع بين دفء الخامات الفاخرة والقصات التي تبرز أنوثتكِ ورقيّكِ. استمتعي بتجربة تسوق متكاملة تمنحكِ حرية المعاينة قبل الاستلام مع شحن مباشر وسريع لكافة مدن ومحافظات مصر."
-        primaryCtaLabel="اكتشفي التشكيلة الجديدة الآن"
-        primaryCtaLink="/shop"
-        secondaryCtaLabel="استشارة تنسيق عبر واتساب"
-        secondaryCtaLink="https://wa.me/201090048832?text=أهلاً%20ModaPella،%20أريد%20استشارة%20لتنسيق%20طقم%20مناسب"
-        imageSrc="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=85"
-      />
 
       {/* ━━━━━━━━━━━━ تسوقي الإطلالة كاملة (إطلالات الموديلز) ━━━━━━━━━━━━ */}
       {Boolean(siteConfig?.features?.lookbook) && <ShopTheLookSection />}
@@ -155,6 +140,9 @@ function LandingPage() {
           )}
         </div>
       </div>
+
+      {/* ━━━━━━━━━━━━ إزاي تطلبي بسهولة؟ (Visual Story Cards) ━━━━━━━━━━━━ */}
+      <OrderStepsVisualCards />
 
       {/* ━━━━━━━━━━━━ عن المحل ━━━━━━━━━━━━ */}
       <div className="rounded-[2rem] border border-burgundy/10 bg-white p-5 sm:p-10 shadow-soft">
