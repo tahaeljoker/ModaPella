@@ -169,9 +169,9 @@ function CollectionsPage() {
   const hasActiveFilters = activeCategory !== 'All' || searchQuery.trim() !== '' || sortBy !== 'newest';
 
   return (
-    <section className="space-y-10 py-6 sm:py-10 text-burgundy" dir="rtl">
+    <section className="space-y-6 sm:space-y-10 py-3 sm:py-8 text-burgundy" dir="rtl">
       {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-6 sm:p-10 shadow-soft">
+      <div className="relative overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-5 sm:p-10 shadow-soft">
         <div className="hero-blob" />
         <div className="grid gap-8 lg:grid-cols-[1.3fr_0.9fr] items-center">
           <div className="space-y-6">
@@ -201,7 +201,7 @@ function CollectionsPage() {
             </div>
           </div>
 
-          <div className="hero-image-frame overflow-hidden rounded-[2rem] shadow-xl aspect-[12/7] max-h-[24rem]">
+          <div className="hidden sm:block hero-image-frame overflow-hidden rounded-[2rem] shadow-xl aspect-[12/7] max-h-[24rem]">
             <img
               src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80"
               alt="ModaPella Fashion"
@@ -211,144 +211,101 @@ function CollectionsPage() {
         </div>
       </div>
 
-      {/* ━━━━━━━━━━━━ MODERN CATEGORY FILTER SECTION ━━━━━━━━━━━━ */}
-      <div id="products-section" className="rounded-[2rem] sm:rounded-[2.5rem] border border-burgundy/10 bg-white p-5 sm:p-8 shadow-soft space-y-6">
-        {/* Title and Search / Sort Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-burgundy/10 pb-5">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-burgundy flex items-center gap-2">
-              <span>تصفية واختيار الموديلات</span>
-              <span className="text-xs bg-burgundy/10 text-burgundy px-3 py-1 rounded-full font-bold">
-                {filteredProducts.length} قطعة متاحة
+      {/* ━━━━━━━━━━━━ SLEEK CALM CATEGORY & FILTER BAR ━━━━━━━━━━━━ */}
+      <div id="products-section" className="space-y-2.5 pt-2">
+        {/* Top Minimalist Controls: Search, Sort & Results */}
+        <div className="flex items-center justify-between gap-2 px-1">
+          {/* Calm Search Input */}
+          <div className="relative flex-1 max-w-[220px] sm:max-w-xs">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ابحثي بالاسم أو اللون..."
+              className="w-full rounded-full border border-burgundy/15 bg-white px-3 py-1.5 pl-7 text-xs text-burgundy placeholder:text-burgundy/40 outline-none focus:border-burgundy transition shadow-2xs"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-burgundy/40 hover:text-burgundy"
+              >
+                ✕
+              </button>
+            ) : (
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-burgundy/30 pointer-events-none">
+                🔍
               </span>
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-burgundy/60">
-              اختاري الفئة المناسبة أو ابحثي عن قطعتك المفضلة مباشرة
-            </p>
+            )}
           </div>
 
-          {/* Search + Sort Controls */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-64 min-w-[200px]">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ابحثي بالاسم، اللون، أو الخامة..."
-                className="w-full rounded-2xl border border-burgundy/20 bg-[#FAF7F5] px-4 py-2.5 text-xs sm:text-sm text-burgundy outline-none focus:border-burgundy focus:bg-white transition"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-burgundy/50 hover:text-burgundy"
-                >
-                  ✕
-                </button>
-              )}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Sort Dropdown Pill */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="appearance-none rounded-full border border-burgundy/15 bg-white px-3 py-1.5 pr-2.5 pl-6 text-[11px] font-bold text-burgundy outline-none focus:border-burgundy cursor-pointer shadow-2xs"
+              >
+                <option value="newest">الأحدث ✨</option>
+                <option value="price-asc">الأقل سعراً</option>
+                <option value="price-desc">الأعلى سعراً</option>
+                <option value="discount">العروض 🔥</option>
+              </select>
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-burgundy/50 pointer-events-none">
+                ▼
+              </span>
             </div>
 
-            {/* Sort Select */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="rounded-2xl border border-burgundy/20 bg-[#FAF7F5] px-3.5 py-2.5 text-xs sm:text-sm font-bold text-burgundy outline-none focus:border-burgundy cursor-pointer"
-            >
-              <option value="newest">الأحدث وصولاً</option>
-              <option value="price-asc">السعر: من الأقل للأعلى</option>
-              <option value="price-desc">السعر: من الأعلى للأقل</option>
-              <option value="discount">العروض والتخفيضات فقط 🔥</option>
-            </select>
+            {/* Products count pill */}
+            <span className="text-[11px] font-bold text-burgundy/60 px-2.5 py-1 rounded-full bg-white border border-burgundy/10 shadow-2xs whitespace-nowrap">
+              {filteredProducts.length} قطعة
+            </span>
 
-            {/* Reset Button */}
+            {/* Clear filters button if applied */}
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="rounded-2xl border border-burgundy/20 bg-burgundy/5 px-3 py-2 text-xs font-bold text-burgundy hover:bg-burgundy hover:text-white transition cursor-pointer"
-                title="إعادة ضبط كل الفلاتر"
+                className="text-[11px] font-bold text-burgundy/60 hover:text-burgundy underline px-1 cursor-pointer whitespace-nowrap"
+                title="إعادة ضبط الفلاتر"
               >
-                مسح الفلتر ↺
+                إلغاء ↺
               </button>
             )}
           </div>
         </div>
 
-        {/* ── Visual Filter Selection ── */}
-        <div className="space-y-3">
-          {/* Mobile Quick Dropdown */}
-          <div className="block sm:hidden">
-            <label className="block text-xs font-bold text-burgundy/70 mb-1">اختاري الفئة مباشرة:</label>
-            <select
-              value={activeCategory}
-              onChange={(e) => handleSelectCategory(e.target.value)}
-              className="w-full rounded-2xl border-2 border-burgundy/20 bg-[#FAF7F5] px-4 py-3 text-sm font-bold text-burgundy outline-none focus:border-burgundy"
-            >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {categoryIcons[category] || '👗'} {mergedCategoryLabels[category] || category} ({categoryCounts[category] || 0} قطعة)
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Horizontal Category Pills Bar - Smooth swipe on phones */}
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 no-scrollbar select-none">
+          {categories.map((category) => {
+            const isSelected = activeCategory === category;
+            const label = mergedCategoryLabels[category] || category;
+            const count = categoryCounts[category] || 0;
 
-          {/* Desktop & Tablet Elegant Segmented Grid */}
-          <div className="hidden sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-            {categories.map((category) => {
-              const isSelected = activeCategory === category;
-              const count = categoryCounts[category] || 0;
-              const icon = categoryIcons[category] || '👗';
-              const label = mergedCategoryLabels[category] || category;
-
-              return (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => handleSelectCategory(category)}
-                  className={`group relative flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 transition-all duration-200 text-center cursor-pointer select-none ${
-                    isSelected
-                      ? 'border-burgundy bg-burgundy text-white shadow-md shadow-burgundy/20 scale-[1.02]'
-                      : 'border-burgundy/10 bg-[#FAF7F5]/70 hover:bg-white hover:border-burgundy/30 text-burgundy hover:shadow-xs'
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => handleSelectCategory(category)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer shrink-0 ${
+                  isSelected
+                    ? 'bg-burgundy text-white shadow-xs scale-[1.02]'
+                    : 'bg-white border border-burgundy/10 text-burgundy/70 hover:border-burgundy/30 hover:bg-[#FAF7F5]'
+                }`}
+              >
+                <span>{label}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-burgundy/5 text-burgundy/40'
                   }`}
                 >
-                  <span className="text-xl sm:text-2xl mb-1 group-hover:scale-110 transition-transform">
-                    {icon}
-                  </span>
-                  <span className="text-xs sm:text-sm font-extrabold leading-tight">
-                    {label}
-                  </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1.5 transition ${
-                    isSelected
-                      ? 'bg-white/20 text-white'
-                      : 'bg-burgundy/5 text-burgundy/60 group-hover:bg-burgundy/10'
-                  }`}>
-                    {count} قطعة
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
-
-        {/* Selected Filter Summary Badge */}
-        {activeCategory !== 'All' && (
-          <div className="flex items-center justify-between bg-burgundy/5 rounded-2xl px-4 py-2.5 text-xs text-burgundy">
-            <span className="font-bold flex items-center gap-1.5">
-              <span>الفئة المعروضة حالياً:</span>
-              <span className="bg-white px-2.5 py-0.5 rounded-full font-extrabold border border-burgundy/15">
-                {categoryIcons[activeCategory] || '👗'} {mergedCategoryLabels[activeCategory] || activeCategory}
-              </span>
-            </span>
-            <button
-              type="button"
-              onClick={() => handleSelectCategory('All')}
-              className="text-xs font-extrabold underline hover:text-[#650018] cursor-pointer"
-            >
-              عرض كل المنتجات ({products.length})
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ━━━━━━━━━━━━ PRODUCTS GRID ━━━━━━━━━━━━ */}

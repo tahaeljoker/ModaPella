@@ -1,13 +1,15 @@
 import { useState, useContext, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import { cleanProductName } from '../utils/discount';
 
 export default function ShopTheLookCard({ look, onProductClick }) {
   const { addItem } = useContext(CartContext);
+  const navigate = useNavigate();
+
   const [selectedVariants, setSelectedVariants] = useState(() => {
     const initial = {};
-    (look.items || []).forEach((item, index) => {
+    (look?.items || []).forEach((item, index) => {
       const prod = item.product;
       if (!prod) return;
       const defaultSize = prod.sizes && prod.sizes.length > 0 ? prod.sizes[0] : (prod.variants?.[0]?.size || 'Standard');
@@ -25,6 +27,15 @@ export default function ShopTheLookCard({ look, onProductClick }) {
   const videoRef = useRef(null);
 
   if (!look || !look.items || look.items.length === 0) return null;
+
+  // Record scroll position before navigating to product details
+  const handleNavigateToProduct = (productId) => {
+    try {
+      const key = `mp_scroll_${window.location.pathname}${window.location.search}`;
+      sessionStorage.setItem(key, String(window.scrollY));
+    } catch (e) {}
+    navigate(`/product/${productId}`);
+  };
 
   // Compute pricing
   const totalOriginalPrice = look.items.reduce((sum, item) => {
@@ -87,7 +98,6 @@ export default function ShopTheLookCard({ look, onProductClick }) {
     const count = look.items.length;
     if (count === 0) return;
 
-    // Distribute discount proportionally
     look.items.forEach((item, index) => {
       const prod = item.product;
       if (!prod) return;
@@ -96,7 +106,6 @@ export default function ShopTheLookCard({ look, onProductClick }) {
       const size = currentVar.size || 'Standard';
       const color = currentVar.color || 'Default';
 
-      const itemShare = totalOriginalPrice > 0 ? (prod.price / totalOriginalPrice) : (1 / count);
       const discountedItemPrice = Math.round(prod.price * (1 - (discountPercent / 100)));
 
       const cartItem = {
@@ -119,12 +128,15 @@ export default function ShopTheLookCard({ look, onProductClick }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-burgundy/15 bg-white shadow-soft transition-all duration-300 hover:shadow-xl">
+    <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/15 bg-white shadow-soft transition-all duration-300 hover:shadow-xl">
       <div className="grid grid-cols-1 lg:grid-cols-12">
         {/* Left / Top: Model Visual Media (Video or Image) */}
-        <div className="relative lg:col-span-6 bg-stone-900 overflow-hidden flex items-center justify-center min-h-[380px] sm:min-h-[460px] lg:min-h-[540px]">
+        <div className="relative lg:col-span-6 bg-stone-900 overflow-hidden flex items-center justify-center min-h-[360px] sm:min-h-[460px] lg:min-h-[540px] max-h-[580px] lg:max-h-[640px]">
           {look.mediaType === 'video' ? (
-            <div className="relative w-full h-full min-h-[380px] sm:min-h-[460px] lg:min-h-[540px] flex items-center justify-center cursor-pointer" onClick={handleTogglePlay}>
+            <div
+              className="relative w-full h-full flex items-center justify-center cursor-pointer select-none"
+              onClick={handleTogglePlay}
+            >
               <video
                 ref={videoRef}
                 src={look.mediaUrl}
@@ -133,43 +145,44 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                 loop
                 muted={isVideoMuted}
                 playsInline
-                className="w-full h-full object-cover max-h-[640px]"
+                className="w-full h-full object-cover max-h-[580px] lg:max-h-[640px]"
               />
 
               {/* Video Controls Overlay */}
-              <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+              <div className="absolute top-3.5 right-3.5 z-20 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleToggleMute}
-                  className="p-2.5 rounded-full bg-black/50 hover:bg-black/75 text-white backdrop-blur-md transition shadow"
+                  className="p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/80 text-white backdrop-blur-md transition shadow cursor-pointer text-xs sm:text-sm"
                   title={isVideoMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
                 >
                   {isVideoMuted ? '🔇' : '🔊'}
                 </button>
-                <span className="px-3 py-1 rounded-full bg-black/50 text-[11px] font-bold text-white backdrop-blur-md">
-                  فيديو الموديل 🎥
+                <span className="px-2.5 py-1 rounded-full bg-black/55 text-[10px] sm:text-[11px] font-bold text-amber-300 backdrop-blur-md flex items-center gap-1 border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  <span>فيديو حي 🎥</span>
                 </span>
               </div>
 
               {!isVideoPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-10 pointer-events-none">
-                  <div className="h-16 w-16 rounded-full bg-white/90 text-burgundy flex items-center justify-center shadow-xl text-2xl font-bold">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/35 z-10 pointer-events-none">
+                  <div className="h-14 w-14 rounded-full bg-white/90 text-burgundy flex items-center justify-center shadow-xl text-xl font-bold">
                     ▶
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="relative w-full h-full min-h-[380px] sm:min-h-[460px] lg:min-h-[540px]">
+            <div className="relative w-full h-full flex items-center justify-center">
               <img
                 src={look.mediaUrl}
                 alt={look.title}
-                className="w-full h-full object-cover max-h-[640px]"
+                className="w-full h-full object-cover max-h-[580px] lg:max-h-[640px]"
                 loading="lazy"
               />
-              <div className="absolute top-4 right-4 z-20">
-                <span className="px-3 py-1 rounded-full bg-black/50 text-[11px] font-bold text-white backdrop-blur-md">
-                  صورة الموديل 📸
+              <div className="absolute top-3.5 right-3.5 z-20">
+                <span className="px-3 py-1 rounded-full bg-black/55 text-[10px] sm:text-[11px] font-bold text-amber-200 backdrop-blur-md border border-white/10">
+                  جلسة تصوير 📸
                 </span>
               </div>
             </div>
@@ -198,11 +211,11 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                     e.stopPropagation();
                     setActiveTooltip(isHovered ? null : index);
                   }}
-                  className="relative group p-2 focus:outline-none"
+                  className="relative group p-2 focus:outline-none cursor-pointer"
                   aria-label={`عرض ${prod.name}`}
                 >
-                  <span className="absolute inset-0 rounded-full bg-white/40 animate-ping" />
-                  <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-white text-burgundy shadow-xl font-black text-xs border-2 border-burgundy/20 hover:scale-110 transition-transform">
+                  <span className="absolute inset-0 rounded-full bg-amber-400/40 animate-ping" />
+                  <span className="relative flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white text-burgundy shadow-xl font-black text-xs border-2 border-amber-400 hover:scale-110 transition-transform">
                     {index + 1}
                   </span>
                 </button>
@@ -210,24 +223,33 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                 {/* Floating Tooltip Card */}
                 {isHovered && (
                   <div
-                    className="absolute z-30 bottom-full mb-3 left-1/2 -translate-x-1/2 w-48 sm:w-56 rounded-2xl bg-white p-3 shadow-2xl border border-burgundy/15 text-burgundy text-right pointer-events-auto animate-in fade-in zoom-in-95"
+                    className="absolute z-30 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 sm:w-56 rounded-xl bg-white p-2.5 shadow-2xl border border-burgundy/15 text-burgundy text-right pointer-events-auto"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       <img
                         src={prod.images?.[0] || prod.mannequinImage || '/placeholder.png'}
                         alt={prod.name}
-                        className="h-12 w-12 rounded-xl object-cover border border-burgundy/10 flex-shrink-0"
+                        className="h-11 w-11 rounded-lg object-cover border border-burgundy/10 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <span className="block text-[10px] text-burgundy/60 font-semibold truncate">
+                        <span className="block text-[9px] text-burgundy/60 font-semibold truncate">
                           {item.tagLabel || prod.category || 'قطعة من الطقم'}
                         </span>
-                        <h4 className="text-xs font-bold truncate leading-tight">
+                        <h4
+                          onClick={() => handleNavigateToProduct(prod._id)}
+                          className="text-xs font-bold truncate leading-tight hover:underline cursor-pointer"
+                        >
                           {cleanProductName(prod.name)}
                         </h4>
-                        <div className="mt-1 flex items-center gap-1.5 font-black text-xs text-burgundy">
+                        <div className="mt-0.5 flex items-center justify-between text-xs font-black text-burgundy">
                           <span>{prod.price} ج.م</span>
+                          <span
+                            onClick={() => handleNavigateToProduct(prod._id)}
+                            className="text-[10px] text-burgundy/70 hover:text-burgundy underline cursor-pointer"
+                          >
+                            التفاصيل ←
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -238,48 +260,48 @@ export default function ShopTheLookCard({ look, onProductClick }) {
           })}
 
           {/* Bottom Overlay Gradient & Category Tag */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 sm:p-6 z-10 flex items-end justify-between text-white pointer-events-none">
-            <div>
-              <span className="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold text-amber-300 mb-1 border border-white/10">
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-4 sm:p-5 z-10 flex items-end justify-between text-white pointer-events-none">
+            <div className="space-y-0.5">
+              <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] sm:text-xs font-bold text-amber-300 border border-white/10">
                 {look.category || 'إطلالة عصرية'}
               </span>
-              <h3 className="text-lg sm:text-xl font-black">{look.title}</h3>
+              <h3 className="text-base sm:text-lg font-black">{look.title}</h3>
             </div>
             {discountPercent > 0 && (
-              <span className="px-3 py-1.5 rounded-2xl bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md">
-                خصم {discountPercent}% للطقم كامل
+              <span className="px-2.5 py-1 rounded-xl bg-emerald-500 text-white font-black text-xs shadow-md">
+                خصم {discountPercent}% للطقم
               </span>
             )}
           </div>
         </div>
 
         {/* Right / Bottom: Outfit Details & Order Breakdown */}
-        <div className="lg:col-span-6 p-5 sm:p-8 flex flex-col justify-between space-y-6">
-          <div className="space-y-4">
+        <div className="lg:col-span-6 p-4 sm:p-6 lg:p-7 flex flex-col justify-between space-y-5">
+          <div className="space-y-3.5">
             {/* Header */}
             <div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-burgundy/60">
-                  Shop The Look ✦ تسوقي الإطلالة
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-burgundy/60">
+                  MODAPELLA LOOK ✦ تنسيق متكامل
                 </span>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-burgundy/10 text-burgundy">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-burgundy/10 text-burgundy">
                   {look.items.length} قطع متناسقة
                 </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-burgundy mt-1">
+              <h2 className="text-lg sm:text-xl font-black text-burgundy mt-1">
                 {look.title}
               </h2>
               {look.description && (
-                <p className="text-xs sm:text-sm text-burgundy/70 mt-1 leading-relaxed">
+                <p className="text-xs text-burgundy/70 mt-1 leading-relaxed">
                   {look.description}
                 </p>
               )}
             </div>
 
             {/* Included Pieces List */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-xs font-bold text-burgundy/60">القطع المكونة لهذا الطقم:</h4>
-              <div className="space-y-2.5">
+            <div className="space-y-2 pt-1">
+              <h4 className="text-[11px] font-bold text-burgundy/60">القطع المكونة لهذا الطقم:</h4>
+              <div className="space-y-2">
                 {look.items.map((item, index) => {
                   const prod = item.product;
                   if (!prod) return null;
@@ -289,42 +311,42 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                   return (
                     <div
                       key={index}
-                      className="group relative rounded-2xl border border-burgundy/10 bg-[#FAF7F5] p-3 sm:p-3.5 transition-all hover:border-burgundy/30 hover:bg-white hover:shadow-sm"
+                      className="group rounded-xl border border-burgundy/10 bg-[#FAF7F5] p-2.5 sm:p-3 transition-all hover:border-burgundy/25 hover:bg-white hover:shadow-xs"
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center justify-between gap-2.5">
                         {/* Number & Thumbnail */}
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-[11px] font-black text-burgundy">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-burgundy/10 text-[10px] font-black text-burgundy">
                             {index + 1}
                           </span>
-                          <Link
-                            to={`/product/${prod._id}`}
-                            className="h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0 overflow-hidden rounded-xl bg-white border border-burgundy/10 group-hover:border-burgundy/30"
+                          <div
+                            onClick={() => handleNavigateToProduct(prod._id)}
+                            className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 overflow-hidden rounded-lg bg-white border border-burgundy/10 group-hover:border-burgundy/30 cursor-pointer"
                           >
                             <img
                               src={prod.images?.[0] || prod.mannequinImage || '/placeholder.png'}
                               alt={prod.name}
                               className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                             />
-                          </Link>
+                          </div>
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold text-burgundy/50">
+                            <span className="block text-[9px] font-bold text-burgundy/50">
                               {item.tagLabel || prod.category}
                             </span>
-                            <Link
-                              to={`/product/${prod._id}`}
-                              className="font-bold text-xs sm:text-sm text-burgundy hover:underline truncate block"
+                            <div
+                              onClick={() => handleNavigateToProduct(prod._id)}
+                              className="font-bold text-xs text-burgundy hover:underline truncate cursor-pointer"
                             >
                               {cleanProductName(prod.name)}
-                            </Link>
-                            <span className="text-xs font-extrabold text-burgundy block mt-0.5">
+                            </div>
+                            <span className="text-xs font-black text-burgundy block mt-0.5">
                               {prod.price} ج.م
                             </span>
                           </div>
                         </div>
 
                         {/* Variant pickers & Single item add */}
-                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
                           {/* Size Selector */}
                           {prod.sizes && prod.sizes.length > 0 && (
                             <select
@@ -336,11 +358,11 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                                   [index]: { ...prev[index], size: newSize }
                                 }));
                               }}
-                              className="rounded-lg border border-burgundy/20 bg-white px-2 py-1 text-[11px] font-semibold text-burgundy focus:border-burgundy outline-none cursor-pointer"
+                              className="rounded-lg border border-burgundy/15 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-burgundy focus:border-burgundy outline-none cursor-pointer"
                             >
                               {prod.sizes.map((s) => (
                                 <option key={s} value={s}>
-                                  مقاس: {s}
+                                  {s}
                                 </option>
                               ))}
                             </select>
@@ -357,11 +379,11 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                                   [index]: { ...prev[index], color: newColor }
                                 }));
                               }}
-                              className="rounded-lg border border-burgundy/20 bg-white px-2 py-1 text-[11px] font-semibold text-burgundy focus:border-burgundy outline-none cursor-pointer"
+                              className="rounded-lg border border-burgundy/15 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-burgundy focus:border-burgundy outline-none cursor-pointer"
                             >
                               {prod.colors.map((c) => (
                                 <option key={c} value={c}>
-                                  لون: {c}
+                                  {c}
                                 </option>
                               ))}
                             </select>
@@ -371,14 +393,14 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                           <button
                             type="button"
                             onClick={() => handleAddSinglePiece(item, index)}
-                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition whitespace-nowrap ${
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition whitespace-nowrap cursor-pointer ${
                               isAddedThis
                                 ? 'bg-emerald-600 text-white border-emerald-600'
                                 : 'border-burgundy/20 text-burgundy hover:bg-burgundy hover:text-white'
                             }`}
                             title="إضافة هذه القطعة فقط إلى السلة"
                           >
-                            {isAddedThis ? 'تمت الإضافة ✓' : '+ القطعة فقط'}
+                            {isAddedThis ? 'تمت ✓' : '+ القطعة'}
                           </button>
                         </div>
                       </div>
@@ -390,18 +412,18 @@ export default function ShopTheLookCard({ look, onProductClick }) {
           </div>
 
           {/* Bottom Bundle Checkout Summary */}
-          <div className="rounded-2xl border-2 border-burgundy/20 bg-gradient-to-br from-burgundy/5 via-beige/10 to-transparent p-4 sm:p-5 space-y-4">
-            <div className="flex items-center justify-between gap-3">
+          <div className="rounded-xl border border-burgundy/20 bg-gradient-to-br from-burgundy/5 via-amber-50/20 to-transparent p-3.5 sm:p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
               <div>
-                <span className="text-xs text-burgundy/70 font-bold block">
-                  إجمالي سعر الطقم كاملاً:
+                <span className="text-[11px] text-burgundy/70 font-bold block">
+                  إجمالي سعر الطقم بالكامل:
                 </span>
                 <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-2xl sm:text-3xl font-black text-burgundy">
+                  <span className="text-xl sm:text-2xl font-black text-burgundy">
                     {bundleFinalPrice} ج.م
                   </span>
                   {discountPercent > 0 && (
-                    <span className="text-xs sm:text-sm text-burgundy/50 line-through">
+                    <span className="text-xs text-burgundy/40 line-through">
                       {totalOriginalPrice} ج.م
                     </span>
                   )}
@@ -410,11 +432,11 @@ export default function ShopTheLookCard({ look, onProductClick }) {
 
               {discountPercent > 0 && (
                 <div className="text-right">
-                  <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
-                    وفّري {bundleSavings} ج.م ({discountPercent}% خصم)
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px]">
+                    وفرّي {bundleSavings} ج.م ({discountPercent}% خصم)
                   </span>
-                  <span className="block text-[10px] text-burgundy/60 mt-0.5">
-                    عند شراء الطقم كاملاً
+                  <span className="block text-[9px] text-burgundy/60 mt-0.5">
+                    عند طلب اللوك كاملاً
                   </span>
                 </div>
               )}
@@ -425,7 +447,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
               type="button"
               onClick={handleAddFullBundle}
               disabled={addedBundleSuccess}
-              className={`w-full py-3.5 sm:py-4 rounded-2xl font-black text-sm sm:text-base transition-all duration-300 shadow-md active:scale-98 flex items-center justify-center gap-2 ${
+              className={`w-full py-3 rounded-xl font-black text-xs sm:text-sm transition-all duration-300 shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer ${
                 addedBundleSuccess
                   ? 'bg-emerald-600 text-white shadow-emerald-600/30'
                   : 'bg-burgundy text-white hover:bg-[#680017] shadow-burgundy/20 hover:shadow-lg'
@@ -433,7 +455,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
             >
               {addedBundleSuccess ? (
                 <>
-                  <span className="text-lg">✓</span>
+                  <span className="text-base">✓</span>
                   <span>تمت إضافة الطقم كاملاً إلى سلتكِ بنجاح!</span>
                 </>
               ) : (
@@ -450,4 +472,3 @@ export default function ShopTheLookCard({ look, onProductClick }) {
     </div>
   );
 }
-
