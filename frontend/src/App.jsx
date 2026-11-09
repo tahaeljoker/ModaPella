@@ -109,7 +109,48 @@ function AppContent() {
   useEffect(() => {
     initTrafficTracking();
   }, []);
- const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const [showBottomNav, setShowBottomNav] = useState(false);
+  const [hideTopNav, setHideTopNav] = useState(false);
+
+  // Dynamic Scroll Direction & Visibility Controller
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+
+          // At the top of the page (< 50px): Top Nav visible, Bottom Nav tucked away
+          if (currentScrollY < 50) {
+            setHideTopNav(false);
+            setShowBottomNav(false);
+          } else {
+            // Once scrolled past 50px: reveal the bottom dock
+            setShowBottomNav(true);
+
+            // Scroll direction detection:
+            if (currentScrollY > lastScrollY && currentScrollY > 75) {
+              // Scrolling down -> hide top nav on mobile
+              setHideTopNav(true);
+            } else if (currentScrollY < lastScrollY - 8) {
+              // Scrolling up -> reveal top nav smoothly
+              setHideTopNav(false);
+            }
+          }
+
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
  // Trigger drawer cart open when items are added
  useEffect(() => {
@@ -182,8 +223,13 @@ function AppContent() {
  )}
 
  {!isDashboard && (
- <header className="container mx-auto border-b border-burgundy/10 bg-[#fcf9f8] px-4 py-5 shadow-sm relative">
-  <div className="flex items-center justify-between gap-4">
+ <header
+   className={`sticky top-0 z-40 bg-[#fcf9f8]/95 backdrop-blur-md border-b border-burgundy/10 shadow-2xs transition-transform duration-300 ${
+     hideTopNav ? '-translate-y-full md:translate-y-0' : 'translate-y-0'
+   }`}
+ >
+  <div className="container mx-auto px-4 py-3.5 sm:py-5">
+   <div className="flex items-center justify-between gap-4">
     {/* Right in RTL: Logo */}
     <div className="flex items-center gap-3">
       <Logo />
@@ -402,6 +448,7 @@ function AppContent() {
  </NavLink>
  </nav>
  )}
+  </div>
  </header>
  )}
 
@@ -476,6 +523,7 @@ function AppContent() {
 
  {!isDashboard && (
    <MobileBottomNav
+      isVisible={showBottomNav}
       onOpenCart={() => setIsCartDrawerOpen(true)}
       onOpenFavorites={() => setIsFavoritesDrawerOpen(true)}
       cartCount={cart.length}

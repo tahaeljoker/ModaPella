@@ -47,7 +47,7 @@ export default function WhatsAppWidget({ whatsappNumber = '201090048832' }) {
     <div
       ref={widgetRef}
       dir="rtl"
-      className="fixed z-40 right-4 sm:right-6 bottom-20 sm:bottom-6 transition-all duration-300"
+      className="hidden md:block fixed z-40 right-6 bottom-6 transition-all duration-300"
     >
       {/* ── Chat Dialog (Only opens on click) ── */}
       {isOpen && (
