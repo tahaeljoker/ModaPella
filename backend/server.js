@@ -114,8 +114,8 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '35mb' }));
+app.use(express.urlencoded({ extended: true, limit: '35mb' }));
 
 // Serve uploaded product photos statically (Disk + MongoDB fallback for Vercel Serverless)
 const uploadsStaticPath = path.resolve(__dirname, '../uploads');

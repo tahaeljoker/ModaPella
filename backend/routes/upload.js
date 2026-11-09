@@ -91,25 +91,31 @@ router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (re
 
     const buffer = Buffer.from(rawBase64, 'base64');
 
-    // 1. Save to MongoDB (Permanent storage that works on Vercel Serverless)
-    await Media.findOneAndUpdate(
-      { filename: fileName },
-      {
-        filename: fileName,
-        contentType: mimeType,
-        data: mediaData,
-        size: buffer.length
-      },
-      { upsert: true, new: true }
-    );
-
-    // 2. Try saving to local disk if writable (dev / VPS environments)
+    // 1. Save to local disk first (fast & supports large media files)
     try {
       const filePath = path.join(UPLOADS_DIR, fileName);
       fs.writeFileSync(filePath, buffer);
     } catch (diskErr) {
       // Ignored silently on serverless platforms where disk is read-only
       console.log('Disk write skipped (serverless environment)');
+    }
+
+    // 2. Save to MongoDB (Permanent storage that works on Vercel Serverless) if within BSON limit (~15.5MB)
+    if (buffer.length < 15.5 * 1024 * 1024) {
+      try {
+        await Media.findOneAndUpdate(
+          { filename: fileName },
+          {
+            filename: fileName,
+            contentType: mimeType,
+            data: mediaData,
+            size: buffer.length
+          },
+          { upsert: true, new: true }
+        );
+      } catch (mongoErr) {
+        console.warn('MongoDB media storage skipped for large media:', mongoErr.message);
+      }
     }
 
     const host = req.get('host') || '';

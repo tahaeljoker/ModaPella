@@ -792,10 +792,10 @@ function AdminOverview() {
   />
  <StatCard
  label="تنبيهات المخزون"
- value={overview?.lowStock?.length ?? 0}
+ value={(overview?.lowStockProducts?.length ?? overview?.lowStock?.length ?? 0)}
  icon=""
- color={overview?.lowStock?.length > 0 ? 'bg-amber-50' : 'bg-white'}
- sub={overview?.lowStock?.length > 0 ? 'يحتاج تعبئة' : 'المخزون بخير'}
+ color={(overview?.lowStockProducts?.length ?? overview?.lowStock?.length ?? 0) > 0 ? 'bg-amber-50' : 'bg-white'}
+ sub={(overview?.lowStockProducts?.length ?? overview?.lowStock?.length ?? 0) > 0 ? 'يحتاج تعبئة' : 'المخزون بخير'}
  />
  </div>
 
@@ -1329,8 +1329,12 @@ function CategoryPieChart({ breakdown, showValues = true }) {
  <div className="relative w-40 h-40 flex-shrink-0 mx-auto md:mx-0">
  <svg viewBox="-1 -1 2 2" className={`w-full h-full -rotate-90 transition-all duration-300 ${!showValues ? 'blur-sm select-none' : ''}`}>
  {slices.map((slice, idx) => (
- <path key={idx} d={slice.pathData} fill={slice.color} />
- ))}
+  slice.percent >= 0.999 || slices.length === 1 ? (
+    <circle key={idx} cx="0" cy="0" r="1" fill={slice.color} />
+  ) : (
+    <path key={idx} d={slice.pathData} fill={slice.color} />
+  )
+))}
  <circle cx="0" cy="0" r="0.6" fill="#ffffff" />
  </svg>
  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">

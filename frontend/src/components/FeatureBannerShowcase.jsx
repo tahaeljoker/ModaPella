@@ -1,42 +1,62 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { resolveImageUrl } from '../utils/imageUrl';
 
 const defaultHeroImages = [
-  'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=85',
-  'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
-  'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
-  'https://i.postimg.cc/NFz9t4fC/Elegant-fashion-website-hero-banner-women-s-clothing-rack-background-soft-burgundy-overlay-modern.jpg'
+  'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1800&q=85',
+  'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1800&q=85',
+  'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1800&q=85'
 ];
 
 export default function FeatureBannerShowcase({ siteConfig = {} }) {
   const images = (siteConfig.heroImages?.length ? siteConfig.heroImages : defaultHeroImages).filter(Boolean);
   const slideCount = images.length || 1;
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const containerRef = useRef(null);
 
-  const speedMs = Math.max(3, Number(siteConfig.heroAutoplaySpeed || 4.5)) * 1000;
+  const speedMs = Math.max(3, Number(siteConfig.heroAutoplaySpeed || 5)) * 1000;
 
-  // Auto-play interval for the side hero images
+  // ── Auto-crossfade background images ──
   useEffect(() => {
-    if (slideCount <= 1 || isPaused) return;
-
+    if (slideCount <= 1) return;
     const timer = setInterval(() => {
       setCurrentIdx((prev) => (prev + 1) % slideCount);
     }, speedMs);
-
     return () => clearInterval(timer);
-  }, [slideCount, isPaused, speedMs]);
+  }, [slideCount, speedMs]);
+
+  // ── High-performance Scroll-driven Animation Loop ──
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            // Track how much the hero has been scrolled past
+            const scrolled = Math.max(0, -rect.top);
+            setScrollY(scrolled);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const tag = siteConfig.heroBadge || 'ModaPella ✦ كولكشن الموسم الجديد';
-  const title = siteConfig.heroTitle || 'أشيك استايلات الموسم.. تليق بيكي وبجمال تفاصيلك';
+  const title = siteConfig.heroTitle || 'أناقة ناعمة تدوم، وبساطة تليق بكِ';
   const description =
     siteConfig.heroSubtitle ||
-    'كل قطعة في كولكشن مودة بيلا بنختارها على الفرازة، خامات ناعمة ومريحة وتفصيل مظبوط بدون تنازلات. اطلبي اللي يعجبك أونلاين وتعايني وتقيسي مع المندوب قبل ما تدفعي مليم، أو شرفينا في صالة العرض ببني مزار.';
+    'كل قطعة في كولكشن مودة بيلا بنختارها بخامات ناعمة ومريحة وتفصيل مظبوط بدون تنازلات. اطلبي اللي يعجبك أونلاين وتعايني وتقيسي مع المندوب قبل ما تدفعي مليم، أو شرفينا في صالة العرض ببني مزار.';
 
-  const primaryCtaLabel = siteConfig.heroCtaLabel || 'تصفحي أحدث الموديلات';
+  const primaryCtaLabel = siteConfig.heroCtaLabel || 'تسوقي الكولكشن الجديد';
   const primaryCtaLink = siteConfig.heroCtaLink || '/shop';
-  const secondaryCtaLabel = siteConfig.secondaryCtaLabel || 'استشيرينا على واتساب';
+  const secondaryCtaLabel = siteConfig.secondaryCtaLabel || 'تنسيق طقم عبر واتساب';
   const whatsappNum = siteConfig.whatsappNumber || '201090048832';
   const secondaryCtaLink =
     siteConfig.secondaryCtaLink ||
@@ -47,164 +67,171 @@ export default function FeatureBannerShowcase({ siteConfig = {} }) {
     secondaryCtaLink.startsWith('https://') ||
     secondaryCtaLink.startsWith('wa.me');
 
+  // Parallax calculations (bounded to prevent over-scroll glitches)
+  const clampedScroll = Math.min(scrollY, 550);
+  const parallaxOffset = clampedScroll * 0.38; // Background image drifts down slower than scroll
+  const contentFadeOpacity = Math.max(0, 1 - clampedScroll / 320); // Content fades out smoothly
+  const contentAscend = clampedScroll * 0.22; // Content drifts upwards gently
+  const indicatorOpacity = Math.max(0, 1 - clampedScroll / 35); // Scroll cue vanishes immediately
+
   return (
     <section
-      className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#FAF7F2] via-white to-[#F5EFEB] border border-burgundy/15 p-6 sm:p-10 lg:p-12 shadow-soft select-none"
+      ref={containerRef}
+      className="relative overflow-hidden rounded-[2.2rem] sm:rounded-[3rem] bg-stone-950 text-white min-h-[560px] sm:min-h-[620px] lg:min-h-[660px] flex flex-col justify-between p-5 sm:p-10 lg:p-14 border border-stone-800/80 shadow-2xl select-none"
       dir="rtl"
     >
-      {/* Warm Ambient Glows */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-burgundy/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative z-10 grid gap-8 lg:grid-cols-12 items-center">
-        {/* Dynamic Image Side (5 cols on lg) */}
-        <div
-          className="lg:col-span-5 relative group overflow-hidden rounded-3xl shadow-md border border-burgundy/10 aspect-[4/5] max-h-[500px] bg-beige/20"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-        >
-          {/* Animated Image Slides */}
-          {images.map((imgUrl, idx) => {
-            const isActive = idx === currentIdx;
-            return (
-              <div
-                key={idx}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                  isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+      {/* ── 1. CINEMATIC BACKGROUND WITH PARALLAX & KEN-BURNS ZOOM ── */}
+      <div
+        className="absolute inset-0 overflow-hidden pointer-events-none will-change-transform"
+        style={{
+          transform: `translate3d(0, ${parallaxOffset}px, 0)`,
+        }}
+      >
+        {images.map((imgUrl, idx) => {
+          const isActive = idx === currentIdx;
+          return (
+            <div
+              key={idx}
+              className={`absolute inset-0 transition-opacity duration-1400 ease-in-out ${
+                isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
+            >
+              <img
+                src={resolveImageUrl(imgUrl)}
+                alt={`ModaPella Editorial ${idx + 1}`}
+                className={`w-full h-full object-cover object-center animate-ken-burns transition-transform duration-1000 ${
+                  isActive ? 'scale-105' : 'scale-100'
                 }`}
-              >
-                <img
-                  src={resolveImageUrl(imgUrl)}
-                  alt={`ModaPella Collection ${idx + 1}`}
-                  className={`w-full h-full object-cover object-top transition-transform duration-7000 ease-out ${
-                    isActive ? 'scale-105' : 'scale-100'
-                  }`}
-                  loading={idx === 0 ? 'eager' : 'lazy'}
-                />
-              </div>
-            );
-          })}
-
-          {/* Slide Indicator Dots at top left */}
-          {slideCount > 1 && (
-            <div className="absolute top-3.5 left-3.5 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-xs px-2.5 py-1.5 rounded-full border border-white/20">
-              {images.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setCurrentIdx(i)}
-                  className={`rounded-full transition-all duration-300 ${
-                    i === currentIdx ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
-                  }`}
-                  aria-label={`Go to slide ${i + 1}`}
-                />
-              ))}
+                loading={idx === 0 ? 'eager' : 'lazy'}
+              />
             </div>
-          )}
+          );
+        })}
 
-          {/* Floating Luxury Atelier Pill on Image */}
-          <div className="absolute bottom-3 inset-x-3 sm:bottom-4 sm:inset-x-4 bg-white/95 backdrop-blur-md border border-burgundy/10 rounded-2xl p-3 shadow-lg flex items-center justify-between gap-2 z-20">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <div className="text-right">
-                <span className="text-[11px] font-black text-burgundy block">تشكيلة الشتاء والكاجوال</span>
-                <span className="text-[9px] text-burgundy/60 font-medium">أقمشة مختارة بعناية للموسم الحالي</span>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-burgundy/80 bg-burgundy/5 px-2.5 py-1 rounded-full shrink-0">
-              أزياء حصرية
-            </span>
-          </div>
+        {/* Cinematic Mist Gradient Overlays (Ensures text readability in all conditions) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/45 to-stone-950/30 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-transparent to-stone-950/40 z-10 hidden sm:block" />
+        <div className="absolute inset-0 bg-radial from-transparent via-transparent to-stone-950/70 z-10" />
+      </div>
+
+      {/* ── 2. TOP EYEBROW & STORE LOCATION BAR ── */}
+      <div
+        className="relative z-20 flex items-center justify-between gap-3 will-change-transform transition-transform duration-200"
+        style={{
+          transform: `translate3d(0, -${contentAscend * 0.5}px, 0)`,
+          opacity: contentFadeOpacity,
+        }}
+      >
+        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs sm:text-sm text-stone-200 tracking-wide font-medium shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span>{tag}</span>
+        </span>
+
+        <div className="hidden sm:flex items-center gap-2 text-xs text-stone-300 font-light bg-stone-900/50 backdrop-blur-xs px-3.5 py-1.5 rounded-full border border-white/10">
+          <span>بني مزار — المنيا</span>
+          <span className="text-amber-400 font-medium">✦ معاينة مجانية قبل الدفع</span>
         </div>
+      </div>
 
-        {/* Narrative & Action Content Side (7 cols on lg) */}
-        <div className="lg:col-span-7 space-y-6 text-right">
-          {/* Eyebrow / Tag */}
-          <div>
-            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-burgundy/5 border border-burgundy/15 text-burgundy text-xs font-black tracking-wide">
-              <span>{tag}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-burgundy animate-pulse" />
-            </span>
-          </div>
+      {/* ── 3. MAIN HERO CONTENT (NARRATIVE + CTAs) WITH SCROLL ASCEND & FADE ── */}
+      <div
+        className="relative z-20 max-w-2xl space-y-4 sm:space-y-6 text-right my-auto py-8 sm:py-12 will-change-transform transition-all duration-150 ease-out"
+        style={{
+          transform: `translate3d(0, -${contentAscend}px, 0)`,
+          opacity: contentFadeOpacity,
+        }}
+      >
+        <div className="space-y-2">
+          <span className="inline-block text-amber-200/90 text-xs sm:text-sm font-semibold tracking-wide">
+            فخامة هادئة وتفاصيل تليق بيومك
+          </span>
 
-          {/* Main Headline */}
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-burgundy leading-snug sm:leading-tight">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight sm:leading-[1.18] tracking-tight">
             {title}
           </h1>
+        </div>
 
-          {/* Human Description Story */}
-          <p className="text-sm sm:text-base text-burgundy/75 leading-relaxed sm:leading-loose max-w-2xl">
-            {description}
-          </p>
+        <p className="text-stone-200 text-xs sm:text-base leading-relaxed sm:leading-loose font-normal max-w-xl text-stone-200/90">
+          {description}
+        </p>
 
-          {/* Three Key Brand Guarantees */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-            {/* Feature 1 */}
-            <div className="bg-white/90 rounded-2xl p-3.5 border border-burgundy/10 shadow-2xs space-y-1">
-              <div className="w-7 h-7 rounded-lg bg-burgundy/10 text-burgundy flex items-center justify-center">
-                <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <h4 className="text-xs font-bold text-burgundy">معاينة وقِياس قبل الدفع</h4>
-              <p className="text-[10px] text-burgundy/60 leading-normal">عايني براحتك وقيسي مع المندوب قبل ما تدفعي جنيه</p>
-            </div>
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <Link
+            to={primaryCtaLink}
+            className="px-7 sm:px-9 py-3.5 sm:py-4 rounded-full bg-white text-stone-950 font-black text-xs sm:text-sm shadow-xl hover:bg-stone-100 hover:scale-102 active:scale-95 transition-all duration-300 flex items-center gap-2 group cursor-pointer"
+          >
+            <span>{primaryCtaLabel}</span>
+            <span className="text-base group-hover:-translate-x-1 transition-transform">←</span>
+          </Link>
 
-            {/* Feature 2 */}
-            <div className="bg-white/90 rounded-2xl p-3.5 border border-burgundy/10 shadow-2xs space-y-1">
-              <div className="w-7 h-7 rounded-lg bg-burgundy/10 text-burgundy flex items-center justify-center">
-                <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25V3.75a1.125 1.125 0 00-1.125-1.125H3.375A1.125 1.125 0 002.25 3.75v10.5m12-6.75h4.125c.621 0 1.125.504 1.125 1.125v4.5" />
-                </svg>
-              </div>
-              <h4 className="text-xs font-bold text-burgundy">شحن سريع لحد باب بيتك</h4>
-              <p className="text-[10px] text-burgundy/60 leading-normal">توصيل فوري ومباشر لجميع المحافظات</p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white/90 rounded-2xl p-3.5 border border-burgundy/10 shadow-2xs space-y-1">
-              <div className="w-7 h-7 rounded-lg bg-burgundy/10 text-burgundy flex items-center justify-center">
-                <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-              </div>
-              <h4 className="text-xs font-bold text-burgundy">استبدال فوري بكل مرونة</h4>
-              <p className="text-[10px] text-burgundy/60 leading-normal">المقاس مظبطش؟ بنبدلهولك في نفس اليوم</p>
-            </div>
-          </div>
-
-          {/* Action CTA Buttons */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <Link
-              to={primaryCtaLink}
-              className="px-8 py-3.5 rounded-full bg-burgundy hover:bg-[#650018] text-white font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-md shadow-burgundy/25 hover:shadow-lg active:scale-95 flex items-center gap-2"
+          {isExternalSecondary ? (
+            <a
+              href={secondaryCtaLink}
+              target="_blank"
+              rel="noreferrer"
+              className="px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-white/20 font-bold text-xs sm:text-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              <span>{primaryCtaLabel}</span>
-              <span className="text-base leading-none">←</span>
+              <svg className="w-4 h-4 text-emerald-400 fill-current" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              <span>{secondaryCtaLabel}</span>
+            </a>
+          ) : (
+            <Link
+              to={secondaryCtaLink}
+              className="px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-white/20 font-bold text-xs sm:text-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              <span>{secondaryCtaLabel}</span>
             </Link>
+          )}
+        </div>
 
-            {isExternalSecondary ? (
-              <a
-                href={secondaryCtaLink}
-                target="_blank"
-                rel="noreferrer"
-                className="px-6 py-3.5 rounded-full border border-burgundy/20 bg-white/80 hover:bg-white text-burgundy font-bold text-xs sm:text-sm transition active:scale-95 flex items-center gap-2"
-              >
-                <svg className="w-4 h-4 text-emerald-600 fill-current" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                </svg>
-                <span>{secondaryCtaLabel}</span>
-              </a>
-            ) : (
-              <Link
-                to={secondaryCtaLink}
-                className="px-6 py-3.5 rounded-full border border-burgundy/20 bg-white/80 hover:bg-white text-burgundy font-bold text-xs sm:text-sm transition active:scale-95 flex items-center gap-2"
-              >
-                <span>{secondaryCtaLabel}</span>
-              </Link>
-            )}
+        {/* Slide Indicator Dots (If multiple hero photos exist) */}
+        {slideCount > 1 && (
+          <div className="flex items-center gap-2 pt-2">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setCurrentIdx(i)}
+                className={`h-1.5 rounded-full transition-all duration-400 cursor-pointer ${
+                  i === currentIdx ? 'w-7 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
+                }`}
+                aria-label={`انتقال للشريحة ${i + 1}`}
+              />
+            ))}
           </div>
+        )}
+      </div>
+
+      {/* ── 4. SMOOTH SCROLL PROMPT CUE (VANISHES ON SCROLL) ── */}
+      <div
+        className="relative z-20 flex flex-col items-center justify-center pointer-events-none transition-opacity duration-300 pb-2"
+        style={{ opacity: indicatorOpacity }}
+      >
+        <span className="text-[10px] sm:text-xs text-stone-300 font-light mb-1.5 tracking-wider">
+          اسحبي للأسفل لاستكشاف الكولكشن
+        </span>
+        <div className="w-5 h-8 rounded-full border-2 border-white/30 flex items-start justify-center p-1 animate-scroll-bounce">
+          <div className="w-1.5 h-2 rounded-full bg-white" />
+        </div>
+      </div>
+
+      {/* ── 5. BOTTOM INFINITE MARQUEE TICKER ── */}
+      <div className="relative z-20 overflow-hidden border-t border-white/15 pt-3 sm:pt-4 -mx-5 sm:-mx-10 lg:-mx-14 px-5">
+        <div className="animate-marquee whitespace-nowrap text-[11px] sm:text-xs text-stone-300 flex items-center gap-6 sm:gap-8 font-medium">
+          <span className="flex items-center gap-2">✦ معاينة وقياس مع المندوب قبل دفع أي جنيه</span>
+          <span className="flex items-center gap-2">✦ شحن مباشر لباب بيتك بجميع مراكز المنيا وكافة المحافظات</span>
+          <span className="flex items-center gap-2">✦ خامات ناعمة ومريحة وتفصيل مظبوط</span>
+          <span className="flex items-center gap-2">✦ تبديل فوري للمقاس بكل مرونة</span>
+          <span className="flex items-center gap-2">✦ صالة عرض مودة بيلا: بني مزار - المنيا</span>
+          {/* Loop duplicates */}
+          <span className="flex items-center gap-2">✦ معاينة وقياس مع المندوب قبل دفع أي جنيه</span>
+          <span className="flex items-center gap-2">✦ شحن مباشر لباب بيتك بجميع مراكز المنيا وكافة المحافظات</span>
+          <span className="flex items-center gap-2">✦ خامات ناعمة ومريحة وتفصيل مظبوط</span>
+          <span className="flex items-center gap-2">✦ تبديل فوري للمقاس بكل مرونة</span>
+          <span className="flex items-center gap-2">✦ صالة عرض مودة بيلا: بني مزار - المنيا</span>
         </div>
       </div>
     </section>

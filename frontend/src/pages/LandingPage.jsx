@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { cleanProductName } from '../utils/discount';
 import { Icon } from '../components/Icon';
 import FeatureBannerShowcase from '../components/FeatureBannerShowcase';
@@ -44,6 +45,8 @@ const defaultSiteConfig = {
 function LandingPage() {
   const [products, setProducts] = useState(() => (getCachedStorefrontProducts() || []).slice(0, 16));
   const [siteConfig, setSiteConfig] = useState(() => getCachedSiteConfig() || defaultSiteConfig);
+  const [loading, setLoading] = useState(() => !products || products.length === 0);
+  const [isFittingRoomModalOpen, setIsFittingRoomModalOpen] = useState(false);
 
   useEffect(() => {
     api.get('/products?context=storefront')
@@ -51,9 +54,11 @@ function LandingPage() {
         const active = (res.data || []).filter(p => (p.stock ?? 0) > 0);
         setProducts(active.slice(0, 16));
         setCachedStorefrontProducts(active);
+        setLoading(false);
       })
       .catch(() => {
         if (!products.length) setProducts([]);
+        setLoading(false);
       });
 
     api.get('/admin/site-config')
@@ -78,8 +83,6 @@ function LandingPage() {
   return (
     <section className="space-y-8 py-6 sm:py-10 text-burgundy" dir="rtl">
 
-
-
       {/* ━━━━━━━━━━━━ HERO (Modern Showcase with Dynamic Photos) ━━━━━━━━━━━━ */}
       <FeatureBannerShowcase siteConfig={siteConfig} />
 
@@ -89,9 +92,15 @@ function LandingPage() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-2 text-center md:text-right">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-bold border border-white/15">
-                <span>{siteConfig.outfitterBannerBadge || 'ميزة حصرية جديدة في مودة بيلا'}</span>
-              </span>
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-bold border border-white/15">
+                  <span>{siteConfig.outfitterBannerBadge || 'ميزة حصرية جديدة في مودة بيلا'}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-burgundy text-xs font-black shadow-md border border-amber-300 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-burgundy" />
+                  <span>قريباً ✦</span>
+                </span>
+              </div>
               <h3 className="text-xl sm:text-2xl font-black">
                 {siteConfig.outfitterBannerTitle || 'غرفة تنسيق وتبديل الملابس على المانيكان'}
               </h3>
@@ -99,12 +108,14 @@ function LandingPage() {
                 {siteConfig.outfitterBannerDesc || 'اختاري البلوزة مع البنطلون وبدّلي الألوان وشوفي التناسق فوراً بدون انتظار. واحصلي على خصم 15% فوري عند شراء الطقم كاملاً!'}
               </p>
             </div>
-            <Link
-              to={siteConfig.outfitterBannerCtaLink || '/outfitter'}
-              className="px-6 py-3.5 rounded-full bg-white text-burgundy font-black text-xs sm:text-sm hover:bg-beige transition shadow-lg active:scale-95 flex items-center gap-2 whitespace-nowrap"
+            <button
+              type="button"
+              onClick={() => setIsFittingRoomModalOpen(true)}
+              className="px-6 py-3.5 rounded-full bg-white text-burgundy font-black text-xs sm:text-sm hover:bg-beige transition shadow-lg active:scale-95 flex items-center gap-2 whitespace-nowrap cursor-pointer shrink-0"
             >
               <span>{siteConfig.outfitterBannerCtaText || 'ادخلي غرفة التنسيق الآن'}</span>
-            </Link>
+              <span className="text-[10px] bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full font-bold">قريباً</span>
+            </button>
           </div>
         </div>
       )}
@@ -130,10 +141,16 @@ function LandingPage() {
           </Link>
         </div>
         <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product._id} product={product} />
-          ))}
-          {products.length === 0 && (
+          {loading ? (
+            Array.from({ length: 8 }).map((_, idx) => (
+              <ProductCardSkeleton key={`landing-skel-${idx}`} />
+            ))
+          ) : (
+            products.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))
+          )}
+          {!loading && products.length === 0 && (
             <div className="col-span-2 lg:col-span-4 text-center py-14 text-burgundy/40 text-sm">
               لا توجد منتجات متاحة حالياً، تابعونا قريباً
             </div>
@@ -215,6 +232,48 @@ function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* ━━━━━━━━━━━━ مودال غرفة القياس قريباً ━━━━━━━━━━━━ */}
+      {isFittingRoomModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setIsFittingRoomModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-burgundy/15 text-center text-burgundy space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-16 h-16 rounded-full bg-amber-100 text-burgundy flex items-center justify-center mx-auto text-2xl shadow-inner border border-amber-200">
+              ✨
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-burgundy/5 text-burgundy text-xs font-black">
+              <span>ميزة قيد التطوير والتجهيز</span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-burgundy">
+              غرفة القياس والتنسيق الذكية
+            </h3>
+            <p className="text-sm text-burgundy/75 leading-relaxed">
+              فريق <strong className="text-burgundy">ModaPella</strong> يضع اللمسات الأخيرة على ميزة غرفة القياس والتنسيق الافتراضية، لتتمكني من تجربة وتنسيق الموديلات والألوان على المانيكان قبل الطلب!
+            </p>
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              <Link
+                to="/shop"
+                onClick={() => setIsFittingRoomModalOpen(false)}
+                className="flex-1 py-3 px-4 rounded-xl bg-burgundy text-white font-bold text-sm shadow hover:bg-[#650018] transition text-center"
+              >
+                تصفحي الملابس المتاحة الآن
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsFittingRoomModalOpen(false)}
+                className="py-3 px-4 rounded-xl border border-burgundy/20 bg-beige/20 text-burgundy font-bold text-sm hover:bg-beige/40 transition cursor-pointer"
+              >
+                حسناً، فهمت
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </section>
   );

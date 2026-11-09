@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { filterAndRankProducts } from '../utils/arabicSearch';
 import { 
   getCachedStorefrontProducts, 
@@ -14,12 +15,17 @@ const categoryLabels = {
   All: 'كل الفئات',
   Blazer: 'بليزر',
   Blouse: 'بلوزة',
-  Chemise: 'قميص',
-  Skirt: 'تنورة',
+  Chemise: 'شميز',
+  Skirt: 'جيبة',
   Dress: 'فستان',
-  Pantalon: 'بنطال',
+  Pantalon: 'بنطلون',
   'T-shirt': 'تيشيرت',
-  Portefeuille: 'محفظة',
+  Bag: 'شنطة',
+  Cardigan: 'كاردن',
+  Suit: 'سوت',
+  Tonic: 'تونيك',
+  Takem: 'طقم',
+  Portefeuille: 'شنطة',
   Jacket: 'جاكيت',
   Coat: 'معطف / كوت',
   Abaya: 'عباية'
@@ -333,9 +339,10 @@ function CollectionsPage() {
 
       {/* ━━━━━━━━━━━━ PRODUCTS GRID ━━━━━━━━━━━━ */}
       {loading ? (
-        <div className="rounded-[2.5rem] border border-burgundy/10 bg-white p-12 text-center text-burgundy space-y-3">
-          <div className="w-8 h-8 mx-auto animate-spin rounded-full border-4 border-burgundy/20 border-t-burgundy" />
-          <p className="text-sm font-bold">جاري تحميل تشكيلة المتجر...</p>
+        <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <ProductCardSkeleton key={idx} />
+          ))}
         </div>
       ) : visibleProducts.length > 0 ? (
         <div className="space-y-6">

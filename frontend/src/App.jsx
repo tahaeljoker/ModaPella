@@ -21,6 +21,8 @@ import Logo from './components/Logo';
 import useRevealOnScroll from './hooks/useRevealOnScroll';
 import SocialProofPopup from './components/SocialProofPopup';
 import WhatsAppWidget from './components/WhatsAppWidget';
+import CartToast from './components/CartToast';
+import MobileBottomNav from './components/MobileBottomNav';
 import CompareContext, { CompareProvider } from './context/CompareContext';
 import OutfitComparisonBar from './components/OutfitComparisonBar';
 import OutfitComparisonModal from './components/OutfitComparisonModal';
@@ -78,7 +80,7 @@ const navItem = (label, to) => (
 );
 
 function AppContent() {
- const { cart, removeItem, updateQuantity, total } = useContext(CartContext);
+ const { cart, removeItem, updateQuantity, total, cartToast, hideCartToast } = useContext(CartContext);
   const { compareItems, setIsCompareOpen, setCompareEnabled } = useContext(CompareContext);
  const location = useLocation();
  const navigate = useNavigate();
@@ -403,11 +405,12 @@ function AppContent() {
  </header>
  )}
 
- <main className={!isDashboard ? "container mx-auto px-4 pb-12" : ""}>
+ <main className={!isDashboard ? "container mx-auto px-4 pb-24 sm:pb-12" : ""}>
  <Routes>
  {/* Public Routes */}
  <Route path="/" element={<LandingPage />} />
  <Route path="/shop" element={<CollectionsPage />} />
+         <Route path="/fitting-room" element={<Navigate to="/outfitter" replace />} />
           <Route path="/outfitter" element={siteConfig === null || siteConfig?.features?.outfitter !== false ? <OutfitterPage /> : <Navigate to="/shop" replace />} />
           <Route path="/lookbook" element={siteConfig === null || siteConfig?.features?.lookbook !== false ? <LookbookPage /> : <Navigate to="/shop" replace />} />
  <Route path="/collections" element={<CollectionsPage />} />
@@ -471,6 +474,29 @@ function AppContent() {
  <WhatsAppWidget whatsappNumber={whatsappNumber} />
  )}
 
+ {!isDashboard && (
+   <MobileBottomNav
+      onOpenCart={() => setIsCartDrawerOpen(true)}
+      onOpenFavorites={() => setIsFavoritesDrawerOpen(true)}
+      cartCount={cart.length}
+      favoritesCount={favorites.length}
+      whatsappNumber={whatsappNumber}
+    />
+  )}
+
+  <CartToast
+    toast={cartToast}
+    onClose={hideCartToast}
+    onOpenCart={() => setIsCartDrawerOpen(true)}
+  />
+
+  {!isDashboard && (
+    <FavoritesDrawer
+      isOpen={isFavoritesDrawerOpen}
+      onClose={() => setIsFavoritesDrawerOpen(false)}
+    />
+  )}
+
   {/* Outfit Comparison Floating Bar & Modal */}
   {!isDashboard && siteConfig?.features?.productComparison !== false && (
     <>
@@ -497,17 +523,52 @@ function AppContent() {
  <div className="pointer-events-auto w-screen max-w-md transform bg-[#FAF7F2] shadow-2xl transition-all duration-500 flex flex-col h-full">
  {/* Header */}
  <div className="px-6 py-5 border-b border-burgundy/10 flex items-center justify-between">
- <h2 className="text-xl font-bold text-burgundy flex items-center gap-2">
- سلة التسوق
- </h2>
- <button
- type="button"
- onClick={() => setIsCartDrawerOpen(false)}
- className="text-burgundy/60 hover:text-burgundy text-2xl font-semibold"
- >
- 
- </button>
- </div>
+<h2 className="text-xl font-bold text-burgundy flex items-center gap-2">
+سلة التسوق
+</h2>
+<button
+type="button"
+onClick={() => setIsCartDrawerOpen(false)}
+className="text-burgundy/60 hover:text-burgundy text-xl font-semibold p-1 cursor-pointer"
+aria-label="إغلاق السلة"
+>
+✕
+</button>
+</div>
+
+{/* Free Shipping Tracker */}
+{(() => {
+  const threshold = Number(siteConfig?.freeShippingThreshold || 1000);
+  const remaining = Math.max(0, threshold - total);
+  const progressPercent = Math.min(100, Math.round((total / threshold) * 100));
+  const isFree = remaining === 0 && total > 0;
+
+  return (
+    <div className="px-6 py-3.5 bg-white border-b border-burgundy/10 space-y-2">
+      <div className="flex items-center justify-between text-xs font-bold">
+        {isFree ? (
+          <span className="text-emerald-700 flex items-center gap-1.5 font-black">
+            <span>🎉</span>
+            <span>مبروك! لقد حصلتِ على شحن مجاني</span>
+          </span>
+        ) : (
+          <span className="text-burgundy/80">
+            أضيفي بـ <span className="font-extrabold text-burgundy text-sm">{remaining.toLocaleString('en-US')} ج.م</span> إضافية للحصول على شحن مجاني
+          </span>
+        )}
+        <span className="text-[11px] font-mono text-burgundy/60">{progressPercent}%</span>
+      </div>
+      <div className="w-full h-2 rounded-full bg-burgundy/10 overflow-hidden relative">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${
+            isFree ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-amber-500 to-burgundy'
+          }`}
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+    </div>
+  );
+})()}
 
  {/* Items List */}
  <div className="flex-1 overflow-y-auto p-6 space-y-4">

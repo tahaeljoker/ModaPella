@@ -428,3 +428,76 @@ button, input, select, textarea {
   animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
+
+
+/* Calm & Elegant Hero Section Animations */
+@keyframes floatSparkle {
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.35; }
+  50% { transform: translateY(-12px) rotate(12deg) scale(1.15); opacity: 0.9; }
+}
+
+@keyframes shimmerSweep {
+  0% { transform: translateX(140%); }
+  50%, 100% { transform: translateX(-140%); }
+}
+
+@keyframes ambientBreathe {
+  0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.45; }
+  50% { transform: scale(1.15) translate(12px, -8px); opacity: 0.8; }
+}
+
+@keyframes floatAtelierPill {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-float-sparkle {
+  animation: floatSparkle 6s ease-in-out infinite;
+}
+
+.animate-float-sparkle-delayed {
+  animation: floatSparkle 7.5s ease-in-out 2.5s infinite;
+}
+
+.animate-ambient-breathe {
+  animation: ambientBreathe 10s ease-in-out infinite alternate;
+}
+
+.animate-shimmer-sweep {
+  animation: shimmerSweep 4.5s ease-in-out infinite;
+}
+
+.animate-float-atelier {
+  animation: floatAtelierPill 5s ease-in-out infinite;
+}
+
+/* Cinematic Full-Bleed Hero & Scroll Animations */
+@keyframes kenBurnsZoom {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.animate-ken-burns {
+  animation: kenBurnsZoom 22s ease-in-out infinite alternate;
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: 200%;
+  animation: marqueeScroll 24s linear infinite;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.9; }
+  50% { transform: translateY(7px); opacity: 0.35; }
+}
+
+.animate-scroll-bounce {
+  animation: scrollBounce 2s ease-in-out infinite;
+}

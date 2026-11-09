@@ -32,6 +32,8 @@ export const cleanProductName = (nameOrProduct) => {
   }
 
   let str = String(nameOrProduct).trim();
+  // Correct common apparel typos e.g. "وايد ليد" -> "وايد ليج"
+  str = str.replace(/وايد\s+ليد/gi, 'وايد ليج');
   // Strip trailing warehouse hashes, brackets, or isolated codes e.g. " 104", " - 104", " #12", " (104)", " [104]"
   str = str.replace(/[\s\-_/]+[#№]?\d+[\s\-_/]*$/i, '');
   str = str.replace(/\s*[\(\[\{]\s*[#№]?\d+\s*[\)\]\}]\s*$/i, '');

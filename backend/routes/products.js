@@ -88,7 +88,7 @@ const generateNextSku = async () => {
     if (item.sku) {
       const digits = item.sku.replace(/[^0-9]/g, '');
       const num = parseInt(digits, 10);
-      if (!isNaN(num) && num > maxNum) maxNum = num;
+      if (!isNaN(num) && num > maxNum && num <= 99999) maxNum = num;
     }
   }
   return (maxNum + 1).toString();

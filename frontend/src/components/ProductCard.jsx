@@ -5,7 +5,7 @@ import { isDiscountActive, cleanProductName } from '../utils/discount';
 import CompareContext from '../context/CompareContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { getColorHex } from '../utils/colorSwatches';
-import { resolveImageUrl } from '../utils/imageUrl';
+import { resolveImageUrl, getDefaultProductPlaceholder } from '../utils/imageUrl';
 
 const fallbackImages = {
   Blouse: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
@@ -14,7 +14,8 @@ const fallbackImages = {
   Dress: 'https://images.unsplash.com/photo-1521335629791-ce4aec67dd83?auto=format&fit=crop&w=900&q=80',
   Pantalon: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
   'T-shirt': 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
-  Portefeuille: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80'
+  Bag: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80',
+  Portefeuille: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80'
 };
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -45,10 +46,11 @@ function ProductCard({ product }) {
     return null;
   };
 
-  const rawDefault = product?.images?.[0] || fallbackImages[product?.category] || fallbackImages.Blouse;
-  const defaultImage = resolveImageUrl(rawDefault);
+  const fallbackPlaceholder = getDefaultProductPlaceholder();
+  const rawDefault = product?.images?.[0] || fallbackImages[product?.category] || fallbackPlaceholder;
+  const defaultImage = resolveImageUrl(rawDefault, fallbackPlaceholder);
   const colorPhoto = selectedColor ? resolveImageUrl(getColorPhoto(selectedColor)) : null;
-  const currentImage = colorPhoto || defaultImage;
+  const currentImage = colorPhoto || defaultImage || fallbackPlaceholder;
 
   // Secondary flip image (when hovering on card)
   const secondaryImage = !selectedColor && product?.images && product.images.length > 1
@@ -123,18 +125,24 @@ function ProductCard({ product }) {
           key={currentImage}
           src={currentImage}
           alt={cleanProductName(product)}
-          className={`w-full h-full object-contain p-2 transition-all duration-500 ease-out ${
-            secondaryImage ? 'group-hover:opacity-0 group-hover:scale-95' : 'group-hover:scale-105'
-          }`}
+          onError={(e) => {
+            if (e.currentTarget.src !== fallbackPlaceholder) {
+              e.currentTarget.src = fallbackPlaceholder;
+            }
+          }}
+          className="w-full h-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
           loading="lazy"
         />
 
-        {/* Secondary Flip Image (Shows smoothly on hover) */}
+        {/* Secondary Flip Image (Shows smoothly on hover if 2+ images exist) */}
         {secondaryImage && (
           <img
             src={secondaryImage}
             alt={`${cleanProductName(product)} - صورة إضافية`}
-            className="absolute inset-0 w-full h-full object-contain p-2 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-105 pointer-events-none"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+            className="absolute inset-0 w-full h-full object-contain p-2 transition-opacity duration-500 ease-out opacity-0 group-hover:opacity-100 pointer-events-none"
             loading="lazy"
           />
         )}

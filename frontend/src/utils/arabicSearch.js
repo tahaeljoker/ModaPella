@@ -75,7 +75,15 @@ export function levenshteinDistance(a, b) {
 export const FASHION_SYNONYM_CLUSTERS = [
   {
     canonical: 'جاكيت',
-    aliases: ['جاكيت', 'جاكت', 'جواكت', 'جواكيت', 'بليزر', 'بليزرات', 'كوت', 'معطف', 'كارديجان', 'jacket', 'blazer', 'coat', 'cardigan']
+    aliases: ['جاكيت', 'جاكت', 'جواكت', 'جواكيت', 'كوت', 'معطف', 'jacket', 'coat', 'outerwear']
+  },
+  {
+    canonical: 'بليزر',
+    aliases: ['بليزر', 'بليزرات', 'blazer', 'blazers']
+  },
+  {
+    canonical: 'كاردن',
+    aliases: ['كاردن', 'كارديجان', 'كارديجانات', 'cardigan', 'cardigans']
   },
   {
     canonical: 'فستان',
@@ -83,11 +91,15 @@ export const FASHION_SYNONYM_CLUSTERS = [
   },
   {
     canonical: 'بلوزة',
-    aliases: ['بلوزه', 'بلوزة', 'بلوزات', 'توب', 'توبات', 'بدي', 'شميز', 'شميزات', 'قميص', 'قمصان', 'blouse', 'top', 'shirt']
+    aliases: ['بلوزه', 'بلوزة', 'بلوزات', 'توب', 'توبات', 'بدي', 'blouse', 'top']
+  },
+  {
+    canonical: 'شميز',
+    aliases: ['شميز', 'شميزات', 'قميص', 'قمصان', 'chemise', 'shirt']
   },
   {
     canonical: 'بنطلون',
-    aliases: ['بنطلون', 'بناطيل', 'بنطال', 'جينز', 'ليجن', 'وايد ليج', 'pants', 'trousers', 'jeans', 'leggings']
+    aliases: ['بنطلون', 'بناطيل', 'بنطال', 'جينز', 'ليجن', 'وايد ليج', 'وايد ليد', 'pants', 'trousers', 'jeans', 'leggings', 'wide leg']
   },
   {
     canonical: 'عباية',

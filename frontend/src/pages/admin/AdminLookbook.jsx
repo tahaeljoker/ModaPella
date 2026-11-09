@@ -106,8 +106,16 @@ export default function AdminLookbook() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 25 * 1024 * 1024) {
-      showToast('حجم الملف كبير جداً (الحد الأقصى 25 ميجابايت)');
+    const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mov)$/i);
+    const maxSizeBytes = isVideo ? 20 * 1024 * 1024 : 12 * 1024 * 1024;
+
+    if (file.size > maxSizeBytes) {
+      showToast(
+        isVideo
+          ? `حجم الفيديو (${(file.size / (1024 * 1024)).toFixed(1)} ميجا) كبير جداً. يرجى اختيار فيديو ريلز أقل من 20 ميجابايت لسرعة التحميل`
+          : 'حجم الصورة كبير جداً (الحد الأقصى 12 ميجابايت)'
+      );
+      e.target.value = '';
       return;
     }
 
@@ -118,7 +126,7 @@ export default function AdminLookbook() {
         : await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
+            reader.onerror = () => reject(new Error('فشل قراءة ملف الفيديو من الجهاز'));
             reader.readAsDataURL(file);
           });
 
@@ -136,9 +144,11 @@ export default function AdminLookbook() {
       }
     } catch (err) {
       console.error('File upload failed:', err);
-      showToast('فشل رفع الملف، يرجى المحاولة مرة أخرى');
+      const serverMsg = err.response?.data?.message || err.message;
+      showToast(serverMsg || 'فشل رفع الملف، يرجى المحاولة مرة أخرى');
     } finally {
       setUploadingMedia(false);
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -648,8 +658,11 @@ export default function AdminLookbook() {
                 {/* Media Upload or URL */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-burgundy">
-                      {formData.mediaType === 'video' ? 'رفع فيديو الموديل (MP4 / WebM)' : 'رفع صورة الموديل (JPG / PNG)'}
+                    <label className="text-xs font-bold text-burgundy flex items-center justify-between">
+                      <span>{formData.mediaType === 'video' ? 'رفع فيديو الموديل (MP4 / WebM)' : 'رفع صورة الموديل (JPG / PNG)'}</span>
+                      {formData.mediaType === 'video' && (
+                        <span className="text-[10px] text-stone-500 font-normal">بحد أقصى 20 ميجابايت (ريلز طولي)</span>
+                      )}
                     </label>
                     <input
                       type="file"
