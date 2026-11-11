@@ -238,10 +238,11 @@ function ProductDetailsPage() {
           <button
             type="button"
             onClick={() => {
-              if (window.history.length > 1) {
+              if (window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
                 navigate(-1);
               } else {
-                navigate('/shop');
+                const fallback = sessionStorage.getItem('mp_last_storefront_path') || '/shop';
+                navigate(fallback, { state: { restoreScroll: true } });
               }
             }}
             className="inline-flex items-center gap-2 rounded-full border border-burgundy/20 bg-[#FAF7F5] px-4 py-2 text-xs sm:text-sm font-bold text-burgundy transition hover:bg-burgundy hover:text-white cursor-pointer shadow-xs active:scale-95"

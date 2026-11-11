@@ -2,6 +2,7 @@ import { useState, useContext, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import { cleanProductName } from '../utils/discount';
+import { saveScrollPosition } from './ScrollRestoration';
 
 export default function ShopTheLookCard({ look, onProductClick }) {
   const { addItem } = useContext(CartContext);
@@ -31,8 +32,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
   // Record scroll position before navigating to product details
   const handleNavigateToProduct = (productId) => {
     try {
-      const key = `mp_scroll_${window.location.pathname}${window.location.search}`;
-      sessionStorage.setItem(key, String(window.scrollY));
+      saveScrollPosition(window.location.pathname, window.location.search, window.scrollY);
     } catch (e) {}
     navigate(`/product/${productId}`);
   };

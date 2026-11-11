@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import { resolveImageUrl } from '../utils/imageUrl';
+import { saveScrollPosition } from './ScrollRestoration';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -140,7 +141,12 @@ export default function BestSellersSlider({ products = [] }) {
           return (
             <div
               key={product._id}
-              onClick={() => navigate(`/product/${product._id}`)}
+              onClick={() => {
+                try {
+                  saveScrollPosition(window.location.pathname, window.location.search, window.scrollY);
+                } catch (e) {}
+                navigate(`/product/${product._id}`);
+              }}
               className="group relative flex w-[52%] sm:w-[210px] lg:w-[225px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-burgundy/10 bg-white p-2 sm:p-2.5 shadow-sm transition hover:shadow-md interactive-card cursor-pointer"
             >
               {/* Product Image Box - Square compact aspect */}

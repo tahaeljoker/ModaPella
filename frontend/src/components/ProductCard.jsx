@@ -6,6 +6,7 @@ import CompareContext from '../context/CompareContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { getColorHex } from '../utils/colorSwatches';
 import { resolveImageUrl, getDefaultProductPlaceholder } from '../utils/imageUrl';
+import { saveScrollPosition } from './ScrollRestoration';
 
 const fallbackImages = {
   Blouse: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
@@ -59,8 +60,7 @@ function ProductCard({ product }) {
 
   const handleCardClick = () => {
     try {
-      const key = `mp_scroll_${window.location.pathname}${window.location.search}`;
-      sessionStorage.setItem(key, String(window.scrollY));
+      saveScrollPosition(window.location.pathname, window.location.search, window.scrollY);
     } catch (e) {}
     navigate(`/product/${product._id}`);
   };

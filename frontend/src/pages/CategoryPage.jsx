@@ -4,6 +4,7 @@ import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { cleanProductName } from '../utils/discount';
+import { getCachedStorefrontProducts, setCachedStorefrontProducts } from '../services/storefrontCache';
 
 const CAT_SLUG_MAP = {
   blouse: ['Blouse', 'بلوزة'],
@@ -54,29 +55,45 @@ const CATEGORY_NAMES_AR = {
 
 function CategoryPage() {
   const { slug } = useParams();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
-
   const rawSlug = decodeURIComponent(slug || '').trim();
   const lowerSlug = rawSlug.toLowerCase();
   const displayTitle = CATEGORY_NAMES_AR[rawSlug] || rawSlug;
 
+  const [products, setProducts] = useState(() => {
+    const cached = getCachedStorefrontProducts();
+    if (cached && cached.length > 0) {
+      const acceptedCats = CAT_SLUG_MAP[lowerSlug] || [rawSlug];
+      return cached.filter((p) => {
+        if ((p.stock ?? 0) <= 0) return false;
+        if (!p.category) return false;
+        return acceptedCats.some(c => c.toLowerCase() === p.category.toLowerCase()) || p.category.toLowerCase() === lowerSlug;
+      });
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => products.length === 0);
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+
   useEffect(() => {
     const acceptedCats = CAT_SLUG_MAP[lowerSlug] || [rawSlug];
-    setLoading(true);
+    if (products.length === 0) {
+      setLoading(true);
+    }
 
     api.get('/products?context=storefront')
       .then((res) => {
-        const filtered = (res.data || []).filter((p) => {
-          if ((p.stock ?? 0) <= 0) return false;
+        const active = (res.data || []).filter(p => (p.stock ?? 0) > 0);
+        setCachedStorefrontProducts(active);
+        const filtered = active.filter((p) => {
           if (!p.category) return false;
           return acceptedCats.some(c => c.toLowerCase() === p.category.toLowerCase()) || p.category.toLowerCase() === lowerSlug;
         });
         setProducts(filtered);
       })
-      .catch(() => setProducts([]))
+      .catch(() => {
+        if (!products.length) setProducts([]);
+      })
       .finally(() => setLoading(false));
   }, [slug]);
 
