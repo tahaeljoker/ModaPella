@@ -247,12 +247,11 @@ function ProductPricingStock({ product, isDiscount }) {
               <span>●</span>
               <span>متبقي {product.stock} قطع فقط</span>
             </span>
-            <span className="text-[10px] text-amber-700/80 font-medium mt-0.5">سارعي بالطلب قبل النفاذ</span>
+            <span className="text-[10px] text-amber-700/80 font-medium mt-0.5">متبقي قطع معدودة بالمحل - احجزي مقاسكِ قبل النفاذ</span>
           </div>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span>✓</span>
-            <span>متوفر بالمحل للطلب الفوري</span>
+            <span>متوفر بالمحل وجاهز للشحن الفوري لباب بيتكِ</span>
           </span>
         )}
       </div>
@@ -288,7 +287,7 @@ function ProductSizeSelector({
         </h3>
         {sizeError && (
           <span className="text-xs font-bold text-red-600 animate-pulse">
-            ⚠️ يرجى اختيار المقاس أولاً
+            يرجى اختيار المقاس أولاً
           </span>
         )}
       </div>
@@ -417,7 +416,7 @@ function ProductQuantitySelector({ quantity, setQuantity, stock }) {
             ? 'القطعة غير متوفرة حالياً'
             : stock <= 5
             ? `أقصى كمية متاحة: ${stock} قطع`
-            : 'جاهز للطلب والشحن الفوري'}
+            : 'متوفر بالمحل وجاهز للشحن الفوري لباب بيتكِ'}
         </span>
       </div>
     </div>
@@ -451,9 +450,9 @@ function ProductActionButtons({
               ? 'bg-gray-400 cursor-not-allowed shadow-none'
               : 'bg-burgundy hover:bg-[#650018] active:scale-[0.98]'
           }`}
-          aria-label="شراء سريع بنقرة واحدة"
+          aria-label="اطلبي بنقرة واحدة والدفع بعد المعاينة"
         >
-          <span>شراء سريع بنقرة واحدة</span>
+          <span>اطلبي بنقرة واحدة (الدفع بعد المعاينة)</span>
         </button>
 
         <button
@@ -467,11 +466,16 @@ function ProductActionButtons({
               ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
               : 'border-burgundy/30 bg-white text-burgundy hover:bg-burgundy/5 active:scale-[0.98]'
           }`}
-          aria-label="أضف إلى سلة المشتريات"
+          aria-label="أضيفي لإطلالتكِ اليوم"
         >
-          <span>{isOutOfStock ? 'غير متوفر' : added ? 'تمت الإضافة للسلة ✓' : 'أضف للسلة'}</span>
+          <span>{isOutOfStock ? 'غير متوفر' : added ? 'انضمت لسلتكِ بنجاح' : 'أضيفي لإطلالتكِ اليوم'}</span>
         </button>
       </div>
+
+      {/* Trust Reassurance Microcopy */}
+      <p className="text-[11px] text-center text-burgundy/60 font-semibold pt-0.5">
+        معاينة وقياس متاح مع المندوب قبل الدفع - استبدال واسترجاع سهل وسريع
+      </p>
 
       {/* Secondary Actions: Comparison & Share */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -645,12 +649,12 @@ function ProductStickyBar({
         onClick={onAddToCart}
         disabled={stock === 0}
         className="h-11 px-4 rounded-xl bg-burgundy hover:bg-[#650018] text-white text-xs font-black shadow-md shadow-burgundy/25 transition-transform active:scale-95 disabled:bg-gray-400 shrink-0 flex items-center gap-1.5 cursor-pointer"
-        aria-label="أضف إلى السلة"
+        aria-label="أضيفي لإطلالتكِ اليوم"
       >
         <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
         </svg>
-        <span>{stock === 0 ? 'غير متوفر' : added ? 'تمت الإضافة' : 'أضف للسلة'}</span>
+        <span>{stock === 0 ? 'غير متوفر' : added ? 'انضمت لسلتكِ' : 'أضيفي لإطلالتكِ'}</span>
       </button>
     </div>
   );

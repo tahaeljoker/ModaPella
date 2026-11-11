@@ -110,7 +110,7 @@ export default function LookbookPage() {
           <div className="space-y-3.5">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-burgundy/5 text-burgundy text-xs font-bold border border-burgundy/10">
               <span className="w-2 h-2 rounded-full bg-[#7c0a12] animate-pulse" />
-              <span>MODAPELLA ATELIER ✦ استوديو الموديل والتنسيقات التفاعلية</span>
+              <span>MODAPELLA ATELIER - استوديو الموديل والتنسيقات التفاعلية</span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-burgundy tracking-tight leading-snug">
@@ -124,7 +124,7 @@ export default function LookbookPage() {
             {/* Feature Badges */}
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
               <span className="px-3 py-1 rounded-full bg-white border border-burgundy/10 text-burgundy/80 font-bold shadow-2xs">
-                نقاط لمس تفاعلية (Hotspots) ✦
+                نقاط لمس تفاعلية
               </span>
               <span className="px-3 py-1 rounded-full bg-white border border-burgundy/10 text-burgundy/80 font-bold shadow-2xs">
                 فيديوهات وريلز حية
@@ -238,7 +238,7 @@ export default function LookbookPage() {
         <div className="space-y-6">
           <div className="bg-amber-50/80 border border-amber-300 rounded-2xl p-4 text-center">
             <span className="text-xs sm:text-sm font-bold text-amber-900 block">
-              ✦ معاينة حية تفاعلية: هذا النموذج يوضح كيف ستظهر إطلالات وفيديوهات الموديل بعد رفعها من لوحة التحكم
+              معاينة حية تفاعلية: هذا النموذج يوضح كيف ستظهر إطلالات وفيديوهات الموديل بعد رفعها من لوحة التحكم
             </span>
           </div>
           <ShopTheLookCard look={DEMO_PREVIEW_LOOK} />

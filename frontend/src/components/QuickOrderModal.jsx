@@ -223,12 +223,9 @@ export default function QuickOrderModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-burgundy/10 bg-[#FAF5F2]">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-burgundy text-white text-xs font-bold shadow-sm">
-              ✦
-            </span>
             <div>
-              <h3 className="font-bold text-sm sm:text-base text-burgundy">طلب سريع بنقرة واحدة</h3>
-              <p className="text-[11px] text-burgundy/60">بدون تسجيل حساب • شحن وتوصيل فوري</p>
+              <h3 className="font-bold text-sm sm:text-base text-burgundy">طلب فوري في ثوان</h3>
+              <p className="text-[11px] text-burgundy/60">بدون كارت بنكي - عايني وقيسي براحتك قبل الدفع</p>
             </div>
           </div>
           <button 
@@ -250,9 +247,9 @@ export default function QuickOrderModal({
                 ✓
               </div>
               <div>
-                <h4 className="text-xl font-extrabold text-emerald-800">تم تسجيل طلبك بنجاح!</h4>
+                <h4 className="text-xl font-extrabold text-emerald-800">تم تسجيل طلبك بنجاح</h4>
                 <p className="text-xs text-burgundy/70 mt-1">
-                  شكراً لتسوقك من <strong className="text-burgundy font-bold">ModaPella</strong>
+                  طلبك في أيد أمينة، بنجهزهولك بكل اهتمام وهنكلمك لتأكيد الشحن
                 </p>
               </div>
 
@@ -296,8 +293,7 @@ export default function QuickOrderModal({
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-2xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition active:scale-[0.98]"
                 >
-                  
-                  <span>تأكيد ومتابعة الطلب عبر واتساب</span>
+                  <span>تابعي خط سير شحنتكِ على واتساب الآن</span>
                 </a>
 
                 <button
@@ -423,7 +419,7 @@ export default function QuickOrderModal({
                 {/* Full Name */}
                 <div>
                   <label className="block text-xs font-bold text-burgundy mb-1">
-                    الاسم بالكامل <span className="text-red-500">*</span>
+                    الاسم بالكامل (لتسجيل الشحنة) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -438,7 +434,7 @@ export default function QuickOrderModal({
                 {/* Phone Number */}
                 <div>
                   <label className="block text-xs font-bold text-burgundy mb-1">
-                    رقم الهاتف / الواتساب <span className="text-red-500">*</span>
+                    رقم الهاتف (هنكلمك لتأكيد الشحن فوراً) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
@@ -471,7 +467,7 @@ export default function QuickOrderModal({
 
                   <div>
                     <label className="block text-xs font-bold text-burgundy mb-1">
-                      العنوان بالتفصيل <span className="text-red-500">*</span>
+                      العنوان بالتفصيل (عشان المندوب يوصلك لحد باب البيت) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -646,10 +642,7 @@ export default function QuickOrderModal({
                       <span>جاري تأكيد طلبك...</span>
                     </div>
                   ) : (
-                    <>
-                      <span>تأكيد الطلب الآن</span>
-                      
-                    </>
+                    <span>تأكيد الشحن والدفع عند الاستلام</span>
                   )}
                 </button>
               </div>

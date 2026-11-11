@@ -102,10 +102,10 @@ function LandingPage() {
                 </span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black">
-                {siteConfig.outfitterBannerTitle || 'غرفة تنسيق وتبديل الملابس على المانيكان'}
+                {siteConfig.outfitterBannerTitle || 'استوديو التنسيق الذكي وتبديل الملابس على المانيكان'}
               </h3>
               <p className="text-xs sm:text-sm text-white/80 max-w-xl">
-                {siteConfig.outfitterBannerDesc || 'اختاري البلوزة مع البنطلون وبدّلي الألوان وشوفي التناسق فوراً بدون انتظار. واحصلي على خصم 15% فوري عند شراء الطقم كاملاً!'}
+                {siteConfig.outfitterBannerDesc || 'اختاري البلوزة مع البنطلون وبدّلي الألوان وشوفي التناسق فوراً قبل الطلب، واحصلي على خصم 15% فوري عند شراء الطقم كاملاً.'}
               </p>
             </div>
             <button
@@ -113,7 +113,7 @@ function LandingPage() {
               onClick={() => setIsFittingRoomModalOpen(true)}
               className="px-6 py-3.5 rounded-full bg-white text-burgundy font-black text-xs sm:text-sm hover:bg-beige transition shadow-lg active:scale-95 flex items-center gap-2 whitespace-nowrap cursor-pointer shrink-0"
             >
-              <span>{siteConfig.outfitterBannerCtaText || 'ادخلي غرفة التنسيق الآن'}</span>
+              <span>{siteConfig.outfitterBannerCtaText || 'ادخلي استوديو التنسيق الآن'}</span>
               <span className="text-[10px] bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full font-bold">قريباً</span>
             </button>
           </div>
@@ -137,7 +137,7 @@ function LandingPage() {
             to="/shop"
             className="flex-shrink-0 rounded-full border border-burgundy px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-burgundy transition hover:bg-burgundy/5"
           >
-            عرض الكل
+            اكتشفي تشكيلة الموسم كاملة
           </Link>
         </div>
         <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-4">

@@ -25,7 +25,7 @@ function Footer() {
         <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
           <div className="col-span-2 lg:col-span-1">
             <h4 className="font-semibold text-base sm:text-lg text-burgundy">ModaPella</h4>
-            <p className="mt-2 text-sm text-burgundy/70 leading-relaxed">أحدث القطع النسائية، مصممة للراحة والأناقة اليومية.</p>
+            <p className="mt-2 text-sm text-burgundy/70 leading-relaxed">مودة بيلا - وجهتكِ لأرقى الأزياء النسائية في بني مزار. بنختار كل قطعة بتفصيل مظبوط وخامة تعيش معاكِ وتزيدكِ ثقة وجمال.</p>
           </div>
           <div>
             <h4 className="font-semibold text-sm sm:text-base text-burgundy">روابط سريعة</h4>
@@ -88,7 +88,15 @@ function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-burgundy/8 pt-6 text-center text-xs sm:text-sm text-burgundy/60">
+        <div className="mt-8 pt-4 border-t border-burgundy/10 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs text-burgundy/75 font-semibold">
+          <span>معاينة وقياس قبل الدفع</span>
+          <span>•</span>
+          <span>توصيل سريع لباب بيتك</span>
+          <span>•</span>
+          <span>استبدال واسترجاع سهل وسريع</span>
+        </div>
+
+        <div className="mt-6 border-t border-burgundy/8 pt-6 text-center text-xs sm:text-sm text-burgundy/60">
           © {new Date().getFullYear()} ModaPella — جميع الحقوق محفوظة. | تم التطوير بواسطة{' '}
           <a
             href="https://wa.me/201143632650"

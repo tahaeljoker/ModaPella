@@ -596,12 +596,11 @@ aria-label="إغلاق السلة"
       <div className="flex items-center justify-between text-xs font-bold">
         {isFree ? (
           <span className="text-emerald-700 flex items-center gap-1.5 font-black">
-            <span>🎉</span>
-            <span>مبروك! لقد حصلتِ على شحن مجاني</span>
+            <span>مبروك، شحنك مجاني بالكامل لحد باب البيت</span>
           </span>
         ) : (
           <span className="text-burgundy/80">
-            أضيفي بـ <span className="font-extrabold text-burgundy text-sm">{remaining.toLocaleString('en-US')} ج.م</span> إضافية للحصول على شحن مجاني
+            فاضلك <span className="font-extrabold text-burgundy text-sm">{remaining.toLocaleString('en-US')} ج.م</span> فقط وشحنك يوصلك مجاناً لحد باب بيتك
           </span>
         )}
         <span className="text-[11px] font-mono text-burgundy/60">{progressPercent}%</span>
@@ -622,8 +621,7 @@ aria-label="إغلاق السلة"
  <div className="flex-1 overflow-y-auto p-6 space-y-4">
  {cart.length === 0 ? (
  <div className="text-center py-20 text-burgundy/60 space-y-4">
- <span className="text-5xl block"></span>
- <p className="text-sm font-semibold">سلة المشتريات فارغة حالياً</p>
+ <p className="text-sm font-semibold">سلتكِ لسه مستنية ذوقكِ، تصفحي كولكشن الموسم واختاري اللي يكمل شياكتك</p>
  <button
  onClick={() => {
  setIsCartDrawerOpen(false);
@@ -631,7 +629,7 @@ aria-label="إغلاق السلة"
  }}
  className="text-xs text-burgundy underline font-bold"
  >
- تصفح الملابس لإضافتها
+ تصفحي أحدث القطع الآن
  </button>
  </div>
  ) : (
@@ -701,7 +699,7 @@ aria-label="إغلاق السلة"
  }}
  className="w-full rounded-full bg-burgundy py-3 text-center text-sm font-bold text-white transition hover:bg-[#650018] shadow"
  >
- الذهاب للدفع وتأكيد الطلب
+ تأكيد الطلب والمعاينة عند الاستلام
  </button>
  </div>
  )}

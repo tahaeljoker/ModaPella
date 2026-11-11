@@ -208,7 +208,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
 
           {/* Guide Hint */}
           <div className="absolute top-3.5 left-3.5 z-20 bg-white/90 backdrop-blur-md text-burgundy text-[10px] font-bold px-3 py-1 rounded-full shadow-xs border border-burgundy/10 hidden sm:flex items-center gap-1.5">
-            <span>اضغطي على الدوائر المتوهجة لاكتشاف القطع ✦</span>
+            <span>اضغطي على الدوائر المتوهجة لاكتشاف القطع</span>
           </div>
 
           {/* ── Interactive Hotspot Pins (Concept 1 Signature) ── */}
@@ -319,7 +319,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-burgundy/60">
-                  MODAPELLA ATELIER ✦ إطلالة منسقة بالكامل
+                  MODAPELLA ATELIER - إطلالة منسقة بالكامل
                 </span>
                 <span className="text-xs font-black px-3 py-1 rounded-full bg-burgundy/10 text-burgundy">
                   {look.items.length} قطع متناسقة
@@ -340,7 +340,6 @@ export default function ShopTheLookCard({ look, onProductClick }) {
               <div className="rounded-2xl border-2 border-amber-400/50 bg-[#FAF7F5] p-3.5 sm:p-4 shadow-sm transition-all duration-300">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-black bg-amber-500 text-white px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <span>✦</span>
                     <span>القطعة المحددة من الصورة (رقم {activePieceIndex + 1})</span>
                   </span>
                   <button
@@ -420,7 +419,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                             : 'bg-burgundy text-white hover:bg-[#680017] border-burgundy'
                         }`}
                       >
-                        {addedPieceIndex === activePieceIndex ? 'تمت الإضافة ✓' : 'شراء هذه القطعة'}
+                        {addedPieceIndex === activePieceIndex ? 'تمت الإضافة' : 'شراء هذه القطعة'}
                       </button>
                     </div>
                   </div>
@@ -512,15 +511,9 @@ export default function ShopTheLookCard({ look, onProductClick }) {
               }`}
             >
               {addedBundleSuccess ? (
-                <>
-                  <span className="text-base">✓</span>
-                  <span>تمت إضافة الطقم كاملاً إلى سلتكِ بنجاح!</span>
-                </>
+                <span>تمت إضافة الطقم كاملاً إلى سلتكِ بنجاح</span>
               ) : (
-                <>
-                  <span>أضيفي الإطلالة بالكامل للسلة {discountPercent > 0 ? `(وفرّي ${bundleSavings} ج.م)` : ''}</span>
-                  <span>←</span>
-                </>
+                <span>أضيفي الإطلالة بالكامل للسلة {discountPercent > 0 ? `(وفرّي ${bundleSavings} ج.م)` : ''}</span>
               )}
             </button>
           </div>

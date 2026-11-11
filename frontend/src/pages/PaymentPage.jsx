@@ -118,9 +118,9 @@ function PaymentPage() {
  <section className="py-8 max-w-2xl mx-auto text-burgundy text-center" dir="rtl">
  <div className="rounded-[2.5rem] border border-burgundy/15 bg-white p-8 sm:p-12 shadow-soft space-y-6">
  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-4xl"></div>
- <h2 className="text-3xl font-extrabold text-emerald-700">تم تسجيل طلبك بنجاح!</h2>
+ <h2 className="text-3xl font-extrabold text-emerald-700">تم تسجيل طلبك بنجاح</h2>
  <p className="text-sm text-burgundy/80 leading-relaxed">
- شكراً لطلبك من **ModaPella** . رقم طلبك هو <strong className="font-mono bg-burgundy/5 px-2 py-1 rounded">#{shortId}</strong>.
+ شكراً لطلبك من **ModaPella**. تم حجز طلبك بنجاح برقم <strong className="font-mono bg-burgundy/5 px-2 py-1 rounded">#{shortId}</strong>، ومندوبنا هيتواصل معاكِ لتسليمكِ الشحنة.
  </p>
 
  <div className="bg-beige/10 border border-burgundy/10 rounded-2xl p-6 text-right space-y-3">
@@ -150,7 +150,7 @@ function PaymentPage() {
  <div className="rounded-2xl sm:rounded-3xl border border-burgundy/15 bg-white p-4 sm:p-8 shadow-soft">
  <h2 className="text-xl sm:text-3xl font-bold">إتمام الطلب والدفع</h2>
  <p className="mt-1.5 sm:mt-3 text-xs sm:text-sm text-burgundy/75">
- برجاء ملء البيانات التالية لإرسال طلبك. وسيلة الدفع الأساسية هي التحويل عبر **Instapay**.
+ أدخلي بيانات التوصيل وسيتواصل معكِ المندوب قبل الوصول. الدفع متاح عند الاستلام بعد المعاينة التامة.
  </p>
  </div>
 
@@ -163,7 +163,7 @@ function PaymentPage() {
  )}
 
  <div>
- <label className="block text-xs sm:text-sm font-semibold text-burgundy/80">الاسم الكامل</label>
+ <label className="block text-xs sm:text-sm font-semibold text-burgundy/80">الاسم الكامل (لتسجيل الشحنة)</label>
  <input
  className="mt-1.5 w-full rounded-xl sm:rounded-2xl border border-beige/20 bg-beige/10 px-4 py-2.5 sm:py-3 text-sm text-burgundy outline-none focus:border-burgundy"
  name="fullName"
@@ -175,7 +175,7 @@ function PaymentPage() {
  </div>
 
  <div>
- <label className="block text-xs sm:text-sm font-semibold text-burgundy/80">رقم الهاتف (الواتساب)</label>
+ <label className="block text-xs sm:text-sm font-semibold text-burgundy/80">رقم الهاتف (هنكلمك لتأكيد الشحن فوراً)</label>
  <input
  type="tel"
  className="mt-1.5 w-full rounded-xl sm:rounded-2xl border border-beige/20 bg-beige/10 px-4 py-2.5 sm:py-3 text-sm text-burgundy outline-none focus:border-burgundy text-right"
@@ -188,7 +188,7 @@ function PaymentPage() {
  </div>
 
  <div>
- <label className="block text-xs sm:text-sm font-semibold text-burgundy/80">عنوان التوصيل أو أي ملاحظات إضافية</label>
+ <label className="block text-xs sm:text-sm font-semibold text-burgundy/80">عنوان التوصيل بالتفصيل</label>
  <textarea
  className="mt-1.5 w-full rounded-xl sm:rounded-2xl border border-beige/20 bg-beige/10 px-4 py-2.5 sm:py-3 text-sm text-burgundy outline-none focus:border-burgundy min-h-[80px]"
  name="notes"
@@ -210,7 +210,7 @@ function PaymentPage() {
  : 'border-burgundy/20 bg-white text-burgundy/60 hover:border-burgundy/40'
  }`}
  >
- الدفع عند الاستلام
+ الدفع عند الاستلام (معاينة قبل الدفع)
  </button>
  <button
  type="button"
@@ -221,7 +221,7 @@ function PaymentPage() {
  : 'border-burgundy/20 bg-white text-burgundy/60 hover:border-burgundy/40'
  }`}
  >
- تحويل Instapay
+ تحويل Instapay (أسرع في التجهيز)
  </button>
  </div>
  </div>
@@ -267,7 +267,7 @@ function PaymentPage() {
  disabled={loading || cart.length === 0}
  className="w-full rounded-xl sm:rounded-3xl bg-burgundy px-5 py-2.5 sm:py-3 font-bold text-sm sm:text-base text-white transition hover:bg-[#650018] disabled:opacity-50"
  >
- {loading ? 'جاري تسجيل الطلب...' : `تأكيد الطلب ودفع ${Number(finalTotal).toLocaleString('en-US')} ج.م`}
+ {loading ? 'جاري تسجيل الطلب...' : `تأكيد وحجز طلبي الآن (${Number(finalTotal).toLocaleString('en-US')} ج.م)`}
  </button>
  </form>
 

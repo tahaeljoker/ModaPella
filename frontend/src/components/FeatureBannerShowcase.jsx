@@ -48,7 +48,7 @@ export default function FeatureBannerShowcase({ siteConfig = {} }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const tag = siteConfig.heroBadge || 'ModaPella ✦ كولكشن الموسم الجديد';
+  const tag = siteConfig.heroBadge || 'كولكشن الموسم الجديد';
   const title = siteConfig.heroTitle || 'أناقة ناعمة تدوم، وبساطة تليق بكِ';
   const description =
     siteConfig.heroSubtitle ||
