@@ -726,7 +726,7 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  fetchSuppliers();
  }, [product]);
 
- const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : str) : [];
+ const getParsedItems = (str) => str ? (typeof str === 'string' ? str.split(/[,،]+/).map(s => s.trim()).filter(Boolean) : str) : [];
  const parsedSizes = getParsedItems(form.sizes);
  const parsedColors = getParsedItems(form.colors);
 
@@ -759,8 +759,8 @@ function ProductModal({ product, onClose, onSave, categories, catAr, onAddCatego
  });
  const handleChange = (e) => { const { name, value } = e.target; setForm(p => ({ ...p, [name]: value })); };
  const hasVariants = parsedSizes.length > 0 || parsedColors.length > 0;
- const activeSizes = parsedSizes.length > 0 ? parsedSizes : (parsedColors.length > 0 ? ['-'] : []);
- const activeColors = parsedColors.length > 0 ? parsedColors : (parsedSizes.length > 0 ? ['-'] : []);
+ const activeSizes = parsedSizes.length > 0 ? parsedSizes : ['One Size'];
+ const activeColors = parsedColors.length > 0 ? parsedColors : ['لون واحد'];
  const combinations = [];
  if (hasVariants) activeSizes.forEach(size => activeColors.forEach(color => combinations.push({ size, color })));
  
@@ -1361,9 +1361,9 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">المقاسات المتاحة للمنتج</label>
  <span className="text-[10px] text-burgundy/50 font-bold">{parsedSizes.length} مقاسات</span>
  </div>
- <input name="sizes" value={typeof form.sizes === "string" ? form.sizes : (form.sizes || []).join(", ")} onChange={handleChange} className={inp} placeholder="S, M, L, XL" />
+ <input name="sizes" value={typeof form.sizes === "string" ? form.sizes : (form.sizes || []).join(", ")} onChange={handleChange} className={inp} placeholder="اكتب مقاسات مخصصة أو اختر من الأسفل (مثال: One Size, 48, S, M, L)" />
  <div className="flex flex-wrap gap-1 mt-2">
- {["S", "M", "L", "XL", "2XL", "Free Size", "38", "40", "42", "44"].map(sz => {
+ {["One Size", "مقاس واحد", "Free Size", "S", "M", "L", "XL", "2XL", "3XL", "38", "40", "42", "44", "46"].map(sz => {
  const isSel = parsedSizes.includes(sz);
  return (
  <button
@@ -1386,11 +1386,11 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  <div>
  <div className="flex items-center justify-between mb-1">
  <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان المتاحة للمنتج</label>
- <span className="text-[10px] text-burgundy/50 font-bold">{parsedColors.length} ألوان</span>
+ <span className="text-[10px] text-burgundy/50 font-bold">{parsedColors.length > 0 ? `${parsedColors.length} ألوان` : 'لون واحد (افتراضي)'}</span>
  </div>
- <input name="colors" value={typeof form.colors === "string" ? form.colors : (form.colors || []).join(", ")} onChange={handleChange} className={inp} placeholder="أحمر, أخضر, بورجندي" />
+ <input name="colors" value={typeof form.colors === "string" ? form.colors : (form.colors || []).join(", ")} onChange={handleChange} className={inp} placeholder="أحمر, أخضر, بورجندي (أو اتركه فارغاً ليكون لون واحد)" />
  <div className="flex flex-wrap gap-1 mt-2">
- {["أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", "كحلي", "سماوي", "زيتي", "سيمون", "لافندر", "أصفر"].map(clr => {
+ {["لون واحد", "أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", "كحلي", "سماوي", "زيتي", "سيمون", "لافندر", "أصفر"].map(clr => {
  const isSel = parsedColors.includes(clr);
  return (
  <button

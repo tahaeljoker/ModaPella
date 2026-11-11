@@ -10,9 +10,13 @@ import { Icon } from './Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
-const PRESET_SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "Free Size", "36", "38", "40", "42", "44", "46"];
+const PRESET_SIZES = [
+  "One Size", "مقاس واحد", "Free Size",
+  "S", "M", "L", "XL", "2XL", "3XL", "4XL",
+  "36", "38", "40", "42", "44", "46", "48"
+];
 const PRESET_COLORS = [
-  "أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", 
+  "لون واحد", "أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", 
   "كحلي", "سماوي", "زيتي", "سيمون", "لافندر", "وردي", 
   "أصفر", "بني", "رصاصي", "موف", "كشمير"
 ];
@@ -53,6 +57,8 @@ export default function AdminOnlineCatalog({ onToast }) {
     discountStartDate: '',
     discountEndDate: ''
   });
+  const [customSizeInput, setCustomSizeInput] = useState('');
+  const [customColorInput, setCustomColorInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [switchingSeason, setSwitchingSeason] = useState(false);
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'visible' | 'offseason' | 'hidden' | 'missing'
@@ -95,13 +101,15 @@ export default function AdminOnlineCatalog({ onToast }) {
 
   const handleSelectProduct = (p) => {
     setSelectedProduct(p);
+    setCustomSizeInput('');
+    setCustomColorInput('');
     
     // Parse sizes
     let parsedSizes = [];
     if (Array.isArray(p.sizes)) {
       parsedSizes = p.sizes.map(s => String(s).trim()).filter(Boolean);
     } else if (typeof p.sizes === 'string') {
-      parsedSizes = p.sizes.split(',').map(s => s.trim()).filter(Boolean);
+      parsedSizes = p.sizes.split(/[,،]+/).map(s => s.trim()).filter(Boolean);
     }
 
     // Parse colors
@@ -109,7 +117,7 @@ export default function AdminOnlineCatalog({ onToast }) {
     if (Array.isArray(p.colors)) {
       parsedColors = p.colors.map(c => String(c).trim()).filter(Boolean);
     } else if (typeof p.colors === 'string') {
-      parsedColors = p.colors.split(',').map(c => c.trim()).filter(Boolean);
+      parsedColors = p.colors.split(/[,،]+/).map(c => c.trim()).filter(Boolean);
     }
 
     setEditForm({
@@ -146,6 +154,8 @@ export default function AdminOnlineCatalog({ onToast }) {
       season: currentWebsiteSeason !== 'all' ? currentWebsiteSeason : 'winter'
     };
     setSelectedProduct(newP);
+    setCustomSizeInput('');
+    setCustomColorInput('');
     setEditForm({
       name: '',
       category: defaultCat,
@@ -155,8 +165,8 @@ export default function AdminOnlineCatalog({ onToast }) {
       description: '',
       images: [],
       mannequinImage: '',
-      sizes: ['S', 'M', 'L'],
-      colors: [],
+      sizes: ['One Size'],
+      colors: ['لون واحد'],
       colorImages: [],
       showOnWebsite: true,
       season: newP.season,
@@ -172,6 +182,30 @@ export default function AdminOnlineCatalog({ onToast }) {
     if (!selectedProduct) return;
     setSaving(true);
     try {
+      // 1. Gather sizes (include pending custom text if typed)
+      let resolvedSizes = [...(editForm.sizes || [])];
+      if (customSizeInput.trim()) {
+        const extraSizes = customSizeInput.trim().split(/[,،]+/).map(s => s.trim()).filter(Boolean);
+        extraSizes.forEach(s => {
+          if (!resolvedSizes.includes(s)) resolvedSizes.push(s);
+        });
+      }
+      if (resolvedSizes.length === 0) {
+        resolvedSizes = ['One Size'];
+      }
+
+      // 2. Gather colors (if no colors selected/typed, default to "لون واحد")
+      let resolvedColors = [...(editForm.colors || [])];
+      if (customColorInput.trim()) {
+        const extraColors = customColorInput.trim().split(/[,،]+/).map(c => c.trim()).filter(Boolean);
+        extraColors.forEach(c => {
+          if (!resolvedColors.includes(c)) resolvedColors.push(c);
+        });
+      }
+      if (resolvedColors.length === 0) {
+        resolvedColors = ['لون واحد'];
+      }
+
       const payload = {
         name: (editForm.name || selectedProduct.name || 'قطعة جديدة').trim(),
         category: editForm.category || selectedProduct.category || 'Dress',
@@ -181,8 +215,8 @@ export default function AdminOnlineCatalog({ onToast }) {
         description: (editForm.description || '').trim(),
         images: editForm.images || [],
         mannequinImage: editForm.mannequinImage || '',
-        sizes: editForm.sizes || [],
-        colors: editForm.colors || [],
+        sizes: resolvedSizes,
+        colors: resolvedColors,
         colorImages: editForm.colorImages || [],
         showOnWebsite: editForm.showOnWebsite,
         season: editForm.season,
@@ -199,6 +233,9 @@ export default function AdminOnlineCatalog({ onToast }) {
         onToast?.('تمت إضافة المنتج بنجاح ونشره في المتجر 🌐');
         setProducts(prev => [created, ...prev]);
         setSelectedProduct(created);
+        setEditForm(prev => ({ ...prev, sizes: resolvedSizes, colors: resolvedColors }));
+        setCustomSizeInput('');
+        setCustomColorInput('');
       } else {
         // Update existing product
         const fullPayload = { ...selectedProduct, ...payload };
@@ -207,6 +244,9 @@ export default function AdminOnlineCatalog({ onToast }) {
         
         setProducts(prev => prev.map(item => item._id === selectedProduct._id ? { ...item, ...payload } : item));
         setSelectedProduct(prev => ({ ...prev, ...payload }));
+        setEditForm(prev => ({ ...prev, sizes: resolvedSizes, colors: resolvedColors }));
+        setCustomSizeInput('');
+        setCustomColorInput('');
       }
     } catch (err) {
       console.error(err);
@@ -258,12 +298,58 @@ export default function AdminOnlineCatalog({ onToast }) {
     });
   };
 
+  const handleRemoveSize = (sz) => {
+    setEditForm(prev => ({
+      ...prev,
+      sizes: (prev.sizes || []).filter(s => s !== sz)
+    }));
+  };
+
+  const handleAddCustomSize = (customText) => {
+    const text = (customText !== undefined ? customText : customSizeInput).trim();
+    if (!text) return;
+    const parts = text.split(/[,،]+/).map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    setEditForm(prev => {
+      const current = prev.sizes || [];
+      const next = [...current];
+      parts.forEach(p => {
+        if (!next.includes(p)) next.push(p);
+      });
+      return { ...prev, sizes: next };
+    });
+    setCustomSizeInput('');
+  };
+
   const handleToggleColor = (clr) => {
     setEditForm(prev => {
       const current = prev.colors || [];
       const next = current.includes(clr) ? current.filter(c => c !== clr) : [...current, clr];
       return { ...prev, colors: next };
     });
+  };
+
+  const handleRemoveColor = (clr) => {
+    setEditForm(prev => ({
+      ...prev,
+      colors: (prev.colors || []).filter(c => c !== clr)
+    }));
+  };
+
+  const handleAddCustomColor = (customText) => {
+    const text = (customText !== undefined ? customText : customColorInput).trim();
+    if (!text) return;
+    const parts = text.split(/[,،]+/).map(c => c.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    setEditForm(prev => {
+      const current = prev.colors || [];
+      const next = [...current];
+      parts.forEach(p => {
+        if (!next.includes(p)) next.push(p);
+      });
+      return { ...prev, colors: next };
+    });
+    setCustomColorInput('');
   };
 
   // Filter products for the list
@@ -829,112 +915,239 @@ export default function AdminOnlineCatalog({ onToast }) {
                     <h4 className="text-xs font-black text-burgundy uppercase tracking-wider flex items-center gap-1.5">
                       <span>👗 المقاسات والألوان المتاحة بالمحل</span>
                     </h4>
-                    <span className="text-[10px] text-burgundy/50">تظهر كخيارات لاختيار العميل عند الشراء</span>
+                    <span className="text-[10px] text-burgundy/50">تظهر كخيارات لاختيار العميل عند الشراء بالموقع</span>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-5 lg:grid-cols-2">
                     {/* Sizes Selector */}
-                    <div className="space-y-2">
+                    <div className="space-y-3 p-3.5 rounded-2xl bg-beige/10 border border-burgundy/10">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-burgundy/80">المقاسات المتاحة:</label>
-                        <span className="text-[10px] font-bold text-burgundy/60 bg-burgundy/5 px-2 py-0.5 rounded-full">
-                          {editForm.sizes.length} مقاسات مختارة
+                        <label className="text-xs font-black text-burgundy flex items-center gap-1.5">
+                          <span>📏 المقاسات المتاحة:</span>
+                        </label>
+                        <span className="text-[11px] font-bold text-burgundy bg-white px-2.5 py-0.5 rounded-full border border-burgundy/15 shadow-2xs">
+                          {editForm.sizes.length} {editForm.sizes.length === 1 ? 'مقاس محدد' : 'مقاسات مختارة'}
                         </span>
                       </div>
-                      
-                      {/* Quick Chips */}
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-beige/10 border border-burgundy/10">
-                        {PRESET_SIZES.map(sz => {
-                          const isSel = editForm.sizes.includes(sz);
-                          return (
-                            <button
-                              key={sz}
-                              type="button"
-                              onClick={() => handleToggleSize(sz)}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                                isSel
-                                  ? 'bg-burgundy text-white border-burgundy shadow-xs ring-1 ring-burgundy/30'
-                                  : 'bg-white text-burgundy/70 border-burgundy/15 hover:bg-white hover:border-burgundy/40'
-                              }`}
-                            >
-                              {sz} {isSel && '✓'}
-                            </button>
-                          );
-                        })}
+
+                      {/* Active selected sizes tags with remove button */}
+                      <div>
+                        <div className="text-[10px] font-bold text-burgundy/60 mb-1.5">المقاسات المختارة للمنتج:</div>
+                        <div className="flex flex-wrap items-center gap-1.5 min-h-[38px] p-2 rounded-xl bg-white border border-burgundy/15 shadow-2xs">
+                          {editForm.sizes.length > 0 ? (
+                            editForm.sizes.map((sz, idx) => (
+                              <span
+                                key={`${sz}-${idx}`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-burgundy text-white shadow-2xs animate-fadeIn"
+                              >
+                                <span>{sz}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSize(sz)}
+                                  className="w-4 h-4 rounded-full inline-flex items-center justify-center hover:bg-white/20 text-white/90 text-[11px] cursor-pointer transition"
+                                  title={`إزالة ${sz}`}
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-burgundy/40 italic">
+                              لم يتم اختيار مقاسات (سيتم اعتماده كـ «One Size» تلقائياً)
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Custom sizes comma-separated */}
+                      {/* Write custom size input */}
                       <div>
-                        <input
-                          type="text"
-                          value={editForm.sizes.join(', ')}
-                          onChange={(e) => {
-                            const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                            setEditForm(p => ({ ...p, sizes: arr }));
-                          }}
-                          placeholder="أو اكتب مقاسات مخصصة مفصولة بفاصلة (مثال: S, M, L, XL)"
-                          className="w-full rounded-xl border border-burgundy/15 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-                        />
+                        <div className="text-[10px] font-bold text-burgundy/60 mb-1 flex items-center justify-between">
+                          <span>✍️ كتابة مقاس مخصص (حتى لو مش موجود):</span>
+                          <span className="text-[9px] text-burgundy/40 font-normal">اضغط Enter أو زر الإضافة</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={customSizeInput}
+                            onChange={(e) => setCustomSizeInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCustomSize();
+                              }
+                            }}
+                            placeholder="اكتب أي مقاس (مثال: One Size، 48، أوفر سايز...)"
+                            className="flex-1 rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none transition focus:border-burgundy focus:ring-1 focus:ring-burgundy/20 placeholder:text-burgundy/35"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddCustomSize()}
+                            className="px-3 py-2 rounded-xl bg-burgundy hover:bg-burgundy/90 text-white text-xs font-bold transition shadow-2xs cursor-pointer shrink-0 active:scale-95"
+                          >
+                            + إضافة مقاس
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick Preset Chips */}
+                      <div>
+                        <div className="text-[10px] font-bold text-burgundy/60 mb-1.5 flex items-center justify-between">
+                          <span>خيارات مقاسات سريعة:</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm(p => ({ ...p, sizes: ['One Size'] }))}
+                            className="text-[10px] text-burgundy font-bold underline hover:text-burgundy/80 cursor-pointer"
+                          >
+                            تحديد «One Size» فقط
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-white/70 border border-burgundy/10 max-h-32 overflow-y-auto scrollbar-thin">
+                          {PRESET_SIZES.map(sz => {
+                            const isSel = editForm.sizes.includes(sz);
+                            return (
+                              <button
+                                key={sz}
+                                type="button"
+                                onClick={() => handleToggleSize(sz)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer flex items-center gap-1 ${
+                                  isSel
+                                    ? 'bg-burgundy text-white border-burgundy shadow-2xs ring-1 ring-burgundy/30'
+                                    : 'bg-white text-burgundy/70 border-burgundy/15 hover:bg-burgundy/5 hover:border-burgundy/40'
+                                }`}
+                              >
+                                <span>{sz}</span>
+                                {isSel && <span className="text-[10px]">✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
                     {/* Colors Selector */}
-                    <div className="space-y-2">
+                    <div className="space-y-3 p-3.5 rounded-2xl bg-beige/10 border border-burgundy/10">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-burgundy/80">الألوان المتاحة:</label>
-                        <span className="text-[10px] font-bold text-burgundy/60 bg-burgundy/5 px-2 py-0.5 rounded-full">
-                          {editForm.colors.length} ألوان مختارة
+                        <label className="text-xs font-black text-burgundy flex items-center gap-1.5">
+                          <span>🎨 الألوان المتاحة:</span>
+                        </label>
+                        <span className="text-[11px] font-bold text-burgundy bg-white px-2.5 py-0.5 rounded-full border border-burgundy/15 shadow-2xs">
+                          {editForm.colors.length > 0 ? `${editForm.colors.length} ألوان` : 'لون واحد (افتراضي)'}
                         </span>
                       </div>
 
-                      {/* Quick Color Chips */}
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-beige/10 border border-burgundy/10 max-h-36 overflow-y-auto scrollbar-thin">
-                        {PRESET_COLORS.map(clr => {
-                          const isSel = editForm.colors.includes(clr);
-                          const hex = getColorHex(clr);
-                          return (
-                            <button
-                              key={clr}
-                              type="button"
-                              onClick={() => handleToggleColor(clr)}
-                              className={`px-2 py-1 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
-                                isSel
-                                  ? 'bg-burgundy text-white border-burgundy shadow-xs ring-1 ring-burgundy/30'
-                                  : 'bg-white text-burgundy/70 border-burgundy/15 hover:bg-white'
-                              }`}
-                            >
-                              <span
-                                className="w-2.5 h-2.5 rounded-full border border-black/15 shrink-0"
-                                style={{ backgroundColor: hex }}
-                              />
-                              <span>{clr}</span>
-                              {isSel && <span>✓</span>}
-                            </button>
-                          );
-                        })}
+                      {/* Active selected colors tags with remove button */}
+                      <div>
+                        <div className="text-[10px] font-bold text-burgundy/60 mb-1.5">الألوان المحددة للمنتج:</div>
+                        <div className="flex flex-wrap items-center gap-1.5 min-h-[38px] p-2 rounded-xl bg-white border border-burgundy/15 shadow-2xs">
+                          {editForm.colors.length > 0 ? (
+                            editForm.colors.map((clr, idx) => {
+                              const hex = getColorHex(clr);
+                              return (
+                                <span
+                                  key={`${clr}-${idx}`}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-burgundy text-white shadow-2xs animate-fadeIn"
+                                >
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0"
+                                    style={{ backgroundColor: hex }}
+                                  />
+                                  <span>{clr}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveColor(clr)}
+                                    className="w-4 h-4 rounded-full inline-flex items-center justify-center hover:bg-white/20 text-white/90 text-[11px] cursor-pointer transition"
+                                    title={`إزالة لون ${clr}`}
+                                  >
+                                    ✕
+                                  </button>
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200/70 w-full">
+                              <span className="w-2 h-2 rounded-full bg-amber-600 shrink-0 animate-pulse" />
+                              <span>لم يتم اختيار ألوان: سيتم حفظه تلقائياً كـ <strong>«لون واحد»</strong> للمنتج</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Custom colors comma-separated */}
+                      {/* Write custom color input */}
                       <div>
-                        <input
-                          type="text"
-                          value={editForm.colors.join(', ')}
-                          onChange={(e) => {
-                            const arr = e.target.value.split(',').map(c => c.trim()).filter(Boolean);
-                            setEditForm(p => ({ ...p, colors: arr }));
-                          }}
-                          placeholder="أو اكتب ألوان مفصولة بفاصلة (مثال: أحمر, أسود, بيج)"
-                          className="w-full rounded-xl border border-burgundy/15 bg-white px-3 py-2 text-xs text-burgundy outline-none focus:border-burgundy"
-                        />
+                        <div className="text-[10px] font-bold text-burgundy/60 mb-1 flex items-center justify-between">
+                          <span>✍️ كتابة لون مخصص:</span>
+                          <span className="text-[9px] text-burgundy/40 font-normal">اضغط Enter أو زر الإضافة</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={customColorInput}
+                            onChange={(e) => setCustomColorInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCustomColor();
+                              }
+                            }}
+                            placeholder="اكتب لون مخصص (مثال: بترولي، تايجر، مسطردة...)"
+                            className="flex-1 rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none transition focus:border-burgundy focus:ring-1 focus:ring-burgundy/20 placeholder:text-burgundy/35"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddCustomColor()}
+                            className="px-3 py-2 rounded-xl bg-burgundy hover:bg-burgundy/90 text-white text-xs font-bold transition shadow-2xs cursor-pointer shrink-0 active:scale-95"
+                          >
+                            + إضافة لون
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick Color Chips */}
+                      <div>
+                        <div className="text-[10px] font-bold text-burgundy/60 mb-1.5 flex items-center justify-between">
+                          <span>ألوان جاهزة وسريعة:</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm(p => ({ ...p, colors: ['لون واحد'] }))}
+                            className="text-[10px] text-burgundy font-bold underline hover:text-burgundy/80 cursor-pointer"
+                          >
+                            تحديد «لون واحد» فقط
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-white/70 border border-burgundy/10 max-h-32 overflow-y-auto scrollbar-thin">
+                          {PRESET_COLORS.map(clr => {
+                            const isSel = editForm.colors.includes(clr);
+                            const hex = getColorHex(clr);
+                            return (
+                              <button
+                                key={clr}
+                                type="button"
+                                onClick={() => handleToggleColor(clr)}
+                                className={`px-2 py-1 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                                  isSel
+                                    ? 'bg-burgundy text-white border-burgundy shadow-2xs ring-1 ring-burgundy/30'
+                                    : 'bg-white text-burgundy/70 border-burgundy/15 hover:bg-burgundy/5'
+                                }`}
+                              >
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full border border-black/15 shrink-0"
+                                  style={{ backgroundColor: hex }}
+                                />
+                                <span>{clr}</span>
+                                {isSel && <span className="text-[10px]">✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Assign specific images to each color */}
-                  {editForm.colors.length > 0 && (
+                  {(editForm.colors.length > 0 || editForm.colors.length === 0) && (
                     <div className="pt-3 border-t border-burgundy/10">
                       <ColorImagesMapper
-                        colors={editForm.colors}
+                        colors={editForm.colors.length > 0 ? editForm.colors : ['لون واحد']}
                         colorImages={editForm.colorImages}
                         productImages={editForm.images}
                         onChange={(newColorImages) => setEditForm(p => ({ ...p, colorImages: newColorImages }))}

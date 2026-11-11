@@ -1,4 +1,9 @@
 const COLOR_MAP = {
+  'لون واحد': '#7C0A12',
+  'لون موحد': '#7C0A12',
+  'one color': '#7C0A12',
+  'single color': '#7C0A12',
+  'افتراضي': '#7C0A12',
   'أسود': '#1a1a1a',
   'black': '#1a1a1a',
   'أبيض': '#fcfcfc',
