@@ -49,6 +49,7 @@ const SiteConfigSchema = new mongoose.Schema({
   whatsappMessageTemplate: { type: String, default: 'أهلاً بكِ يا أ/ *{{name}}* في ModaPella \n\nتم تسجيل طلبكِ رقم *#{{id}}* بنجاح بقيمة *{{amount}} ج.م*.\n\nمن فضلكِ قومي بتحويل المبلغ عبر Instapay لتأكيد الطلب! ' },
   defaultPlaceholderImage: { type: String, default: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80' },
   freeShippingThreshold: { type: Number, default: 1000 },
+  customColors: { type: Map, of: String, default: {} },
   features: {
     outfitter: { type: Boolean, default: false }, // غرفة التنسيق
     lookbook: { type: Boolean, default: false }, // إطلالات الموديلز

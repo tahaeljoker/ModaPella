@@ -4,6 +4,7 @@ import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { cleanProductName } from '../utils/discount';
+import { registerCustomColors } from '../utils/colorSwatches';
 import { Icon } from '../components/Icon';
 import FeatureBannerShowcase from '../components/FeatureBannerShowcase';
 import OrderStepsVisualCards from '../components/OrderStepsVisualCards';
@@ -65,6 +66,7 @@ function LandingPage() {
       .then((res) => {
         setSiteConfig(res.data);
         setCachedSiteConfig(res.data);
+        if (res.data?.customColors) registerCustomColors(res.data.customColors);
       })
       .catch(() => setSiteConfig(defaultSiteConfig));
   }, []);

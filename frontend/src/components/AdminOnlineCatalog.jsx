@@ -5,7 +5,7 @@ import MannequinImageUploader from './MannequinImageUploader';
 import ColorImagesMapper from './ColorImagesMapper';
 import { cleanProductName } from '../utils/discount';
 import { resolveImageUrl } from '../utils/imageUrl';
-import { getColorHex } from '../utils/colorSwatches';
+import { getColorHex, setCustomColor, registerCustomColors } from '../utils/colorSwatches';
 import { Icon } from './Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -59,6 +59,8 @@ export default function AdminOnlineCatalog({ onToast }) {
   });
   const [customSizeInput, setCustomSizeInput] = useState('');
   const [customColorInput, setCustomColorInput] = useState('');
+  const [customColorPickerHex, setCustomColorPickerHex] = useState('#7C0A12');
+  const [colorPickerManuallySet, setColorPickerManuallySet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [switchingSeason, setSwitchingSeason] = useState(false);
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'visible' | 'offseason' | 'hidden' | 'missing'
@@ -76,6 +78,9 @@ export default function AdminOnlineCatalog({ onToast }) {
       ]);
       setProducts(prodRes.data || []);
       setSiteConfig(configRes.data || {});
+      if (configRes.data?.customColors) {
+        registerCustomColors(configRes.data.customColors);
+      }
     } catch (err) {
       console.error(err);
       onToast?.('فشل تحميل بيانات المتجر أونلاين');
@@ -336,11 +341,24 @@ export default function AdminOnlineCatalog({ onToast }) {
     }));
   };
 
-  const handleAddCustomColor = (customText) => {
+  const handleAddCustomColor = (customText, hexOverride) => {
     const text = (customText !== undefined ? customText : customColorInput).trim();
     if (!text) return;
     const parts = text.split(/[,،]+/).map(c => c.trim()).filter(Boolean);
     if (parts.length === 0) return;
+
+    const chosenHex = hexOverride || (colorPickerManuallySet ? customColorPickerHex : getColorHex(parts[0]));
+
+    const newMap = {};
+    parts.forEach(p => {
+      setCustomColor(p, chosenHex);
+      newMap[p] = chosenHex;
+    });
+
+    try {
+      api.put('/admin/site-config', { customColors: newMap }).catch(() => {});
+    } catch (e) {}
+
     setEditForm(prev => {
       const current = prev.colors || [];
       const next = [...current];
@@ -350,6 +368,7 @@ export default function AdminOnlineCatalog({ onToast }) {
       return { ...prev, colors: next };
     });
     setCustomColorInput('');
+    setColorPickerManuallySet(false);
   };
 
   // Filter products for the list
@@ -1035,9 +1054,12 @@ export default function AdminOnlineCatalog({ onToast }) {
                         </span>
                       </div>
 
-                      {/* Active selected colors tags with remove button */}
+                      {/* Active selected colors tags with interactive color circle */}
                       <div>
-                        <div className="text-[10px] font-bold text-burgundy/60 mb-1.5">الألوان المحددة للمنتج:</div>
+                        <div className="text-[10px] font-bold text-burgundy/60 mb-1.5 flex items-center justify-between">
+                          <span>الألوان المحددة للمنتج:</span>
+                          <span className="text-[9px] text-burgundy/40">اضغط على سيركل أي لون لتعديل درجته بدقة</span>
+                        </div>
                         <div className="flex flex-wrap items-center gap-1.5 min-h-[38px] p-2 rounded-xl bg-white border border-burgundy/15 shadow-2xs">
                           {editForm.colors.length > 0 ? (
                             editForm.colors.map((clr, idx) => {
@@ -1045,12 +1067,28 @@ export default function AdminOnlineCatalog({ onToast }) {
                               return (
                                 <span
                                   key={`${clr}-${idx}`}
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-burgundy text-white shadow-2xs animate-fadeIn"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-burgundy text-white shadow-2xs animate-fadeIn relative group"
                                 >
-                                  <span
-                                    className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0"
+                                  {/* Interactive Color Circle on the Badge */}
+                                  <label
+                                    className="relative w-4 h-4 rounded-full border border-white/60 shrink-0 cursor-pointer shadow-xs hover:scale-125 transition flex items-center justify-center"
                                     style={{ backgroundColor: hex }}
-                                  />
+                                    title={`اضغط لتعديل درجة سيركل (${clr})`}
+                                  >
+                                    <input
+                                      type="color"
+                                      value={hex}
+                                      onChange={(e) => {
+                                        const newHex = e.target.value;
+                                        setCustomColor(clr, newHex);
+                                        setEditForm(p => ({ ...p }));
+                                        try {
+                                          api.put('/admin/site-config', { customColors: { [clr]: newHex } }).catch(() => {});
+                                        } catch (err) {}
+                                      }}
+                                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                    />
+                                  </label>
                                   <span>{clr}</span>
                                   <button
                                     type="button"
@@ -1072,30 +1110,62 @@ export default function AdminOnlineCatalog({ onToast }) {
                         </div>
                       </div>
 
-                      {/* Write custom color input */}
+                      {/* Write custom color input with Live Color Circle */}
                       <div>
                         <div className="text-[10px] font-bold text-burgundy/60 mb-1 flex items-center justify-between">
-                          <span>✍️ كتابة لون مخصص:</span>
-                          <span className="text-[9px] text-burgundy/40 font-normal">اضغط Enter أو زر الإضافة</span>
+                          <span>✍️ كتابة لون مخصص مع سيركل اللون:</span>
+                          <span className="text-[9px] text-emerald-700 font-bold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            تتغير السيركل تلقائياً مع الاسم أو اضغط لتحديد الدرجة
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
+                          {/* Live Color Circle & Color Picker */}
+                          <div className="relative group shrink-0" title="اضغط لتغيير درجة السيركل بدقة عبر منتقي الألوان">
+                            <input
+                              type="color"
+                              value={colorPickerManuallySet ? customColorPickerHex : (customColorInput.trim() ? getColorHex(customColorInput) : customColorPickerHex)}
+                              onChange={(e) => {
+                                setCustomColorPickerHex(e.target.value);
+                                setColorPickerManuallySet(true);
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                            />
+                            <div
+                              className="w-9 h-9 rounded-xl border-2 border-burgundy/30 shadow-xs flex items-center justify-center cursor-pointer transition-transform group-hover:scale-105"
+                              style={{
+                                backgroundColor: colorPickerManuallySet
+                                  ? customColorPickerHex
+                                  : (customColorInput.trim() ? getColorHex(customColorInput) : customColorPickerHex)
+                              }}
+                            >
+                              <span className="text-[10px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] select-none">🎨</span>
+                            </div>
+                          </div>
+
                           <input
                             type="text"
                             value={customColorInput}
-                            onChange={(e) => setCustomColorInput(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCustomColorInput(val);
+                              if (val.trim()) {
+                                setCustomColorPickerHex(getColorHex(val.trim()));
+                              }
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
                                 handleAddCustomColor();
                               }
                             }}
-                            placeholder="اكتب لون مخصص (مثال: بترولي، تايجر، مسطردة...)"
+                            placeholder="اكتب اسم اللون (مثال: بترولي، كشمير، جنزاري، كراميل...)"
                             className="flex-1 rounded-xl border border-burgundy/20 bg-white px-3 py-2 text-xs text-burgundy outline-none transition focus:border-burgundy focus:ring-1 focus:ring-burgundy/20 placeholder:text-burgundy/35"
                           />
                           <button
                             type="button"
                             onClick={() => handleAddCustomColor()}
-                            className="px-3 py-2 rounded-xl bg-burgundy hover:bg-burgundy/90 text-white text-xs font-bold transition shadow-2xs cursor-pointer shrink-0 active:scale-95"
+                            className="px-3.5 py-2 rounded-xl bg-burgundy hover:bg-burgundy/90 text-white text-xs font-bold transition shadow-2xs cursor-pointer shrink-0 active:scale-95"
                           >
                             + إضافة لون
                           </button>

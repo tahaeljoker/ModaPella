@@ -1300,6 +1300,12 @@ router.put('/site-config', auth, requireRole(['admin']), async (req, res) => {
       siteConfig.markModified('features');
       delete req.body.features;
     }
+    if (req.body.customColors) {
+      const currentColors = siteConfig.customColors ? (siteConfig.customColors.toObject ? siteConfig.customColors.toObject() : siteConfig.customColors) : {};
+      siteConfig.customColors = { ...currentColors, ...req.body.customColors };
+      siteConfig.markModified('customColors');
+      delete req.body.customColors;
+    }
     Object.assign(siteConfig, req.body);
     await siteConfig.save();
     res.json(siteConfig);

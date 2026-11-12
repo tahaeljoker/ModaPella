@@ -10,7 +10,7 @@ import { isDiscountActive, cleanProductName } from '../utils/discount';
 import QuickOrderModal from '../components/QuickOrderModal';
 import ShareOutfitModal from '../components/ShareOutfitModal';
 import MannequinComparisonSlider from '../components/MannequinComparisonSlider';
-import { getColorHex } from '../utils/colorSwatches';
+import { getColorHex, registerCustomColors } from '../utils/colorSwatches';
 import { resolveImageUrl } from '../utils/imageUrl';
 
 const FALLBACK_PRODUCT_IMAGE =
@@ -697,6 +697,7 @@ function ProductDetailsPage() {
       .then((res) => {
         if (res.data) setSiteConfig(res.data);
         if (res.data?.whatsappNumber) setWhatsappNumber(res.data.whatsappNumber);
+        if (res.data?.customColors) registerCustomColors(res.data.customColors);
       })
       .catch(() => {});
   }, []);

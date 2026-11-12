@@ -1390,7 +1390,7 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  </div>
  <input name="colors" value={typeof form.colors === "string" ? form.colors : (form.colors || []).join(", ")} onChange={handleChange} className={inp} placeholder="أحمر, أخضر, بورجندي (أو اتركه فارغاً ليكون لون واحد)" />
  <div className="flex flex-wrap gap-1 mt-2">
- {["لون واحد", "أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", "كحلي", "سماوي", "زيتي", "سيمون", "لافندر", "أصفر"].map(clr => {
+ {["لون واحد", "أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", "كحلي", "بترولي", "كشمير", "جنزاري", "سماوي", "زيتي", "سيمون", "لافندر", "أصفر"].map(clr => {
  const isSel = parsedColors.includes(clr);
  return (
  <button
