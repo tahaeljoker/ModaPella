@@ -622,7 +622,7 @@ export default function AdminOnlineCatalog({ onToast }) {
                   }`}
                 >
                   {/* Thumbnail */}
-                  <div className="w-14 h-16 rounded-xl overflow-hidden bg-beige/10 shrink-0 border border-burgundy/10 flex items-center justify-center">
+                  <div className="w-14 h-16 rounded-xl overflow-hidden bg-white shrink-0 border border-burgundy/10 flex items-center justify-center">
                     {thumb ? (
                       <img src={thumb} alt={p.name} className="w-full h-full object-contain" />
                     ) : (

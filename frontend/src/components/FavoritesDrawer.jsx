@@ -116,7 +116,7 @@ export default function FavoritesDrawer({ isOpen, onClose }) {
                     <Link
                       to={`/product/${product._id}`}
                       onClick={onClose}
-                      className="w-18 h-20 rounded-xl bg-[#FAF7F5] overflow-hidden shrink-0 border border-burgundy/5 flex items-center justify-center p-1"
+                      className="w-18 h-20 rounded-xl bg-white overflow-hidden shrink-0 border border-burgundy/10 flex items-center justify-center p-1"
                     >
                       <img
                         src={resolveImageUrl(img)}

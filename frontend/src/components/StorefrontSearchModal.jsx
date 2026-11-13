@@ -198,7 +198,7 @@ export default function StorefrontSearchModal({ isOpen, onClose, products = [] }
                     className="flex items-center justify-between gap-3 p-2.5 rounded-2xl hover:bg-[#FAF7F5] transition cursor-pointer border border-transparent hover:border-burgundy/10 group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#FAF7F5] border border-burgundy/10 group-hover:scale-105 transition">
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white border border-burgundy/10 group-hover:scale-105 transition">
                         <img
                           src={img || '/placeholder.png'}
                           alt={prod.name}

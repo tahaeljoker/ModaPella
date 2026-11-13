@@ -88,7 +88,7 @@ function ProductGallery({
           onImageClick={onZoom}
         />
       ) : (
-        <div className="relative overflow-hidden rounded-3xl bg-[#FAF7F5] aspect-[3/4] sm:aspect-[4/5] max-h-[380px] sm:max-h-[580px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none w-full max-w-full min-w-0">
+        <div className="relative overflow-hidden rounded-3xl bg-white aspect-[3/4] sm:aspect-[4/5] max-h-[380px] sm:max-h-[580px] group border border-burgundy/10 shadow-inner flex items-center justify-center select-none w-full max-w-full min-w-0">
           {/* Floating Glassmorphism Toolbar */}
           <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
             <button
@@ -192,7 +192,7 @@ function ProductGallery({
               key={idx}
               type="button"
               onClick={() => onImageChange(idx)}
-              className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-[#FAF7F5] border-2 transition-all p-1 flex items-center justify-center cursor-pointer shrink-0 ${
+              className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-white border-2 transition-all p-1 flex items-center justify-center cursor-pointer shrink-0 ${
                 activeImageIdx === idx
                   ? 'border-burgundy shadow-sm ring-2 ring-burgundy/20 scale-95'
                   : 'border-transparent opacity-75 hover:opacity-100 hover:scale-95'
@@ -626,7 +626,7 @@ function ProductStickyBar({
         <img
           src={displayedImage}
           alt={productName}
-          className="w-12 h-12 rounded-xl object-contain bg-[#FAF7F5] border border-burgundy/10 p-1 shrink-0"
+          className="w-12 h-12 rounded-xl object-contain bg-white border border-burgundy/10 p-1 shrink-0"
         />
         <div className="min-w-0 flex-1 text-right">
           <h4 className="text-xs font-bold text-burgundy truncate">{productName}</h4>

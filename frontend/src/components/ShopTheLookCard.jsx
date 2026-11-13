@@ -266,7 +266,7 @@ export default function ShopTheLookCard({ look, onProductClick }) {
                       <img
                         src={prod.images?.[0] || prod.mannequinImage || '/placeholder.png'}
                         alt={prod.name}
-                        className="h-12 w-12 rounded-xl object-cover border border-burgundy/10 shrink-0 bg-[#FAF7F5]"
+                        className="h-12 w-12 rounded-xl object-cover border border-burgundy/10 shrink-0 bg-white"
                       />
                       <div className="min-w-0 flex-1">
                         <span className="block text-[9px] text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded font-bold w-fit mb-0.5">

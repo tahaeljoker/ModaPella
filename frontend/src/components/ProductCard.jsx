@@ -98,7 +98,7 @@ function ProductCard({ product }) {
       className="group stagger-item flex h-full cursor-pointer flex-col justify-between overflow-hidden rounded-2xl sm:rounded-3xl border border-burgundy/10 bg-white p-2 sm:p-2.5 shadow-[0_2px_12px_rgba(75,15,26,0.03)] hover:shadow-[0_14px_30px_rgba(75,15,26,0.09)] hover:-translate-y-1 transition-all duration-300 ease-out select-none"
     >
       {/* Framed Image Box */}
-      <div className="relative overflow-hidden aspect-[3/4] max-h-[220px] sm:max-h-[290px] rounded-xl sm:rounded-2xl bg-[#FAF7F5] flex items-center justify-center">
+      <div className="relative overflow-hidden aspect-[3/4] max-h-[220px] sm:max-h-[290px] rounded-xl sm:rounded-2xl bg-white flex items-center justify-center">
         {/* Floating Favorite Heart Button (Top Right) */}
         <button
           type="button"
