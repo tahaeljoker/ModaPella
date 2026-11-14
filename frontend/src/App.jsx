@@ -1,5 +1,6 @@
 import { useContext, useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { CartProvider } from './context/CartContext';
 import CartContext from './context/CartContext';
 import { initTrafficTracking } from './utils/trafficTracker';
@@ -707,6 +708,7 @@ aria-label="إغلاق السلة"
  </div>
  </div>
  )}
+ <Analytics />
  </div>
  );
 }
