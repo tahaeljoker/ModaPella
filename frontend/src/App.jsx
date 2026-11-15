@@ -29,6 +29,7 @@ import OutfitComparisonModal from './components/OutfitComparisonModal';
 import ScrollRestoration from './components/ScrollRestoration';
 import { resolveImageUrl } from './utils/imageUrl';
 import StorefrontSearchModal from './components/StorefrontSearchModal';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import FavoritesDrawer from './components/FavoritesDrawer';
 import { useFavorites } from './context/FavoritesContext';
 import { getCachedStorefrontProducts, setCachedStorefrontProducts, getCachedSiteConfig, setCachedSiteConfig } from './services/storefrontCache';
@@ -718,6 +719,7 @@ function App() {
     <CartProvider>
       <CompareProvider>
         <AppContent />
+        <SpeedInsights />
       </CompareProvider>
     </CartProvider>
   );
