@@ -1,0 +1,45 @@
+## Vercel Speed Insights Installation
+
+Successfully installed and configured Vercel Speed Insights for the ModaPella frontend project.
+
+### Changes Made:
+
+**1. Package Installation:**
+- Added `@vercel/speed-insights` version ^2.1.0 to dependencies
+- Updated package-lock.json with the new package and its dependencies
+
+**2. Code Integration:**
+- **Modified:** `frontend/src/App.jsx`
+  - Added import: `import { SpeedInsights } from '@vercel/speed-insights/react';`
+  - Added `<SpeedInsights />` component to the App component's render tree
+  - Placed the component at the root level within the CompareProvider context to ensure it loads on all pages
+
+### Implementation Details:
+
+The implementation follows the official Vercel documentation for React/Vite projects:
+- Used the React-specific import path: `@vercel/speed-insights/react`
+- Positioned the component at the application root to track all page views
+- The component is lightweight and non-blocking, so it won't affect page load performance
+
+### Framework Context:
+
+- **Project Type:** Vite + React
+- **Package Manager:** npm
+- **Installation Method:** Followed the official Vercel Speed Insights quickstart guide (retrieved on 2026-11-15)
+
+### Verification:
+
+✅ Build completed successfully (`npm run build`)
+✅ No linting errors (no linter configured in project)
+✅ All dependencies properly installed and locked
+
+### Next Steps:
+
+Once deployed to Vercel, Speed Insights will automatically start collecting Web Vitals metrics including:
+- First Contentful Paint (FCP)
+- Largest Contentful Paint (LCP)
+- Cumulative Layout Shift (CLS)
+- First Input Delay (FID)
+- Time to First Byte (TTFB)
+
+Metrics can be viewed in the Vercel dashboard under the Speed Insights tab after users visit the deployed application.
