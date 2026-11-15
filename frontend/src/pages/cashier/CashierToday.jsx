@@ -253,8 +253,17 @@ function CashierToday() {
    : completed.reduce((s, o) => s + (o.isDebt ? Number(o.debtAmount || 0) : 0), 0);
 
  const filtered = data.orders.filter(o => {
- const ms = !search || o._id?.toLowerCase().includes(search.toLowerCase()) ||
- o.items?.some(i => i.name.toLowerCase().includes(search.toLowerCase()));
+ const cleanSearch = (search || '').trim().replace(/^#/, '').toLowerCase();
+ const fullId = (o._id || '').toLowerCase();
+ const custName = (o.customerName || o.customer?.name || '').toLowerCase();
+ const custPhone = (o.customerPhone || o.customer?.phone || '').toLowerCase();
+ const hasItemMatch = o.items?.some(i => (i.name || '').toLowerCase().includes(cleanSearch));
+
+ const ms = !cleanSearch ||
+ fullId.includes(cleanSearch) ||
+ custName.includes(cleanSearch) ||
+ custPhone.includes(cleanSearch) ||
+ hasItemMatch;
  const mf = filter === 'all' ? true : filter === 'completed' ? o.status === 'Completed' : o.status === 'Returned';
  const mp = filterPay === 'all' ? true : o.paymentMethod === filterPay;
  return ms && mf && mp;

@@ -78,19 +78,35 @@ connectDB().then(() => {
 });
 
 const app = express();
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,https://moda-pella.vercel.app').split(',').map((origin) => origin.trim()).filter(Boolean);
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://moda-pella.vercel.app',
+  'https://www.modapella.shop',
+  'https://modapella.shop'
+];
+
+const envAllowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envAllowedOrigins]));
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  return (
+    allowedOrigins.includes(origin) ||
+    origin.endsWith('.vercel.app') ||
+    origin.endsWith('modapella.shop') ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:')
+  );
+};
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, server-to-server)
-    if (!origin) return callback(null, true);
-    
-    const isAllowed = allowedOrigins.includes(origin) || 
-                      origin.endsWith('.vercel.app') || 
-                      origin.startsWith('http://localhost:') || 
-                      origin.startsWith('http://127.0.0.1:');
-                      
-    if (isAllowed) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
       callback(null, false);
@@ -103,7 +119,7 @@ app.options('*', cors());
 // Ensure CORS headers on all requests (including preflights & error responses)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && (origin.endsWith('.vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+  if (origin && isOriginAllowed(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');

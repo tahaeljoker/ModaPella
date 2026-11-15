@@ -115,10 +115,19 @@ function AdminOrders() {
  const matchStatus = filterStatus === 'All' || o.status === filterStatus;
  const matchType = filterType === 'All' || o.type === filterType;
  const matchEmployee = filterEmployee === 'All' || o.employeeName === filterEmployee || (o.employee && o.employee.name === filterEmployee);
- const shortId = o._id?.slice(-6).toUpperCase() || '';
- const matchSearch = !search ||
- shortId.includes(search.toUpperCase()) ||
- o.items?.some(i => (i.name || '').toLowerCase().includes(search.toLowerCase()));
+ 
+ const cleanSearch = (search || '').trim().replace(/^#/, '').toLowerCase();
+ const fullId = (o._id || '').toLowerCase();
+ const custName = (o.customerName || o.customer?.name || '').toLowerCase();
+ const custPhone = (o.customerPhone || o.customer?.phone || '').toLowerCase();
+ const hasItemMatch = o.items?.some(i => (i.name || '').toLowerCase().includes(cleanSearch));
+
+ const matchSearch = !cleanSearch ||
+ fullId.includes(cleanSearch) ||
+ custName.includes(cleanSearch) ||
+ custPhone.includes(cleanSearch) ||
+ hasItemMatch;
+
  return matchStatus && matchType && matchSearch && matchEmployee;
  });
 

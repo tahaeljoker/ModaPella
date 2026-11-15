@@ -1069,6 +1069,7 @@ function CashierPOS() {
  let res;
  if (editOrderId) {
  res = await api.put(`/pos/orders/${editOrderId}`, salePayload);
+ navigate('/cashier/pos', { replace: true });
  } else {
  res = await api.post('/pos/sell', salePayload);
  }
