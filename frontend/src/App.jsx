@@ -32,6 +32,7 @@ import StorefrontSearchModal from './components/StorefrontSearchModal';
 import FavoritesDrawer from './components/FavoritesDrawer';
 import { useFavorites } from './context/FavoritesContext';
 import { getCachedStorefrontProducts, setCachedStorefrontProducts, getCachedSiteConfig, setCachedSiteConfig } from './services/storefrontCache';
+import { Analytics } from '@vercel/analytics/react';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -718,6 +719,7 @@ function App() {
     <CartProvider>
       <CompareProvider>
         <AppContent />
+        <Analytics />
       </CompareProvider>
     </CartProvider>
   );
