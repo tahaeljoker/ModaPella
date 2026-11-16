@@ -1,17 +1,37 @@
+const path = require('path');
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const router = express.Router();
 
 const { sendWhatsAppOTP, formatPhone } = require('../services/whatsappService');
 
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable is not defined.');
+}
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: 'تم تجاوز عدد محاولات الدخول المسموح بها. يرجى المحاولة بعد 15 دقيقة.'
+  }
+});
+
 const generateToken = (user) => {
-  return jwt.sign({ user: { id: user.id, role: user.role, email: user.email } }, process.env.JWT_SECRET || 'modapella-secret', {
-    expiresIn: '30d'
-  });
+  return jwt.sign(
+    { user: { id: user.id, role: user.role, email: user.email } },
+    jwtSecret,
+    { expiresIn: '30d' }
+  );
 };
 
 router.post('/register', async (req, res) => {
@@ -29,7 +49,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -77,7 +97,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Verify WhatsApp OTP Endpoint
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', authLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
@@ -112,7 +132,7 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // Resend WhatsApp OTP Endpoint
-router.post('/resend-otp', async (req, res) => {
+router.post('/resend-otp', authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'البريد الإلكتروني مطلوب' });

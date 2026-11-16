@@ -26,6 +26,11 @@ const { attachInventorySync } = require('./services/inventorySync');
 const { checkAndAutoClosePreviousMonths } = require('./services/monthlyReportService');
 
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable is not defined.');
+}
 
 const seedDefaultUsers = async () => {
   try {
@@ -78,6 +83,7 @@ connectDB().then(() => {
 });
 
 const app = express();
+app.set('trust proxy', 1);
 const defaultAllowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',

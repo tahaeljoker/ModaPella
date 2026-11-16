@@ -183,7 +183,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/lookup-barcode', async (req, res) => {
+router.get('/lookup-barcode', auth, async (req, res) => {
   try {
     const rawCode = req.query.code || '';
     if (!rawCode || typeof rawCode !== 'string') {
@@ -266,7 +266,7 @@ router.get('/lookup-barcode', async (req, res) => {
   }
 });
 
-router.post('/link-barcode', async (req, res) => {
+router.post('/link-barcode', auth, async (req, res) => {
   try {
     const { code, productId } = req.body;
     if (!code || !productId) {

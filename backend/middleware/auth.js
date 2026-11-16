@@ -1,29 +1,27 @@
+const path = require('path');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable is not defined.');
+}
 
 module.exports = function (req, res, next) {
-  const token = req.header('Authorization')?.replace('Bearer ', '') || req.header('x-demo-token');
-  const requestedRole = req.header('x-role') || 'manager';
+  const token = req.header('Authorization')?.replace('Bearer ', '');
 
   if (!token) {
-    if (process.env.ALLOW_DEV_AUTH === 'true') {
-      req.user = { id: 'demo-user', role: requestedRole, email: 'demo@modapella.local' };
-      return next();
-    }
     return res.status(401).json({ message: 'No token, authorization denied' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'modapella-secret');
+    const decoded = jwt.verify(token, jwtSecret);
     req.user = decoded.user;
     next();
   } catch (error) {
-    if (process.env.ALLOW_DEV_AUTH === 'true' && ['demo-token', 'demo-manager-token', 'demo-cashier-token'].includes(token)) {
-      req.user = { id: 'demo-user', role: requestedRole, email: 'demo@modapella.local' };
-      return next();
-    }
-    res.status(401).json({ message: 'Token is not valid' });
+    return res.status(401).json({ message: 'Token is not valid' });
   }
 };

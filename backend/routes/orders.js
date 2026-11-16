@@ -1,5 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
@@ -182,8 +183,8 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/orders/:id — update order status (admin only)
-router.patch('/:id', auth, async (req, res) => {
+// PATCH /api/orders/:id — update order status (admin and manager only)
+router.patch('/:id', auth, requireRole(['admin', 'manager']), async (req, res) => {
   try {
     const { status } = req.body;
     if (!['Pending', 'Completed', 'Returned'].includes(status)) {
@@ -295,12 +296,39 @@ router.post('/public-checkout', async (req, res) => {
       }
     }
 
-    // 2. Validate product stock and gather cost prices
+    // Server-side helper to determine authentic active product price
+    const resolveProductPrice = (prod) => {
+      if (!prod) return 0;
+      const basePrice = Number(prod.price || 0);
+      if (
+        prod.allowDiscount !== false &&
+        prod.discountPrice &&
+        prod.discountPrice > 0 &&
+        prod.discountPrice < basePrice
+      ) {
+        const now = new Date();
+        const startValid = !prod.discountStartDate || new Date(prod.discountStartDate) <= now;
+        let endValid = true;
+        if (prod.discountEndDate) {
+          const end = new Date(prod.discountEndDate);
+          end.setHours(23, 59, 59, 999);
+          endValid = end >= now;
+        }
+        if (startValid && endValid) {
+          return Number(prod.discountPrice);
+        }
+      }
+      return basePrice;
+    };
+
+    // 2. Validate product stock, enforce DB pricing and positive quantities
     const productLookups = await Promise.all(items.map(async (item) => {
       const product = await Product.findById(item.product);
       if (!product) {
         throw new Error(`المنتج غير موجود في قاعدة البيانات: ${item.name || item.product}`);
       }
+
+      const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
 
       let availableStock = product.stock ?? 0;
       let variant = null;
@@ -309,33 +337,38 @@ router.post('/public-checkout', async (req, res) => {
         if (variant) availableStock = variant.stock ?? 0;
       }
 
-      if ((availableStock || 0) < Number(item.quantity || 0)) {
+      if ((availableStock || 0) < qty) {
         throw new Error(`الكمية غير متوفرة للمنتج ${product.name} (المقاس: ${item.size || '-'}، اللون: ${item.color || '-'})`);
       }
+
+      const verifiedPrice = resolveProductPrice(product);
 
       return {
         item,
         product,
         variant,
+        quantity: qty,
+        verifiedPrice,
         costPrice: product.costPrice || 0
       };
     }));
 
-    // 3. Construct Order Items
-    const orderItems = productLookups.map(({ item, product, variant, costPrice }) => ({
-      product: item.product,
+    // 3. Construct Order Items strictly using verified DB prices
+    const orderItems = productLookups.map(({ item, product, variant, costPrice, verifiedPrice, quantity }) => ({
+      product: product._id,
       name: product.name,
       onlineName: (product.onlineName || item.onlineName || '').trim(),
       category: product.category,
-      quantity: item.quantity,
-      price: item.price,
+      quantity,
+      price: verifiedPrice,
+      originalPrice: Number(product.price || verifiedPrice),
       size: item.size || '',
       color: item.color || '',
       costPrice,
       variantId: variant?._id || null
     }));
 
-    const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const rawTotal = orderItems.reduce((sum, oi) => sum + oi.price * oi.quantity, 0);
     let discount = 0;
     let appliedCoupon = null;
 
@@ -346,7 +379,7 @@ router.post('/public-checkout', async (req, res) => {
       if (coupon) {
         const now = new Date();
         const isNotExpired = !coupon.expiryDate || new Date(coupon.expiryDate) >= now;
-        const isUnderLimit = !coupon.usageLimit || coupon.timesUsed < coupon.usageLimit;
+        const isUnderLimit = !coupon.usageLimit || (coupon.timesUsed || 0) < coupon.usageLimit;
         const meetsMin = !coupon.minOrderAmount || rawTotal >= coupon.minOrderAmount;
 
         if (isNotExpired && isUnderLimit && meetsMin) {
@@ -397,13 +430,13 @@ router.post('/public-checkout', async (req, res) => {
     await order.save();
 
     if (appliedCoupon) {
-      appliedCoupon.timesUsed += 1;
+      appliedCoupon.timesUsed = (appliedCoupon.timesUsed || 0) + 1;
       await appliedCoupon.save();
     }
 
     // 6. Deduct Stock & Write Stock History
-    await Promise.all(productLookups.map(async ({ item, product, variant }) => {
-      const qty = Number(item.quantity);
+    await Promise.all(productLookups.map(async ({ product, variant, quantity }) => {
+      const qty = quantity;
       
       if (variant) {
         const prevStock = variant.stock;
