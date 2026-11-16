@@ -6,6 +6,7 @@ const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
 const Customer = require('../models/Customer');
+const { getNextInvoiceNumber } = require('../models/Counter');
 
 const router = express.Router();
 
@@ -100,8 +101,19 @@ router.get('/orders/:id', auth, requireRole(['admin', 'cashier', 'manager']), as
 
     let order = null;
 
+    // 0. Search by exact or partial invoiceNumber
+    order = await Order.findOne({
+      invoiceNumber: { $regex: `^${clean}$`, $options: 'i' }
+    }).populate('customer employee');
+
+    if (!order && clean.length >= 3) {
+      order = await Order.findOne({
+        invoiceNumber: { $regex: clean, $options: 'i' }
+      }).populate('customer employee').sort({ createdAt: -1 });
+    }
+
     // 1. If 24 hex characters, search by exact ObjectId
-    if (clean.length === 24 && /^[0-9a-fA-F]{24}$/.test(clean)) {
+    if (!order && clean.length === 24 && /^[0-9a-fA-F]{24}$/.test(clean)) {
       order = await Order.findById(clean).populate('customer employee');
     }
 
@@ -993,20 +1005,14 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
     const debtsMap = {};
 
     for (const order of orders) {
-      // Auto-compute debtAmount if it was 0 or uncalculated on an unpaid debt order
+      // In-memory computation only for read route (NO database write side-effects in GET)
       let effectiveDebt = Number(order.debtAmount || 0);
       if (effectiveDebt <= 0 && order.totalAmount > (order.amountPaid || 0)) {
         effectiveDebt = Math.max(0, order.totalAmount - (order.amountPaid || 0));
-        order.debtAmount = effectiveDebt;
-        order.isDebt = true;
-        await order.save();
       }
 
-      // Auto-clear negligible fractional dust (< 0.50 EGP)
+      // Ignore negligible fractional dust (< 0.50 EGP) without DB write side-effect
       if (effectiveDebt < 0.5) {
-        order.debtAmount = 0;
-        order.isDebt = false;
-        await order.save();
         continue;
       }
 
@@ -1031,6 +1037,7 @@ router.get('/debts', auth, requireRole(['admin', 'cashier', 'manager']), async (
       debtsMap[key].ordersCount += 1;
       debtsMap[key].orders.push({
         _id: order._id,
+        invoiceNumber: order.invoiceNumber || '',
         totalAmount: order.totalAmount,
         amountPaid: order.amountPaid || 0,
         debtAmount: Math.round(effectiveDebt * 100) / 100,
@@ -1085,11 +1092,14 @@ router.post('/debts/manual', auth, requireRole(['admin', 'cashier', 'manager']),
     }
     
     const debtAmount = Number(amount);
-    dbCustomer.debt += debtAmount;
+    dbCustomer.debt = Math.max(0, Math.round(((dbCustomer.debt || 0) + debtAmount) * 100) / 100);
     await dbCustomer.save();
+
+    const invoiceNumber = await getNextInvoiceNumber();
 
     // Create a pseudo-order to represent the manual debt
     const order = new Order({
+      invoiceNumber,
       customer: dbCustomer._id,
       customerName: dbCustomer.name,
       customerPhone: dbCustomer.phone,
@@ -1164,13 +1174,15 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       await order.save();
       updatedOrders.push(order);
 
+      const invDisplay = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
+
       // Log transaction for the safe/drawer
       const transaction = new Transaction({
         amount: Math.round(debtToPay * 100) / 100,
         type: 'IN',
         category: 'DebtPayment',
         paymentMethod,
-        description: `سداد دين الفاتورة #${order._id.toString().slice(-6).toUpperCase()} للعميل ${customerName || customerPhone}`,
+        description: `سداد دين الفاتورة ${invDisplay} للعميل ${customerName || customerPhone}`,
         referenceId: order._id,
         user: req.user.id,
         shift: openShift?._id
@@ -1178,18 +1190,30 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       await transaction.save();
     }
 
-    // Update Customer record debt too
+    // Strictly synchronize Customer debt with sum of remaining active debt orders
     const custFilter = (customerPhone && customerPhone !== 'بدون هاتف') 
       ? { phone: customerPhone.trim() } 
       : { name: customerName?.trim() };
     const dbCust = await Customer.findOne(custFilter);
     if (dbCust) {
-      dbCust.debt = Math.max(0, Math.round((dbCust.debt - Number(amount)) * 100) / 100);
+      const remainingDebtOrders = await Order.find({
+        status: { $ne: 'Returned' },
+        $or: [
+          { customer: dbCust._id },
+          ...(dbCust.phone && dbCust.phone !== 'بدون هاتف' ? [{ customerPhone: dbCust.phone }] : [])
+        ],
+        isDebt: true,
+        debtAmount: { $gt: 0 }
+      });
+      const totalRemainingDebt = remainingDebtOrders.reduce((sum, o) => sum + (o.debtAmount || 0), 0);
+      dbCust.debt = Math.max(0, Math.round(totalRemainingDebt * 100) / 100);
       if (dbCust.debt < 0.5) {
         dbCust.debt = 0;
       }
       await dbCust.save();
     }
+
+    res.json({ message: 'Payment recorded successfully', updatedOrders, change: remainingPayment });
 
     res.json({ message: 'Payment recorded successfully', updatedOrders, change: remainingPayment });
   } catch (error) {

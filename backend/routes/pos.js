@@ -6,6 +6,7 @@ const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
 const StockHistory = require('../models/StockHistory');
 const Customer = require('../models/Customer');
+const { getNextInvoiceNumber } = require('../models/Counter');
 
 const router = express.Router();
 
@@ -107,7 +108,10 @@ router.post('/sell', auth, async (req, res) => {
       await dbCustomer.save();
     }
 
+    const invoiceNumber = await getNextInvoiceNumber();
+
     const order = new Order({
+      invoiceNumber,
       customer: dbCustomer ? dbCustomer._id : (customerId || null),
       customerName: customerName || '',
       customerPhone: customerPhone || '',
@@ -127,6 +131,8 @@ router.post('/sell', auth, async (req, res) => {
       debtAmount: debtAmount
     });
     await order.save();
+
+    const displayInvoice = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
 
     await Promise.all(productLookups.map(async ({ item, product, variant }) => {
       const prevStock = variant ? variant.stock : product.stock;
@@ -154,7 +160,7 @@ router.post('/sell', auth, async (req, res) => {
         newStock: variant ? variant.stock : product.stock,
         performedBy: req.user.id,
         referenceId: order._id,
-        notes: `مبيعات فاتورة #${order._id.toString().slice(-6).toUpperCase()}`
+        notes: `مبيعات فاتورة ${displayInvoice}`
       });
       await history.save();
 
@@ -171,7 +177,7 @@ router.post('/sell', auth, async (req, res) => {
         type: 'IN',
         category: 'Sale',
         paymentMethod: order.paymentMethod,
-        description: `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()}${isDebt ? ' (دفع جزئي - آجل)' : ''}`,
+        description: `مبيعات طلب ${displayInvoice}${isDebt ? ' (دفع جزئي - آجل)' : ''}`,
         referenceId: order._id,
         user: sellerId || req.user.id,
         shift: openShift?._id
@@ -258,6 +264,8 @@ router.post('/recover', auth, async (req, res) => {
       order.recovered = true;
     }
 
+    const displayInvoice = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
+
     // Revert inventory stocks
     await Promise.all(itemsToReturn.map(async (item) => {
       const product = await Product.findById(item.product);
@@ -293,7 +301,7 @@ router.post('/recover', auth, async (req, res) => {
         newStock: variant ? variant.stock : product.stock,
         performedBy: req.user.id,
         referenceId: order._id,
-        notes: `مرتجع فاتورة #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'}`
+        notes: `مرتجع فاتورة ${displayInvoice} - السبب: ${reason || 'غير محدد'}`
       });
       await history.save();
 
@@ -301,18 +309,49 @@ router.post('/recover', auth, async (req, res) => {
     }));
 
     // Calculate refund amount proportionally
-    // For debt orders, we can only refund what was actually collected (amountPaid),
-    // not the full totalAmount which may include uncollected debt.
-    const effectivePaidForRefund = order.isDebt ? (order.amountPaid || 0) : order.totalAmount;
-    const originalOrderTotal = order.totalAmount + order.discount;
-    let refundAmount = 0;
-    if (originalOrderTotal > 0) {
-      const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-      const refundProportion = returnedItemsValue / originalOrderTotal;
-      refundAmount = Math.round((effectivePaidForRefund * refundProportion) * 100) / 100;
+    const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+    const originalOrderTotal = (order.totalAmount || 0) + (order.discount || 0);
+    const refundTotal = (originalOrderTotal > 0 && (order.discount || 0) > 0)
+      ? Math.round((returnedItemsValue * (order.totalAmount / originalOrderTotal)) * 100) / 100
+      : returnedItemsValue;
+
+    let debtReduction = 0;
+    let cashRefundAmount = 0;
+
+    if (order.isDebt && (order.debtAmount || 0) > 0) {
+      // Apply refund to outstanding debt FIRST
+      debtReduction = Math.min(refundTotal, order.debtAmount);
+      debtReduction = Math.round(debtReduction * 100) / 100;
+
+      order.debtAmount = Math.max(0, Math.round((order.debtAmount - debtReduction) * 100) / 100);
+      if (order.debtAmount < 0.5) {
+        order.debtAmount = 0;
+        order.isDebt = false;
+      }
+
+      if (order.customer) {
+        const customer = await Customer.findById(order.customer);
+        if (customer) {
+          customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
+          if (customer.debt < 0.5) {
+            customer.debt = 0;
+          }
+          await customer.save();
+        }
+      }
+
+      // Only refund cash if returned value exceeds remaining debt, capped at actual cash collected minus prior returns
+      const remainingAfterDebt = Math.max(0, Math.round((refundTotal - debtReduction) * 100) / 100);
+      const maxCashRefundable = Math.max(0, (order.amountPaid || 0) - (order.returnedAmount || 0));
+      cashRefundAmount = Math.min(remainingAfterDebt, maxCashRefundable);
+      cashRefundAmount = Math.round(cashRefundAmount * 100) / 100;
+    } else {
+      const maxCashRefundable = Math.max(0, (order.amountPaid || order.totalAmount) - (order.returnedAmount || 0));
+      cashRefundAmount = Math.min(refundTotal, maxCashRefundable);
+      cashRefundAmount = Math.round(cashRefundAmount * 100) / 100;
     }
 
-    order.returnedAmount = Math.round(((order.returnedAmount || 0) + refundAmount) * 100) / 100;
+    order.returnedAmount = Math.round(((order.returnedAmount || 0) + cashRefundAmount) * 100) / 100;
     await order.save();
 
     // Determine refund payment method (defaulting to the original order's payment method)
@@ -322,47 +361,28 @@ router.post('/recover', auth, async (req, res) => {
       openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
     }
 
-    // Log the refund transaction
-    const transaction = new Transaction({
-      amount: refundAmount,
-      type: 'OUT',
-      category: 'Refund',
-      paymentMethod: effectivePaymentMethod,
-      description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'} (${effectivePaymentMethod === 'Cash' ? 'كاش' : 'إنستاباي'})`,
-      referenceId: order._id,
-      user: req.user.id,
-      shift: openShift?._id
-    });
-    await transaction.save();
-
-    // Fix: If the original order was a debt order, reduce the customer's outstanding debt
-    // by the proportion of items returned (since they weren't fully paid, we reduce debtAmount).
-    if (order.isDebt && order.customer) {
-      const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-      const originalOrderTotal = order.totalAmount + order.discount;
-      if (originalOrderTotal > 0) {
-        const returnProportion = returnedItemsValue / originalOrderTotal;
-        const debtReduction = Math.round((order.debtAmount || 0) * returnProportion * 100) / 100;
-        if (debtReduction > 0) {
-          order.debtAmount = Math.max(0, Math.round(((order.debtAmount || 0) - debtReduction) * 100) / 100);
-          if (order.debtAmount < 0.5) {
-            order.debtAmount = 0;
-            order.isDebt = false;
-          }
-          await order.save();
-          const customer = await Customer.findById(order.customer);
-          if (customer) {
-            customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
-            if (customer.debt < 0.5) {
-              customer.debt = 0;
-            }
-            await customer.save();
-          }
-        }
-      }
+    // Log the refund transaction ONLY if cash was actually refunded out of drawer
+    if (cashRefundAmount > 0) {
+      const transaction = new Transaction({
+        amount: cashRefundAmount,
+        type: 'OUT',
+        category: 'Refund',
+        paymentMethod: effectivePaymentMethod,
+        description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب ${displayInvoice} - السبب: ${reason || 'غير محدد'} (${effectivePaymentMethod === 'Cash' ? 'كاش' : 'إنستاباي'})`,
+        referenceId: order._id,
+        user: req.user.id,
+        shift: openShift?._id
+      });
+      await transaction.save();
     }
 
-    res.json({ order, refundAmount, returnedItems: itemsToReturn, message: fullyRecovered ? 'Full return processed' : 'Partial return processed' });
+    res.json({
+      order,
+      refundAmount: cashRefundAmount,
+      debtReduction,
+      returnedItems: itemsToReturn,
+      message: fullyRecovered ? 'Full return processed' : 'Partial return processed'
+    });
   } catch (error) {
     res.status(500).json({ message: 'Recovery failed', error: error.message });
   }
@@ -411,6 +431,8 @@ router.post('/exchange', auth, async (req, res) => {
     }
     await originalOrder.save();
 
+    const origDisplayInvoice = originalOrder.invoiceNumber || `#${originalOrder._id.toString().slice(-6).toUpperCase()}`;
+
     // 2. Restock returned items
     await Promise.all(itemsToReturn.map(async (item) => {
       const product = await Product.findById(item.product);
@@ -445,7 +467,7 @@ router.post('/exchange', auth, async (req, res) => {
         newStock: variant ? variant.stock : product.stock,
         performedBy: req.user.id,
         referenceId: originalOrder._id,
-        notes: `مرتجع استبدال فاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'استبدال'}`
+        notes: `مرتجع استبدال فاتورة ${origDisplayInvoice} - السبب: ${reason || 'استبدال'}`
       });
       await history.save();
       req.app.locals.io?.emit('inventory:update', product);
@@ -492,22 +514,47 @@ router.post('/exchange', auth, async (req, res) => {
         previousStock: prevStock,
         newStock: variant ? variant.stock : product.stock,
         performedBy: req.user.id,
-        notes: `مبيعات استبدال فاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()}`
+        notes: `مبيعات استبدال فاتورة ${origDisplayInvoice}`
       });
       await history.save();
       req.app.locals.io?.emit('inventory:update', product);
     }));
 
     // 4. Calculate accounting totals
-    // For debt orders, the credit we can apply is limited to what was actually paid,
-    // not the full totalAmount which may include uncollected debt.
-    const effectivePaidForExchange = originalOrder.isDebt ? (originalOrder.amountPaid || 0) : originalOrder.totalAmount;
-    const originalOrderTotal = originalOrder.totalAmount + originalOrder.discount;
+    const returnedValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+    const originalOrderTotal = (originalOrder.totalAmount || 0) + (originalOrder.discount || 0);
+    const returnedItemsProportionalValue = (originalOrderTotal > 0 && (originalOrder.discount || 0) > 0)
+      ? Math.round((returnedValue * (originalOrder.totalAmount / originalOrderTotal)) * 100) / 100
+      : returnedValue;
+
+    let debtReduction = 0;
     let returnCreditValue = 0;
-    if (originalOrderTotal > 0) {
-      const returnedValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-      const proportion = returnedValue / originalOrderTotal;
-      returnCreditValue = Math.round((effectivePaidForExchange * proportion) * 100) / 100;
+
+    if (originalOrder.isDebt && (originalOrder.debtAmount || 0) > 0) {
+      // Reduce original order debt first
+      debtReduction = Math.min(returnedItemsProportionalValue, originalOrder.debtAmount);
+      debtReduction = Math.round(debtReduction * 100) / 100;
+      originalOrder.debtAmount = Math.max(0, Math.round((originalOrder.debtAmount - debtReduction) * 100) / 100);
+      if (originalOrder.debtAmount < 0.5) {
+        originalOrder.debtAmount = 0;
+        originalOrder.isDebt = false;
+      }
+
+      if (originalOrder.customer) {
+        const customer = await Customer.findById(originalOrder.customer);
+        if (customer) {
+          customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
+          if (customer.debt < 0.5) {
+            customer.debt = 0;
+          }
+          await customer.save();
+        }
+      }
+
+      // Any excess value beyond the debt becomes store credit towards the new order
+      returnCreditValue = Math.max(0, Math.round((returnedItemsProportionalValue - debtReduction) * 100) / 100);
+    } else {
+      returnCreditValue = returnedItemsProportionalValue;
     }
 
     const rawNewTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -535,7 +582,11 @@ router.post('/exchange', auth, async (req, res) => {
       variantId: variant?._id || null
     }));
 
+    const invoiceNumber = await getNextInvoiceNumber();
+
     const newOrder = new Order({
+      invoiceNumber,
+      customer: originalOrder.customer || null,
       customerName: originalOrder.customerName || '',
       customerPhone: originalOrder.customerPhone || '',
       seller: req.user.id,
@@ -547,7 +598,7 @@ router.post('/exchange', auth, async (req, res) => {
       type: 'Offline',
       status: 'Completed',
       paymentMethod,
-      notes: `استبدال مباشر عن الفاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()} ${notes ? `(${notes})` : ''}`
+      notes: `استبدال مباشر عن الفاتورة ${origDisplayInvoice} ${notes ? `(${notes})` : ''}`
     });
     // Update original order returnedAmount for accurate monthly sales and returns reports
     originalOrder.returnedAmount = Math.round(((originalOrder.returnedAmount || 0) + returnCreditValue) * 100) / 100;
@@ -558,8 +609,8 @@ router.post('/exchange', auth, async (req, res) => {
     if (!openShift) {
       openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
     }
-    const origCode = originalOrder._id.toString().slice(-6).toUpperCase();
-    const newCode = newOrder._id.toString().slice(-6).toUpperCase();
+    const origCode = origDisplayInvoice;
+    const newCode = newOrder.invoiceNumber || `#${newOrder._id.toString().slice(-6).toUpperCase()}`;
 
     // Log the return portion so it appears in audit & statements
     if (returnCreditValue > 0) {
@@ -568,7 +619,7 @@ router.post('/exchange', auth, async (req, res) => {
         type: 'OUT',
         category: 'Refund',
         paymentMethod,
-        description: `مرتجع استبدال عن الفاتورة #${origCode} (استبدلت بطلب #${newCode})`,
+        description: `مرتجع استبدال عن الفاتورة ${origCode} (استبدلت بطلب ${newCode})`,
         referenceId: originalOrder._id,
         user: req.user.id,
         shift: openShift?._id
@@ -583,7 +634,7 @@ router.post('/exchange', auth, async (req, res) => {
         type: 'IN',
         category: 'Sale',
         paymentMethod,
-        description: `مبيعات استبدال فاتورة جديدة #${newCode} (عن الفاتورة #${origCode})`,
+        description: `مبيعات استبدال فاتورة جديدة ${newCode} (عن الفاتورة ${origCode})`,
         referenceId: newOrder._id,
         user: req.user.id,
         shift: openShift?._id
@@ -922,7 +973,8 @@ router.get('/online-reservations', auth, async (req, res) => {
 
       const orConditions = [
         { customerPhone: { $regex: trimmed, $options: 'i' } },
-        { customerName: { $regex: trimmed, $options: 'i' } }
+        { customerName: { $regex: trimmed, $options: 'i' } },
+        { invoiceNumber: { $regex: trimmed, $options: 'i' } }
       ];
 
       if (isObjectId) {
@@ -978,12 +1030,13 @@ router.post('/fulfill-reservation/:id', auth, async (req, res) => {
         openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
       }
 
+      const resDisplayInv = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
       const transaction = new Transaction({
         amount: finalAmount,
         type: 'IN',
         category: 'Sale',
         paymentMethod: order.paymentMethod,
-        description: `تسليم حجز أونلاين بالمحل #${order._id.toString().slice(-6).toUpperCase()} - العميل: ${order.customerName || order.customerPhone}`,
+        description: `تسليم حجز أونلاين بالمحل ${resDisplayInv} - العميل: ${order.customerName || order.customerPhone}`,
         referenceId: order._id,
         user: req.user.id,
         shift: openShift?._id

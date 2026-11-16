@@ -13,7 +13,8 @@ const ProductSchema = new mongoose.Schema({
   variants: [{
     size: { type: String, required: true },
     color: { type: String, required: true },
-    stock: { type: Number, default: 0, min: 0 }
+    stock: { type: Number, default: 0, min: 0 },
+    sku: { type: String, default: '' }
   }],
   sold: { type: Number, min: 0, default: 0 },
   totalReceived: { type: Number, min: 0, default: 0 },
@@ -29,6 +30,7 @@ const ProductSchema = new mongoose.Schema({
   type: { type: String, default: '' },
   sku: { type: String, unique: true, sparse: true },
   oldSku: { type: String, default: '' },
+  oldSkus: { type: [String], default: [] },
   supplier: { type: String, default: '' },
   supplierId: { type: require('mongoose').Schema.Types.ObjectId, ref: 'Supplier', default: null },
   active: { type: Boolean, default: true },

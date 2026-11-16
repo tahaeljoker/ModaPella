@@ -23,7 +23,7 @@ function OrderDetailModal({ order, onClose }) {
  <div className={`text-white text-center py-5 px-6 ${isReturned ? 'bg-red-500' : 'bg-burgundy'}`}>
  <p className="text-xs tracking-widest uppercase opacity-70">ModaPella</p>
  <h3 className="text-lg font-bold mt-1">{isReturned ? 'طلب مرتجع' : 'فاتورة بيع'}</h3>
- <p className="text-xs opacity-60 mt-1 font-mono">#{SHORT(order._id)}</p>
+ <p className="text-xs opacity-60 mt-1 font-mono">{order.invoiceNumber || ('#' + SHORT(order._id))}</p>
  </div>
 
  {/* Body */}
@@ -105,7 +105,7 @@ function OrderDetailModal({ order, onClose }) {
  <div className="p-4 bg-[#F7F0EC] flex gap-3">
  <button
  onClick={() => {
- const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
+ const shortId = order.invoiceNumber || ('#' + (order._id?.toString().slice(-6).toUpperCase() || '------'));
  const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
  const itemsHTML = order.items.map(item => {
           const unitPrice = (item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price;
@@ -125,7 +125,7 @@ function OrderDetailModal({ order, onClose }) {
  <div style="text-align:center;margin-bottom:8px;font-size:8px;color:#444">إعادة طباعة فاتورة</div>
  
  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:9px">
- <div><strong>رقم الفاتورة:</strong> #${shortId}</div>
+ <div><strong>رقم الفاتورة:</strong> ${shortId}</div>
  <div><strong>التاريخ:</strong> ${dateStr}</div>
  <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
  ${order.employeeName ? `<div><strong>البائع:</strong> ${order.employeeName}</div>` : ''}
@@ -182,8 +182,8 @@ function OrderDetailModal({ order, onClose }) {
  </button>
  <button
  onClick={() => {
- const id = order._id?.toString().slice(-8).toUpperCase();
- const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
+ const id = order.invoiceNumber || ('#' + (order._id?.toString().slice(-8).toUpperCase() || '------'));
+ const barcodeSVG = renderBarcodeSVG(order.invoiceNumber || order._id?.toString().toUpperCase(), 60);
  const printDiv = document.createElement('div');
  printDiv.id = 'invoice-barcode-print-root';
  printDiv.innerHTML = `
@@ -191,7 +191,7 @@ function OrderDetailModal({ order, onClose }) {
  <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
  <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
  <div style="width:100%;height:15mm;">${barcodeSVG}</div>
- <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
+ <div style="font-size:12px;margin-top:2px;font-weight:bold">${id}</div>
  </div>
  <div style="page-break-after: always;"></div>
  `;
@@ -272,7 +272,7 @@ function CashierToday() {
  const handleExport = () => {
  const headers = ['رقم الطلب', 'الوقت', 'المنتجات', 'طريقة الدفع', 'الحالة', 'الإجمالي'];
  const rows = data.orders.map(o => [
- SHORT(o._id),
+ o.invoiceNumber || SHORT(o._id),
  TIME(o.createdAt),
  o.items?.map(i => `${i.name} (${i.size || '-'}/${i.color || '-'}) ×${i.quantity}`).join(' | ') || '',
  o.paymentMethod === 'Cash' ? 'كاش' : 'انستا باي',
@@ -386,7 +386,7 @@ function CashierToday() {
  className="w-full text-right grid sm:grid-cols-[60px_1fr_2fr_100px_90px_100px] gap-3 px-5 py-4 hover:bg-[#F7F0EC]/60 transition items-center group"
  >
  {/* ID */}
- <span className="font-mono text-xs font-bold text-burgundy/40">#{SHORT(order._id)}</span>
+ <span className="font-mono text-xs font-bold text-burgundy/40">{order.invoiceNumber || ('#' + SHORT(order._id))}</span>
 
  {/* Time */}
  <span className="text-sm text-burgundy/60">{TIME(order.createdAt)}</span>

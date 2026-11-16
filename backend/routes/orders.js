@@ -4,6 +4,7 @@ const requireRole = require('../middleware/requireRole');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
+const { getNextInvoiceNumber } = require('../models/Counter');
 
 const router = express.Router();
 
@@ -11,8 +12,9 @@ router.post('/', auth, async (req, res) => {
   try {
     const { customerId, sellerId, items, type = 'Online' } = req.body;
     const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const invoiceNumber = await getNextInvoiceNumber();
 
-    const order = new Order({ customer: customerId, seller: sellerId, items, totalAmount, type, status: 'Completed', paymentGateway: 'Instapay' });
+    const order = new Order({ invoiceNumber, customer: customerId, seller: sellerId, items, totalAmount, type, status: 'Completed', paymentGateway: 'Instapay' });
     await order.save();
 
     await Promise.all(items.map(async (item) => {
@@ -250,6 +252,30 @@ router.patch('/:id', auth, requireRole(['admin', 'manager']), async (req, res) =
       await order.save();
     }
 
+    // Sync income with Safe/Treasury when order transitions to Completed
+    if (status === 'Completed' && prevStatus !== 'Completed') {
+      const existingTx = await Transaction.findOne({ referenceId: order._id, category: 'Sale' });
+      if (!existingTx && (order.totalAmount || 0) > 0) {
+        const Shift = require('../models/Shift');
+        let openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+        const effectivePaymentMethod = order.paymentMethod === 'Instapay' ? 'Instapay' : 'Cash';
+        const finalCollected = order.amountPaid || order.totalAmount;
+
+        const saleTransaction = new Transaction({
+          amount: finalCollected,
+          type: 'IN',
+          category: 'Sale',
+          paymentMethod: effectivePaymentMethod,
+          description: `مبيعات طلب أونلاين تم اعتماده #${order.invoiceNumber || order._id.toString().slice(-6).toUpperCase()} - العميل: ${order.customerName || order.customerPhone || 'بدون اسم'}`,
+          referenceId: order._id,
+          user: req.user.id,
+          shift: openShift?._id
+        });
+        await saleTransaction.save();
+        req.app.locals.io?.emit('safe:update');
+      }
+    }
+
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: 'Unable to update order status', error: error.message });
@@ -410,7 +436,9 @@ router.post('/public-checkout', async (req, res) => {
     }
 
     // 5. Create Order
+    const invoiceNumber = await getNextInvoiceNumber();
     const order = new Order({
+      invoiceNumber,
       customer: dbCustomer._id,
       customerName: dbCustomer.name,
       customerPhone: dbCustomer.phone,

@@ -1470,6 +1470,16 @@ const handleSupplierProductBilling = async ({ supplierId, supplierName, product,
   }
 };
 
+const formatVariantSku = (prodSku, size, color, explicitSku) => {
+  if (explicitSku && String(explicitSku).trim()) {
+    return String(explicitSku).trim().toUpperCase();
+  }
+  if (!prodSku) return '';
+  const cleanSize = String(size || '').trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const cleanColor = String(color || '').trim().replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '');
+  return `${prodSku}-${cleanSize || 'STD'}-${cleanColor || 'VAR'}`;
+};
+
 router.post('/products', auth, requireRole(['admin']), async (req, res) => {
   try {
     const productData = req.body;
@@ -1478,6 +1488,13 @@ router.post('/products', auth, requireRole(['admin']), async (req, res) => {
       productData.sku = cleanedSku;
     } else {
       productData.sku = await generateSku();
+    }
+
+    if (productData.variants && Array.isArray(productData.variants)) {
+      productData.variants = productData.variants.map(v => ({
+        ...v,
+        sku: formatVariantSku(productData.sku, v.size, v.color, v.sku)
+      }));
     }
     const product = new Product(productData);
     await product.save();
@@ -1552,8 +1569,21 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
       req.body.sku = await generateSku();
     }
 
-    if (existingProduct.sku && existingProduct.sku !== req.body.sku && !req.body.oldSku) {
-      req.body.oldSku = existingProduct.sku;
+    if (existingProduct.sku && existingProduct.sku !== req.body.sku) {
+      if (!req.body.oldSku) {
+        req.body.oldSku = existingProduct.sku;
+      }
+      const existingHistory = Array.isArray(existingProduct.oldSkus) ? existingProduct.oldSkus : [];
+      const historySet = new Set([
+        ...existingHistory,
+        existingProduct.sku,
+        existingProduct.oldSku,
+        req.body.oldSku
+      ].filter(Boolean));
+      historySet.delete(req.body.sku);
+      req.body.oldSkus = Array.from(historySet);
+    } else if (existingProduct.oldSkus && !req.body.oldSkus) {
+      req.body.oldSkus = existingProduct.oldSkus;
     }
 
     if (req.body.variants && Array.isArray(req.body.variants) && req.body.variants.length > 0) {
@@ -1581,7 +1611,8 @@ router.put('/products/:id', auth, requireRole(['admin']), async (req, res) => {
 
         // Apply delta on top of live stock (never go below 0)
         const correctedStock = Math.max(0, liveStock + delta);
-        return { ...v, stock: correctedStock };
+        const variantSku = v.sku || dbVariant?.sku || formatVariantSku(req.body.sku, v.size, v.color);
+        return { ...v, stock: correctedStock, sku: variantSku };
       });
 
       delete req.body.originalVariants; // don't persist this helper field

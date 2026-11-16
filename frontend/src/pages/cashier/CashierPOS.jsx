@@ -32,7 +32,7 @@ const getProductIcon = () => (
 
 // ─── Save Invoice as HTML ─────────────────────────────────────────────────────
 function saveInvoiceAsHTML(order, showDiscount = true) {
-  const id = order._id?.toString().slice(-8).toUpperCase();
+  const id = order.invoiceNumber || order._id?.toString().slice(-8).toUpperCase();
   const date = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
   const itemsHTML = (order.items || []).map(item => {
     const unitPrice = (item.originalPrice && item.originalPrice > 0) ? item.originalPrice : item.price;
@@ -112,14 +112,14 @@ function InvoiceModal({ order, onClose }) {
  const handlePrint = () => {
  const printDiv = document.createElement('div');
  printDiv.id = 'invoice-print-root';
- const id = order._id?.toString().slice(-8).toUpperCase();
+ const id = order.invoiceNumber || order._id?.toString().slice(-8).toUpperCase();
  const date = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
  
  // Create the HTML for ONE receipt
  const singleReceiptHTML = `
  <div style="direction:rtl;text-align:right;font-family:Cairo,sans-serif;padding:10px;width:58mm;font-size:12px;color:#000;box-sizing:border-box;">
  <div style="text-align:center;font-weight:bold;font-size:16px;margin-bottom:5px">ModaPella</div>
- <div style="text-align:center;margin-bottom:10px;font-size:11px;color:#444">فاتورة بيع | رقم: #${id}</div>
+ <div style="text-align:center;margin-bottom:10px;font-size:11px;color:#444">فاتورة بيع | رقم: ${order.invoiceNumber ? order.invoiceNumber : '#' + id}</div>
  
  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
  <div><strong>التاريخ:</strong> ${date}</div>
@@ -193,15 +193,15 @@ function InvoiceModal({ order, onClose }) {
  const handlePrintBarcode = () => {
  const printDiv = document.createElement('div');
  printDiv.id = 'invoice-barcode-print-root';
- const id = order._id?.toString().slice(-8).toUpperCase();
- const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
+ const id = order.invoiceNumber || order._id?.toString().slice(-8).toUpperCase();
+ const barcodeSVG = renderBarcodeSVG(order.invoiceNumber || order._id?.toString().toUpperCase(), 60);
 
  const singleLabelHTML = `
  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:58mm;height:40mm;font-family:Cairo,sans-serif;background:#fff;padding:5mm;box-sizing:border-box;">
  <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
  <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
  <div style="width:100%;height:15mm;">${barcodeSVG}</div>
- <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
+ <div style="font-size:12px;margin-top:2px;font-weight:bold">${order.invoiceNumber ? order.invoiceNumber : '#' + id}</div>
  </div>
  <div style="page-break-after: always;"></div>
  `;
@@ -222,7 +222,7 @@ function InvoiceModal({ order, onClose }) {
  <div className="bg-burgundy text-white text-center py-5 px-6">
  <p className="text-xs tracking-widest uppercase opacity-70">ModaPella</p>
  <h2 className="text-xl font-bold mt-1">فاتورة البيع</h2>
- <p className="text-xs opacity-60 mt-1">#{order._id?.toString().slice(-8).toUpperCase()}</p>
+ <p className="text-xs opacity-60 mt-1">{order.invoiceNumber || ('#' + order._id?.toString().slice(-8).toUpperCase())}</p>
  </div>
 
  {/* Invoice Body */}
@@ -738,11 +738,34 @@ function CashierPOS() {
  const scannedDigits = sku.replace(/[^0-9]/g, '');
 
  // 1. Exact match by sku or oldSku first
-        let found = products.find(p => {
-          const pSku = normalizeDigits(p.sku || '').trim().toUpperCase();
-          const pOldSku = normalizeDigits(p.oldSku || '').trim().toUpperCase();
-          return (pSku && pSku === sku) || (pOldSku && pOldSku === sku);
-        });
+        let found = null;
+        let matchedVariant = null;
+
+        // 0. Variant SKU match across all local products
+        for (const p of products) {
+          if (p.variants && p.variants.length > 0) {
+            const v = p.variants.find(item => {
+              if (!item.sku) return false;
+              const vSku = normalizeDigits(item.sku).trim().toUpperCase();
+              return vSku === sku || vSku.replace(/[^A-Z0-9]/g, '') === sku.replace(/[^A-Z0-9]/g, '');
+            });
+            if (v) {
+              found = p;
+              matchedVariant = v;
+              break;
+            }
+          }
+        }
+
+        // 1. Exact match by sku, oldSku, or oldSkus array
+        if (!found) {
+          found = products.find(p => {
+            const pSku = normalizeDigits(p.sku || '').trim().toUpperCase();
+            const pOldSku = normalizeDigits(p.oldSku || '').trim().toUpperCase();
+            const pOldSkus = Array.isArray(p.oldSkus) ? p.oldSkus.map(s => normalizeDigits(s || '').trim().toUpperCase()) : [];
+            return (pSku && pSku === sku) || (pOldSku && pOldSku === sku) || pOldSkus.includes(sku);
+          });
+        }
 
         // 2. Clean alphanumeric match (ignoring dashes and spaces)
         if (!found) {
@@ -778,7 +801,11 @@ function CashierPOS() {
           let autoColor = '';
           let autoStock = 0;
 
-          if (found.variants && found.variants.length > 0) {
+          if (matchedVariant) {
+            autoSize = matchedVariant.size || '';
+            autoColor = matchedVariant.color || '';
+            autoStock = matchedVariant.stock ?? 0;
+          } else if (found.variants && found.variants.length > 0) {
             const availableVariant = found.variants.find(v => v.stock > 0) || found.variants[0];
             autoSize = availableVariant.size || '';
             autoColor = availableVariant.color || '';
@@ -844,9 +871,9 @@ function CashierPOS() {
  return prev;
  });
 
- let autoSize = serverProduct.sizes?.[0] || serverProduct.variants?.[0]?.size || '';
- let autoColor = serverProduct.colors?.[0] || serverProduct.variants?.[0]?.color || '';
- let autoStock = serverProduct.stock || 99;
+ let autoSize = serverProduct.matchedVariant?.size || serverProduct.sizes?.[0] || serverProduct.variants?.[0]?.size || '';
+ let autoColor = serverProduct.matchedVariant?.color || serverProduct.colors?.[0] || serverProduct.variants?.[0]?.color || '';
+ let autoStock = serverProduct.matchedVariant != null ? serverProduct.matchedVariant.stock : (serverProduct.stock || 99);
 
  const key = `${serverProduct._id}_${autoSize}_${autoColor}`;
  const activeDiscount = isDiscountActive(serverProduct);

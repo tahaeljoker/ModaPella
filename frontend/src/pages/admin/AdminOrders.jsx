@@ -118,12 +118,14 @@ function AdminOrders() {
  
  const cleanSearch = (search || '').trim().replace(/^#/, '').toLowerCase();
  const fullId = (o._id || '').toLowerCase();
+    const invNum = (o.invoiceNumber || '').toLowerCase();
  const custName = (o.customerName || o.customer?.name || '').toLowerCase();
  const custPhone = (o.customerPhone || o.customer?.phone || '').toLowerCase();
  const hasItemMatch = o.items?.some(i => (i.name || '').toLowerCase().includes(cleanSearch));
 
  const matchSearch = !cleanSearch ||
  fullId.includes(cleanSearch) ||
+      invNum.includes(cleanSearch) ||
  custName.includes(cleanSearch) ||
  custPhone.includes(cleanSearch) ||
  hasItemMatch;
@@ -136,7 +138,7 @@ function AdminOrders() {
  const handleExport = () => {
  const headers = ['رقم الطلب', 'التاريخ', 'المنتجات', 'النوع', 'طريقة الدفع', 'الحالة', 'الإجمالي'];
  const rows = filtered.map(o => [
- o._id?.slice(-6).toUpperCase() || '',
+ o.invoiceNumber || o._id?.slice(-6).toUpperCase() || '',
  new Date(o.createdAt).toLocaleString('ar-EG-u-nu-latn'),
  o.items?.map(i => `${i.name} (${i.size || '-'}/${i.color || '-'}) x${i.quantity}`).join(' + ') || '',
  o.type === 'Offline' ? 'كاشير' : 'أونلاين',
@@ -232,7 +234,7 @@ function AdminOrders() {
  <div className="flex items-center gap-2">
  <p className="font-semibold">{order.items?.map((i) => i.name).join('، ')}</p>
  <span className="rounded bg-burgundy/8 px-1.5 py-0.5 font-mono text-[10px] text-burgundy/60">
- #{order._id?.slice(-6).toUpperCase()}
+ {order.invoiceNumber || ('#' + (order._id?.slice(-6).toUpperCase() || '------'))}
  </span>
  </div>
  <p className="mt-0.5 text-xs text-burgundy/50">
@@ -322,7 +324,7 @@ function AdminOrders() {
  <button
  type="button"
  onClick={() => {
- const shortId = order._id?.toString().slice(-6).toUpperCase() || '------';
+ const shortId = order.invoiceNumber || ('#' + (order._id?.toString().slice(-6).toUpperCase() || '------'));
  const dateStr = new Date(order.createdAt).toLocaleString('ar-EG-u-nu-latn');
  const itemsHTML = order.items.map(item => `
  <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px">
@@ -339,7 +341,7 @@ function AdminOrders() {
  <div style="text-align:center;margin-bottom:12px;font-size:9px;color:#444">إعادة طباعة فاتورة (مسؤول)</div>
  
  <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:8px;font-size:10px">
- <div><strong>رقم الفاتورة:</strong> #${shortId}</div>
+ <div><strong>رقم الفاتورة:</strong> ${shortId}</div>
  <div><strong>التاريخ:</strong> ${dateStr}</div>
  <div><strong>طريقة الدفع:</strong> ${order.paymentMethod === 'Cash' ? 'كاش' : order.paymentMethod === 'Instapay' ? 'انستا باي' : 'محفظة'}</div>
  ${order.employeeName ? `<div><strong>البائع:</strong> ${order.employeeName}</div>` : ''}
@@ -385,8 +387,8 @@ function AdminOrders() {
  <button
  type="button"
  onClick={() => {
- const id = order._id?.toString().slice(-8).toUpperCase();
- const barcodeSVG = renderBarcodeSVG(order._id?.toString().toUpperCase(), 60);
+ const id = order.invoiceNumber || ('#' + (order._id?.toString().slice(-8).toUpperCase() || '------'));
+ const barcodeSVG = renderBarcodeSVG(order.invoiceNumber || order._id?.toString().toUpperCase(), 60);
  const printDiv = document.createElement('div');
  printDiv.id = 'invoice-barcode-print-root';
  printDiv.innerHTML = `
@@ -394,7 +396,7 @@ function AdminOrders() {
  <div style="font-weight:900;font-size:14px;margin-bottom:2px">ModaPella</div>
  <div style="font-size:10px;margin-bottom:5px">كود الفاتورة</div>
  <div style="width:100%;height:15mm;">${barcodeSVG}</div>
- <div style="font-size:12px;margin-top:2px;font-weight:bold">#${id}</div>
+ <div style="font-size:12px;margin-top:2px;font-weight:bold">${id}</div>
  </div>
  <div style="page-break-after: always;"></div>
  `;

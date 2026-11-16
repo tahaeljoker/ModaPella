@@ -136,6 +136,8 @@ function AdminBarcodeLabels() {
  const pSku = (p.sku || '').toLowerCase();
  const pOldSku = (p.oldSku || '').toLowerCase();
  const pCat = (CATEGORY_LABELS[p.category] || p.category || '').toLowerCase();
+    const hasOldSku = Array.isArray(p.oldSkus) && p.oldSkus.some(s => s && s.toLowerCase().includes(normalizedSearch));
+    const hasVarSku = Array.isArray(p.variants) && p.variants.some(v => v.sku && v.sku.toLowerCase().includes(normalizedSearch));
 
  return pName.includes(search.toLowerCase()) ||
  pName.includes(normalizedSearch) ||
@@ -143,6 +145,8 @@ function AdminBarcodeLabels() {
  pSku.includes(normalizedSearch) ||
  pOldSku.includes(search.toLowerCase()) ||
  pOldSku.includes(normalizedSearch) ||
+      hasOldSku ||
+      hasVarSku ||
  pCat.includes(search.toLowerCase()) ||
  pCat.includes(normalizedSearch);
  });
@@ -353,9 +357,16 @@ function AdminBarcodeLabels() {
  </div>
  </td>
  <td className="py-3">
+ <div className="flex flex-col gap-1 items-start">
  <span className="rounded-lg bg-burgundy/8 px-3 py-1 font-mono text-xs font-bold text-burgundy">
  {p.sku}
  </span>
+ {p.variants && p.variants.some(v => v.sku) && (
+ <span className="text-[10px] text-burgundy/50 font-mono">
+ {p.variants.filter(v => v.sku).length} باركود للمقاسات
+ </span>
+ )}
+ </div>
  </td>
  <td className="py-3 text-burgundy/70">{CATEGORY_LABELS[p.category] || p.category}</td>
  <td className="py-3 font-bold">{EGP(p.price)}</td>

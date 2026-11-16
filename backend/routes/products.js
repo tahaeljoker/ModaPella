@@ -198,37 +198,81 @@ router.get('/lookup-barcode', auth, async (req, res) => {
     // Search across ALL products
     const allProducts = await Product.find({}).sort({ createdAt: -1 });
 
-    let matched = allProducts.find(p => {
+    let matched = null;
+    let matchedVariant = null;
+
+    for (const p of allProducts) {
+      // 1. Check variant-level SKUs first for exact precision
+      if (p.variants && p.variants.length > 0) {
+        const vMatch = p.variants.find(v => {
+          if (!v.sku) return false;
+          const vSku = v.sku.trim().toUpperCase();
+          const vClean = vSku.replace(/[^a-zA-Z0-9]/g, '');
+          return (
+            vSku === code.toUpperCase() ||
+            vSku === normCode ||
+            (codeClean && vClean && codeClean === vClean)
+          );
+        });
+        if (vMatch) {
+          matched = p;
+          matchedVariant = {
+            _id: vMatch._id,
+            size: vMatch.size,
+            color: vMatch.color,
+            stock: vMatch.stock,
+            sku: vMatch.sku
+          };
+          break;
+        }
+      }
+
+      // 2. Check product primary SKU, oldSku, and oldSkus array
       const pSku = (p.sku || '').trim().toUpperCase();
       const pOldSku = (p.oldSku || '').trim().toUpperCase();
+      const pOldSkus = Array.isArray(p.oldSkus) ? p.oldSkus.map(s => String(s).trim().toUpperCase()) : [];
       const pIdFull = p._id ? p._id.toString().toUpperCase() : '';
       const pIdDigits = p._id ? (parseInt(p._id.toString().slice(-6), 16) % 89999 + 10000).toString() : '';
 
-      if (pSku && (pSku === code.toUpperCase() || pSku === normCode)) return true;
-      if (pOldSku && (pOldSku === code.toUpperCase() || pOldSku === normCode)) return true;
-      if (pIdFull && (pIdFull === code.toUpperCase() || pIdFull === normCode)) return true;
-      if (pIdDigits && (pIdDigits === code || pIdDigits === normCode)) return true;
+      const matchSku = (target) => {
+        if (!target) return false;
+        if (target === code.toUpperCase() || target === normCode) return true;
+        const targetClean = target.replace(/[^a-zA-Z0-9]/g, '');
+        if (codeClean && targetClean && codeClean === targetClean) return true;
+        const codeNoPrefix = codeClean.replace(/^[A-Z]+/, '');
+        if (codeNoPrefix && targetClean && codeNoPrefix === targetClean) return true;
+        return false;
+      };
 
-      const pSkuClean = pSku.replace(/[^a-zA-Z0-9]/g, '');
-      const pOldSkuClean = pOldSku.replace(/[^a-zA-Z0-9]/g, '');
-      if (codeClean && pSkuClean && codeClean === pSkuClean) return true;
-      if (codeClean && pOldSkuClean && codeClean === pOldSkuClean) return true;
-
-      const codeNoPrefixClean = codeClean.replace(/^[A-Z]+/, '');
-      if (codeNoPrefixClean && pSkuClean && codeNoPrefixClean === pSkuClean) return true;
-      if (codeNoPrefixClean && pOldSkuClean && codeNoPrefixClean === pOldSkuClean) return true;
-
-      return false;
-    });
+      if (
+        matchSku(pSku) ||
+        matchSku(pOldSku) ||
+        pOldSkus.some(s => matchSku(s)) ||
+        pIdFull === code.toUpperCase() ||
+        pIdFull === normCode ||
+        pIdDigits === code ||
+        pIdDigits === normCode
+      ) {
+        matched = p;
+        break;
+      }
+    }
 
     // Fallback: match extracted numeric part
     if (!matched && codeDigits && codeDigits.length >= 3) {
       matched = allProducts.find(p => {
         const pSku = (p.sku || '').trim();
         const pOldSku = (p.oldSku || '').trim();
+        const pOldSkus = Array.isArray(p.oldSkus) ? p.oldSkus.map(s => String(s).trim()) : [];
         const pDigits = pSku.replace(/[^0-9]/g, '');
         const pOldDigits = pOldSku.replace(/[^0-9]/g, '');
-        return pSku === codeDigits || pOldSku === codeDigits || pDigits === codeDigits || pOldDigits === codeDigits;
+        return (
+          pSku === codeDigits ||
+          pOldSku === codeDigits ||
+          pDigits === codeDigits ||
+          pOldDigits === codeDigits ||
+          pOldSkus.some(s => s === codeDigits || s.replace(/[^0-9]/g, '') === codeDigits)
+        );
       });
     }
 
@@ -257,7 +301,11 @@ router.get('/lookup-barcode', auth, async (req, res) => {
       if (modified) {
         await matched.save();
       }
-      return res.json(matched);
+      const matchedData = matched.toJSON ? matched.toJSON() : matched.toObject ? matched.toObject() : matched;
+      return res.json({
+        ...matchedData,
+        matchedVariant: matchedVariant || null
+      });
     }
 
     return res.status(404).json({ message: 'Product not found for code: ' + code });
@@ -277,6 +325,12 @@ router.post('/link-barcode', auth, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
     product.oldSku = code.trim();
+    if (!Array.isArray(product.oldSkus)) {
+      product.oldSkus = [];
+    }
+    if (!product.oldSkus.includes(code.trim())) {
+      product.oldSkus.push(code.trim());
+    }
     product.active = true;
     await product.save();
     res.json({ message: 'Barcode linked successfully', product });
