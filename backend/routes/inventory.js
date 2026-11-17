@@ -4,6 +4,7 @@ const requireRole = require('../middleware/requireRole');
 const Product = require('../models/Product');
 const InventoryCount = require('../models/InventoryCount');
 const StockHistory = require('../models/StockHistory');
+const { runInTransaction } = require('../config/db');
 
 const router = express.Router();
 const ROLES = ['admin', 'manager'];
@@ -105,59 +106,80 @@ router.put('/counts/:id', auth, requireRole(ROLES), async (req, res) => {
 // POST /api/inventory/counts/:id/apply — apply count: update actual stock
 router.post('/counts/:id/apply', auth, requireRole(['admin']), async (req, res) => {
   try {
-    const count = await InventoryCount.findById(req.params.id);
-    if (!count) return res.status(404).json({ message: 'Count not found' });
-    if (count.status === 'applied') return res.status(400).json({ message: 'Already applied' });
+    const updatedProducts = [];
 
-    for (const item of count.items) {
-      if (item.countedStock === null) continue; // skip uncounted
-      const product = await Product.findById(item.product);
-      if (!product) continue;
-      let prevStock = 0;
-      let variant = null;
-      if (item.variantKey && product.variants?.length > 0) {
-        variant = product.variants.find(v => `${v.size}_${v.color}` === item.variantKey);
-        if (variant) {
-          prevStock = variant.stock;
-          variant.stock = item.countedStock;
+    const count = await runInTransaction(async (session) => {
+      const countDoc = await InventoryCount.findById(req.params.id).session(session);
+      if (!countDoc) {
+        const err = new Error('Count not found');
+        err.statusCode = 404;
+        throw err;
+      }
+      if (countDoc.status === 'applied') {
+        const err = new Error('Already applied');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      for (const item of countDoc.items) {
+        if (item.countedStock === null) continue; // skip uncounted
+        const product = await Product.findById(item.product).session(session);
+        if (!product) continue;
+
+        let prevStock = 0;
+        let variant = null;
+        if (item.variantKey && product.variants?.length > 0) {
+          variant = product.variants.find(v => `${v.size}_${v.color}` === item.variantKey);
+          if (variant) {
+            prevStock = variant.stock;
+            variant.stock = item.countedStock;
+          }
+        } else {
+          prevStock = product.stock;
+          product.stock = item.countedStock;
         }
-      } else {
-        prevStock = product.stock;
-        product.stock = item.countedStock;
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      if ((product.stock + (product.sold || 0)) > (product.totalReceived || 0)) {
-        product.totalReceived = product.stock + (product.sold || 0);
-      }
-      await product.save();
+        if (product.variants && product.variants.length > 0) {
+          product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+        }
+        if ((product.stock + (product.sold || 0)) > (product.totalReceived || 0)) {
+          product.totalReceived = product.stock + (product.sold || 0);
+        }
+        await product.save({ session });
+        updatedProducts.push(product);
 
-      // Log stock history
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: item.variantKey || '',
-        changeType: 'Inventory Count',
-        quantityChanged: item.countedStock - prevStock,
-        previousStock: prevStock,
-        newStock: item.countedStock,
-        performedBy: req.user.id,
-        referenceId: count._id,
-        notes: `تحديث عبر جلسة جرد: "${count.label}"`
-      });
-      await history.save();
-      req.app.locals.io?.emit('inventory:update', product);
-    }
+        // Log stock history
+        const history = new StockHistory({
+          product: product._id,
+          productName: product.name,
+          size: item.size || '',
+          color: item.color || '',
+          variantKey: item.variantKey || '',
+          changeType: 'Inventory Count',
+          quantityChanged: item.countedStock - prevStock,
+          previousStock: prevStock,
+          newStock: item.countedStock,
+          performedBy: req.user.id,
+          referenceId: countDoc._id,
+          notes: `تحديث عبر جلسة جرد: "${countDoc.label}"`
+        });
+        await history.save({ session });
+      }
 
-    count.status = 'applied';
-    count.appliedAt = new Date();
-    await count.save();
+      countDoc.status = 'applied';
+      countDoc.appliedAt = new Date();
+      await countDoc.save({ session });
+
+      return countDoc;
+    });
+
+    updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
+
     res.json({ message: 'Inventory count applied successfully', count });
   } catch (e) {
-    res.status(500).json({ message: 'Unable to apply count', error: e.message });
+    const status = e.statusCode || 500;
+    res.status(status).json({ message: e.message || 'Unable to apply count', error: e.message });
   }
 });
 

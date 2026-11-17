@@ -5,6 +5,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
 const { getNextInvoiceNumber } = require('../models/Counter');
+const { runInTransaction } = require('../config/db');
 
 const router = express.Router();
 
@@ -210,42 +211,35 @@ router.patch('/:id', auth, requireRole(['admin', 'manager']), async (req, res) =
 
     if (shouldRestoreStock) {
       const StockHistory = require('../models/StockHistory');
-      await Promise.all(order.items.map(async (item) => {
-        const product = await Product.findById(item.product);
-        if (!product) return;
+      const invDisplay = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
 
+      for (const item of order.items) {
         const qty = item.quantity - (item.returnedQuantity || 0);
-        if (qty <= 0) return;
+        if (qty <= 0) continue;
 
-        let prevStock = 0;
-        if (product.variants && product.variants.length > 0) {
-          const variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-          if (variant) {
-            prevStock = variant.stock;
-            variant.stock += qty;
-          }
-          product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-        } else {
-          prevStock = product.stock;
-          product.stock += qty;
-        }
-        product.sold = Math.max(0, product.sold - qty);
-        await product.save();
-
-        await StockHistory.create({
-          product: product._id,
-          productName: product.name,
-          size: item.size || '',
-          color: item.color || '',
-          changeType: 'Refund',
-          quantityChanged: qty,
-          previousStock: prevStock,
-          newStock: prevStock + qty,
-          notes: `إرجاع طلب أونلاين #${order._id.toString().slice(-6).toUpperCase()}`
+        const restoreRes = await Product.atomicRestoreStock({
+          productId: item.product,
+          size: item.size,
+          color: item.color,
+          quantity: qty
         });
 
-        req.app.locals.io?.emit('inventory:update', product);
-      }));
+        if (restoreRes.product) {
+          await StockHistory.create({
+            product: restoreRes.product._id,
+            productName: restoreRes.product.name,
+            size: item.size || '',
+            color: item.color || '',
+            changeType: 'Refund',
+            quantityChanged: qty,
+            previousStock: restoreRes.prevStock,
+            newStock: restoreRes.newStock,
+            notes: `إرجاع طلب أونلاين ${invDisplay}`
+          });
+
+          req.app.locals.io?.emit('inventory:update', restoreRes.product);
+        }
+      }
 
       // Mark order as recovered so stock isn't restored twice
       order.recovered = true;
@@ -306,227 +300,208 @@ router.post('/public-checkout', async (req, res) => {
     const Customer = require('../models/Customer');
     const Product = require('../models/Product');
     const StockHistory = require('../models/StockHistory');
+    const Coupon = require('../models/Coupon');
 
-    // 1. Create or find customer
-    let dbCustomer = await Customer.findOne({ phone: customerPhone.trim() });
-    if (!dbCustomer) {
-      dbCustomer = new Customer({
-        name: customerName || 'عميل أونلاين',
-        phone: customerPhone.trim(),
-        points: 0,
-        debt: 0
-      });
-    } else {
-      if (customerName && customerName.trim() !== '') {
-        dbCustomer.name = customerName.trim();
-      }
-    }
-
-    // Server-side helper to determine authentic active product price
-    const resolveProductPrice = (prod) => {
-      if (!prod) return 0;
-      const basePrice = Number(prod.price || 0);
-      if (
-        prod.allowDiscount !== false &&
-        prod.discountPrice &&
-        prod.discountPrice > 0 &&
-        prod.discountPrice < basePrice
-      ) {
-        const now = new Date();
-        const startValid = !prod.discountStartDate || new Date(prod.discountStartDate) <= now;
-        let endValid = true;
-        if (prod.discountEndDate) {
-          const end = new Date(prod.discountEndDate);
-          end.setHours(23, 59, 59, 999);
-          endValid = end >= now;
-        }
-        if (startValid && endValid) {
-          return Number(prod.discountPrice);
-        }
-      }
-      return basePrice;
-    };
-
-    // 2. Validate product stock, enforce DB pricing and positive quantities
-    const productLookups = await Promise.all(items.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) {
-        throw new Error(`المنتج غير موجود في قاعدة البيانات: ${item.name || item.product}`);
-      }
-
-      const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
-
-      let availableStock = product.stock ?? 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) availableStock = variant.stock ?? 0;
-      }
-
-      if ((availableStock || 0) < qty) {
-        throw new Error(`الكمية غير متوفرة للمنتج ${product.name} (المقاس: ${item.size || '-'}، اللون: ${item.color || '-'})`);
-      }
-
-      const verifiedPrice = resolveProductPrice(product);
-
-      return {
-        item,
-        product,
-        variant,
-        quantity: qty,
-        verifiedPrice,
-        costPrice: product.costPrice || 0
-      };
-    }));
-
-    // 3. Construct Order Items strictly using verified DB prices
-    const orderItems = productLookups.map(({ item, product, variant, costPrice, verifiedPrice, quantity }) => ({
-      product: product._id,
-      name: product.name,
-      onlineName: (product.onlineName || item.onlineName || '').trim(),
-      category: product.category,
-      quantity,
-      price: verifiedPrice,
-      originalPrice: Number(product.price || verifiedPrice),
-      size: item.size || '',
-      color: item.color || '',
-      costPrice,
-      variantId: variant?._id || null
-    }));
-
-    const rawTotal = orderItems.reduce((sum, oi) => sum + oi.price * oi.quantity, 0);
-    let discount = 0;
-    let appliedCoupon = null;
-
-    if (couponCode && typeof couponCode === 'string') {
-      const Coupon = require('../models/Coupon');
-      const normalizedCode = couponCode.trim().toUpperCase();
-      const coupon = await Coupon.findOne({ code: normalizedCode, active: true });
-      if (coupon) {
-        const now = new Date();
-        const isNotExpired = !coupon.expiryDate || new Date(coupon.expiryDate) >= now;
-        const isUnderLimit = !coupon.usageLimit || (coupon.timesUsed || 0) < coupon.usageLimit;
-        const meetsMin = !coupon.minOrderAmount || rawTotal >= coupon.minOrderAmount;
-
-        if (isNotExpired && isUnderLimit && meetsMin) {
-          if (coupon.discountType === 'percentage') {
-            discount = Math.round((rawTotal * coupon.discountValue) / 100);
-            if (coupon.maxDiscount && discount > coupon.maxDiscount) {
-              discount = coupon.maxDiscount;
-            }
-          } else {
-            discount = Math.min(coupon.discountValue, rawTotal);
-          }
-          appliedCoupon = coupon;
-        }
-      }
-    }
-
-    const finalTotalAmount = Math.max(0, rawTotal - discount);
-
-    // 4. Save Customer Points (give points on checkout)
-    dbCustomer.points += Math.floor(finalTotalAmount / 100);
-    await dbCustomer.save();
-
-    // Format address note cleanly
-    let finalNotes = notes;
-    if (governorate || shippingAddress) {
-      const addressInfo = [governorate && `المحافظة: ${governorate}`, shippingAddress && `العنوان: ${shippingAddress}`].filter(Boolean).join(' - ');
-      finalNotes = notes ? `${addressInfo} | ملاحظات: ${notes}` : addressInfo;
-    }
-
-    // 5. Create Order
-    const invoiceNumber = await getNextInvoiceNumber();
-    const order = new Order({
-      invoiceNumber,
-      customer: dbCustomer._id,
-      customerName: dbCustomer.name,
-      customerPhone: dbCustomer.phone,
-      items: orderItems,
-      totalAmount: finalTotalAmount,
-      discount,
-      couponCode: appliedCoupon ? appliedCoupon.code : '',
-      type: 'Online',
-      status: 'Pending',
-      paymentMethod: paymentMethod === 'COD' ? 'Cash' : paymentMethod,
-      paymentScreenshot,
-      governorate,
-      shippingAddress,
-      notes: finalNotes,
-      trafficSource: trafficSource && trafficSource.source ? trafficSource : { source: 'Direct' }
-    });
-    await order.save();
-
-    if (appliedCoupon) {
-      appliedCoupon.timesUsed = (appliedCoupon.timesUsed || 0) + 1;
-      await appliedCoupon.save();
-    }
-
-    // 6. Deduct Stock & Write Stock History
-    await Promise.all(productLookups.map(async ({ product, variant, quantity }) => {
-      const qty = quantity;
-      
-      if (variant) {
-        const prevStock = variant.stock;
-        variant.stock = Math.max(0, variant.stock - qty);
-        product.stock = Math.max(0, product.stock - qty);
-        product.sold += qty;
-        await product.save();
-
-        await StockHistory.create({
-          product: product._id,
-          productName: product.name,
-          size: variant.size,
-          color: variant.color,
-          variantKey: `${variant.size}_${variant.color}`,
-          changeType: 'POS Sale', // Treat online sale as stock deduction
-          quantityChanged: -qty,
-          previousStock: prevStock,
-          newStock: variant.stock,
-          notes: `طلب أونلاين معلق رقم #${order._id.toString().slice(-6).toUpperCase()}`
+    const result = await runInTransaction(async (session) => {
+      // 1. Create or find customer
+      let dbCustomer = await Customer.findOne({ phone: customerPhone.trim() }).session(session);
+      if (!dbCustomer) {
+        dbCustomer = new Customer({
+          name: customerName || 'عميل أونلاين',
+          phone: customerPhone.trim(),
+          points: 0,
+          debt: 0
         });
       } else {
-        const prevStock = product.stock;
-        product.stock = Math.max(0, product.stock - qty);
-        product.sold += qty;
-        await product.save();
+        if (customerName && customerName.trim() !== '') {
+          dbCustomer.name = customerName.trim();
+        }
+      }
 
-        await StockHistory.create({
-          product: product._id,
-          productName: product.name,
+      // Server-side helper to determine authentic active product price
+      const resolveProductPrice = (prod) => {
+        if (!prod) return 0;
+        const basePrice = Number(prod.price || 0);
+        if (
+          prod.allowDiscount !== false &&
+          prod.discountPrice &&
+          prod.discountPrice > 0 &&
+          prod.discountPrice < basePrice
+        ) {
+          const now = new Date();
+          const startValid = !prod.discountStartDate || new Date(prod.discountStartDate) <= now;
+          let endValid = true;
+          if (prod.discountEndDate) {
+            const end = new Date(prod.discountEndDate);
+            end.setHours(23, 59, 59, 999);
+            endValid = end >= now;
+          }
+          if (startValid && endValid) {
+            return Number(prod.discountPrice);
+          }
+        }
+        return basePrice;
+      };
+
+      // 2. Validate product existence, pricing and atomic stock deduction
+      const orderItems = [];
+      const stockHistories = [];
+      const updatedProducts = [];
+
+      for (const item of items) {
+        const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+        const product = await Product.findById(item.product).session(session);
+        if (!product) {
+          throw new Error(`المنتج غير موجود في قاعدة البيانات: ${item.name || item.product}`);
+        }
+
+        const verifiedPrice = resolveProductPrice(product);
+
+        // Atomic deduction
+        const deductionResult = await Product.atomicDeductStock({
+          productId: product._id,
+          variantId: item.variantId,
+          size: item.size,
+          color: item.color,
+          quantity: qty,
+          session
+        });
+
+        const prod = deductionResult.product;
+        const matchedVariant = deductionResult.variant;
+        updatedProducts.push(prod);
+
+        orderItems.push({
+          product: prod._id,
+          name: prod.name,
+          onlineName: (prod.onlineName || item.onlineName || '').trim(),
+          category: prod.category,
+          quantity: qty,
+          price: verifiedPrice,
+          originalPrice: Number(prod.price || verifiedPrice),
+          size: item.size || '',
+          color: item.color || '',
+          costPrice: prod.costPrice || 0,
+          variantId: matchedVariant?._id || null
+        });
+
+        stockHistories.push({
+          product: prod._id,
+          productName: prod.name,
+          size: matchedVariant ? matchedVariant.size : (item.size || ''),
+          color: matchedVariant ? matchedVariant.color : (item.color || ''),
+          variantKey: matchedVariant ? `${matchedVariant.size}_${matchedVariant.color}` : '',
           changeType: 'POS Sale',
           quantityChanged: -qty,
-          previousStock: prevStock,
-          newStock: product.stock,
-          notes: `طلب أونلاين معلق رقم #${order._id.toString().slice(-6).toUpperCase()}`
+          previousStock: deductionResult.prevStock,
+          newStock: deductionResult.newStock
         });
       }
 
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
+      // 3. Coupon validation & Discount calculation
+      const rawTotal = orderItems.reduce((sum, oi) => sum + oi.price * oi.quantity, 0);
+      let discount = 0;
+      let appliedCoupon = null;
 
-    // Trigger notification
+      if (couponCode && typeof couponCode === 'string') {
+        const normalizedCode = couponCode.trim().toUpperCase();
+        const coupon = await Coupon.findOne({ code: normalizedCode, active: true }).session(session);
+        if (coupon) {
+          const now = new Date();
+          const isNotExpired = !coupon.expiryDate || new Date(coupon.expiryDate) >= now;
+          const isUnderLimit = !coupon.usageLimit || (coupon.timesUsed || 0) < coupon.usageLimit;
+          const meetsMin = !coupon.minOrderAmount || rawTotal >= coupon.minOrderAmount;
+
+          if (isNotExpired && isUnderLimit && meetsMin) {
+            if (coupon.discountType === 'percentage') {
+              discount = Math.round((rawTotal * coupon.discountValue) / 100);
+              if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+                discount = coupon.maxDiscount;
+              }
+            } else {
+              discount = Math.min(coupon.discountValue, rawTotal);
+            }
+            appliedCoupon = coupon;
+          }
+        }
+      }
+
+      const finalTotalAmount = Math.max(0, rawTotal - discount);
+
+      // 4. Save Customer Points
+      dbCustomer.points += Math.floor(finalTotalAmount / 100);
+      await dbCustomer.save({ session });
+
+      let finalNotes = notes;
+      if (governorate || shippingAddress) {
+        const addressInfo = [governorate && `المحافظة: ${governorate}`, shippingAddress && `العنوان: ${shippingAddress}`].filter(Boolean).join(' - ');
+        finalNotes = notes ? `${addressInfo} | ملاحظات: ${notes}` : addressInfo;
+      }
+
+      // 5. Create Order
+      const invoiceNumber = await getNextInvoiceNumber();
+      const order = new Order({
+        invoiceNumber,
+        customer: dbCustomer._id,
+        customerName: dbCustomer.name,
+        customerPhone: dbCustomer.phone,
+        items: orderItems,
+        totalAmount: finalTotalAmount,
+        discount,
+        couponCode: appliedCoupon ? appliedCoupon.code : '',
+        type: 'Online',
+        status: 'Pending',
+        paymentMethod: paymentMethod === 'COD' ? 'Cash' : paymentMethod,
+        paymentScreenshot,
+        governorate,
+        shippingAddress,
+        notes: finalNotes,
+        trafficSource: trafficSource && trafficSource.source ? trafficSource : { source: 'Direct' }
+      });
+      await order.save({ session });
+
+      if (appliedCoupon) {
+        appliedCoupon.timesUsed = (appliedCoupon.timesUsed || 0) + 1;
+        await appliedCoupon.save({ session });
+      }
+
+      // Save Stock Histories
+      for (const sh of stockHistories) {
+        sh.notes = `طلب أونلاين معلق رقم ${invoiceNumber}`;
+        sh.referenceId = order._id;
+        const history = new StockHistory(sh);
+        await history.save({ session });
+      }
+
+      return { order, dbCustomer, finalTotalAmount, updatedProducts };
+    });
+
+    // 6. Broadcast inventory and order updates post-commit
+    result.updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
+
     try {
       const SystemNotification = require('../models/SystemNotification');
       const notification = await SystemNotification.create({
         title: 'طلب أونلاين جديد معلق',
-        message: `طلب جديد بقيمة ${finalTotalAmount} ج.م من العميل ${dbCustomer.name} (${dbCustomer.phone}) ينتظر الموافقة.`,
+        message: `طلب جديد بقيمة ${result.finalTotalAmount} ج.م من العميل ${result.dbCustomer.name} (${result.dbCustomer.phone}) ينتظر الموافقة.`,
         type: 'info',
         recipient: null
       });
       req.app.locals.io?.emit('notification:new', notification);
       req.app.locals.io?.emit('order:new', {
-        order,
-        customerName: dbCustomer.name,
-        totalAmount: finalTotalAmount
+        order: result.order,
+        customerName: result.dbCustomer.name,
+        totalAmount: result.finalTotalAmount
       });
     } catch (err) {
       console.error('Failed to create order notification:', err);
     }
 
-    res.status(201).json({ success: true, order });
+    res.status(201).json({ success: true, order: result.order });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 });
 

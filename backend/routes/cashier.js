@@ -7,6 +7,7 @@ const Transaction = require('../models/Transaction');
 const Shift = require('../models/Shift');
 const Customer = require('../models/Customer');
 const { getNextInvoiceNumber } = require('../models/Counter');
+const { runInTransaction } = require('../config/db');
 
 const router = express.Router();
 
@@ -1132,7 +1133,6 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       return res.status(400).json({ message: 'Invalid payment amount' });
     }
 
-    // Find all outstanding debt orders for this customer (prefer phone, fallback to name)
     const query = {
       status: { $ne: 'Returned' },
       $or: [
@@ -1141,83 +1141,89 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       ]
     };
     if (customerPhone && customerPhone !== 'بدون هاتف') {
-      query.customerPhone = customerPhone;
+      query.customerPhone = customerPhone.trim();
     } else if (customerName) {
-      query.customerName = customerName;
+      query.customerName = customerName.trim();
     } else {
       return res.status(400).json({ message: 'Customer phone or name is required' });
     }
 
-    const orders = await Order.find(query).sort({ createdAt: 1 }); // oldest first
-    if (orders.length === 0) {
-      return res.status(404).json({ message: 'No active debts found for this customer' });
-    }
-
-    let remainingPayment = Math.round(Number(amount) * 100) / 100;
-    const openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-    const updatedOrders = [];
-
-    for (let order of orders) {
-      if (remainingPayment <= 0) break;
-
-      const debtToPay = Math.min(order.debtAmount, remainingPayment);
-      order.debtAmount = Math.max(0, Math.round((order.debtAmount - debtToPay) * 100) / 100);
-      order.amountPaid = Math.round((order.amountPaid + debtToPay) * 100) / 100;
-      remainingPayment = Math.max(0, Math.round((remainingPayment - debtToPay) * 100) / 100);
-
-      // Auto-clear if negligible fractional debt remains (< 0.50 EGP)
-      if (order.debtAmount < 0.5) {
-        order.debtAmount = 0;
-        order.isDebt = false;
+    const result = await runInTransaction(async (session) => {
+      const orders = await Order.find(query).sort({ createdAt: 1 }).session(session);
+      if (orders.length === 0) {
+        const notFoundErr = new Error('No active debts found for this customer');
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
       }
 
-      await order.save();
-      updatedOrders.push(order);
-
-      const invDisplay = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
-
-      // Log transaction for the safe/drawer
-      const transaction = new Transaction({
-        amount: Math.round(debtToPay * 100) / 100,
-        type: 'IN',
-        category: 'DebtPayment',
-        paymentMethod,
-        description: `سداد دين الفاتورة ${invDisplay} للعميل ${customerName || customerPhone}`,
-        referenceId: order._id,
-        user: req.user.id,
-        shift: openShift?._id
-      });
-      await transaction.save();
-    }
-
-    // Strictly synchronize Customer debt with sum of remaining active debt orders
-    const custFilter = (customerPhone && customerPhone !== 'بدون هاتف') 
-      ? { phone: customerPhone.trim() } 
-      : { name: customerName?.trim() };
-    const dbCust = await Customer.findOne(custFilter);
-    if (dbCust) {
-      const remainingDebtOrders = await Order.find({
-        status: { $ne: 'Returned' },
-        $or: [
-          { customer: dbCust._id },
-          ...(dbCust.phone && dbCust.phone !== 'بدون هاتف' ? [{ customerPhone: dbCust.phone }] : [])
-        ],
-        isDebt: true,
-        debtAmount: { $gt: 0 }
-      });
-      const totalRemainingDebt = remainingDebtOrders.reduce((sum, o) => sum + (o.debtAmount || 0), 0);
-      dbCust.debt = Math.max(0, Math.round(totalRemainingDebt * 100) / 100);
-      if (dbCust.debt < 0.5) {
-        dbCust.debt = 0;
+      let remainingPayment = Math.round(Number(amount) * 100) / 100;
+      let openShift = await Shift.findOne({ user: req.user.id, status: 'open' }).session(session);
+      if (!openShift) {
+        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 }).session(session);
       }
-      await dbCust.save();
-    }
+      const updatedOrders = [];
 
-    res.json({ message: 'Payment recorded successfully', updatedOrders, change: remainingPayment });
+      for (let order of orders) {
+        if (remainingPayment <= 0) break;
 
-    res.json({ message: 'Payment recorded successfully', updatedOrders, change: remainingPayment });
+        const debtToPay = Math.min(order.debtAmount, remainingPayment);
+        order.debtAmount = Math.max(0, Math.round((order.debtAmount - debtToPay) * 100) / 100);
+        order.amountPaid = Math.round(((order.amountPaid || 0) + debtToPay) * 100) / 100;
+        remainingPayment = Math.max(0, Math.round((remainingPayment - debtToPay) * 100) / 100);
+
+        if (order.debtAmount < 0.5) {
+          order.debtAmount = 0;
+          order.isDebt = false;
+        }
+
+        await order.save({ session });
+        updatedOrders.push(order);
+
+        const invDisplay = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
+
+        const transaction = new Transaction({
+          amount: Math.round(debtToPay * 100) / 100,
+          type: 'IN',
+          category: 'DebtPayment',
+          paymentMethod,
+          description: `سداد دين الفاتورة ${invDisplay} للعميل ${customerName || customerPhone}`,
+          referenceId: order._id,
+          user: req.user.id,
+          shift: openShift?._id
+        });
+        await transaction.save({ session });
+      }
+
+      // Strictly synchronize Customer debt with sum of remaining active debt orders
+      const custFilter = (customerPhone && customerPhone !== 'بدون هاتف') 
+        ? { phone: customerPhone.trim() } 
+        : { name: customerName?.trim() };
+      const dbCust = await Customer.findOne(custFilter).session(session);
+      if (dbCust) {
+        const remainingDebtOrders = await Order.find({
+          status: { $ne: 'Returned' },
+          $or: [
+            { customer: dbCust._id },
+            ...(dbCust.phone && dbCust.phone !== 'بدون هاتف' ? [{ customerPhone: dbCust.phone }] : [])
+          ],
+          isDebt: true,
+          debtAmount: { $gt: 0 }
+        }).session(session);
+        const totalRemainingDebt = remainingDebtOrders.reduce((sum, o) => sum + (o.debtAmount || 0), 0);
+        dbCust.debt = Math.max(0, Math.round(totalRemainingDebt * 100) / 100);
+        if (dbCust.debt < 0.5) {
+          dbCust.debt = 0;
+        }
+        await dbCust.save({ session });
+      }
+
+      return { updatedOrders, change: remainingPayment };
+    });
+
+    res.json({ message: 'Payment recorded successfully', updatedOrders: result.updatedOrders, change: result.change });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to record payment', error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message || 'Failed to record payment', error: error.message });
   }
 });
 

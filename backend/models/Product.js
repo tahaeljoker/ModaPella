@@ -83,4 +83,198 @@ ProductSchema.methods.adjustInventory = async function (quantity) {
   return this.save();
 };
 
+/**
+ * Atomically deducts stock from a product and its specific variant using MongoDB positional $inc.
+ * Guarantees zero negative stock and prevents concurrent race conditions without read-modify-write.
+ */
+ProductSchema.statics.atomicDeductStock = async function ({
+  productId,
+  variantId,
+  size,
+  color,
+  quantity,
+  session = null
+}) {
+  const qty = Number(quantity || 0);
+  if (qty <= 0) {
+    throw new Error('كمية الخصم يجب أن تكون أكبر من صفر');
+  }
+
+  const productDoc = await this.findById(productId).session(session);
+  if (!productDoc) {
+    throw new Error(`المنتج غير موجود في قاعدة البيانات`);
+  }
+
+  const hasVariants = Array.isArray(productDoc.variants) && productDoc.variants.length > 0;
+  let targetVariant = null;
+
+  if (hasVariants) {
+    if (variantId) {
+      targetVariant = productDoc.variants.id(variantId);
+    }
+    if (!targetVariant && size && color) {
+      targetVariant = productDoc.variants.find(v => v.size === size && v.color === color);
+    }
+    if (!targetVariant && size) {
+      targetVariant = productDoc.variants.find(v => v.size === size);
+    }
+  }
+
+  let updatedProduct = null;
+  let prevStock = 0;
+  let newStock = 0;
+
+  if (hasVariants && targetVariant) {
+    prevStock = targetVariant.stock || 0;
+    const filter = {
+      _id: productId,
+      variants: {
+        $elemMatch: {
+          _id: targetVariant._id,
+          stock: { $gte: qty }
+        }
+      }
+    };
+    const update = {
+      $inc: {
+        'variants.$.stock': -qty,
+        stock: -qty,
+        sold: qty
+      }
+    };
+
+    updatedProduct = await this.findOneAndUpdate(filter, update, {
+      new: true,
+      session
+    });
+
+    if (!updatedProduct) {
+      throw new Error(`الكمية المطلوبة (${qty}) غير متوفرة حالياً في المخزون للمنتج "${productDoc.name}" مقاس (${targetVariant.size || '-'}) لون (${targetVariant.color || '-'}) - تم بيع آخر قطعة أو الكمية غير كافية`);
+    }
+
+    const updatedVariant = updatedProduct.variants.id(targetVariant._id);
+    newStock = updatedVariant ? updatedVariant.stock : 0;
+    targetVariant = updatedVariant;
+  } else {
+    prevStock = productDoc.stock || 0;
+    const filter = {
+      _id: productId,
+      stock: { $gte: qty }
+    };
+    const update = {
+      $inc: {
+        stock: -qty,
+        sold: qty
+      }
+    };
+
+    updatedProduct = await this.findOneAndUpdate(filter, update, {
+      new: true,
+      session
+    });
+
+    if (!updatedProduct) {
+      throw new Error(`الكمية المطلوبة (${qty}) غير متوفرة حالياً في المخزون للمنتج "${productDoc.name}" - تم بيع آخر قطعة أو الكمية غير كافية`);
+    }
+
+    newStock = updatedProduct.stock;
+  }
+
+  return {
+    product: updatedProduct,
+    variant: targetVariant,
+    prevStock,
+    newStock
+  };
+};
+
+/**
+ * Atomically restores stock to a product and its specific variant using MongoDB positional $inc.
+ * Properly restores archived/inactive products without failing.
+ */
+ProductSchema.statics.atomicRestoreStock = async function ({
+  productId,
+  variantId,
+  size,
+  color,
+  quantity,
+  session = null
+}) {
+  const qty = Number(quantity || 0);
+  if (qty <= 0) {
+    return { product: null, variant: null, prevStock: 0, newStock: 0 };
+  }
+
+  const productDoc = await this.findById(productId).session(session);
+  if (!productDoc) {
+    return { product: null, variant: null, prevStock: 0, newStock: 0 };
+  }
+
+  const hasVariants = Array.isArray(productDoc.variants) && productDoc.variants.length > 0;
+  let targetVariant = null;
+
+  if (hasVariants) {
+    if (variantId) {
+      targetVariant = productDoc.variants.id(variantId);
+    }
+    if (!targetVariant && size && color) {
+      targetVariant = productDoc.variants.find(v => v.size === size && v.color === color);
+    }
+    if (!targetVariant && size) {
+      targetVariant = productDoc.variants.find(v => v.size === size);
+    }
+  }
+
+  let updatedProduct = null;
+  let prevStock = 0;
+  let newStock = 0;
+
+  if (hasVariants && targetVariant) {
+    prevStock = targetVariant.stock || 0;
+    const filter = {
+      _id: productId,
+      'variants._id': targetVariant._id
+    };
+    const update = {
+      $inc: {
+        'variants.$.stock': qty,
+        stock: qty,
+        sold: -qty
+      }
+    };
+
+    updatedProduct = await this.findOneAndUpdate(filter, update, {
+      new: true,
+      session
+    });
+
+    const updatedVariant = updatedProduct?.variants?.id(targetVariant._id);
+    newStock = updatedVariant ? updatedVariant.stock : (prevStock + qty);
+    targetVariant = updatedVariant;
+  } else {
+    prevStock = productDoc.stock || 0;
+    const filter = { _id: productId };
+    const update = {
+      $inc: {
+        stock: qty,
+        sold: -qty
+      }
+    };
+
+    updatedProduct = await this.findOneAndUpdate(filter, update, {
+      new: true,
+      session
+    });
+
+    newStock = updatedProduct ? updatedProduct.stock : (prevStock + qty);
+  }
+
+  return {
+    product: updatedProduct,
+    variant: targetVariant,
+    prevStock,
+    newStock
+  };
+};
+
 module.exports = mongoose.model('Product', ProductSchema);

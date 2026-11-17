@@ -7,6 +7,7 @@ const Shift = require('../models/Shift');
 const StockHistory = require('../models/StockHistory');
 const Customer = require('../models/Customer');
 const { getNextInvoiceNumber } = require('../models/Counter');
+const { runInTransaction } = require('../config/db');
 
 const router = express.Router();
 
@@ -27,47 +28,9 @@ router.post('/sell', auth, async (req, res) => {
       amountPaid = 0 
     } = req.body;
 
-    const productLookups = await Promise.all(items.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) {
-        throw new Error(`Product ${item.name || item.product} not found`);
-      }
-
-      let availableStock = product.stock ?? 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) availableStock = variant.stock ?? 0;
-      }
-
-      if ((availableStock || 0) < Number(item.quantity || 0)) {
-        throw new Error(`الكمية غير متوفرة للمنتج ${product.name}`);
-      }
-
-      const costPrice = product ? (product.costPrice || 0) : 0;
-      return {
-        item,
-        product,
-        variant,
-        costPrice
-      };
-    }));
-
-    const orderItems = productLookups.map(({ item, product, variant, costPrice }) => ({
-      product: item.product,
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      price: item.price,
-      originalPrice: item.originalPrice || product?.price || item.price,
-      size: item.size || '',
-      color: item.color || '',
-      costPrice,
-      variantId: variant?._id || null
-    }));
-
-    const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const totalAmount = Math.max(0, rawTotal - Number(discount));
+    if (!items || items.length === 0) {
+      return res.status(400).json({ message: 'لا توجد منتجات في الفاتورة' });
+    }
 
     let employeeName = '';
     if (employeeId) {
@@ -76,116 +39,151 @@ router.post('/sell', auth, async (req, res) => {
       if (empDb) employeeName = empDb.name;
     }
 
+    const rawTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
+    const totalAmount = Math.max(0, rawTotal - Number(discount));
     const finalAmountPaid = isDebt ? Math.min(totalAmount, Math.max(0, Number(amountPaid))) : totalAmount;
     const debtAmount = isDebt ? Math.max(0, totalAmount - finalAmountPaid) : 0;
 
-        let dbCustomer = null;
-    const cleanPhone = (customerPhone || '').trim();
-    const cleanName = (customerName || '').trim();
+    const result = await runInTransaction(async (session) => {
+      // 1. Customer check/creation/update
+      let dbCustomer = null;
+      const cleanPhone = (customerPhone || '').trim();
+      const cleanName = (customerName || '').trim();
 
-    if (cleanPhone || cleanName) {
-      if (cleanPhone) {
-        dbCustomer = await Customer.findOne({ phone: cleanPhone });
-      } else if (cleanName) {
-        dbCustomer = await Customer.findOne({ name: cleanName });
+      if (cleanPhone || cleanName) {
+        if (cleanPhone) {
+          dbCustomer = await Customer.findOne({ phone: cleanPhone }).session(session);
+        } else if (cleanName) {
+          dbCustomer = await Customer.findOne({ name: cleanName }).session(session);
+        }
+
+        if (!dbCustomer) {
+          dbCustomer = new Customer({
+            name: cleanName || 'عميل غير معروف',
+            phone: cleanPhone || 'بدون هاتف',
+            points: 0,
+            debt: 0
+          });
+        } else if (cleanName) {
+          dbCustomer.name = cleanName;
+        }
+
+        dbCustomer.points += Math.floor(totalAmount / 100);
+        if (isDebt && debtAmount > 0) {
+          dbCustomer.debt = Math.max(0, (dbCustomer.debt || 0) + debtAmount);
+        }
+        await dbCustomer.save({ session });
       }
 
-      if (!dbCustomer) {
-        dbCustomer = new Customer({
-          name: cleanName || 'عميل غير معروف',
-          phone: cleanPhone || 'بدون هاتف',
-          points: 0,
-          debt: 0
+      // 2. Generate permanent invoice number
+      const invoiceNumber = await getNextInvoiceNumber();
+
+      // 3. Atomically deduct stock for each item & prepare order items
+      const orderItems = [];
+      const stockHistories = [];
+      const updatedProducts = [];
+
+      for (const item of items) {
+        const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+        const deductionResult = await Product.atomicDeductStock({
+          productId: item.product,
+          variantId: item.variantId,
+          size: item.size,
+          color: item.color,
+          quantity: qty,
+          session
         });
-      } else if (cleanName) {
-        dbCustomer.name = cleanName;
+
+        const prod = deductionResult.product;
+        const matchedVariant = deductionResult.variant;
+        updatedProducts.push(prod);
+
+        orderItems.push({
+          product: prod._id,
+          name: item.name || prod.name,
+          category: item.category || prod.category,
+          quantity: qty,
+          price: Number(item.price),
+          originalPrice: item.originalPrice || prod.price || item.price,
+          size: item.size || '',
+          color: item.color || '',
+          costPrice: prod.costPrice || 0,
+          variantId: matchedVariant?._id || null
+        });
+
+        stockHistories.push({
+          product: prod._id,
+          productName: prod.name,
+          size: item.size || '',
+          color: item.color || '',
+          variantKey: matchedVariant ? `${matchedVariant.size}_${matchedVariant.color}` : '',
+          changeType: 'POS Sale',
+          quantityChanged: -qty,
+          previousStock: deductionResult.prevStock,
+          newStock: deductionResult.newStock,
+          performedBy: req.user.id,
+          notes: `مبيعات فاتورة ${invoiceNumber}`
+        });
       }
 
-      dbCustomer.points += Math.floor(totalAmount / 100);
-      if (isDebt && debtAmount > 0) {
-        dbCustomer.debt = Math.max(0, (dbCustomer.debt || 0) + debtAmount);
+      // 4. Create and save Order
+      const order = new Order({
+        invoiceNumber,
+        customer: dbCustomer ? dbCustomer._id : (customerId || null),
+        customerName: customerName || '',
+        customerPhone: customerPhone || '',
+        seller: sellerId || req.user.id,
+        employee: employeeId || null,
+        employeeName: employeeName,
+        items: orderItems,
+        totalAmount,
+        discount: Number(discount),
+        showDiscountInInvoice: req.body.showDiscountInInvoice !== false,
+        type,
+        status: 'Completed',
+        paymentMethod,
+        notes: notes || '',
+        isDebt,
+        amountPaid: finalAmountPaid,
+        debtAmount: debtAmount
+      });
+      await order.save({ session });
+
+      // Link order._id in stock histories and save
+      for (const shData of stockHistories) {
+        shData.referenceId = order._id;
+        const history = new StockHistory(shData);
+        await history.save({ session });
       }
-      await dbCustomer.save();
-    }
 
-    const invoiceNumber = await getNextInvoiceNumber();
+      // 5. Create Safe Transaction if money collected
+      if (finalAmountPaid > 0) {
+        let openShift = await Shift.findOne({ user: sellerId || req.user.id, status: 'open' }).session(session);
+        if (!openShift) {
+          openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 }).session(session);
+        }
+        const transaction = new Transaction({
+          amount: finalAmountPaid,
+          type: 'IN',
+          category: 'Sale',
+          paymentMethod: order.paymentMethod,
+          description: `مبيعات طلب ${invoiceNumber}${isDebt ? ' (دفع جزئي - آجل)' : ''}`,
+          referenceId: order._id,
+          user: sellerId || req.user.id,
+          shift: openShift?._id
+        });
+        await transaction.save({ session });
+      }
 
-    const order = new Order({
-      invoiceNumber,
-      customer: dbCustomer ? dbCustomer._id : (customerId || null),
-      customerName: customerName || '',
-      customerPhone: customerPhone || '',
-      seller: sellerId || req.user.id,
-      employee: employeeId || null,
-      employeeName: employeeName,
-      items: orderItems,
-      totalAmount,
-      discount: Number(discount),
-      showDiscountInInvoice: req.body.showDiscountInInvoice !== false,
-      type,
-      status: 'Completed',
-      paymentMethod,
-      notes: notes || '',
-      isDebt,
-      amountPaid: finalAmountPaid,
-      debtAmount: debtAmount
+      return { order, updatedProducts };
     });
-    await order.save();
 
-    const displayInvoice = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
+    // Broadcast inventory updates after commit
+    result.updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
 
-    await Promise.all(productLookups.map(async ({ item, product, variant }) => {
-      const prevStock = variant ? variant.stock : product.stock;
-      if (variant) {
-        variant.stock = Math.max(0, variant.stock - item.quantity);
-      } else {
-        product.stock = Math.max(0, product.stock - item.quantity);
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold += item.quantity;
-      await product.save();
-
-      // Log stock history
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'POS Sale',
-        quantityChanged: -item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        referenceId: order._id,
-        notes: `مبيعات فاتورة ${displayInvoice}`
-      });
-      await history.save();
-
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    if (finalAmountPaid > 0) {
-      let openShift = await Shift.findOne({ user: sellerId || req.user.id, status: 'open' });
-      if (!openShift) {
-        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-      }
-      const transaction = new Transaction({
-        amount: finalAmountPaid,
-        type: 'IN',
-        category: 'Sale',
-        paymentMethod: order.paymentMethod,
-        description: `مبيعات طلب ${displayInvoice}${isDebt ? ' (دفع جزئي - آجل)' : ''}`,
-        referenceId: order._id,
-        user: sellerId || req.user.id,
-        shift: openShift?._id
-      });
-      await transaction.save();
-    }
-
-    res.status(201).json({ order, message: 'Sale completed' });
+    res.status(201).json({ order: result.order, message: 'Sale completed' });
   } catch (error) {
     res.status(400).json({ message: 'Sale failed', error: error.message });
   }
@@ -207,39 +205,231 @@ router.get('/orders', auth, async (req, res) => {
 router.post('/recover', auth, async (req, res) => {
   try {
     const { orderId, reason, returnItems, refundPaymentMethod } = req.body;
-    const order = await Order.findById(orderId);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.recovered) return res.status(400).json({ message: 'Order already recovered' });
 
-    let itemsToReturn = [];
-    const isFullReturn = !returnItems || returnItems.length === 0;
+    const result = await runInTransaction(async (session) => {
+      const order = await Order.findById(orderId).session(session);
+      if (!order) {
+        const notFoundErr = new Error('Order not found');
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
+      }
+      if (order.recovered) {
+        throw new Error('Order already recovered');
+      }
 
-    if (isFullReturn) {
-      // Return all remaining quantities for all items
-      order.items.forEach(item => {
-        const remainingQty = item.quantity - (item.returnedQuantity || 0);
-        if (remainingQty > 0) {
+      let itemsToReturn = [];
+      const isFullReturn = !returnItems || returnItems.length === 0;
+
+      if (isFullReturn) {
+        order.items.forEach(item => {
+          const remainingQty = item.quantity - (item.returnedQuantity || 0);
+          if (remainingQty > 0) {
+            itemsToReturn.push({
+              itemId: item._id,
+              product: item.product,
+              name: item.name,
+              size: item.size,
+              color: item.color,
+              quantity: remainingQty,
+              price: item.price
+            });
+            item.returnedQuantity = item.quantity;
+          }
+        });
+      } else {
+        for (const ri of returnItems) {
+          const item = order.items.id(ri.itemId);
+          if (!item) {
+            throw new Error(`صنف الفاتورة #${ri.itemId} غير موجود`);
+          }
+          const remainingQty = item.quantity - (item.returnedQuantity || 0);
+          if (ri.quantity > remainingQty) {
+            throw new Error(`الكمية المرتجعة للـ ${item.name} (${ri.quantity}) أكبر من الكمية المتاحة للإرجاع (${remainingQty})`);
+          }
+          item.returnedQuantity = (item.returnedQuantity || 0) + ri.quantity;
           itemsToReturn.push({
+            itemId: item._id,
             product: item.product,
             name: item.name,
             size: item.size,
             color: item.color,
-            quantity: remainingQty,
+            quantity: ri.quantity,
             price: item.price
           });
-          item.returnedQuantity = item.quantity;
         }
-      });
-    } else {
-      // Validate and return specified quantities
+      }
+
+      if (itemsToReturn.length === 0) {
+        throw new Error('لا توجد قطع متبقية للإرجاع في هذا الطلب');
+      }
+
+      const fullyRecovered = order.items.every(item => (item.returnedQuantity || 0) === item.quantity);
+      if (fullyRecovered) {
+        order.status = 'Returned';
+        order.recovered = true;
+      }
+
+      const displayInvoice = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
+      const updatedProducts = [];
+
+      // Revert inventory stocks atomically
+      for (const item of itemsToReturn) {
+        const restoreRes = await Product.atomicRestoreStock({
+          productId: item.product,
+          size: item.size,
+          color: item.color,
+          quantity: item.quantity,
+          session
+        });
+
+        if (restoreRes.product) {
+          updatedProducts.push(restoreRes.product);
+          const history = new StockHistory({
+            product: restoreRes.product._id,
+            productName: restoreRes.product.name,
+            size: item.size || '',
+            color: item.color || '',
+            variantKey: restoreRes.variant ? `${restoreRes.variant.size}_${restoreRes.variant.color}` : '',
+            changeType: 'Refund',
+            quantityChanged: item.quantity,
+            previousStock: restoreRes.prevStock,
+            newStock: restoreRes.newStock,
+            performedBy: req.user.id,
+            referenceId: order._id,
+            notes: `مرتجع فاتورة ${displayInvoice} - السبب: ${reason || 'غير محدد'}`
+          });
+          await history.save({ session });
+        }
+      }
+
+      // Calculate refund amount proportionally
+      const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+      const originalOrderTotal = (order.totalAmount || 0) + (order.discount || 0);
+      const refundTotal = (originalOrderTotal > 0 && (order.discount || 0) > 0)
+        ? Math.round((returnedItemsValue * (order.totalAmount / originalOrderTotal)) * 100) / 100
+        : returnedItemsValue;
+
+      let debtReduction = 0;
+      let cashRefundAmount = 0;
+
+      if (order.isDebt && (order.debtAmount || 0) > 0) {
+        debtReduction = Math.min(refundTotal, order.debtAmount);
+        debtReduction = Math.round(debtReduction * 100) / 100;
+
+        order.debtAmount = Math.max(0, Math.round((order.debtAmount - debtReduction) * 100) / 100);
+        if (order.debtAmount < 0.5) {
+          order.debtAmount = 0;
+          order.isDebt = false;
+        }
+
+        if (order.customer) {
+          const customer = await Customer.findById(order.customer).session(session);
+          if (customer) {
+            customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
+            if (customer.debt < 0.5) {
+              customer.debt = 0;
+            }
+            await customer.save({ session });
+          }
+        }
+
+        const remainingAfterDebt = Math.max(0, Math.round((refundTotal - debtReduction) * 100) / 100);
+        const maxCashRefundable = Math.max(0, (order.amountPaid || 0) - (order.returnedAmount || 0));
+        cashRefundAmount = Math.min(remainingAfterDebt, maxCashRefundable);
+        cashRefundAmount = Math.round(cashRefundAmount * 100) / 100;
+      } else {
+        const maxCashRefundable = Math.max(0, (order.amountPaid || order.totalAmount) - (order.returnedAmount || 0));
+        cashRefundAmount = Math.min(refundTotal, maxCashRefundable);
+        cashRefundAmount = Math.round(cashRefundAmount * 100) / 100;
+      }
+
+      order.returnedAmount = Math.round(((order.returnedAmount || 0) + cashRefundAmount) * 100) / 100;
+      await order.save({ session });
+
+      const effectivePaymentMethod = refundPaymentMethod || order.paymentMethod || 'Cash';
+      if (cashRefundAmount > 0) {
+        let openShift = await Shift.findOne({ user: req.user.id, status: 'open' }).session(session);
+        if (!openShift) {
+          openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 }).session(session);
+        }
+        const transaction = new Transaction({
+          amount: cashRefundAmount,
+          type: 'OUT',
+          category: 'Refund',
+          paymentMethod: effectivePaymentMethod,
+          description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب ${displayInvoice} - السبب: ${reason || 'غير محدد'} (${effectivePaymentMethod === 'Cash' ? 'كاش' : 'إنستاباي'})`,
+          referenceId: order._id,
+          user: req.user.id,
+          shift: openShift?._id
+        });
+        await transaction.save({ session });
+      }
+
+      return {
+        order,
+        refundAmount: cashRefundAmount,
+        debtReduction,
+        returnedItems: itemsToReturn,
+        fullyRecovered,
+        updatedProducts
+      };
+    });
+
+    result.updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
+
+    res.json({
+      order: result.order,
+      refundAmount: result.refundAmount,
+      debtReduction: result.debtReduction,
+      returnedItems: result.returnedItems,
+      message: result.fullyRecovered ? 'Full return processed' : 'Partial return processed'
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || (error.message === 'Order not found' ? 404 : 400);
+    res.status(statusCode).json({ message: error.message || 'Recovery failed', error: error.message });
+  }
+});
+
+// POST /api/pos/exchange — Process a direct exchange (Return + New Sale in one seamless transaction)
+router.post('/exchange', auth, async (req, res) => {
+  try {
+    const { originalOrderId, returnItems, newItems, discount = 0, paymentMethod = 'Cash', reason = '', notes = '', employeeId } = req.body;
+
+    if (!returnItems || returnItems.length === 0) {
+      return res.status(400).json({ message: 'يجب اختيار صنف واحد على الأقل لإرجاعه في الاستبدال' });
+    }
+    if (!newItems || newItems.length === 0) {
+      return res.status(400).json({ message: 'يجب اختيار صنف جديد واحد على الأقل للشراء في الاستبدال' });
+    }
+
+    let employeeName = '';
+    if (employeeId) {
+      const Employee = require('../models/Employee');
+      const empDb = await Employee.findById(employeeId);
+      if (empDb) employeeName = empDb.name;
+    }
+
+    const result = await runInTransaction(async (session) => {
+      const originalOrder = await Order.findById(originalOrderId).session(session);
+      if (!originalOrder) {
+        const notFoundErr = new Error('الفاتورة الأصلية غير موجودة');
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
+      }
+      if (originalOrder.recovered) {
+        throw new Error('الفاتورة تم استردادها بالكامل مسبقاً');
+      }
+
+      // 1. Validate and process returned items
+      const itemsToReturn = [];
       for (const ri of returnItems) {
-        const item = order.items.id(ri.itemId);
-        if (!item) {
-          return res.status(400).json({ message: `صنف الفاتورة #${ri.itemId} غير موجود` });
-        }
+        const item = originalOrder.items.id(ri.itemId);
+        if (!item) throw new Error(`صنف الفاتورة #${ri.itemId} غير موجود`);
         const remainingQty = item.quantity - (item.returnedQuantity || 0);
         if (ri.quantity > remainingQty) {
-          return res.status(400).json({ message: `الكمية المرتجعة للـ ${item.name} (${ri.quantity}) أكبر من الكمية المتاحة للإرجاع (${remainingQty})` });
+          throw new Error(`الكمية المرتجعة للـ ${item.name} أكبر من المتاحة (${remainingQty})`);
         }
         item.returnedQuantity = (item.returnedQuantity || 0) + ri.quantity;
         itemsToReturn.push({
@@ -251,407 +441,218 @@ router.post('/recover', auth, async (req, res) => {
           price: item.price
         });
       }
-    }
 
-    if (itemsToReturn.length === 0) {
-      return res.status(400).json({ message: 'لا توجد قطع متبقية للإرجاع في هذا الطلب' });
-    }
+      const fullyRecovered = originalOrder.items.every(item => (item.returnedQuantity || 0) === item.quantity);
+      if (fullyRecovered) {
+        originalOrder.status = 'Returned';
+        originalOrder.recovered = true;
+      }
 
-    // Check if order is fully recovered now
-    const fullyRecovered = order.items.every(item => (item.returnedQuantity || 0) === item.quantity);
-    if (fullyRecovered) {
-      order.status = 'Returned';
-      order.recovered = true;
-    }
+      const origDisplayInvoice = originalOrder.invoiceNumber || `#${originalOrder._id.toString().slice(-6).toUpperCase()}`;
+      const updatedProducts = [];
 
-    const displayInvoice = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
+      // 2. Restock returned items atomically
+      for (const item of itemsToReturn) {
+        const restoreRes = await Product.atomicRestoreStock({
+          productId: item.product,
+          size: item.size,
+          color: item.color,
+          quantity: item.quantity,
+          session
+        });
 
-    // Revert inventory stocks
-    await Promise.all(itemsToReturn.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) return;
-      let prevStock = 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) {
-          prevStock = variant.stock;
-          variant.stock += item.quantity;
+        if (restoreRes.product) {
+          updatedProducts.push(restoreRes.product);
+          const history = new StockHistory({
+            product: restoreRes.product._id,
+            productName: restoreRes.product.name,
+            size: item.size || '',
+            color: item.color || '',
+            variantKey: restoreRes.variant ? `${restoreRes.variant.size}_${restoreRes.variant.color}` : '',
+            changeType: 'Refund',
+            quantityChanged: item.quantity,
+            previousStock: restoreRes.prevStock,
+            newStock: restoreRes.newStock,
+            performedBy: req.user.id,
+            referenceId: originalOrder._id,
+            notes: `مرتجع استبدال فاتورة ${origDisplayInvoice} - السبب: ${reason || 'استبدال'}`
+          });
+          await history.save({ session });
         }
-      } else {
-        prevStock = product.stock;
-        product.stock += item.quantity;
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold = Math.max(0, product.sold - item.quantity);
-      await product.save();
-
-      // Log stock history
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'Refund',
-        quantityChanged: item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        referenceId: order._id,
-        notes: `مرتجع فاتورة ${displayInvoice} - السبب: ${reason || 'غير محدد'}`
-      });
-      await history.save();
-
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    // Calculate refund amount proportionally
-    const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-    const originalOrderTotal = (order.totalAmount || 0) + (order.discount || 0);
-    const refundTotal = (originalOrderTotal > 0 && (order.discount || 0) > 0)
-      ? Math.round((returnedItemsValue * (order.totalAmount / originalOrderTotal)) * 100) / 100
-      : returnedItemsValue;
-
-    let debtReduction = 0;
-    let cashRefundAmount = 0;
-
-    if (order.isDebt && (order.debtAmount || 0) > 0) {
-      // Apply refund to outstanding debt FIRST
-      debtReduction = Math.min(refundTotal, order.debtAmount);
-      debtReduction = Math.round(debtReduction * 100) / 100;
-
-      order.debtAmount = Math.max(0, Math.round((order.debtAmount - debtReduction) * 100) / 100);
-      if (order.debtAmount < 0.5) {
-        order.debtAmount = 0;
-        order.isDebt = false;
       }
 
-      if (order.customer) {
-        const customer = await Customer.findById(order.customer);
-        if (customer) {
-          customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
-          if (customer.debt < 0.5) {
-            customer.debt = 0;
+      // 3. Atomically deduct stock for new sale items
+      const newOrderItems = [];
+      const newStockHistories = [];
+
+      for (const item of newItems) {
+        const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+        const deductionResult = await Product.atomicDeductStock({
+          productId: item.product,
+          variantId: item.variantId,
+          size: item.size,
+          color: item.color,
+          quantity: qty,
+          session
+        });
+
+        const prod = deductionResult.product;
+        const matchedVariant = deductionResult.variant;
+        updatedProducts.push(prod);
+
+        newOrderItems.push({
+          product: prod._id,
+          name: item.name || prod.name,
+          category: item.category || prod.category,
+          quantity: qty,
+          price: Number(item.price),
+          size: item.size || '',
+          color: item.color || '',
+          costPrice: prod.costPrice || 0,
+          variantId: matchedVariant?._id || null
+        });
+
+        newStockHistories.push({
+          product: prod._id,
+          productName: prod.name,
+          size: item.size || '',
+          color: item.color || '',
+          variantKey: matchedVariant ? `${matchedVariant.size}_${matchedVariant.color}` : '',
+          changeType: 'POS Sale',
+          quantityChanged: -qty,
+          previousStock: deductionResult.prevStock,
+          newStock: deductionResult.newStock,
+          performedBy: req.user.id
+        });
+      }
+
+      // 4. Calculate accounting totals
+      const returnedValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
+      const originalOrderTotal = (originalOrder.totalAmount || 0) + (originalOrder.discount || 0);
+      const returnedItemsProportionalValue = (originalOrderTotal > 0 && (originalOrder.discount || 0) > 0)
+        ? Math.round((returnedValue * (originalOrder.totalAmount / originalOrderTotal)) * 100) / 100
+        : returnedValue;
+
+      let debtReduction = 0;
+      let returnCreditValue = 0;
+
+      if (originalOrder.isDebt && (originalOrder.debtAmount || 0) > 0) {
+        debtReduction = Math.min(returnedItemsProportionalValue, originalOrder.debtAmount);
+        debtReduction = Math.round(debtReduction * 100) / 100;
+        originalOrder.debtAmount = Math.max(0, Math.round((originalOrder.debtAmount - debtReduction) * 100) / 100);
+        if (originalOrder.debtAmount < 0.5) {
+          originalOrder.debtAmount = 0;
+          originalOrder.isDebt = false;
+        }
+
+        if (originalOrder.customer) {
+          const customer = await Customer.findById(originalOrder.customer).session(session);
+          if (customer) {
+            customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
+            if (customer.debt < 0.5) {
+              customer.debt = 0;
+            }
+            await customer.save({ session });
           }
-          await customer.save();
         }
+
+        returnCreditValue = Math.max(0, Math.round((returnedItemsProportionalValue - debtReduction) * 100) / 100);
+      } else {
+        returnCreditValue = returnedItemsProportionalValue;
       }
 
-      // Only refund cash if returned value exceeds remaining debt, capped at actual cash collected minus prior returns
-      const remainingAfterDebt = Math.max(0, Math.round((refundTotal - debtReduction) * 100) / 100);
-      const maxCashRefundable = Math.max(0, (order.amountPaid || 0) - (order.returnedAmount || 0));
-      cashRefundAmount = Math.min(remainingAfterDebt, maxCashRefundable);
-      cashRefundAmount = Math.round(cashRefundAmount * 100) / 100;
-    } else {
-      const maxCashRefundable = Math.max(0, (order.amountPaid || order.totalAmount) - (order.returnedAmount || 0));
-      cashRefundAmount = Math.min(refundTotal, maxCashRefundable);
-      cashRefundAmount = Math.round(cashRefundAmount * 100) / 100;
-    }
+      const rawNewTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const newTotalAmount = Math.max(0, rawNewTotal - Number(discount));
+      const netDifference = newTotalAmount - returnCreditValue;
 
-    order.returnedAmount = Math.round(((order.returnedAmount || 0) + cashRefundAmount) * 100) / 100;
-    await order.save();
+      const invoiceNumber = await getNextInvoiceNumber();
 
-    // Determine refund payment method (defaulting to the original order's payment method)
-    const effectivePaymentMethod = refundPaymentMethod || order.paymentMethod || 'Cash';
-    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-    if (!openShift) {
-      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-    }
-
-    // Log the refund transaction ONLY if cash was actually refunded out of drawer
-    if (cashRefundAmount > 0) {
-      const transaction = new Transaction({
-        amount: cashRefundAmount,
-        type: 'OUT',
-        category: 'Refund',
-        paymentMethod: effectivePaymentMethod,
-        description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب ${displayInvoice} - السبب: ${reason || 'غير محدد'} (${effectivePaymentMethod === 'Cash' ? 'كاش' : 'إنستاباي'})`,
-        referenceId: order._id,
-        user: req.user.id,
-        shift: openShift?._id
+      const newOrder = new Order({
+        invoiceNumber,
+        customer: originalOrder.customer || null,
+        customerName: originalOrder.customerName || '',
+        customerPhone: originalOrder.customerPhone || '',
+        seller: req.user.id,
+        employee: employeeId || null,
+        employeeName: employeeName,
+        items: newOrderItems,
+        totalAmount: newTotalAmount,
+        discount: Number(discount),
+        type: 'Offline',
+        status: 'Completed',
+        paymentMethod,
+        notes: `استبدال مباشر عن الفاتورة ${origDisplayInvoice} ${notes ? `(${notes})` : ''}`
       });
-      await transaction.save();
-    }
+
+      originalOrder.returnedAmount = Math.round(((originalOrder.returnedAmount || 0) + returnCreditValue) * 100) / 100;
+      await originalOrder.save({ session });
+      await newOrder.save({ session });
+
+      const newCode = newOrder.invoiceNumber;
+      for (const sh of newStockHistories) {
+        sh.referenceId = newOrder._id;
+        sh.notes = `مبيعات استبدال فاتورة جديدة ${newCode} (عن الفاتورة ${origDisplayInvoice})`;
+        const history = new StockHistory(sh);
+        await history.save({ session });
+      }
+
+      let openShift = await Shift.findOne({ user: req.user.id, status: 'open' }).session(session);
+      if (!openShift) {
+        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 }).session(session);
+      }
+
+      if (returnCreditValue > 0) {
+        const refundTx = new Transaction({
+          amount: returnCreditValue,
+          type: 'OUT',
+          category: 'Refund',
+          paymentMethod,
+          description: `مرتجع استبدال عن الفاتورة ${origDisplayInvoice} (استبدلت بطلب ${newCode})`,
+          referenceId: originalOrder._id,
+          user: req.user.id,
+          shift: openShift?._id
+        });
+        await refundTx.save({ session });
+      }
+
+      if (newTotalAmount > 0) {
+        const saleTx = new Transaction({
+          amount: newTotalAmount,
+          type: 'IN',
+          category: 'Sale',
+          paymentMethod,
+          description: `مبيعات استبدال فاتورة جديدة ${newCode} (عن الفاتورة ${origDisplayInvoice})`,
+          referenceId: newOrder._id,
+          user: req.user.id,
+          shift: openShift?._id
+        });
+        await saleTx.save({ session });
+      }
+
+      return {
+        newOrder,
+        returnCreditValue,
+        newTotalAmount,
+        netDifference,
+        updatedProducts
+      };
+    });
+
+    result.updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
 
     res.json({
-      order,
-      refundAmount: cashRefundAmount,
-      debtReduction,
-      returnedItems: itemsToReturn,
-      message: fullyRecovered ? 'Full return processed' : 'Partial return processed'
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Recovery failed', error: error.message });
-  }
-});
-
-// POST /api/pos/exchange — Process a direct exchange (Return + New Sale in one seamless transaction)
-router.post('/exchange', auth, async (req, res) => {
-  try {
-    const { originalOrderId, returnItems, newItems, discount = 0, paymentMethod = 'Cash', reason = '', notes = '', employeeId } = req.body;
-
-    const originalOrder = await Order.findById(originalOrderId);
-    if (!originalOrder) return res.status(404).json({ message: 'الفاتورة الأصلية غير موجودة' });
-    if (originalOrder.recovered) return res.status(400).json({ message: 'الفاتورة تم استردادها بالكامل مسبقاً' });
-
-    if (!returnItems || returnItems.length === 0) {
-      return res.status(400).json({ message: 'يجب اختيار صنف واحد على الأقل لإرجاعه في الاستبدال' });
-    }
-    if (!newItems || newItems.length === 0) {
-      return res.status(400).json({ message: 'يجب اختيار صنف جديد واحد على الأقل للشراء في الاستبدال' });
-    }
-
-    // 1. Validate and process returned items
-    const itemsToReturn = [];
-    for (const ri of returnItems) {
-      const item = originalOrder.items.id(ri.itemId);
-      if (!item) return res.status(400).json({ message: `صنف الفاتورة #${ri.itemId} غير موجود` });
-      const remainingQty = item.quantity - (item.returnedQuantity || 0);
-      if (ri.quantity > remainingQty) {
-        return res.status(400).json({ message: `الكمية المرتجعة للـ ${item.name} أكبر من المتاحة (${remainingQty})` });
-      }
-      item.returnedQuantity = (item.returnedQuantity || 0) + ri.quantity;
-      itemsToReturn.push({
-        product: item.product,
-        name: item.name,
-        size: item.size,
-        color: item.color,
-        quantity: ri.quantity,
-        price: item.price
-      });
-    }
-
-    const fullyRecovered = originalOrder.items.every(item => (item.returnedQuantity || 0) === item.quantity);
-    if (fullyRecovered) {
-      originalOrder.status = 'Returned';
-      originalOrder.recovered = true;
-    }
-    await originalOrder.save();
-
-    const origDisplayInvoice = originalOrder.invoiceNumber || `#${originalOrder._id.toString().slice(-6).toUpperCase()}`;
-
-    // 2. Restock returned items
-    await Promise.all(itemsToReturn.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) return;
-      let prevStock = 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) {
-          prevStock = variant.stock;
-          variant.stock += item.quantity;
-        }
-      } else {
-        prevStock = product.stock;
-        product.stock += item.quantity;
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold = Math.max(0, product.sold - item.quantity);
-      await product.save();
-
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'Refund',
-        quantityChanged: item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        referenceId: originalOrder._id,
-        notes: `مرتجع استبدال فاتورة ${origDisplayInvoice} - السبب: ${reason || 'استبدال'}`
-      });
-      await history.save();
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    // 3. Validate and process new sale items stock
-    const productLookups = await Promise.all(newItems.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) throw new Error(`المنتج غير موجود: ${item.name || item.product}`);
-      let availableStock = product.stock ?? 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) availableStock = variant.stock ?? 0;
-      }
-      if ((availableStock || 0) < Number(item.quantity || 0)) {
-        throw new Error(`الكمية غير متوفرة للمنتج ${product.name}`);
-      }
-      return { item, product, variant, costPrice: product.costPrice || 0 };
-    }));
-
-    // Deduct stock for new items
-    await Promise.all(productLookups.map(async ({ item, product, variant }) => {
-      const prevStock = variant ? variant.stock : product.stock;
-      if (variant) {
-        variant.stock = Math.max(0, variant.stock - item.quantity);
-      } else {
-        product.stock = Math.max(0, product.stock - item.quantity);
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold += item.quantity;
-      await product.save();
-
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'POS Sale',
-        quantityChanged: -item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        notes: `مبيعات استبدال فاتورة ${origDisplayInvoice}`
-      });
-      await history.save();
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    // 4. Calculate accounting totals
-    const returnedValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-    const originalOrderTotal = (originalOrder.totalAmount || 0) + (originalOrder.discount || 0);
-    const returnedItemsProportionalValue = (originalOrderTotal > 0 && (originalOrder.discount || 0) > 0)
-      ? Math.round((returnedValue * (originalOrder.totalAmount / originalOrderTotal)) * 100) / 100
-      : returnedValue;
-
-    let debtReduction = 0;
-    let returnCreditValue = 0;
-
-    if (originalOrder.isDebt && (originalOrder.debtAmount || 0) > 0) {
-      // Reduce original order debt first
-      debtReduction = Math.min(returnedItemsProportionalValue, originalOrder.debtAmount);
-      debtReduction = Math.round(debtReduction * 100) / 100;
-      originalOrder.debtAmount = Math.max(0, Math.round((originalOrder.debtAmount - debtReduction) * 100) / 100);
-      if (originalOrder.debtAmount < 0.5) {
-        originalOrder.debtAmount = 0;
-        originalOrder.isDebt = false;
-      }
-
-      if (originalOrder.customer) {
-        const customer = await Customer.findById(originalOrder.customer);
-        if (customer) {
-          customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
-          if (customer.debt < 0.5) {
-            customer.debt = 0;
-          }
-          await customer.save();
-        }
-      }
-
-      // Any excess value beyond the debt becomes store credit towards the new order
-      returnCreditValue = Math.max(0, Math.round((returnedItemsProportionalValue - debtReduction) * 100) / 100);
-    } else {
-      returnCreditValue = returnedItemsProportionalValue;
-    }
-
-    const rawNewTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const newTotalAmount = Math.max(0, rawNewTotal - Number(discount));
-
-    const netDifference = newTotalAmount - returnCreditValue; // > 0 means customer pays, < 0 means store refunds
-
-    let employeeName = '';
-    if (employeeId) {
-      const Employee = require('../models/Employee');
-      const empDb = await Employee.findById(employeeId);
-      if (empDb) employeeName = empDb.name;
-    }
-
-    // Save the new Order
-    const newOrderItems = productLookups.map(({ item, variant, costPrice }) => ({
-      product: item.product,
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      price: item.price,
-      size: item.size || '',
-      color: item.color || '',
-      costPrice,
-      variantId: variant?._id || null
-    }));
-
-    const invoiceNumber = await getNextInvoiceNumber();
-
-    const newOrder = new Order({
-      invoiceNumber,
-      customer: originalOrder.customer || null,
-      customerName: originalOrder.customerName || '',
-      customerPhone: originalOrder.customerPhone || '',
-      seller: req.user.id,
-      employee: employeeId || null,
-      employeeName: employeeName,
-      items: newOrderItems,
-      totalAmount: newTotalAmount,
-      discount: Number(discount),
-      type: 'Offline',
-      status: 'Completed',
-      paymentMethod,
-      notes: `استبدال مباشر عن الفاتورة ${origDisplayInvoice} ${notes ? `(${notes})` : ''}`
-    });
-    // Update original order returnedAmount for accurate monthly sales and returns reports
-    originalOrder.returnedAmount = Math.round(((originalOrder.returnedAmount || 0) + returnCreditValue) * 100) / 100;
-    await originalOrder.save();
-
-    // 5. Handle Transaction accounting entry
-    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-    if (!openShift) {
-      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-    }
-    const origCode = origDisplayInvoice;
-    const newCode = newOrder.invoiceNumber || `#${newOrder._id.toString().slice(-6).toUpperCase()}`;
-
-    // Log the return portion so it appears in audit & statements
-    if (returnCreditValue > 0) {
-      const refundTx = new Transaction({
-        amount: returnCreditValue,
-        type: 'OUT',
-        category: 'Refund',
-        paymentMethod,
-        description: `مرتجع استبدال عن الفاتورة ${origCode} (استبدلت بطلب ${newCode})`,
-        referenceId: originalOrder._id,
-        user: req.user.id,
-        shift: openShift?._id
-      });
-      await refundTx.save();
-    }
-
-    // Log the new sale portion
-    if (newTotalAmount > 0) {
-      const saleTx = new Transaction({
-        amount: newTotalAmount,
-        type: 'IN',
-        category: 'Sale',
-        paymentMethod,
-        description: `مبيعات استبدال فاتورة جديدة ${newCode} (عن الفاتورة ${origCode})`,
-        referenceId: newOrder._id,
-        user: req.user.id,
-        shift: openShift?._id
-      });
-      await saleTx.save();
-    }
-
-    res.json({
-      newOrder,
-      returnCreditValue,
-      newTotalAmount,
-      netDifference,
+      newOrder: result.newOrder,
+      returnCreditValue: result.returnCreditValue,
+      newTotalAmount: result.newTotalAmount,
+      netDifference: result.netDifference,
       message: 'تم إتمام عملية الاستبدال بنجاح'
     });
   } catch (error) {
     console.error('Exchange failed:', error);
-    res.status(400).json({ message: 'فشلت عملية الاستبدال', error: error.message });
+    const statusCode = error.statusCode || 400;
+    res.status(statusCode).json({ message: error.message || 'فشلت عملية الاستبدال', error: error.message });
   }
 });
 
@@ -1056,70 +1057,72 @@ router.post('/fulfill-reservation/:id', auth, async (req, res) => {
 router.post('/cancel-reservation/:id', auth, async (req, res) => {
   try {
     const { reason = 'إلغاء حجز من قبل الكاشير' } = req.body;
-    const order = await Order.findById(req.params.id);
 
-    if (!order) {
-      return res.status(404).json({ message: 'طلب الحجز غير موجود' });
-    }
+    const result = await runInTransaction(async (session) => {
+      const order = await Order.findById(req.params.id).session(session);
 
-    if (order.status !== 'Pending') {
-      return res.status(400).json({ message: 'لا يمكن إلغاء طلب غير معلق' });
-    }
+      if (!order) {
+        const notFound = new Error('طلب الحجز غير موجود');
+        notFound.statusCode = 404;
+        throw notFound;
+      }
 
-    order.status = 'Returned';
-    order.notes = order.notes ? `${order.notes} | تم الإلغاء: ${reason}` : `تم الإلغاء: ${reason}`;
-    await order.save();
+      if (order.status !== 'Pending') {
+        throw new Error('لا يمكن إلغاء طلب غير معلق');
+      }
 
-    // Restore stock if not already recovered
-    if (!order.recovered) {
-      await Promise.all(order.items.map(async (item) => {
-        const product = await Product.findById(item.product);
-        if (!product) return;
+      order.status = 'Returned';
+      order.notes = order.notes ? `${order.notes} | تم الإلغاء: ${reason}` : `تم الإلغاء: ${reason}`;
+      const updatedProducts = [];
 
-        const qty = Number(item.quantity) || 1;
-        let prevStock = 0;
+      // Restore stock if not already recovered
+      if (!order.recovered) {
+        for (const item of order.items) {
+          const qty = Number(item.quantity) || 1;
+          const restoreRes = await Product.atomicRestoreStock({
+            productId: item.product,
+            size: item.size,
+            color: item.color,
+            quantity: qty,
+            session
+          });
 
-        if (product.variants && product.variants.length > 0) {
-          const variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-          if (variant) {
-            prevStock = variant.stock;
-            variant.stock += qty;
+          if (restoreRes.product) {
+            updatedProducts.push(restoreRes.product);
+            const history = new StockHistory({
+              product: restoreRes.product._id,
+              productName: restoreRes.product.name,
+              size: item.size || '',
+              color: item.color || '',
+              changeType: 'Refund',
+              quantityChanged: qty,
+              previousStock: restoreRes.prevStock,
+              newStock: restoreRes.newStock,
+              performedBy: req.user.id,
+              referenceId: order._id,
+              notes: `إلغاء حجز أونلاين #${order.invoiceNumber || order._id.toString().slice(-6).toUpperCase()} - ${reason}`
+            });
+            await history.save({ session });
           }
-          product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-        } else {
-          prevStock = product.stock;
-          product.stock += qty;
         }
 
-        product.sold = Math.max(0, (product.sold || 0) - qty);
-        await product.save();
+        order.recovered = true;
+      }
 
-        await StockHistory.create({
-          product: product._id,
-          productName: product.name,
-          size: item.size || '',
-          color: item.color || '',
-          changeType: 'Refund',
-          quantityChanged: qty,
-          previousStock: prevStock,
-          newStock: prevStock + qty,
-          performedBy: req.user.id,
-          referenceId: order._id,
-          notes: `إلغاء حجز أونلاين #${order._id.toString().slice(-6).toUpperCase()} - ${reason}`
-        });
+      await order.save({ session });
 
-        req.app.locals.io?.emit('inventory:update', product);
-      }));
+      return { order, updatedProducts };
+    });
 
-      order.recovered = true;
-      await order.save();
-    }
-
-    req.app.locals.io?.emit('order:update', order);
+    result.updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
+    req.app.locals.io?.emit('order:update', result.order);
 
     res.json({ success: true, message: 'تم إلغاء الحجز وإرجاع الكميات للمخزن بنجاح' });
   } catch (error) {
-    res.status(500).json({ message: 'فشل إلغاء الحجز', error: error.message });
+    const statusCode = error.statusCode || 400;
+    res.status(statusCode).json({ message: error.message || 'فشل إلغاء الحجز', error: error.message });
   }
 });
 
