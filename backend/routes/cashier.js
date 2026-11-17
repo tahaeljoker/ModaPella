@@ -8,6 +8,8 @@ const Shift = require('../models/Shift');
 const Customer = require('../models/Customer');
 const { getNextInvoiceNumber } = require('../models/Counter');
 const { runInTransaction } = require('../config/db');
+const safeService = require('../services/safeService');
+const debtService = require('../services/debtService');
 
 const router = express.Router();
 
@@ -498,72 +500,21 @@ router.post('/safe/transfer', auth, requireRole(['admin', 'cashier', 'manager'])
       return res.status(400).json({ message: 'طريقة التحويل غير صحيحة (يجب التحويل بين الكاش وإنستاباي)' });
     }
 
-    // Attach to active open shift if one exists
-    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-    if (!openShift) {
-      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-    }
-
-    const isFromInstapay = from === 'Instapay';
-    const directionKey = isFromInstapay ? 'INSTAPAY_TO_CASH' : 'CASH_TO_INSTAPAY';
-    const noteText = description?.trim() ? ` (${description.trim()})` : '';
-
-    const outDesc = isFromInstapay
-      ? `تحويل سيولة: سحب من إنستاباي لتغذية الخزنة النقدية${noteText}`
-      : `تحويل سيولة: إخراج كاش من الخزنة للإيداع بإنستاباي${noteText}`;
-    const inDesc = isFromInstapay
-      ? `تحويل سيولة: إيداع بالخزنة النقدية محول من إنستاباي${noteText}`
-      : `تحويل سيولة: إيداع بإنستاباي محول من كاش الخزنة${noteText}`;
-
-    const outTx = new Transaction({
+    const { outTransaction, inTransaction } = await safeService.transferSafeFunds({
+      fromMethod: from,
+      toMethod: to,
       amount: transferAmount,
-      type: 'OUT',
-      category: 'Safe Transfer',
-      paymentMethod: from,
-      description: outDesc,
-      user: req.user.id,
-      shift: openShift?._id,
-      metadata: {
-        isTransfer: true,
-        direction: directionKey,
-        fromAccount: from,
-        toAccount: to,
-        notes: description || ''
-      }
+      description,
+      userId: req.user.id
     });
-
-    const inTx = new Transaction({
-      amount: transferAmount,
-      type: 'IN',
-      category: 'Safe Transfer',
-      paymentMethod: to,
-      description: inDesc,
-      user: req.user.id,
-      shift: openShift?._id,
-      metadata: {
-        isTransfer: true,
-        direction: directionKey,
-        fromAccount: from,
-        toAccount: to,
-        notes: description || '',
-        pairedTxId: outTx._id
-      }
-    });
-
-    outTx.metadata.pairedTxId = inTx._id;
-
-    await Promise.all([outTx.save(), inTx.save()]);
-
-    const populatedOut = await Transaction.findById(outTx._id).populate('user', 'name');
-    const populatedIn = await Transaction.findById(inTx._id).populate('user', 'name');
 
     res.status(201).json({
       message: 'تم تحويل السيولة بين الخزنة وإنستاباي بنجاح وتحديث الأرصدة فورياً',
-      outTransaction: populatedOut,
-      inTransaction: populatedIn
+      outTransaction,
+      inTransaction
     });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ أثناء تنفيذ عملية التحويل', error: error.message });
+    res.status(500).json({ message: error.message || 'حدث خطأ أثناء تنفيذ عملية التحويل', error: error.message });
   }
 });
 
@@ -1075,49 +1026,13 @@ router.post('/debts/manual', auth, requireRole(['admin', 'cashier', 'manager']),
       return res.status(400).json({ message: 'Invalid debt amount' });
     }
 
-    const cleanPhone = customerPhone.trim();
-    const cleanName = customerName ? customerName.trim() : 'عميل غير معروف';
-
-    let dbCustomer = await Customer.findOne({ phone: cleanPhone });
-    if (!dbCustomer) {
-      dbCustomer = new Customer({
-        name: cleanName,
-        phone: cleanPhone,
-        points: 0,
-        debt: 0
-      });
-    } else {
-      if (customerName && customerName.trim() !== '') {
-        dbCustomer.name = cleanName;
-      }
-    }
-    
-    const debtAmount = Number(amount);
-    dbCustomer.debt = Math.max(0, Math.round(((dbCustomer.debt || 0) + debtAmount) * 100) / 100);
-    await dbCustomer.save();
-
-    const invoiceNumber = await getNextInvoiceNumber();
-
-    // Create a pseudo-order to represent the manual debt
-    const order = new Order({
-      invoiceNumber,
-      customer: dbCustomer._id,
-      customerName: dbCustomer.name,
-      customerPhone: dbCustomer.phone,
-      seller: req.user.id,
-      items: [], // Empty items indicates manual debt
-      totalAmount: debtAmount,
-      discount: 0,
-      type: 'Offline',
-      status: 'Completed',
-      paymentMethod: 'Cash',
-      notes: `تسجيل دين يدوي: ${notes}`,
-      isDebt: true,
-      isManualDebt: true,
-      amountPaid: 0,
-      debtAmount: debtAmount
+    const { order } = await debtService.recordManualDebt({
+      customerName,
+      customerPhone,
+      amount,
+      notes,
+      userId: req.user.id
     });
-    await order.save();
 
     res.status(201).json({ message: 'Manual debt added successfully', order });
   } catch (error) {
@@ -1133,91 +1048,19 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       return res.status(400).json({ message: 'Invalid payment amount' });
     }
 
-    const query = {
-      status: { $ne: 'Returned' },
-      $or: [
-        { isDebt: true, debtAmount: { $gt: 0 } },
-        { debtAmount: { $gt: 0 } }
-      ]
-    };
-    if (customerPhone && customerPhone !== 'بدون هاتف') {
-      query.customerPhone = customerPhone.trim();
-    } else if (customerName) {
-      query.customerName = customerName.trim();
-    } else {
+    if (!customerPhone && !customerName) {
       return res.status(400).json({ message: 'Customer phone or name is required' });
     }
 
     const result = await runInTransaction(async (session) => {
-      const orders = await Order.find(query).sort({ createdAt: 1 }).session(session);
-      if (orders.length === 0) {
-        const notFoundErr = new Error('No active debts found for this customer');
-        notFoundErr.statusCode = 404;
-        throw notFoundErr;
-      }
-
-      let remainingPayment = Math.round(Number(amount) * 100) / 100;
-      let openShift = await Shift.findOne({ user: req.user.id, status: 'open' }).session(session);
-      if (!openShift) {
-        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 }).session(session);
-      }
-      const updatedOrders = [];
-
-      for (let order of orders) {
-        if (remainingPayment <= 0) break;
-
-        const debtToPay = Math.min(order.debtAmount, remainingPayment);
-        order.debtAmount = Math.max(0, Math.round((order.debtAmount - debtToPay) * 100) / 100);
-        order.amountPaid = Math.round(((order.amountPaid || 0) + debtToPay) * 100) / 100;
-        remainingPayment = Math.max(0, Math.round((remainingPayment - debtToPay) * 100) / 100);
-
-        if (order.debtAmount < 0.5) {
-          order.debtAmount = 0;
-          order.isDebt = false;
-        }
-
-        await order.save({ session });
-        updatedOrders.push(order);
-
-        const invDisplay = order.invoiceNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
-
-        const transaction = new Transaction({
-          amount: Math.round(debtToPay * 100) / 100,
-          type: 'IN',
-          category: 'DebtPayment',
-          paymentMethod,
-          description: `سداد دين الفاتورة ${invDisplay} للعميل ${customerName || customerPhone}`,
-          referenceId: order._id,
-          user: req.user.id,
-          shift: openShift?._id
-        });
-        await transaction.save({ session });
-      }
-
-      // Strictly synchronize Customer debt with sum of remaining active debt orders
-      const custFilter = (customerPhone && customerPhone !== 'بدون هاتف') 
-        ? { phone: customerPhone.trim() } 
-        : { name: customerName?.trim() };
-      const dbCust = await Customer.findOne(custFilter).session(session);
-      if (dbCust) {
-        const remainingDebtOrders = await Order.find({
-          status: { $ne: 'Returned' },
-          $or: [
-            { customer: dbCust._id },
-            ...(dbCust.phone && dbCust.phone !== 'بدون هاتف' ? [{ customerPhone: dbCust.phone }] : [])
-          ],
-          isDebt: true,
-          debtAmount: { $gt: 0 }
-        }).session(session);
-        const totalRemainingDebt = remainingDebtOrders.reduce((sum, o) => sum + (o.debtAmount || 0), 0);
-        dbCust.debt = Math.max(0, Math.round(totalRemainingDebt * 100) / 100);
-        if (dbCust.debt < 0.5) {
-          dbCust.debt = 0;
-        }
-        await dbCust.save({ session });
-      }
-
-      return { updatedOrders, change: remainingPayment };
+      return await debtService.allocateDebtPayment({
+        customerPhone,
+        customerName,
+        amount,
+        paymentMethod,
+        userId: req.user.id,
+        session
+      });
     });
 
     res.json({ message: 'Payment recorded successfully', updatedOrders: result.updatedOrders, change: result.change });

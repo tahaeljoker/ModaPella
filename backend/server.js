@@ -22,6 +22,7 @@ const couponRoutes = require('./routes/coupons');
 const uploadRoutes = require('./routes/upload');
 const lookRoutes = require('./routes/looks');
 const User = require('./models/User');
+const errorHandler = require('./middleware/errorHandler');
 const { attachInventorySync } = require('./services/inventorySync');
 const { checkAndAutoClosePreviousMonths } = require('./services/monthlyReportService');
 
@@ -192,6 +193,9 @@ app.use('/api/looks', lookRoutes);
 app.get('/api/status', (req, res) => {
   res.json({ service: 'Moda Pella POS & E-commerce API', status: 'ok' });
 });
+
+// Global Centralized Error Handler
+app.use(errorHandler);
 
 const frontendDistPath = path.resolve(__dirname, '../frontend/dist');
 if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendDistPath)) {
