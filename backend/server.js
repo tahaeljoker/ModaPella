@@ -92,25 +92,29 @@ const defaultAllowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://moda-pella.vercel.app',
+  'https://modapella.shop',
   'https://www.modapella.shop',
-  'https://modapella.shop'
+  'https://moda-pella.com',
+  'https://www.moda-pella.com'
 ];
 
 const envAllowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().toLowerCase())
   .filter(Boolean);
 
-const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envAllowedOrigins]));
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envAllowedOrigins].map(o => o.toLowerCase())));
 
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
+  const lower = origin.toLowerCase().trim();
   return (
-    allowedOrigins.includes(origin) ||
-    origin.endsWith('.vercel.app') ||
-    origin.endsWith('modapella.shop') ||
-    origin.startsWith('http://localhost:') ||
-    origin.startsWith('http://127.0.0.1:')
+    allowedOrigins.includes(lower) ||
+    lower.endsWith('.vercel.app') ||
+    lower.endsWith('modapella.shop') ||
+    lower.endsWith('moda-pella.com') ||
+    lower.startsWith('http://localhost:') ||
+    lower.startsWith('http://127.0.0.1:')
   );
 };
 

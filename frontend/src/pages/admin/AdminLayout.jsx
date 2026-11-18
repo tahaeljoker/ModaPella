@@ -39,45 +39,47 @@ import { Icon } from '../../components/Icon';
 
 const sections = [
   {
-    title: 'المتجر الإلكتروني',
+    title: 'الرئيسية والمتابعة',
     items: [
-      { to: '/admin/site', label: 'إدارة المتجر الإلكتروني 🌐', icon: 'site' },
+      { to: '/admin', label: 'لوحة المؤشرات', icon: 'dashboard', end: true },
+      { to: '/admin/reports', label: 'المركز المالي', icon: 'reports' },
+      { to: '/admin/activities', label: 'سجل النشاطات', icon: 'activities' }
     ]
   },
   {
-    title: 'الرئيسية ومبيعات المحل',
+    title: 'المبيعات والكاشير',
     items: [
-      { to: '/admin', label: 'لوحة التحكم', icon: 'dashboard', end: true },
-      { to: '/admin/orders', label: 'فواتير ومبيعات المحل', icon: 'orders' },
-      { to: '/admin/customers', label: 'العملاء وبرامج الولاء', icon: 'customers' },
-      { to: '/cashier', label: 'شاشة الكاشير السريعة', icon: 'cart' },
+      { to: '/cashier', label: 'نقطة البيع (POS)', icon: 'cart' },
+      { to: '/admin/orders', label: 'إدارة الطلبات', icon: 'orders' },
+      { to: '/cashier/returns', label: 'المرتجعات والاستبدال', icon: 'returns' },
+      { to: '/cashier/today', label: 'مبيعات اليوم', icon: 'today' }
     ]
   },
   {
-    title: 'المالية والحسابات',
+    title: 'المنتجات والمخزون',
     items: [
-      { to: '/admin/reports', label: 'المركز المالي وكشف الحساب', icon: 'reports' },
-      { to: '/admin/safe', label: 'الخزنة وحركة الدرج', icon: 'safe' },
-      { to: '/admin/debts', label: 'ديون ومستحقات العملاء', icon: 'debts' },
-      { to: '/admin/suppliers', label: 'حسابات ومشتريات الموردين', icon: 'suppliers' },
-      
+      { to: '/admin/products', label: 'إدارة المنتجات', icon: 'products' },
+      { to: '/admin/barcodes', label: 'ملصقات الباركود', icon: 'barcodes' },
+      { to: '/admin/inventory-count', label: 'الجرد والمطابقة', icon: 'inventory' },
+      { to: '/admin/suppliers', label: 'الموردين', icon: 'suppliers' },
+      { to: '/admin/products/analytics', label: 'تتبع الأصناف 📊', icon: 'reports', allowedRoles: ['admin', 'manager', 'developer'] }
     ]
   },
   {
-    title: 'المخزون والمنتجات',
+    title: 'المالية والخزينة',
     items: [
-      { to: '/admin/products', label: 'المنتجات والمخزن', icon: 'products' },
-      { to: '/admin/products/analytics', label: 'تتبع نشاط الأصناف والمنتجات 📊', icon: 'reports' },
-      { to: '/admin/inventory-count', label: 'جرد ومطابقة المخزون', icon: 'inventory' },
-      { to: '/admin/barcodes', label: 'طباعة ملصقات الباركود', icon: 'barcodes' },
+      { to: '/admin/safe', label: 'الخزينة والورديات', icon: 'safe' },
+      { to: '/admin/debts', label: 'الديون والآجل', icon: 'debts' }
     ]
   },
   {
-    title: 'التقارير والإدارة',
+    title: 'الإدارة والمتجر',
     items: [
-      { to: '/admin/employees', label: 'الموظفون والعمولات', icon: 'employee' },
-      { to: '/admin/activities', label: 'سجل حركات النظام', icon: 'activities' },
-      { to: '/admin/users', label: 'مستخدمو النظام والصلاحيات', icon: 'users' },
+      { to: '/admin/employees', label: 'الموظفين والرواتب', icon: 'employee' },
+      { to: '/admin/customers', label: 'العملاء (CRM)', icon: 'customers' },
+      { to: '/admin/looks', label: 'ألبوم الإطلالات (Lookbook)', icon: 'image', allowedRoles: ['admin', 'manager', 'developer'] },
+      { to: '/admin/users', label: 'مستخدمي النظام', icon: 'users' },
+      { to: '/admin/site', label: 'إعدادات الموقع 🌐', icon: 'site', allowedRoles: ['admin', 'manager', 'developer'] }
     ]
   }
 ];
@@ -181,12 +183,19 @@ function AdminLayout({ children }) {
 
  {/* Nav */}
  <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
- {sections.filter(s => !s.developerOnly || isDeveloper).map((section, idx) => (
- <div key={idx} className="space-y-1.5">
- <p className="px-4 text-[10px] font-extrabold uppercase tracking-[0.15em] text-burgundy/40">
+ {sections.map((section, idx) => {
+ const visibleItems = section.items.filter(item => {
+ if (!item.allowedRoles) return true;
+ return isDeveloper || item.allowedRoles.includes(role);
+ });
+ if (visibleItems.length === 0) return null;
+
+ return (
+ <div key={idx} className="space-y-1">
+ <p className="px-3 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-burgundy/40 border-b border-burgundy/5 mb-1.5">
  {section.title}
  </p>
- {section.items.map((item) => {
+ {visibleItems.map((item) => {
  const isExplicitActive = item.to.includes('?')
  ? (location.pathname + location.search) === item.to
  : (item.to === '/admin/site' ? (location.pathname === '/admin/site' && !location.search) : false);
@@ -199,20 +208,21 @@ function AdminLayout({ children }) {
  onClick={() => setIsSidebarOpen(false)}
  className={({ isActive }) => {
  const active = item.to.includes('?') || item.to === '/admin/site' ? isExplicitActive : isActive;
- return `flex items-center gap-3 rounded-2xl px-4 py-2 text-xs font-bold transition-all duration-200 ${
+ return `flex items-center gap-3 rounded-2xl px-3.5 py-2 text-xs font-bold transition-all duration-200 ${
  active
  ? 'bg-burgundy text-white shadow-md shadow-burgundy/25'
  : 'text-burgundy/70 hover:bg-burgundy/8 hover:text-burgundy'
  }`;
  }}
  >
- <Icon name={item.icon} className="w-5 h-5 opacity-80" />
- {item.label}
+ <Icon name={item.icon} className="w-4 h-4 opacity-80" />
+ <span>{item.label}</span>
  </NavLink>
  );
  })}
  </div>
- ))}
+ );
+ })}
  </nav>
 
  {/* User info + Notifications + logout */}
