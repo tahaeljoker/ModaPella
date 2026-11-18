@@ -1,17 +1,21 @@
 import { io } from 'socket.io-client';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || '';
-const isVercelHost = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+const isVercelHost = typeof window !== 'undefined' && (
+  window.location.hostname.includes('vercel.app') ||
+  window.location.hostname.includes('modapella.shop')
+);
 
-// Only connect if we have an explicit external backend URL, or if running locally
-const hasValidBackendUrl = Boolean(rawApiUrl && !rawApiUrl.startsWith('/') && !rawApiUrl.includes('vercel.app'));
-const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+// In serverless Vercel production, real-time sync is powered by useSmartSync.
+// Socket.IO is only initialized in local development or if an explicit external WebSocket URL is provided.
+const isLocalhost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+);
 
-const shouldConnect = hasValidBackendUrl || (isLocalhost && !isVercelHost);
-
-const SOCKET_URL = hasValidBackendUrl
-  ? rawApiUrl.replace(/\/api\/?$/, '')
-  : (isLocalhost ? 'http://localhost:5000' : '');
+const explicitSocketUrl = import.meta.env.VITE_SOCKET_URL;
+const shouldConnect = Boolean(explicitSocketUrl || (isLocalhost && !isVercelHost));
+const SOCKET_URL = explicitSocketUrl || (isLocalhost ? 'http://localhost:5000' : '');
 
 let socket = null;
 
@@ -19,16 +23,15 @@ if (shouldConnect && SOCKET_URL) {
   try {
     socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
-      autoConnect: true,
-      reconnectionAttempts: 3,
-      timeout: 5000
+      autoConnect: false, // Do not auto-connect blindly to prevent unhandled connection spam
+      reconnectionAttempts: 2,
+      timeout: 3000
     });
     socket.on('connect_error', () => {
-      // Avoid infinite error flooding in console if socket server is unavailable
       if (socket) socket.disconnect();
     });
   } catch (err) {
-    console.debug('Socket initialization skipped:', err.message);
+    console.debug('[Socket] Initialization skipped:', err.message);
   }
 }
 

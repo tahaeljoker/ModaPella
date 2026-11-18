@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { renderBarcodeSVG } from '../../utils/barcode';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { useSmartSync } from '../../hooks/useSmartSync';
 import { exportToCSV } from '../../services/export';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -108,7 +109,22 @@ function AdminOrders() {
  }
  };
 
- useEffect(() => { loadOrders(); }, []);
+  useEffect(() => { loadOrders(); }, []);
+
+  // Smart Visibility-Aware Polling: syncs orders silently every 16s while Admin tab is active
+  useSmartSync(async () => {
+    try {
+      const ordersRes = await api.get('/orders');
+      if (Array.isArray(ordersRes?.data)) {
+        setOrders(ordersRes.data);
+      }
+    } catch (e) {
+      console.debug('Background AdminOrders sync error:', e.message);
+    }
+  }, {
+    intervalMs: 16000,
+    enabled: true
+  });
 
  const orderList = Array.isArray(orders) ? orders : [];
  const filtered = orderList.filter((o) => {

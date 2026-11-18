@@ -302,6 +302,24 @@ router.post('/public-checkout', async (req, res) => {
     const StockHistory = require('../models/StockHistory');
     const Coupon = require('../models/Coupon');
 
+    let finalPaymentScreenshot = paymentScreenshot;
+    if (finalPaymentScreenshot && typeof finalPaymentScreenshot === 'string' && finalPaymentScreenshot.startsWith('data:image/')) {
+      try {
+        const { isCloudinaryConfigured, uploadToCloudinary } = require('../config/cloudinary');
+        if (isCloudinaryConfigured()) {
+          const uploadRes = await uploadToCloudinary(finalPaymentScreenshot, {
+            folder: 'modapella/receipts',
+            resource_type: 'image'
+          });
+          if (uploadRes?.secure_url) {
+            finalPaymentScreenshot = uploadRes.secure_url;
+          }
+        }
+      } catch (uploadErr) {
+        console.warn('Receipt screenshot upload to Cloudinary skipped/failed:', uploadErr.message);
+      }
+    }
+
     const result = await runInTransaction(async (session) => {
       // 1. Create or find customer
       let dbCustomer = await Customer.findOne({ phone: customerPhone.trim() }).session(session);
@@ -452,7 +470,7 @@ router.post('/public-checkout', async (req, res) => {
         type: 'Online',
         status: 'Pending',
         paymentMethod: paymentMethod === 'COD' ? 'Cash' : paymentMethod,
-        paymentScreenshot,
+        paymentScreenshot: finalPaymentScreenshot,
         governorate,
         shippingAddress,
         notes: finalNotes,

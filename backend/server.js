@@ -78,9 +78,12 @@ const seedDefaultUsers = async () => {
 
 connectDB().then(() => {
   seedDefaultUsers();
-  checkAndAutoClosePreviousMonths();
-  // Periodically check every 6 hours for month roll-over
-  setInterval(checkAndAutoClosePreviousMonths, 6 * 60 * 60 * 1000);
+  // On persistent servers (non-Vercel), run monthly auto-close and periodic timer.
+  // On Vercel serverless, scheduled Vercel Cron triggers GET /api/reports/cron/auto-close.
+  if (!process.env.VERCEL) {
+    checkAndAutoClosePreviousMonths();
+    setInterval(checkAndAutoClosePreviousMonths, 6 * 60 * 60 * 1000);
+  }
 });
 
 const app = express();
@@ -208,27 +211,38 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendDistPath)) {
   });
 }
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+let server = null;
+let io = null;
 
-attachInventorySync(io);
-
-io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
-  socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id);
+if (!process.env.VERCEL) {
+  server = http.createServer(app);
+  const ioServer = new Server(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
   });
-});
+
+  attachInventorySync(ioServer);
+
+  ioServer.on('connection', (socket) => {
+    socket.on('disconnect', () => {});
+  });
+
+  io = ioServer;
+} else {
+  // Stateless mock for serverless Vercel environment where persistent WebSocket state is unsupported
+  io = {
+    emit: () => {},
+    to: () => ({ emit: () => {} }),
+    in: () => ({ emit: () => {} })
+  };
+}
 
 app.locals.io = io;
 
 const port = process.env.PORT || 5000;
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && server) {
   server.listen(port, () => {
     console.log(`Moda Pella backend listening on port ${port}`);
   });

@@ -27,8 +27,8 @@ export function resolveImageUrl(url, fallback = '') {
     return trimmed;
   }
 
-  // Relative /uploads/... path
-  if (trimmed.startsWith('/uploads/')) {
+  // Relative /uploads/... or /api/upload/... path
+  if (trimmed.startsWith('/uploads/') || trimmed.startsWith('/api/upload/')) {
     const apiUrl = import.meta.env.VITE_API_URL || '';
     if (apiUrl.startsWith('http')) {
       try {

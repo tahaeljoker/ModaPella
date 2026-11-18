@@ -6,6 +6,7 @@ import POSProductCatalog from '../../components/cashier/pos/POSProductCatalog';
 import POSCartPanel from '../../components/cashier/pos/POSCartPanel';
 import POSInvoiceModal from '../../components/cashier/pos/POSInvoiceModal';
 import { usePOSCheckout } from '../../components/cashier/pos/usePOSCheckout';
+import { useSmartSync } from '../../hooks/useSmartSync';
 import { isDiscountActive } from '../../utils/discount';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -163,6 +164,21 @@ export default function CashierPOS() {
   useEffect(() => {
     loadProducts();
   }, []);
+
+  // Smart Visibility-Aware Polling: updates stock levels silently every 18s while cashier tab is active
+  useSmartSync(async () => {
+    try {
+      const res = await api.get('/products?includeOffSeason=true');
+      if (Array.isArray(res?.data)) {
+        setProducts(res.data);
+      }
+    } catch (e) {
+      console.debug('Background POS stock sync error:', e.message);
+    }
+  }, {
+    intervalMs: 18000,
+    enabled: true
+  });
 
   // Handle loadOrder or editOrder from URL
   useEffect(() => {

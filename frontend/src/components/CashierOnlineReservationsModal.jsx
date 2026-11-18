@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useSmartSync } from '../hooks/useSmartSync';
 import { cleanProductName } from '../utils/discount';
 import { resolveImageUrl } from '../utils/imageUrl';
 
@@ -42,6 +43,23 @@ export default function CashierOnlineReservationsModal({
       fetchReservations(search);
     }
   }, [isOpen]);
+
+  // Smart Visibility-Aware Polling: syncs online reservations every 16s while modal is open
+  useSmartSync(async () => {
+    try {
+      const res = await api.get('/pos/online-reservations', {
+        params: search ? { q: search } : {}
+      });
+      if (Array.isArray(res.data)) {
+        setReservations(res.data);
+      }
+    } catch (err) {
+      console.debug('Background reservations sync error:', err.message);
+    }
+  }, {
+    intervalMs: 16000,
+    enabled: isOpen
+  });
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
