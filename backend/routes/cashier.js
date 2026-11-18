@@ -13,6 +13,105 @@ const debtService = require('../services/debtService');
 
 const router = express.Router();
 
+const isSalariesTx = (t) => {
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'صرف رواتب' ||
+    cat === 'رواتب' ||
+    cat === 'salary' ||
+    cat === 'salaries' ||
+    cat.includes('راتب') ||
+    cat.includes('رواتب') ||
+    desc.includes('صرف راتب') ||
+    desc.includes('رواتب') ||
+    desc.includes('سلفة راتب')
+  );
+};
+
+const isShippingTx = (t) => {
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'نولون شحن' ||
+    cat === 'شحن' ||
+    cat === 'shipping' ||
+    cat === 'freight' ||
+    cat.includes('نولون') ||
+    desc.includes('نولون')
+  );
+};
+
+const isRentTx = (t) => {
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'إيجار' ||
+    cat === 'ايجار' ||
+    cat === 'rent' ||
+    cat.includes('إيجار') ||
+    cat.includes('ايجار') ||
+    desc.includes('إيجار المحل') ||
+    desc.includes('ايجار المحل')
+  );
+};
+
+const isPersonalTx = (t) => {
+  if (t.type !== 'OUT') return false;
+  if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'personalwithdrawal' ||
+    cat.includes('مسحوبات') ||
+    cat.includes('شخصي') ||
+    cat.includes('شخصى') ||
+    cat.includes('جمعية') ||
+    cat.includes('جمعيه') ||
+    desc.includes('مسحوبات') ||
+    desc.includes('شخصي') ||
+    desc.includes('شخصى') ||
+    desc.includes('جمعية') ||
+    desc.includes('جمعيه') ||
+    desc.includes('سلفة مالك') ||
+    (desc.includes('سلفة') && !desc.includes('راتب'))
+  );
+};
+
+const isSupplierTx = (t) => {
+  if (t.type !== 'OUT') return false;
+  if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
+  const cat = (t.category || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'supplierpayment' ||
+    cat === 'supplierpurchase' ||
+    cat.includes('مورد') ||
+    cat.includes('بضاعة') ||
+    cat.includes('بضائع') ||
+    cat.includes('مشتريات') ||
+    desc.includes('مورد') ||
+    desc.includes('بضاعة') ||
+    desc.includes('بضائع') ||
+    desc.includes('مشتريات مورد') ||
+    desc.includes('فاتورة مشتريات')
+  );
+};
+
+const isInternalMovement = (t) => {
+  const cat = (t.category || '').toLowerCase().replace(/\s+/g, '');
+  const desc = (t.description || '').toLowerCase();
+  return (
+    cat === 'shiftopen' ||
+    cat === 'shiftclose' ||
+    cat === 'transfer' ||
+    cat === 'safetransfer' ||
+    cat.includes('transfer') ||
+    cat.includes('تحويل') ||
+    desc.includes('تحويل')
+  );
+};
+
 // GET /api/cashier/today — sales made today (cashier + admin)
 router.get('/today', auth, requireRole(['admin', 'cashier', 'manager']), async (req, res) => {
   try {
@@ -205,105 +304,6 @@ router.get('/safe', auth, requireRole(['admin', 'cashier', 'manager']), async (r
     let shippingInstapay = 0;
     let rentCash = 0;
     let rentInstapay = 0;
-
-    const isSalariesTx = (t) => {
-      const cat = (t.category || '').toLowerCase();
-      const desc = (t.description || '').toLowerCase();
-      return (
-        cat === 'صرف رواتب' ||
-        cat === 'رواتب' ||
-        cat === 'salary' ||
-        cat === 'salaries' ||
-        cat.includes('راتب') ||
-        cat.includes('رواتب') ||
-        desc.includes('صرف راتب') ||
-        desc.includes('رواتب') ||
-        desc.includes('سلفة راتب')
-      );
-    };
-
-    const isShippingTx = (t) => {
-      const cat = (t.category || '').toLowerCase();
-      const desc = (t.description || '').toLowerCase();
-      return (
-        cat === 'نولون شحن' ||
-        cat === 'شحن' ||
-        cat === 'shipping' ||
-        cat === 'freight' ||
-        cat.includes('نولون') ||
-        desc.includes('نولون')
-      );
-    };
-
-    const isRentTx = (t) => {
-      const cat = (t.category || '').toLowerCase();
-      const desc = (t.description || '').toLowerCase();
-      return (
-        cat === 'إيجار' ||
-        cat === 'ايجار' ||
-        cat === 'rent' ||
-        cat.includes('إيجار') ||
-        cat.includes('ايجار') ||
-        desc.includes('إيجار المحل') ||
-        desc.includes('ايجار المحل')
-      );
-    };
-
-    const isPersonalTx = (t) => {
-      if (t.type !== 'OUT') return false;
-      if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
-      const cat = (t.category || '').toLowerCase();
-      const desc = (t.description || '').toLowerCase();
-      return (
-        cat === 'personalwithdrawal' ||
-        cat.includes('مسحوبات') ||
-        cat.includes('شخصي') ||
-        cat.includes('شخصى') ||
-        cat.includes('جمعية') ||
-        cat.includes('جمعيه') ||
-        desc.includes('مسحوبات') ||
-        desc.includes('شخصي') ||
-        desc.includes('شخصى') ||
-        desc.includes('جمعية') ||
-        desc.includes('جمعيه') ||
-        desc.includes('سلفة مالك') ||
-        (desc.includes('سلفة') && !desc.includes('راتب'))
-      );
-    };
-
-    const isSupplierTx = (t) => {
-      if (t.type !== 'OUT') return false;
-      if (isSalariesTx(t) || isShippingTx(t) || isRentTx(t)) return false;
-      const cat = (t.category || '').toLowerCase();
-      const desc = (t.description || '').toLowerCase();
-      return (
-        cat === 'supplierpayment' ||
-        cat === 'supplierpurchase' ||
-        cat.includes('مورد') ||
-        cat.includes('بضاعة') ||
-        cat.includes('بضائع') ||
-        cat.includes('مشتريات') ||
-        desc.includes('مورد') ||
-        desc.includes('بضاعة') ||
-        desc.includes('بضائع') ||
-        desc.includes('مشتريات مورد') ||
-        desc.includes('فاتورة مشتريات')
-      );
-    };
-
-    const isInternalMovement = (t) => {
-      const cat = (t.category || '').toLowerCase().replace(/\s+/g, '');
-      const desc = (t.description || '').toLowerCase();
-      return (
-        cat === 'shiftopen' ||
-        cat === 'shiftclose' ||
-        cat === 'transfer' ||
-        cat === 'safetransfer' ||
-        cat.includes('transfer') ||
-        cat.includes('تحويل') ||
-        desc.includes('تحويل')
-      );
-    };
 
     transactions.forEach(t => {
       const cat = (t.category || '').toLowerCase();

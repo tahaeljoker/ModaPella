@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import api from '../../../services/api';
 import { Icon } from '../../Icon';
+import { resolveImageUrl } from '../../../utils/imageUrl';
+import { isDiscountActive } from '../../../utils/discount';
 import { printBarcode } from './useAdminProducts';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;

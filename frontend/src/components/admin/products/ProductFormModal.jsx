@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ImageUploader from '../../ImageUploader';
 import MannequinImageUploader from '../../MannequinImageUploader';
 import { getColorHex } from '../../../utils/colorSwatches';
@@ -7,6 +8,7 @@ import { isDiscountActive } from '../../../utils/discount';
 import { renderBarcodeDataUrl } from '../../../utils/barcode';
 import api from '../../../services/api';
 
+const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
 const emptyProduct = { name: '', onlineName: '', category: 'Blouse', description: '', price: '', stock: '', totalReceived: '', images: '', mannequinImage: '', colorImages: [], sizes: '', colors: '', type: '', supplier: '', supplierId: null, sku: '', season: 'winter', isSeasonArchived: false, showOnWebsite: true, allowDiscount: true, discountPrice: '', discountStartDate: '', discountEndDate: '' };
 
@@ -14,7 +16,8 @@ const ENABLE_VARIANTS = true; // Toggle to false to completely exclude sizes, co
 
 // ─── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSave, categories, catAr, onAddCategory, siteConfig }) {
- const [form, setForm] = useState(() => {
+  const navigate = useNavigate();
+  const [form, setForm] = useState(() => {
  if (product) {
  return {
  ...product,

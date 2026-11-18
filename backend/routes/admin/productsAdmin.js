@@ -7,6 +7,16 @@ const Supplier = require('../../models/Supplier');
 const SupplierTransaction = require('../../models/SupplierTransaction');
 const Shift = require('../../models/Shift');
 const Transaction = require('../../models/Transaction');
+const StockHistory = require('../../models/StockHistory');
+const SiteConfig = require('../../models/SiteConfig');
+
+const getSiteConfig = async () => {
+  let config = await SiteConfig.findOne();
+  if (!config) {
+    config = await SiteConfig.create({});
+  }
+  return config;
+};
 
 const router = express.Router();
 
