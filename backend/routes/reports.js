@@ -10,11 +10,81 @@ const Customer = require('../models/Customer');
 const {
   calculateMonthlyData,
   generateAndSaveReport,
+  checkAndAutoClosePreviousMonths,
   ARABIC_MONTHS
 } = require('../services/monthlyReportService');
 const StatementNote = require('../models/StatementNote');
 
 const router = express.Router();
+
+/**
+ * Middleware to secure Vercel Cron endpoints
+ * Supports:
+ * 1. Authorization: Bearer <CRON_SECRET> (Vercel standard)
+ * 2. x-cron-secret: <CRON_SECRET> header
+ * 3. Admin / Developer JWT authentication
+ * 4. Local environment when CRON_SECRET is not yet defined
+ */
+const cronAuthMiddleware = async (req, res, next) => {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  const xCronSecret = req.headers['x-cron-secret'] || '';
+
+  // 1. Check CRON_SECRET (Vercel native cron authorization)
+  if (cronSecret) {
+    if (authHeader === `Bearer ${cronSecret}` || xCronSecret === cronSecret) {
+      return next();
+    }
+  }
+
+  // 2. Allow Admin/Developer Bearer JWT authentication
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (['admin', 'developer'].includes(decoded.role)) {
+        req.user = decoded;
+        return next();
+      }
+    } catch (jwtErr) {
+      // Invalid JWT, continue to unauthorized response
+    }
+  }
+
+  // 3. Local/development fallback when CRON_SECRET is not yet configured
+  if (!cronSecret && process.env.NODE_ENV !== 'production') {
+    return next();
+  }
+
+  return res.status(401).json({
+    success: false,
+    message: 'Unauthorized: Missing or invalid CRON_SECRET / Admin authorization'
+  });
+};
+
+// GET /api/reports/cron/auto-close — Secured Vercel Cron endpoint
+const handleCronAutoClose = async (req, res) => {
+  try {
+    const result = await checkAndAutoClosePreviousMonths();
+    return res.json({
+      success: true,
+      message: 'Monthly report auto-close cron executed successfully',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Cron] Monthly auto-close failed:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Monthly report auto-close failed',
+      error: error.message
+    });
+  }
+};
+
+router.get('/cron/auto-close', cronAuthMiddleware, handleCronAutoClose);
+router.post('/cron/auto-close', cronAuthMiddleware, handleCronAutoClose);
 
 // GET /api/reports/monthly — List all available months (past archived + current active)
 router.get('/monthly', auth, requireRole(['admin']), async (req, res) => {

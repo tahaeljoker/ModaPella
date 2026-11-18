@@ -4,6 +4,7 @@ const path = require('path');
 const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const Media = require('../models/Media');
+const { isCloudinaryConfigured, uploadToCloudinary } = require('../config/cloudinary');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ try {
 }
 
 // GET /api/upload/:filename — Serve media directly from MongoDB or disk
+// 100% Backward compatibility for existing MongoDB-stored media
 router.get('/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
@@ -59,16 +61,54 @@ router.get('/:filename', async (req, res) => {
   }
 });
 
-// POST /api/upload - Accepts base64 image or video data, saves to MongoDB and disk
+// POST /api/upload - Accepts base64 image or video data
+// Uploads to Cloudinary when configured, with graceful fallback to MongoDB & disk
 router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (req, res) => {
   try {
-    const { image, file, name } = req.body;
+    const { image, file, name, folder: customFolder, type: mediaTypeParam } = req.body;
     const mediaData = file || image;
     if (!mediaData) {
       return res.status(400).json({ message: 'No media data provided' });
     }
 
-    // Match base64 regex e.g. "data:image/png;base64,..." or "data:video/mp4;base64,..."
+    const cleanBaseName = (name || 'media')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 30);
+
+    // 1. Primary Path: Cloudinary Upload (when environment variables are configured)
+    if (isCloudinaryConfigured()) {
+      try {
+        const targetFolder = customFolder || (
+          mediaTypeParam === 'receipt' || customFolder === 'receipts'
+            ? 'modapella/receipts'
+            : 'modapella/products'
+        );
+
+        const cloudinaryResult = await uploadToCloudinary(mediaData, {
+          folder: targetFolder,
+          public_id: `${Date.now()}-${cleanBaseName}`,
+          resource_type: 'auto',
+          fetch_format: 'auto',
+          quality: 'auto'
+        });
+
+        if (cloudinaryResult && cloudinaryResult.secure_url) {
+          return res.json({
+            success: true,
+            url: cloudinaryResult.secure_url,
+            fileName: cloudinaryResult.public_id,
+            public_id: cloudinaryResult.public_id,
+            format: cloudinaryResult.format,
+            provider: 'cloudinary'
+          });
+        }
+      } catch (cloudErr) {
+        console.warn('Cloudinary upload failed, falling back to local/MongoDB storage:', cloudErr.message);
+        // Graceful fallback to legacy storage below
+      }
+    }
+
+    // 2. Fallback Path: MongoDB + Disk Storage (Zero downtime & offline/preview fallback)
     const matches = mediaData.match(/^data:(image|video)\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
     let ext = 'jpg';
     let mimeType = 'image/jpeg';
@@ -84,14 +124,10 @@ router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (re
       rawBase64 = matches[3];
     }
 
-    const cleanBaseName = (name || 'media')
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .slice(0, 30);
     const fileName = `${Date.now()}-${cleanBaseName}.${ext}`;
-
     const buffer = Buffer.from(rawBase64, 'base64');
 
-    // 1. Save to local disk first (fast & supports large media files)
+    // Save to local disk first if writable
     try {
       const filePath = path.join(UPLOADS_DIR, fileName);
       fs.writeFileSync(filePath, buffer);
@@ -100,7 +136,7 @@ router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (re
       console.log('Disk write skipped (serverless environment)');
     }
 
-    // 2. Save to MongoDB (Permanent storage that works on Vercel Serverless) if within BSON limit (~15.5MB)
+    // Save to MongoDB Media collection for permanent storage on serverless
     if (buffer.length < 15.5 * 1024 * 1024) {
       try {
         await Media.findOneAndUpdate(
@@ -123,10 +159,12 @@ router.post('/', auth, requireRole(['admin', 'developer', 'manager']), async (re
     const publicUrl = (host && !host.includes('localhost'))
       ? `${protocol}://${host}/uploads/${fileName}`
       : `/uploads/${fileName}`;
+
     return res.json({
       success: true,
       url: publicUrl,
-      fileName
+      fileName,
+      provider: 'mongodb'
     });
   } catch (err) {
     console.error('Upload error:', err);

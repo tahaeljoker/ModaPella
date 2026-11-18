@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 /**
- * WhatsApp Gateway Service for ModaPella Admin OTP Verification
+ * WhatsApp Gateway Service for ModaPella
  * Supports HTTP WhatsApp Gateways (Green-API, UltraMsg, CallMeBot, Twilio, Custom Webhooks)
  * Falls back gracefully to console logging if credentials are missing or in dev mode.
  */
@@ -9,7 +9,7 @@ require('dotenv').config();
 const formatPhone = (phone) => {
   if (!phone) return '';
   // Remove spaces, dashes, plus signs
-  let cleaned = phone.replace(/[^\d]/g, '');
+  let cleaned = String(phone).replace(/[^\d]/g, '');
   // Default to Egypt (+20) if starts with 01
   if (cleaned.startsWith('01') && cleaned.length === 11) {
     cleaned = '20' + cleaned;
@@ -17,20 +17,23 @@ const formatPhone = (phone) => {
   return cleaned;
 };
 
-const sendWhatsAppOTP = async (phone, otpCode) => {
-  const targetPhone = formatPhone(phone || process.env.ADMIN_WHATSAPP_NUMBER);
-  const message = `🔑 *رمز التحقق لدخول لوحة التحكم — ModaPella*
-
-رمز الدخول الخاص بك هو:
-👉 *${otpCode}*
-
-⏰ الرمز صالح لمدة 5 دقائق.
-🔒 لا تشارك هذا الرمز مع أي شخص لأمان حسابك.`;
+/**
+ * Sends a generic WhatsApp message to the target phone number.
+ * 
+ * @param {string} phone - Target phone number
+ * @param {string} message - Text message content
+ * @returns {Promise<object>} Status result
+ */
+const sendWhatsAppMessage = async (phone, message) => {
+  const targetPhone = formatPhone(phone);
+  if (!targetPhone) {
+    return { success: false, reason: 'Invalid or missing phone number' };
+  }
 
   console.log('\n========================================');
-  console.log(`📱 [WhatsApp OTP Service]`);
-  console.log(`🎯 Target Number: ${targetPhone || 'NOT_SPECIFIED'}`);
-  console.log(`🔑 OTP Code: ${otpCode}`);
+  console.log(`📱 [WhatsApp Service - Outgoing Message]`);
+  console.log(`🎯 Target Number: ${targetPhone}`);
+  console.log(`💬 Message Preview:\n${message}`);
   console.log('========================================\n');
 
   // Check if WhatsApp API Environment Variables are present
@@ -40,7 +43,7 @@ const sendWhatsAppOTP = async (phone, otpCode) => {
   const callmebotApiKey = process.env.CALLMEBOT_API_KEY;
 
   if (!apiUrl && (!instanceId || !apiToken) && !callmebotApiKey) {
-    console.log('ℹ️ [WhatsApp Service] No WhatsApp API credentials configured in .env. OTP printed to console log above.');
+    console.log('ℹ️ [WhatsApp Service] No WhatsApp API credentials configured in .env. Message printed to console above.');
     return { success: true, mode: 'console' };
   }
 
@@ -91,7 +94,24 @@ const sendWhatsAppOTP = async (phone, otpCode) => {
   }
 };
 
+/**
+ * Sends a 2FA OTP code via WhatsApp
+ */
+const sendWhatsAppOTP = async (phone, otpCode) => {
+  const targetPhone = phone || process.env.ADMIN_WHATSAPP_NUMBER;
+  const message = `🔑 *رمز التحقق لدخول لوحة التحكم — ModaPella*
+
+رمز الدخول الخاص بك هو:
+👉 *${otpCode}*
+
+⏰ الرمز صالح لمدة 5 دقائق.
+🔒 لا تشارك هذا الرمز مع أي شخص لأمان حسابك.`;
+
+  return await sendWhatsAppMessage(targetPhone, message);
+};
+
 module.exports = {
+  sendWhatsAppMessage,
   sendWhatsAppOTP,
   formatPhone
 };

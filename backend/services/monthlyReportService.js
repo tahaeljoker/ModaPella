@@ -747,9 +747,13 @@ async function checkAndAutoClosePreviousMonths() {
         type: 'info'
       });
       console.log(`[MonthlyReportService] Auto-generated report for ${prevYearMonth}`);
+      return { closed: true, yearMonth: prevYearMonth, reportId: report._id, totalSales: report.totalSales, netProfit: report.netProfit };
     }
+
+    return { closed: false, alreadyClosed: true, yearMonth: prevYearMonth };
   } catch (error) {
     console.error('[MonthlyReportService] Error during auto-close:', error.message);
+    throw error;
   }
 }
 

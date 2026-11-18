@@ -125,6 +125,7 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
 
     const totalRewards = filteredAdjustments.filter(a => a.type === 'reward').reduce((s, a) => s + a.amount, 0);
     const totalDiscounts = filteredAdjustments.filter(a => a.type === 'discount').reduce((s, a) => s + a.amount, 0);
+    const totalAdvances = filteredAdjustments.filter(a => a.type === 'advance').reduce((s, a) => s + a.amount, 0);
 
     const match = { employee: new Types.ObjectId(req.params.id) };
     if (from || to) {
@@ -215,7 +216,8 @@ router.get('/:id/stats', auth, requireRole(ADMIN), async (req, res) => {
       contributionPercent: Number(contributionPercent),
       adjustments: filteredAdjustments,
       totalRewards,
-      totalDiscounts
+      totalDiscounts,
+      totalAdvances
     });
   } catch (e) {
     res.status(500).json({ message: 'Unable to load stats', error: e.message });
@@ -363,14 +365,14 @@ router.delete('/:id', auth, requireRole(ADMIN), async (req, res) => {
   }
 });
 
-// POST /api/employees/:id/adjustments — add a discount or reward
+// POST /api/employees/:id/adjustments — add a discount, reward, or advance with WhatsApp notification
 router.post('/:id/adjustments', auth, requireRole(ADMIN), async (req, res) => {
   try {
-    const { type, amount, reason, date } = req.body;
-    if (!['discount', 'reward'].includes(type)) {
-      return res.status(400).json({ message: 'نوع التسوية غير صالح (يجب أن يكون خصم أو مكافأة)' });
+    const { type, amount, reason, date, notifyWhatsapp = true } = req.body;
+    if (!['discount', 'reward', 'advance'].includes(type)) {
+      return res.status(400).json({ message: 'نوع التسوية غير صالح (يجب أن يكون مكافأة أو خصم أو سلفة)' });
     }
-    if (!amount || amount <= 0) {
+    if (!amount || Number(amount) <= 0) {
       return res.status(400).json({ message: 'المبلغ يجب أن يكون أكبر من الصفر' });
     }
     if (!reason || reason.trim() === '') {
@@ -380,15 +382,76 @@ router.post('/:id/adjustments', auth, requireRole(ADMIN), async (req, res) => {
     const emp = await Employee.findById(req.params.id);
     if (!emp) return res.status(404).json({ message: 'الموظف غير موجود' });
 
+    const adjDate = date ? new Date(date) : new Date();
     emp.adjustments.push({
       type,
       amount: Number(amount),
-      reason,
-      date: date ? new Date(date) : new Date()
+      reason: reason.trim(),
+      date: adjDate
     });
 
     await emp.save();
-    res.status(201).json(emp.adjustments[emp.adjustments.length - 1]);
+    const savedAdj = emp.adjustments[emp.adjustments.length - 1];
+
+    // Compute updated totals for employee summary
+    const allAdj = emp.adjustments || [];
+    const totalRewards = allAdj.filter(a => a.type === 'reward').reduce((s, a) => s + a.amount, 0);
+    const totalDiscounts = allAdj.filter(a => a.type === 'discount').reduce((s, a) => s + a.amount, 0);
+    const totalAdvances = allAdj.filter(a => a.type === 'advance').reduce((s, a) => s + a.amount, 0);
+    const netAdjustments = totalRewards - (totalDiscounts + totalAdvances);
+
+    const typeLabels = {
+      reward: 'مكافأة / بونص',
+      discount: 'استقطاع / خصم',
+      advance: 'سلفة مالية'
+    };
+    const typeEmojis = {
+      reward: '🎁',
+      discount: '⚠️',
+      advance: '💵'
+    };
+    const typeLabel = typeLabels[type] || 'تسوية مالية';
+    const typeEmoji = typeEmojis[type] || '📝';
+    const formattedAmount = `${Number(amount).toLocaleString('en-US')} ج.م`;
+    const formattedDate = adjDate.toLocaleDateString('ar-EG-u-nu-latn');
+
+    const message = `✨ *إشعار مالي — ModaPella* ✨
+أهلاً بك يا *${emp.name}*،
+
+تم تسجيل *${typeLabel}* ${typeEmoji} في حسابك بالتفاصيل الآتية:
+━━━━━━━━━━━━━━━━━━
+💰 *المبلغ:* ${formattedAmount}
+📝 *السبب/البيان:* ${reason.trim()}
+📅 *التاريخ:* ${formattedDate}
+━━━━━━━━━━━━━━━━━━
+📊 *ملخص التسويات المالية الحالية:*
+• إجمالي المكافآت: ${totalRewards.toLocaleString('en-US')} ج.م
+• إجمالي الخصومات والسلف: ${(totalDiscounts + totalAdvances).toLocaleString('en-US')} ج.م
+• صافي رصيد التسويات: ${netAdjustments >= 0 ? '+' : ''}${netAdjustments.toLocaleString('en-US')} ج.م
+
+نسعد بجهودك ونتمنى لك دوام التوفيق والتميز! 🌸`;
+
+    const { sendWhatsAppMessage, formatPhone } = require('../services/whatsappService');
+    const formattedPhone = formatPhone(emp.phone);
+    const whatsappDirectLink = formattedPhone
+      ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
+      : '';
+
+    let whatsappSent = false;
+    if (notifyWhatsapp !== false && emp.phone) {
+      try {
+        const waResult = await sendWhatsAppMessage(emp.phone, message);
+        whatsappSent = Boolean(waResult && waResult.success);
+      } catch (waErr) {
+        console.error('⚠️ [WhatsApp] Notification failed (DB operation succeeded):', waErr.message);
+      }
+    }
+
+    res.status(201).json({
+      ...savedAdj.toObject(),
+      whatsappSent,
+      whatsappDirectLink
+    });
   } catch (e) {
     res.status(500).json({ message: 'فشل إضافة التسوية', error: e.message });
   }

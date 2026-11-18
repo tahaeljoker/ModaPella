@@ -294,7 +294,7 @@ function EmployeeStatsModal({ employee, onClose }) {
  const [from, setFrom] = useState('');
  const [to, setTo] = useState('');
  const [showAdjForm, setShowAdjForm] = useState(false);
- const [adjForm, setAdjForm] = useState({ type: 'reward', amount: '', reason: '', date: '' });
+ const [adjForm, setAdjForm] = useState({ type: 'reward', amount: '', reason: '', date: '', notifyWhatsapp: true });
  const [adjSaving, setAdjSaving] = useState(false);
  const [adjError, setAdjError] = useState('');
 
@@ -319,10 +319,11 @@ function EmployeeStatsModal({ employee, onClose }) {
  await api.post(`/employees/${employee._id}/adjustments`, {
  ...adjForm,
  amount: Number(adjForm.amount),
- date: adjForm.date || undefined
+ date: adjForm.date || undefined,
+ notifyWhatsapp: adjForm.notifyWhatsapp
  });
  setShowAdjForm(false);
- setAdjForm({ type: 'reward', amount: '', reason: '', date: '' });
+ setAdjForm({ type: 'reward', amount: '', reason: '', date: '', notifyWhatsapp: true });
  load();
  } catch (err) {
  setAdjError(err.response?.data?.message || 'حدث خطأ أثناء حفظ التسوية');
@@ -458,47 +459,91 @@ function EmployeeStatsModal({ employee, onClose }) {
  </div>
 
  {/* Adjustments Summary Cards */}
- <div className="grid grid-cols-2 gap-3 mb-4">
+ <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
  <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-center">
- <p className="text-xs text-emerald-700 font-semibold"> إجمالي المكافآت</p>
+ <p className="text-xs text-emerald-700 font-semibold">🎁 إجمالي المكافآت</p>
  <p className="text-base font-extrabold text-emerald-800 mt-1">{EGP(stats.totalRewards)}</p>
  </div>
  <div className="rounded-xl border border-red-200 bg-red-50/50 p-3 text-center">
- <p className="text-xs text-red-600 font-semibold"> إجمالي الخصومات</p>
+ <p className="text-xs text-red-600 font-semibold">⚠️ إجمالي الخصومات</p>
  <p className="text-base font-extrabold text-red-700 mt-1">{EGP(stats.totalDiscounts)}</p>
  </div>
+ {Boolean(stats.totalAdvances) && (
+ <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-center col-span-2 sm:col-span-1">
+ <p className="text-xs text-amber-700 font-semibold">💵 إجمالي السلف</p>
+ <p className="text-base font-extrabold text-amber-800 mt-1">{EGP(stats.totalAdvances)}</p>
+ </div>
+ )}
  </div>
 
  {/* Adjustments list */}
  {stats.adjustments?.length === 0 ? (
  <p className="text-center text-xs text-burgundy/40 py-4">لا توجد تسويات مسجلة في هذه الفترة</p>
  ) : (
- <div className="space-y-2 max-h-40 overflow-y-auto">
- {stats.adjustments?.map(adj => (
- <div key={adj._id} className={`flex items-center justify-between rounded-xl px-3 py-2 border ${adj.type === 'reward' ? 'bg-emerald-50/20 border-emerald-100' : 'bg-red-50/20 border-red-100'}`}>
+ <div className="space-y-2 max-h-48 overflow-y-auto">
+ {stats.adjustments?.map(adj => {
+ const isReward = adj.type === 'reward';
+ const isAdvance = adj.type === 'advance';
+ const typeLabel = isReward ? 'مكافأة' : isAdvance ? 'سلفة' : 'خصم';
+ const badgeClass = isReward
+ ? 'bg-emerald-100 text-emerald-700'
+ : isAdvance
+ ? 'bg-amber-100 text-amber-800'
+ : 'bg-red-100 text-red-700';
+ const amountClass = isReward
+ ? 'text-emerald-700'
+ : isAdvance
+ ? 'text-amber-700'
+ : 'text-red-700';
+ const borderClass = isReward
+ ? 'bg-emerald-50/20 border-emerald-100'
+ : isAdvance
+ ? 'bg-amber-50/20 border-amber-100'
+ : 'bg-red-50/20 border-red-100';
+
+ const rawPhone = employee.phone ? String(employee.phone).replace(/[^\d]/g, '') : '';
+ const targetPhone = rawPhone.startsWith('01') && rawPhone.length === 11 ? '20' + rawPhone : rawPhone;
+ const shareText = `✨ *إشعار مالي — ModaPella* ✨\nأهلاً بك يا ${employee.name}،\nتم تسجيل *${typeLabel}* بمبلغ *${Number(adj.amount).toLocaleString('en-US')} ج.م* (السبب: ${adj.reason}) بتاريخ ${new Date(adj.date).toLocaleDateString('ar-EG-u-nu-latn')}.`;
+ const waUrl = targetPhone ? `https://wa.me/${targetPhone}?text=${encodeURIComponent(shareText)}` : '';
+
+ return (
+ <div key={adj._id} className={`flex items-center justify-between rounded-xl px-3 py-2 border ${borderClass}`}>
  <div>
  <div className="flex items-center gap-2">
- <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${adj.type === 'reward' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
- {adj.type === 'reward' ? 'مكافأة' : 'خصم'}
+ <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeClass}`}>
+ {typeLabel}
  </span>
  <span className="text-xs font-semibold text-burgundy">{adj.reason}</span>
  </div>
  <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(adj.date).toLocaleDateString('ar-EG-u-nu-latn')}</p>
  </div>
- <div className="flex items-center gap-3">
- <span className={`font-bold text-sm ${adj.type === 'reward' ? 'text-emerald-700' : 'text-red-700'}`}>
- {adj.type === 'reward' ? `+${EGP(adj.amount)}` : `-${EGP(adj.amount)}`}
+ <div className="flex items-center gap-2.5">
+ <span className={`font-bold text-sm ${amountClass}`}>
+ {isReward ? `+${EGP(adj.amount)}` : `-${EGP(adj.amount)}`}
  </span>
+ {waUrl && (
+ <a
+ href={waUrl}
+ target="_blank"
+ rel="noopener noreferrer"
+ className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+ title="إرسال / إعادة مشاركة عبر الواتساب"
+ >
+ <span>📱</span>
+ <span>واتساب</span>
+ </a>
+ )}
  <button
  onClick={() => handleRemoveAdj(adj._id)}
- className="text-red-400 hover:text-red-600 text-xs transition"
+ className="text-red-400 hover:text-red-600 text-xs transition p-1"
  title="حذف التسوية"
  >
- 
+ ✕
  </button>
  </div>
  </div>
- ))}
+ );
+ })}
  </div>
  )}
  </div>
@@ -555,8 +600,9 @@ function EmployeeStatsModal({ employee, onClose }) {
  onChange={e => setAdjForm(p => ({ ...p, type: e.target.value }))}
  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
  >
- <option value="reward"> مكافأة / بونص</option>
- <option value="discount"> خصم / استقطاع</option>
+ <option value="reward">🎁 مكافأة / بونص</option>
+ <option value="discount">⚠️ خصم / استقطاع</option>
+ <option value="advance">💵 سلفة مالية</option>
  </select>
  </div>
  <div>
@@ -591,6 +637,17 @@ function EmployeeStatsModal({ employee, onClose }) {
  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
  />
  </div>
+ <label className="flex items-center gap-2 cursor-pointer bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80 transition hover:bg-emerald-50">
+ <input
+ type="checkbox"
+ checked={adjForm.notifyWhatsapp}
+ onChange={e => setAdjForm(p => ({ ...p, notifyWhatsapp: e.target.checked }))}
+ className="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
+ />
+ <span className="text-xs font-semibold text-emerald-900">
+ إرسال إشعار واتساب للموظف تلقائياً 📱
+ </span>
+ </label>
  {adjError && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{adjError}</p>}
  <div className="flex gap-3 pt-2">
  <button

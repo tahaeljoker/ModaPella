@@ -8,7 +8,7 @@ const EmployeeSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   adjustments: [{
-    type: { type: String, enum: ['discount', 'reward'], required: true },
+    type: { type: String, enum: ['discount', 'reward', 'advance'], required: true },
     amount: { type: Number, required: true },
     reason: { type: String, required: true },
     date: { type: Date, default: Date.now }

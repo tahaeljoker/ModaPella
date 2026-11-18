@@ -6,6 +6,12 @@
       "use": "@vercel/node"
     }
   ],
+  "crons": [
+    {
+      "path": "/api/reports/cron/auto-close",
+      "schedule": "0 2 1 * *"
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",

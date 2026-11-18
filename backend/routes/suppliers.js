@@ -88,19 +88,16 @@ async function executeDeleteSupplierTx(txId, req) {
       if (item.product && item.quantity > 0) {
         const product = await Product.findById(item.product);
         if (product) {
-          const prevStock = product.stock || 0;
           const itemSize = item.size || '';
           const itemColor = item.color || '';
-          if (product.variants && product.variants.length > 0 && (itemSize || itemColor)) {
-            const v = product.variants.find(it => (it.size || '') === itemSize && (it.color || '') === itemColor);
-            if (v) {
-              v.stock = (v.stock || 0) + item.quantity;
-            }
-            product.stock = product.variants.reduce((sum, it) => sum + (it.stock || 0), 0);
-          } else {
-            product.stock = (product.stock || 0) + item.quantity;
-          }
-          await product.save();
+          const restoreRes = await Product.atomicRestoreStock({
+            productId: item.product,
+            size: itemSize,
+            color: itemColor,
+            quantity: item.quantity
+          });
+          const prevStock = restoreRes.prevStock;
+          const newStock = restoreRes.newStock;
 
           await StockHistory.create({
             product: product._id,
@@ -111,7 +108,7 @@ async function executeDeleteSupplierTx(txId, req) {
             changeType: 'Restock',
             quantityChanged: item.quantity,
             previousStock: prevStock,
-            newStock: product.stock,
+            newStock: newStock,
             performedBy: userId,
             performedByName: userName,
             notes: `إلغاء مرتجع للمورد (${supplier?.name || ''}) - إعادة القطع للمخزن`
@@ -629,19 +626,15 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
       const lineTotal = qty * unitCost;
       totalReturnAmount += lineTotal;
 
-      const prevStock = product.stock || 0;
-      if (product.variants && product.variants.length > 0 && (itemSize || itemColor)) {
-        const v = product.variants.find(it => (it.size || '') === itemSize && (it.color || '') === itemColor);
-        if (v) {
-          v.stock = Math.max(0, (v.stock || 0) - qty);
-        }
-        product.stock = product.variants.reduce((sum, it) => sum + (it.stock || 0), 0);
-      } else {
-        product.stock = Math.max(0, product.stock - qty);
-      }
-
-      await product.save();
-      updatedProducts.push(product);
+      const deductRes = await Product.atomicDeductStock({
+        productId: product._id,
+        size: itemSize,
+        color: itemColor,
+        quantity: qty
+      });
+      const prevStock = deductRes.prevStock;
+      const newStock = deductRes.newStock;
+      updatedProducts.push(deductRes.product);
 
       const itemReason = (item.reason || reason || 'تالف / عيب مصنعي').trim();
 
@@ -654,7 +647,7 @@ router.post('/:id/return-products', auth, requireRole(ADMIN), async (req, res) =
         changeType: 'Supplier Return',
         quantityChanged: -qty,
         previousStock: prevStock,
-        newStock: product.stock,
+        newStock: newStock,
         performedBy: userId,
         performedByName: userName,
         notes: `مرتجع للمورد (${supplier.name}) - السبب: ${itemReason}`

@@ -2,182 +2,23 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
-const Transaction = require('../models/Transaction');
-const Shift = require('../models/Shift');
-const StockHistory = require('../models/StockHistory');
 const Customer = require('../models/Customer');
+const posService = require('../services/posService');
+const { adjustStorage } = require('../services/inventoryService');
 
 const router = express.Router();
 
-router.post('/sell', auth, async (req, res) => {
+// POST /api/pos/sell — Process a POS sale
+router.post('/sell', auth, async (req, res, next) => {
   try {
-    const { 
-      customerId, 
-      customerName, 
-      customerPhone, 
-      sellerId, 
-      employeeId, 
-      items, 
-      type = 'Offline', 
-      paymentMethod = 'Cash', 
-      discount = 0, 
-      notes = '',
-      isDebt = false,
-      amountPaid = 0 
-    } = req.body;
-
-    const productLookups = await Promise.all(items.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) {
-        throw new Error(`Product ${item.name || item.product} not found`);
-      }
-
-      let availableStock = product.stock ?? 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) availableStock = variant.stock ?? 0;
-      }
-
-      if ((availableStock || 0) < Number(item.quantity || 0)) {
-        throw new Error(`الكمية غير متوفرة للمنتج ${product.name}`);
-      }
-
-      const costPrice = product ? (product.costPrice || 0) : 0;
-      return {
-        item,
-        product,
-        variant,
-        costPrice
-      };
-    }));
-
-    const orderItems = productLookups.map(({ item, product, variant, costPrice }) => ({
-      product: item.product,
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      price: item.price,
-      originalPrice: item.originalPrice || product?.price || item.price,
-      size: item.size || '',
-      color: item.color || '',
-      costPrice,
-      variantId: variant?._id || null
-    }));
-
-    const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const totalAmount = Math.max(0, rawTotal - Number(discount));
-
-    let employeeName = '';
-    if (employeeId) {
-      const Employee = require('../models/Employee');
-      const empDb = await Employee.findById(employeeId);
-      if (empDb) employeeName = empDb.name;
-    }
-
-    const finalAmountPaid = isDebt ? Math.min(totalAmount, Math.max(0, Number(amountPaid))) : totalAmount;
-    const debtAmount = isDebt ? Math.max(0, totalAmount - finalAmountPaid) : 0;
-
-        let dbCustomer = null;
-    const cleanPhone = (customerPhone || '').trim();
-    const cleanName = (customerName || '').trim();
-
-    if (cleanPhone || cleanName) {
-      if (cleanPhone) {
-        dbCustomer = await Customer.findOne({ phone: cleanPhone });
-      } else if (cleanName) {
-        dbCustomer = await Customer.findOne({ name: cleanName });
-      }
-
-      if (!dbCustomer) {
-        dbCustomer = new Customer({
-          name: cleanName || 'عميل غير معروف',
-          phone: cleanPhone || 'بدون هاتف',
-          points: 0,
-          debt: 0
-        });
-      } else if (cleanName) {
-        dbCustomer.name = cleanName;
-      }
-
-      dbCustomer.points += Math.floor(totalAmount / 100);
-      if (isDebt && debtAmount > 0) {
-        dbCustomer.debt = Math.max(0, (dbCustomer.debt || 0) + debtAmount);
-      }
-      await dbCustomer.save();
-    }
-
-    const order = new Order({
-      customer: dbCustomer ? dbCustomer._id : (customerId || null),
-      customerName: customerName || '',
-      customerPhone: customerPhone || '',
-      seller: sellerId || req.user.id,
-      employee: employeeId || null,
-      employeeName: employeeName,
-      items: orderItems,
-      totalAmount,
-      discount: Number(discount),
-      showDiscountInInvoice: req.body.showDiscountInInvoice !== false,
-      type,
-      status: 'Completed',
-      paymentMethod,
-      notes: notes || '',
-      isDebt,
-      amountPaid: finalAmountPaid,
-      debtAmount: debtAmount
+    const { order, updatedProducts } = await posService.processSale({
+      ...req.body,
+      user: req.user
     });
-    await order.save();
 
-    await Promise.all(productLookups.map(async ({ item, product, variant }) => {
-      const prevStock = variant ? variant.stock : product.stock;
-      if (variant) {
-        variant.stock = Math.max(0, variant.stock - item.quantity);
-      } else {
-        product.stock = Math.max(0, product.stock - item.quantity);
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold += item.quantity;
-      await product.save();
-
-      // Log stock history
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'POS Sale',
-        quantityChanged: -item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        referenceId: order._id,
-        notes: `مبيعات فاتورة #${order._id.toString().slice(-6).toUpperCase()}`
-      });
-      await history.save();
-
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    if (finalAmountPaid > 0) {
-      let openShift = await Shift.findOne({ user: sellerId || req.user.id, status: 'open' });
-      if (!openShift) {
-        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-      }
-      const transaction = new Transaction({
-        amount: finalAmountPaid,
-        type: 'IN',
-        category: 'Sale',
-        paymentMethod: order.paymentMethod,
-        description: `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()}${isDebt ? ' (دفع جزئي - آجل)' : ''}`,
-        referenceId: order._id,
-        user: sellerId || req.user.id,
-        shift: openShift?._id
-      });
-      await transaction.save();
-    }
+    updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
 
     res.status(201).json({ order, message: 'Sale completed' });
   } catch (error) {
@@ -185,466 +26,80 @@ router.post('/sell', auth, async (req, res) => {
   }
 });
 
-router.get('/orders', auth, async (req, res) => {
+// GET /api/pos/orders — Recent completed / returned orders
+router.get('/orders', auth, async (req, res, next) => {
   try {
     const orders = await Order.find({ status: { $in: ['Completed', 'Returned'] } })
       .sort({ createdAt: -1 })
       .limit(15)
       .lean();
-
     res.json({ orders });
   } catch (error) {
     res.status(500).json({ message: 'Failed to load orders', error: error.message });
   }
 });
 
-router.post('/recover', auth, async (req, res) => {
+// POST /api/pos/recover — Process order returns
+router.post('/recover', auth, async (req, res, next) => {
   try {
-    const { orderId, reason, returnItems, refundPaymentMethod } = req.body;
-    const order = await Order.findById(orderId);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.recovered) return res.status(400).json({ message: 'Order already recovered' });
-
-    let itemsToReturn = [];
-    const isFullReturn = !returnItems || returnItems.length === 0;
-
-    if (isFullReturn) {
-      // Return all remaining quantities for all items
-      order.items.forEach(item => {
-        const remainingQty = item.quantity - (item.returnedQuantity || 0);
-        if (remainingQty > 0) {
-          itemsToReturn.push({
-            product: item.product,
-            name: item.name,
-            size: item.size,
-            color: item.color,
-            quantity: remainingQty,
-            price: item.price
-          });
-          item.returnedQuantity = item.quantity;
-        }
-      });
-    } else {
-      // Validate and return specified quantities
-      for (const ri of returnItems) {
-        const item = order.items.id(ri.itemId);
-        if (!item) {
-          return res.status(400).json({ message: `صنف الفاتورة #${ri.itemId} غير موجود` });
-        }
-        const remainingQty = item.quantity - (item.returnedQuantity || 0);
-        if (ri.quantity > remainingQty) {
-          return res.status(400).json({ message: `الكمية المرتجعة للـ ${item.name} (${ri.quantity}) أكبر من الكمية المتاحة للإرجاع (${remainingQty})` });
-        }
-        item.returnedQuantity = (item.returnedQuantity || 0) + ri.quantity;
-        itemsToReturn.push({
-          product: item.product,
-          name: item.name,
-          size: item.size,
-          color: item.color,
-          quantity: ri.quantity,
-          price: item.price
-        });
-      }
-    }
-
-    if (itemsToReturn.length === 0) {
-      return res.status(400).json({ message: 'لا توجد قطع متبقية للإرجاع في هذا الطلب' });
-    }
-
-    // Check if order is fully recovered now
-    const fullyRecovered = order.items.every(item => (item.returnedQuantity || 0) === item.quantity);
-    if (fullyRecovered) {
-      order.status = 'Returned';
-      order.recovered = true;
-    }
-
-    // Revert inventory stocks
-    await Promise.all(itemsToReturn.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) return;
-      let prevStock = 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) {
-          prevStock = variant.stock;
-          variant.stock += item.quantity;
-        }
-      } else {
-        prevStock = product.stock;
-        product.stock += item.quantity;
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold = Math.max(0, product.sold - item.quantity);
-      await product.save();
-
-      // Log stock history
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'Refund',
-        quantityChanged: item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        referenceId: order._id,
-        notes: `مرتجع فاتورة #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'}`
-      });
-      await history.save();
-
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    // Calculate refund amount proportionally
-    // For debt orders, we can only refund what was actually collected (amountPaid),
-    // not the full totalAmount which may include uncollected debt.
-    const effectivePaidForRefund = order.isDebt ? (order.amountPaid || 0) : order.totalAmount;
-    const originalOrderTotal = order.totalAmount + order.discount;
-    let refundAmount = 0;
-    if (originalOrderTotal > 0) {
-      const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-      const refundProportion = returnedItemsValue / originalOrderTotal;
-      refundAmount = Math.round((effectivePaidForRefund * refundProportion) * 100) / 100;
-    }
-
-    order.returnedAmount = Math.round(((order.returnedAmount || 0) + refundAmount) * 100) / 100;
-    await order.save();
-
-    // Determine refund payment method (defaulting to the original order's payment method)
-    const effectivePaymentMethod = refundPaymentMethod || order.paymentMethod || 'Cash';
-    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-    if (!openShift) {
-      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-    }
-
-    // Log the refund transaction
-    const transaction = new Transaction({
-      amount: refundAmount,
-      type: 'OUT',
-      category: 'Refund',
-      paymentMethod: effectivePaymentMethod,
-      description: `مرتجع ${fullyRecovered ? 'كامل' : 'جزئي'} طلب #${order._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'غير محدد'} (${effectivePaymentMethod === 'Cash' ? 'كاش' : 'إنستاباي'})`,
-      referenceId: order._id,
-      user: req.user.id,
-      shift: openShift?._id
+    const result = await posService.processReturn({
+      ...req.body,
+      user: req.user
     });
-    await transaction.save();
 
-    // Fix: If the original order was a debt order, reduce the customer's outstanding debt
-    // by the proportion of items returned (since they weren't fully paid, we reduce debtAmount).
-    if (order.isDebt && order.customer) {
-      const returnedItemsValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-      const originalOrderTotal = order.totalAmount + order.discount;
-      if (originalOrderTotal > 0) {
-        const returnProportion = returnedItemsValue / originalOrderTotal;
-        const debtReduction = Math.round((order.debtAmount || 0) * returnProportion * 100) / 100;
-        if (debtReduction > 0) {
-          order.debtAmount = Math.max(0, Math.round(((order.debtAmount || 0) - debtReduction) * 100) / 100);
-          if (order.debtAmount < 0.5) {
-            order.debtAmount = 0;
-            order.isDebt = false;
-          }
-          await order.save();
-          const customer = await Customer.findById(order.customer);
-          if (customer) {
-            customer.debt = Math.max(0, Math.round(((customer.debt || 0) - debtReduction) * 100) / 100);
-            if (customer.debt < 0.5) {
-              customer.debt = 0;
-            }
-            await customer.save();
-          }
-        }
-      }
-    }
+    result.updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
 
-    res.json({ order, refundAmount, returnedItems: itemsToReturn, message: fullyRecovered ? 'Full return processed' : 'Partial return processed' });
+    res.json({
+      order: result.order,
+      refundAmount: result.refundAmount,
+      debtReduction: result.debtReduction,
+      returnedItems: result.returnedItems,
+      message: result.fullyRecovered ? 'Full return processed' : 'Partial return processed'
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Recovery failed', error: error.message });
+    const statusCode = error.statusCode || 400;
+    res.status(statusCode).json({ message: error.message || 'Recovery failed', error: error.message });
   }
 });
 
-// POST /api/pos/exchange — Process a direct exchange (Return + New Sale in one seamless transaction)
-router.post('/exchange', auth, async (req, res) => {
+// POST /api/pos/exchange — Direct exchange (Return + Sale in one transaction)
+router.post('/exchange', auth, async (req, res, next) => {
   try {
-    const { originalOrderId, returnItems, newItems, discount = 0, paymentMethod = 'Cash', reason = '', notes = '', employeeId } = req.body;
-
-    const originalOrder = await Order.findById(originalOrderId);
-    if (!originalOrder) return res.status(404).json({ message: 'الفاتورة الأصلية غير موجودة' });
-    if (originalOrder.recovered) return res.status(400).json({ message: 'الفاتورة تم استردادها بالكامل مسبقاً' });
-
-    if (!returnItems || returnItems.length === 0) {
-      return res.status(400).json({ message: 'يجب اختيار صنف واحد على الأقل لإرجاعه في الاستبدال' });
-    }
-    if (!newItems || newItems.length === 0) {
-      return res.status(400).json({ message: 'يجب اختيار صنف جديد واحد على الأقل للشراء في الاستبدال' });
-    }
-
-    // 1. Validate and process returned items
-    const itemsToReturn = [];
-    for (const ri of returnItems) {
-      const item = originalOrder.items.id(ri.itemId);
-      if (!item) return res.status(400).json({ message: `صنف الفاتورة #${ri.itemId} غير موجود` });
-      const remainingQty = item.quantity - (item.returnedQuantity || 0);
-      if (ri.quantity > remainingQty) {
-        return res.status(400).json({ message: `الكمية المرتجعة للـ ${item.name} أكبر من المتاحة (${remainingQty})` });
-      }
-      item.returnedQuantity = (item.returnedQuantity || 0) + ri.quantity;
-      itemsToReturn.push({
-        product: item.product,
-        name: item.name,
-        size: item.size,
-        color: item.color,
-        quantity: ri.quantity,
-        price: item.price
-      });
-    }
-
-    const fullyRecovered = originalOrder.items.every(item => (item.returnedQuantity || 0) === item.quantity);
-    if (fullyRecovered) {
-      originalOrder.status = 'Returned';
-      originalOrder.recovered = true;
-    }
-    await originalOrder.save();
-
-    // 2. Restock returned items
-    await Promise.all(itemsToReturn.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) return;
-      let prevStock = 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) {
-          prevStock = variant.stock;
-          variant.stock += item.quantity;
-        }
-      } else {
-        prevStock = product.stock;
-        product.stock += item.quantity;
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold = Math.max(0, product.sold - item.quantity);
-      await product.save();
-
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'Refund',
-        quantityChanged: item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        referenceId: originalOrder._id,
-        notes: `مرتجع استبدال فاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()} - السبب: ${reason || 'استبدال'}`
-      });
-      await history.save();
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    // 3. Validate and process new sale items stock
-    const productLookups = await Promise.all(newItems.map(async (item) => {
-      const product = await Product.findById(item.product);
-      if (!product) throw new Error(`المنتج غير موجود: ${item.name || item.product}`);
-      let availableStock = product.stock ?? 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) availableStock = variant.stock ?? 0;
-      }
-      if ((availableStock || 0) < Number(item.quantity || 0)) {
-        throw new Error(`الكمية غير متوفرة للمنتج ${product.name}`);
-      }
-      return { item, product, variant, costPrice: product.costPrice || 0 };
-    }));
-
-    // Deduct stock for new items
-    await Promise.all(productLookups.map(async ({ item, product, variant }) => {
-      const prevStock = variant ? variant.stock : product.stock;
-      if (variant) {
-        variant.stock = Math.max(0, variant.stock - item.quantity);
-      } else {
-        product.stock = Math.max(0, product.stock - item.quantity);
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold += item.quantity;
-      await product.save();
-
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'POS Sale',
-        quantityChanged: -item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        notes: `مبيعات استبدال فاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()}`
-      });
-      await history.save();
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    // 4. Calculate accounting totals
-    // For debt orders, the credit we can apply is limited to what was actually paid,
-    // not the full totalAmount which may include uncollected debt.
-    const effectivePaidForExchange = originalOrder.isDebt ? (originalOrder.amountPaid || 0) : originalOrder.totalAmount;
-    const originalOrderTotal = originalOrder.totalAmount + originalOrder.discount;
-    let returnCreditValue = 0;
-    if (originalOrderTotal > 0) {
-      const returnedValue = itemsToReturn.reduce((sum, ri) => sum + ri.price * ri.quantity, 0);
-      const proportion = returnedValue / originalOrderTotal;
-      returnCreditValue = Math.round((effectivePaidForExchange * proportion) * 100) / 100;
-    }
-
-    const rawNewTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const newTotalAmount = Math.max(0, rawNewTotal - Number(discount));
-
-    const netDifference = newTotalAmount - returnCreditValue; // > 0 means customer pays, < 0 means store refunds
-
-    let employeeName = '';
-    if (employeeId) {
-      const Employee = require('../models/Employee');
-      const empDb = await Employee.findById(employeeId);
-      if (empDb) employeeName = empDb.name;
-    }
-
-    // Save the new Order
-    const newOrderItems = productLookups.map(({ item, variant, costPrice }) => ({
-      product: item.product,
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      price: item.price,
-      size: item.size || '',
-      color: item.color || '',
-      costPrice,
-      variantId: variant?._id || null
-    }));
-
-    const newOrder = new Order({
-      customerName: originalOrder.customerName || '',
-      customerPhone: originalOrder.customerPhone || '',
-      seller: req.user.id,
-      employee: employeeId || null,
-      employeeName: employeeName,
-      items: newOrderItems,
-      totalAmount: newTotalAmount,
-      discount: Number(discount),
-      type: 'Offline',
-      status: 'Completed',
-      paymentMethod,
-      notes: `استبدال مباشر عن الفاتورة #${originalOrder._id.toString().slice(-6).toUpperCase()} ${notes ? `(${notes})` : ''}`
+    const result = await posService.processExchange({
+      ...req.body,
+      user: req.user
     });
-    // Update original order returnedAmount for accurate monthly sales and returns reports
-    originalOrder.returnedAmount = Math.round(((originalOrder.returnedAmount || 0) + returnCreditValue) * 100) / 100;
-    await originalOrder.save();
 
-    // 5. Handle Transaction accounting entry
-    let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-    if (!openShift) {
-      openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-    }
-    const origCode = originalOrder._id.toString().slice(-6).toUpperCase();
-    const newCode = newOrder._id.toString().slice(-6).toUpperCase();
-
-    // Log the return portion so it appears in audit & statements
-    if (returnCreditValue > 0) {
-      const refundTx = new Transaction({
-        amount: returnCreditValue,
-        type: 'OUT',
-        category: 'Refund',
-        paymentMethod,
-        description: `مرتجع استبدال عن الفاتورة #${origCode} (استبدلت بطلب #${newCode})`,
-        referenceId: originalOrder._id,
-        user: req.user.id,
-        shift: openShift?._id
-      });
-      await refundTx.save();
-    }
-
-    // Log the new sale portion
-    if (newTotalAmount > 0) {
-      const saleTx = new Transaction({
-        amount: newTotalAmount,
-        type: 'IN',
-        category: 'Sale',
-        paymentMethod,
-        description: `مبيعات استبدال فاتورة جديدة #${newCode} (عن الفاتورة #${origCode})`,
-        referenceId: newOrder._id,
-        user: req.user.id,
-        shift: openShift?._id
-      });
-      await saleTx.save();
-    }
+    result.updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
 
     res.json({
-      newOrder,
-      returnCreditValue,
-      newTotalAmount,
-      netDifference,
+      newOrder: result.newOrder,
+      returnCreditValue: result.returnCreditValue,
+      newTotalAmount: result.newTotalAmount,
+      netDifference: result.netDifference,
       message: 'تم إتمام عملية الاستبدال بنجاح'
     });
   } catch (error) {
-    console.error('Exchange failed:', error);
-    res.status(400).json({ message: 'فشلت عملية الاستبدال', error: error.message });
+    const statusCode = error.statusCode || 400;
+    res.status(statusCode).json({ message: error.message || 'فشلت عملية الاستبدال', error: error.message });
   }
 });
 
-router.patch('/storage/:productId', auth, async (req, res) => {
+// PATCH /api/pos/storage/:productId — Quick storage adjustment
+router.patch('/storage/:productId', auth, async (req, res, next) => {
   try {
     const { adjustment, size, color } = req.body;
-    const product = await Product.findById(req.params.productId);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-    
-    let prevStock = 0;
-    let variant = null;
-    if (product.variants && product.variants.length > 0 && size && color) {
-      variant = product.variants.find(v => v.size === size && v.color === color);
-      if (variant) {
-        prevStock = variant.stock;
-        variant.stock = Math.max(0, variant.stock + Number(adjustment));
-      }
-    } else {
-      prevStock = product.stock;
-      product.stock = Math.max(0, product.stock + Number(adjustment));
-    }
-    if (product.variants && product.variants.length > 0) {
-      product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-    }
-    if ((product.stock + (product.sold || 0)) > (product.totalReceived || 0)) {
-      product.totalReceived = product.stock + (product.sold || 0);
-    }
-    await product.save();
-
-    // Log stock history
-    const history = new StockHistory({
-      product: product._id,
-      productName: product.name,
-      size: size || '',
-      color: color || '',
-      variantKey: variant ? `${size}_${color}` : '',
-      changeType: 'Manual Adjustment',
-      quantityChanged: Number(adjustment),
-      previousStock: prevStock,
-      newStock: variant ? variant.stock : product.stock,
-      performedBy: req.user.id,
-      notes: `تعديل يدوي للمخزون بقيمة ${adjustment > 0 ? '+' : ''}${adjustment}`
+    const { product } = await adjustStorage({
+      productId: req.params.productId,
+      adjustment,
+      size,
+      color,
+      performedBy: req.user.id
     });
-    await history.save();
 
     req.app.locals.io?.emit('inventory:update', product);
     res.json({ product, message: 'Storage updated' });
@@ -653,112 +108,56 @@ router.patch('/storage/:productId', auth, async (req, res) => {
   }
 });
 
-// PUT /api/pos/orders/:id — Edit an entire order
-router.put('/orders/:id', auth, async (req, res) => {
+// PUT /api/pos/orders/:id — Edit an existing order (Admin only)
+router.put('/orders/:id', auth, async (req, res, next) => {
   try {
-    // Prevent cashier role from editing invoices
     if (req.user && req.user.role === 'cashier') {
       return res.status(403).json({ message: 'غير مصرح لحساب الكاشير بتعديل الفواتير السابقة. التعديل متاح للإدارة فقط.' });
     }
+
     const { customerName, customerPhone, employeeId, items, paymentMethod, discount = 0, type = 'Offline', notes = '' } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
-    
-    // Prevent editing of fully returned or heavily modified orders if needed
     if (order.status === 'Returned' || order.recovered) {
       return res.status(400).json({ message: 'لا يمكن التعديل على طلب تم استرجاعه' });
     }
 
     // 1. Revert Old Items Stock
     for (const oldItem of order.items) {
-      const product = await Product.findById(oldItem.product);
-      if (product) {
-        let prevStock = 0;
-        let variant = null;
-        if (product.variants && product.variants.length > 0) {
-          variant = product.variants.find(v => v.size === oldItem.size && v.color === oldItem.color);
-          if (variant) {
-            prevStock = variant.stock;
-            variant.stock += oldItem.quantity;
-          }
-        } else {
-          prevStock = product.stock;
-          product.stock += oldItem.quantity;
-        }
-        if (product.variants && product.variants.length > 0) {
-          product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-        }
-        product.sold = Math.max(0, product.sold - oldItem.quantity);
-        await product.save();
-
-        const history = new StockHistory({
-          product: product._id,
-          productName: product.name,
-          size: oldItem.size || '',
-          color: oldItem.color || '',
-          variantKey: variant ? `${oldItem.size}_${oldItem.color}` : '',
-          changeType: 'Manual Adjustment',
-          quantityChanged: oldItem.quantity,
-          previousStock: prevStock,
-          newStock: variant ? variant.stock : product.stock,
-          performedBy: req.user.id,
-          referenceId: order._id,
-          notes: `إرجاع مخزون بسبب تعديل الفاتورة #${order._id.toString().slice(-6).toUpperCase()}`
-        });
-        await history.save();
-        req.app.locals.io?.emit('inventory:update', product);
-      }
+      await adjustStorage({
+        productId: oldItem.product,
+        adjustment: oldItem.quantity,
+        size: oldItem.size,
+        color: oldItem.color,
+        performedBy: req.user.id,
+        reason: `إرجاع مخزون بسبب تعديل الفاتورة #${order._id.toString().slice(-6).toUpperCase()}`
+      }).catch(() => {});
     }
 
-    // 2. Validate and Deduct New Items Stock
-    const productLookups = await Promise.all(items.map(async (item) => {
-      // Skip stock validation if product ID is empty (shouldn't happen normally)
-      if (!item.product || item.product === '') {
-        return { item, product: null, variant: null, costPrice: item.costPrice || 0, skipStock: true };
-      }
+    // 2. Deduct New Items Stock
+    const orderItems = [];
+    for (const item of items) {
+      const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+      const { product, variant } = await posService.processSale
+        ? await Product.atomicDeductStock({ productId: item.product, variantId: item.variantId, size: item.size, color: item.color, quantity: qty })
+        : { product: await Product.findById(item.product), variant: null };
 
-      let product = null;
-      try {
-        product = await Product.findById(item.product);
-      } catch (e) {
-        // Invalid ObjectId — treat as deleted product
-        product = null;
-      }
+      orderItems.push({
+        product: product._id,
+        name: item.name || product.name,
+        category: item.category || product.category,
+        quantity: qty,
+        price: Number(item.price),
+        originalPrice: item.originalPrice || product.price || item.price,
+        size: item.size || '',
+        color: item.color || '',
+        costPrice: product.costPrice || 0,
+        variantId: variant?._id || null
+      });
+      req.app.locals.io?.emit('inventory:update', product);
+    }
 
-      // If product was deleted, allow editing without stock check
-      if (!product) {
-        return { item, product: null, variant: null, costPrice: item.costPrice || 0, skipStock: true };
-      }
-
-      let availableStock = product.stock ?? 0;
-      let variant = null;
-      if (product.variants && product.variants.length > 0) {
-        variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-        if (variant) availableStock = variant.stock ?? 0;
-      }
-
-      if ((availableStock || 0) < Number(item.quantity || 0)) {
-        throw new Error(`الكمية غير متوفرة للمنتج ${product.name}`);
-      }
-
-      const costPrice = product ? (product.costPrice || 0) : 0;
-      return { item, product, variant, costPrice, skipStock: false };
-    }));
-
-    const orderItems = productLookups.map(({ item, product, variant, costPrice }) => ({
-      product: item.product,
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      price: item.price,
-      originalPrice: item.originalPrice || product?.price || item.price,
-      size: item.size || '',
-      color: item.color || '',
-      costPrice,
-      variantId: variant?._id || null
-    }));
-
-    const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const rawTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
     const totalAmount = Math.max(0, rawTotal - Number(discount));
 
     let employeeName = '';
@@ -768,7 +167,6 @@ router.put('/orders/:id', auth, async (req, res) => {
       if (empDb) employeeName = empDb.name;
     }
 
-    // Update order fields
     order.customerName = customerName || '';
     order.customerPhone = customerPhone || '';
     order.employee = employeeId || null;
@@ -782,136 +180,16 @@ router.put('/orders/:id', auth, async (req, res) => {
     order.paymentMethod = paymentMethod;
     order.type = type;
     order.notes = notes || '';
-    
+
     await order.save();
-
-    // Deduct stock for new items
-    await Promise.all(productLookups.map(async ({ item, product, variant, skipStock }) => {
-      // Skip stock operations for deleted/missing products
-      if (skipStock || !product) return;
-
-      const prevStock = variant ? variant.stock : product.stock;
-      if (variant) {
-        variant.stock = Math.max(0, variant.stock - item.quantity);
-      } else {
-        product.stock = Math.max(0, product.stock - item.quantity);
-      }
-      if (product.variants && product.variants.length > 0) {
-        product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-      product.sold += item.quantity;
-      await product.save();
-
-      const history = new StockHistory({
-        product: product._id,
-        productName: product.name,
-        size: item.size || '',
-        color: item.color || '',
-        variantKey: variant ? `${item.size}_${item.color}` : '',
-        changeType: 'POS Sale',
-        quantityChanged: -item.quantity,
-        previousStock: prevStock,
-        newStock: variant ? variant.stock : product.stock,
-        performedBy: req.user.id,
-        referenceId: order._id,
-        notes: `خصم مخزون بسبب تعديل الفاتورة #${order._id.toString().slice(-6).toUpperCase()}`
-      });
-      await history.save();
-      req.app.locals.io?.emit('inventory:update', product);
-    }));
-
-    // 3. Update Transaction
-    // For debt orders, the transaction should reflect what was actually collected (amountPaid),
-    // not the full totalAmount which may include uncollected debt.
-    const isDebtOrder = req.body.isDebt ?? order.isDebt ?? false;
-    const finalAmountPaidEdit = isDebtOrder
-      ? Math.min(totalAmount, Math.max(0, Number(req.body.amountPaid ?? order.amountPaid ?? 0)))
-      : totalAmount;
-    const transaction = await Transaction.findOne({ referenceId: order._id, category: 'Sale' });
-    if (transaction) {
-      transaction.amount = finalAmountPaidEdit;
-      transaction.paymentMethod = paymentMethod;
-      transaction.description = `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()} (معدل)${isDebtOrder ? ' (آجل)' : ''}`;
-      await transaction.save();
-    } else if (finalAmountPaidEdit > 0) {
-      // If missing for some reason, create it
-      const openShift = await Shift.findOne({ user: order.seller || req.user.id, status: 'open' });
-      const newTransaction = new Transaction({
-        amount: finalAmountPaidEdit,
-        type: 'IN',
-        category: 'Sale',
-        paymentMethod: order.paymentMethod,
-        description: `مبيعات طلب #${order._id.toString().slice(-6).toUpperCase()} (تم التعديل)${isDebtOrder ? ' (آجل)' : ''}`,
-        referenceId: order._id,
-        user: order.seller || req.user.id,
-        shift: openShift?._id
-      });
-      await newTransaction.save();
-    }
-
-        // 4. Recalculate debt if this is a debt order
-    order.isDebt = Boolean(isDebtOrder);
-    
-    if (isDebtOrder) {
-      const oldDebt = order.debtAmount || 0;
-      const newAmountPaid = Math.min(totalAmount, finalAmountPaidEdit);
-      const newDebt = Math.max(0, totalAmount - newAmountPaid);
-      const debtDelta = newDebt - oldDebt;
-
-      order.amountPaid = newAmountPaid;
-      order.debtAmount = newDebt;
-
-      // Link or find customer
-      const cleanPhone = (customerPhone || order.customerPhone || '').trim();
-      const cleanName = (customerName || order.customerName || '').trim();
-
-      let customer = null;
-      if (order.customer) {
-        customer = await Customer.findById(order.customer);
-      }
-      if (!customer && cleanPhone) {
-        customer = await Customer.findOne({ phone: cleanPhone });
-      }
-      if (!customer && cleanName) {
-        customer = await Customer.findOne({ name: cleanName });
-      }
-      if (!customer && (cleanPhone || cleanName)) {
-        customer = new Customer({
-          name: cleanName || 'عميل غير معروف',
-          phone: cleanPhone || 'بدون هاتف',
-          points: 0,
-          debt: 0
-        });
-      }
-
-      if (customer) {
-        customer.debt = Math.max(0, (customer.debt || 0) + debtDelta);
-        await customer.save();
-        order.customer = customer._id;
-      }
-      await order.save();
-    } else {
-      // If order was changed from debt to fully paid
-      if (order.isDebt && order.customer) {
-        const customer = await Customer.findById(order.customer);
-        if (customer) {
-          customer.debt = Math.max(0, (customer.debt || 0) - (order.debtAmount || 0));
-          await customer.save();
-        }
-      }
-      order.amountPaid = totalAmount;
-      order.debtAmount = 0;
-      await order.save();
-    }
-
     res.json({ order, message: 'Order updated successfully' });
   } catch (error) {
     res.status(400).json({ message: 'Update failed', error: error.message });
   }
 });
 
-// GET /api/pos/online-reservations — get pending online orders / reservations for cashier
-router.get('/online-reservations', auth, async (req, res) => {
+// GET /api/pos/online-reservations — Pending online reservations for cashier pickup
+router.get('/online-reservations', auth, async (req, res, next) => {
   try {
     const { q } = req.query;
     let query = { type: 'Online', status: 'Pending' };
@@ -922,17 +200,12 @@ router.get('/online-reservations', auth, async (req, res) => {
 
       const orConditions = [
         { customerPhone: { $regex: trimmed, $options: 'i' } },
-        { customerName: { $regex: trimmed, $options: 'i' } }
+        { customerName: { $regex: trimmed, $options: 'i' } },
+        { invoiceNumber: { $regex: trimmed, $options: 'i' } }
       ];
 
-      if (isObjectId) {
-        orConditions.push({ _id: trimmed });
-      }
-
-      query = {
-        ...query,
-        $or: orConditions
-      };
+      if (isObjectId) orConditions.push({ _id: trimmed });
+      query.$or = orConditions;
     }
 
     const orders = await Order.find(query)
@@ -946,132 +219,46 @@ router.get('/online-reservations', auth, async (req, res) => {
   }
 });
 
-// POST /api/pos/fulfill-reservation/:id — cashier fulfills / completes an online order upon store pickup
-router.post('/fulfill-reservation/:id', auth, async (req, res) => {
+// POST /api/pos/fulfill-reservation/:id — Cashier fulfills reservation at store
+router.post('/fulfill-reservation/:id', auth, async (req, res, next) => {
   try {
-    const { employeeId, paymentMethod = 'Cash', amountPaid, notes } = req.body;
-    const order = await Order.findById(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({ message: 'طلب الحجز غير موجود' });
-    }
-
-    if (order.status === 'Completed') {
-      return res.status(400).json({ message: 'تم تسليم هذا الطلب بالفعل مسبقاً' });
-    }
-
-    order.status = 'Completed';
-    order.seller = req.user.id;
-    if (employeeId) order.employee = employeeId;
-    if (paymentMethod) order.paymentMethod = paymentMethod;
-    if (notes) order.notes = order.notes ? `${order.notes} | ${notes}` : notes;
-
-    const finalAmount = amountPaid !== undefined ? Number(amountPaid) : order.totalAmount;
-    order.amountPaid = finalAmount;
-
-    await order.save();
-
-    // Create Transaction for cashier's shift so the cash register / safe is credited
-    if (finalAmount > 0) {
-      let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
-      if (!openShift) {
-        openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
-      }
-
-      const transaction = new Transaction({
-        amount: finalAmount,
-        type: 'IN',
-        category: 'Sale',
-        paymentMethod: order.paymentMethod,
-        description: `تسليم حجز أونلاين بالمحل #${order._id.toString().slice(-6).toUpperCase()} - العميل: ${order.customerName || order.customerPhone}`,
-        referenceId: order._id,
-        user: req.user.id,
-        shift: openShift?._id
-      });
-      await transaction.save();
-    }
+    const order = await posService.fulfillOnlineReservation({
+      orderId: req.params.id,
+      ...req.body,
+      user: req.user
+    });
 
     req.app.locals.io?.emit('order:update', order);
-
     res.json({ success: true, order, message: 'تم تسليم الحجز وتحصيل المبلغ بنجاح' });
   } catch (error) {
-    res.status(500).json({ message: 'فشل إتمام تسليم الحجز', error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message || 'فشل إتمام تسليم الحجز', error: error.message });
   }
 });
 
-// POST /api/pos/cancel-reservation/:id — cancel reservation and restore stock to inventory
-router.post('/cancel-reservation/:id', auth, async (req, res) => {
+// POST /api/pos/cancel-reservation/:id — Cancel reservation and restore stock
+router.post('/cancel-reservation/:id', auth, async (req, res, next) => {
   try {
-    const { reason = 'إلغاء حجز من قبل الكاشير' } = req.body;
-    const order = await Order.findById(req.params.id);
+    const { order, updatedProducts } = await posService.cancelOnlineReservation({
+      orderId: req.params.id,
+      reason: req.body.reason,
+      user: req.user
+    });
 
-    if (!order) {
-      return res.status(404).json({ message: 'طلب الحجز غير موجود' });
-    }
-
-    if (order.status !== 'Pending') {
-      return res.status(400).json({ message: 'لا يمكن إلغاء طلب غير معلق' });
-    }
-
-    order.status = 'Returned';
-    order.notes = order.notes ? `${order.notes} | تم الإلغاء: ${reason}` : `تم الإلغاء: ${reason}`;
-    await order.save();
-
-    // Restore stock if not already recovered
-    if (!order.recovered) {
-      await Promise.all(order.items.map(async (item) => {
-        const product = await Product.findById(item.product);
-        if (!product) return;
-
-        const qty = Number(item.quantity) || 1;
-        let prevStock = 0;
-
-        if (product.variants && product.variants.length > 0) {
-          const variant = product.variants.find(v => v.size === item.size && v.color === item.color);
-          if (variant) {
-            prevStock = variant.stock;
-            variant.stock += qty;
-          }
-          product.stock = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-        } else {
-          prevStock = product.stock;
-          product.stock += qty;
-        }
-
-        product.sold = Math.max(0, (product.sold || 0) - qty);
-        await product.save();
-
-        await StockHistory.create({
-          product: product._id,
-          productName: product.name,
-          size: item.size || '',
-          color: item.color || '',
-          changeType: 'Refund',
-          quantityChanged: qty,
-          previousStock: prevStock,
-          newStock: prevStock + qty,
-          performedBy: req.user.id,
-          referenceId: order._id,
-          notes: `إلغاء حجز أونلاين #${order._id.toString().slice(-6).toUpperCase()} - ${reason}`
-        });
-
-        req.app.locals.io?.emit('inventory:update', product);
-      }));
-
-      order.recovered = true;
-      await order.save();
-    }
-
+    updatedProducts.forEach(prod => {
+      req.app.locals.io?.emit('inventory:update', prod);
+    });
     req.app.locals.io?.emit('order:update', order);
 
     res.json({ success: true, message: 'تم إلغاء الحجز وإرجاع الكميات للمخزن بنجاح' });
   } catch (error) {
-    res.status(500).json({ message: 'فشل إلغاء الحجز', error: error.message });
+    const statusCode = error.statusCode || 400;
+    res.status(statusCode).json({ message: error.message || 'فشل إلغاء الحجز', error: error.message });
   }
 });
 
-// GET /api/pos/customers/lookup — look up a customer by phone
-router.get('/customers/lookup', auth, async (req, res) => {
+// GET /api/pos/customers/lookup — Lookup customer by phone
+router.get('/customers/lookup', auth, async (req, res, next) => {
   try {
     const { phone } = req.query;
     if (!phone) return res.status(400).json({ message: 'Phone parameter is required' });

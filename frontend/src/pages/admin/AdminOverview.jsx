@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useSmartSync } from '../../hooks/useSmartSync';
 import { Icon } from '../../components/Icon';
 import InfoPopover from '../../components/InfoPopover';
 import ProductAnalyticsModal from '../../components/ProductAnalyticsModal';
@@ -264,6 +265,26 @@ function AdminOverview() {
  };
 
  useEffect(() => { loadData('current'); }, []);
+
+  // Smart Visibility-Aware Polling: syncs overview metrics & activities silently every 20s while active
+  useSmartSync(async () => {
+    try {
+      const activePeriod = period || 'current';
+      const [overviewRes, summaryRes, activitiesRes] = await Promise.allSettled([
+        api.get(`/admin/overview?period=${activePeriod}`),
+        api.get('/orders/summary'),
+        api.get('/cashier/activities')
+      ]);
+      if (overviewRes.status === 'fulfilled' && overviewRes.value?.data) setOverview(overviewRes.value.data);
+      if (summaryRes.status === 'fulfilled' && summaryRes.value?.data) setSummary(summaryRes.value.data);
+      if (activitiesRes.status === 'fulfilled' && activitiesRes.value?.data) setRecentActivities((activitiesRes.value.data || []).slice(0, 5));
+    } catch (e) {
+      console.debug('Background AdminOverview sync error:', e.message);
+    }
+  }, {
+    intervalMs: 20000,
+    enabled: true
+  });
 
  if (loading && !overview) {
  return (

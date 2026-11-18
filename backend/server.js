@@ -22,10 +22,16 @@ const couponRoutes = require('./routes/coupons');
 const uploadRoutes = require('./routes/upload');
 const lookRoutes = require('./routes/looks');
 const User = require('./models/User');
+const errorHandler = require('./middleware/errorHandler');
 const { attachInventorySync } = require('./services/inventorySync');
 const { checkAndAutoClosePreviousMonths } = require('./services/monthlyReportService');
 
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable is not defined.');
+}
 
 const seedDefaultUsers = async () => {
   try {
@@ -72,35 +78,43 @@ const seedDefaultUsers = async () => {
 
 connectDB().then(() => {
   seedDefaultUsers();
-  checkAndAutoClosePreviousMonths();
-  // Periodically check every 6 hours for month roll-over
-  setInterval(checkAndAutoClosePreviousMonths, 6 * 60 * 60 * 1000);
+  // On persistent servers (non-Vercel), run monthly auto-close and periodic timer.
+  // On Vercel serverless, scheduled Vercel Cron triggers GET /api/reports/cron/auto-close.
+  if (!process.env.VERCEL) {
+    checkAndAutoClosePreviousMonths();
+    setInterval(checkAndAutoClosePreviousMonths, 6 * 60 * 60 * 1000);
+  }
 });
 
 const app = express();
+app.set('trust proxy', 1);
 const defaultAllowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://moda-pella.vercel.app',
+  'https://modapella.shop',
   'https://www.modapella.shop',
-  'https://modapella.shop'
+  'https://moda-pella.com',
+  'https://www.moda-pella.com'
 ];
 
 const envAllowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().toLowerCase())
   .filter(Boolean);
 
-const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envAllowedOrigins]));
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envAllowedOrigins].map(o => o.toLowerCase())));
 
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
+  const lower = origin.toLowerCase().trim();
   return (
-    allowedOrigins.includes(origin) ||
-    origin.endsWith('.vercel.app') ||
-    origin.endsWith('modapella.shop') ||
-    origin.startsWith('http://localhost:') ||
-    origin.startsWith('http://127.0.0.1:')
+    allowedOrigins.includes(lower) ||
+    lower.endsWith('.vercel.app') ||
+    lower.endsWith('modapella.shop') ||
+    lower.endsWith('moda-pella.com') ||
+    lower.startsWith('http://localhost:') ||
+    lower.startsWith('http://127.0.0.1:')
   );
 };
 
@@ -187,6 +201,9 @@ app.get('/api/status', (req, res) => {
   res.json({ service: 'Moda Pella POS & E-commerce API', status: 'ok' });
 });
 
+// Global Centralized Error Handler
+app.use(errorHandler);
+
 const frontendDistPath = path.resolve(__dirname, '../frontend/dist');
 if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendDistPath)) {
   app.use(express.static(frontendDistPath));
@@ -198,27 +215,38 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendDistPath)) {
   });
 }
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+let server = null;
+let io = null;
 
-attachInventorySync(io);
-
-io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
-  socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id);
+if (!process.env.VERCEL) {
+  server = http.createServer(app);
+  const ioServer = new Server(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
   });
-});
+
+  attachInventorySync(ioServer);
+
+  ioServer.on('connection', (socket) => {
+    socket.on('disconnect', () => {});
+  });
+
+  io = ioServer;
+} else {
+  // Stateless mock for serverless Vercel environment where persistent WebSocket state is unsupported
+  io = {
+    emit: () => {},
+    to: () => ({ emit: () => {} }),
+    in: () => ({ emit: () => {} })
+  };
+}
 
 app.locals.io = io;
 
 const port = process.env.PORT || 5000;
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && server) {
   server.listen(port, () => {
     console.log(`Moda Pella backend listening on port ${port}`);
   });
