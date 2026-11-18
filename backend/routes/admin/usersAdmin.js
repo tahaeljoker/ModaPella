@@ -16,7 +16,6 @@ router.get('/users', auth, requireRole(['admin']), async (req, res) => {
       .sort({ createdAt: -1 });
     
     // Self-healing: Resolve and sync phone number from linked Employee if user.phone is missing or incorrect
-    const Employee = require('../models/Employee');
     const enrichedUsers = await Promise.all(users.map(async (u) => {
       if (u.role === 'employee') {
         let emp = await Employee.findOne({ user: u._id });
@@ -55,7 +54,6 @@ router.post('/users', auth, requireRole(['admin']), async (req, res) => {
 
     // Link employee to this User
     if (role === 'employee' && employeeId) {
-      const Employee = require('../models/Employee');
       const emp = await Employee.findById(employeeId);
       if (emp) {
         emp.user = user._id;
@@ -100,7 +98,6 @@ router.patch('/users/:id', auth, requireRole(['admin']), async (req, res) => {
     await user.save();
 
     // If Employee model exists and is linked, sync name and phone
-    const Employee = require('../models/Employee');
     const linkedEmp = await Employee.findOne({ user: user._id });
     if (linkedEmp) {
       linkedEmp.name = user.name;

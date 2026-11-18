@@ -13,7 +13,7 @@ async function runSmokeTests() {
   console.log('MongoDB connected for smoke tests.\n');
 
   const adminToken = jwt.sign(
-    { id: 'smoke-test-admin', role: 'admin' },
+    { user: { id: 'smoke-test-admin', role: 'admin', name: 'Admin Tester' } },
     process.env.JWT_SECRET || 'secret',
     { expiresIn: '1h' }
   );
@@ -79,7 +79,8 @@ async function runSmokeTests() {
             console.error(`✕ FAIL [${this.statusCode}]: ${ep.method} ${ep.url}`, data);
             failed++;
           } else {
-            console.log(`✓ PASS [${this.statusCode}]: ${ep.method} ${ep.url}`);
+            const extra = Array.isArray(data) ? `(Array with ${data.length} items)` : (typeof data === 'object' ? `(Keys: ${Object.keys(data).join(', ')})` : '');
+            console.log(`✓ PASS [${this.statusCode}]: ${ep.method} ${ep.url} ${extra}`);
             passed++;
           }
           resolve();
