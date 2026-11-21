@@ -110,8 +110,201 @@ const sendWhatsAppOTP = async (phone, otpCode) => {
   return await sendWhatsAppMessage(targetPhone, message);
 };
 
+/**
+ * Generates a clean wa.me direct URL for a phone and message text
+ */
+const generateDirectWhatsAppUrl = (phone, message) => {
+  const targetPhone = formatPhone(phone);
+  if (!targetPhone) return '';
+  return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+};
+
+/**
+ * Generates structured, prestigious copy for a customer purchase invoice
+ */
+const generateOrderInvoiceMessage = ({ order, customerName }) => {
+  const name = customerName || order.customerName || 'عميلتنا العزيزة';
+  const invNumber = order.invoiceNumber || (order._id ? `#${order._id.toString().slice(-6).toUpperCase()}` : '—');
+  const dateStr = new Date(order.createdAt || Date.now()).toLocaleDateString('ar-EG-u-nu-latn', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const itemsList = (order.items || []).map((it, idx) => {
+    const details = [
+      it.size ? `مقاس: ${it.size}` : null,
+      it.color ? `لون: ${it.color}` : null
+    ].filter(Boolean).join(' | ');
+
+    const detailsStr = details ? ` (${details})` : '';
+    const unitPrice = (it.originalPrice && it.originalPrice > 0) ? it.originalPrice : it.price;
+    const lineTotal = Number(it.price || unitPrice) * Number(it.quantity || 1);
+
+    return `${idx + 1}. *${it.name}*${detailsStr}\n   العدد: ${it.quantity} × ${Number(unitPrice).toLocaleString('en-US')} ج.م = *${lineTotal.toLocaleString('en-US')} ج.م*`;
+  }).join('\n');
+
+  const discountText = order.discount > 0 ? `\n🎁 *خصم الفاتورة:* -${Number(order.discount).toLocaleString('en-US')} ج.م` : '';
+  const payMethodName = order.paymentMethod === 'Cash' ? 'كاش نقدي' : order.paymentMethod === 'Instapay' ? 'إنستاباي' : (order.paymentMethod || 'كاش');
+  
+  let debtText = '';
+  if (order.isDebt && order.debtAmount > 0) {
+    debtText = `\n💵 *المدفوع نقداً:* ${Number(order.amountPaid || 0).toLocaleString('en-US')} ج.م\n⚠️ *المتبقي (آجل / دين):* ${Number(order.debtAmount).toLocaleString('en-US')} ج.م`;
+  }
+
+  return `🌸 *فاتورة شراء — ModaPella* 🌸
+
+أهلاً بكِ يا *${name}*،
+شكراً لاختياركِ ModaPella وتسوقكِ معنا! سعداء جداً بخدمتك ونتمنى أن تنال مشترياتكِ إعجابك وتزيد من تألقكِ في كل مناسبة ✨
+
+━━━━━━━━━━━━━━━━━━
+🧾 *بيانات الفاتورة:*
+• رقم الفاتورة: *${invNumber}*
+• التاريخ: ${dateStr}
+• طريقة الدفع: ${payMethodName}
+━━━━━━━━━━━━━━━━━━
+🛍️ *تفاصيل المشتريات:*
+${itemsList || '• مشتريات أزياء مختارة'}
+━━━━━━━━━━━━━━━━━━
+💰 *إجمالي الفاتورة:* *${Number(order.totalAmount).toLocaleString('en-US')} ج.م*${discountText}${debtText}
+━━━━━━━━━━━━━━━━━━
+
+✨ *تابعي كل جديد ونسقي إطلالاتكِ:*
+تفضلي بزيارة موقعنا لاكتشاف أحدث كولكشن وعروضنا المميزة وتجربة غرفة التنسيق على المانيكان:
+🌐 https://modapella.com
+
+📱 *تابعينا على صفحاتنا الرسمية:*
+• إنستجرام: instagram.com/moda_pella
+• تيك توك: tiktok.com/@moda.pella
+• فيسبوك: facebook.com/share/1HdfNYn5QX
+
+📍 *عنوان صالة العرض:* شارع الإعدادية بنات، بني مزار، المنيا
+📞 *خدمة العملاء والاستفسارات:* 01090048832
+
+شكراً لثقتكِ الغالية وفي انتظار زيارتكِ القادمة دائماً! 💐`;
+};
+
+/**
+ * Sends a WhatsApp purchase invoice to the customer
+ */
+const sendOrderInvoiceWhatsApp = async ({ order, customerName, customerPhone }) => {
+  const phone = customerPhone || order.customerPhone;
+  if (!phone || phone === 'بدون هاتف' || phone.trim() === '') {
+    return { success: false, reason: 'No phone number available' };
+  }
+
+  const message = generateOrderInvoiceMessage({ order, customerName });
+  const directLink = generateDirectWhatsAppUrl(phone, message);
+  const waResult = await sendWhatsAppMessage(phone, message);
+
+  return {
+    ...waResult,
+    message,
+    directLink
+  };
+};
+
+/**
+ * Generates clear, appreciative copy for a customer debt settlement
+ */
+const generateDebtSettlementMessage = ({
+  customerName,
+  amountPaid,
+  paymentMethod = 'Cash',
+  remainingDebt = 0,
+  settledOrders = [],
+  notes = ''
+}) => {
+  const name = customerName || 'عميلنا العزيز';
+  const dateStr = new Date().toLocaleDateString('ar-EG-u-nu-latn', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const payMethodName = paymentMethod === 'Cash' ? 'كاش نقدي' : paymentMethod === 'Instapay' ? 'إنستاباي' : paymentMethod;
+  const isFullySettled = Number(remainingDebt) <= 0.5;
+
+  const ordersDetail = (settledOrders || []).map(o => {
+    const inv = o.invoiceNumber || (o._id ? `#${o._id.toString().slice(-6).toUpperCase()}` : '—');
+    const status = (Number(o.debtAmount) <= 0.5) ? '✅ تم سداد الفاتورة بالكامل' : `متبقي بالفاتورة: ${Number(o.debtAmount).toLocaleString('en-US')} ج.م`;
+    return `• فاتورة *${inv}*: ${status}`;
+  }).join('\n');
+
+  const statusSummary = isFullySettled
+    ? `🎉 *تم تسوية وسداد كامل الحساب بنجاح!*\n• رصيد الدين المتبقي: *0 ج.م* (حسابك خالص بالكامل ✅).`
+    : `📊 *رصيد الدين المتبقي بعد السداد:* *${Number(remainingDebt).toLocaleString('en-US')} ج.م*`;
+
+  return `✨ *إشعار سداد حساب — ModaPella* ✨
+
+أهلاً بكِ يا *${name}*،
+تم بحمد الله استلام وتسجيل دفعة سداد لحسابك لدى ModaPella بالتفاصيل التالية:
+
+━━━━━━━━━━━━━━━━━━
+💰 *المبلغ المسدد الآن:* *${Number(amountPaid).toLocaleString('en-US')} ج.م*
+💵 *طريقة السداد:* ${payMethodName}
+📅 *تاريخ وساعة السداد:* ${dateStr}
+${notes ? `📝 *ملاحظات:* ${notes}\n` : ''}━━━━━━━━━━━━━━━━━━
+📋 *الفواتير المشمولة بالسداد:*
+${ordersDetail || '• سداد حساب آجل'}
+━━━━━━━━━━━━━━━━━━
+${statusSummary}
+━━━━━━━━━━━━━━━━━━
+
+خالص شكرنا وتقديرنا لتعاملك الراقي والتزامك الدائم معنا 🌸
+نسعد دائماً بخدمتك ونتشرف بزيارتك في أي وقت!
+
+🌐 *موقعنا:* https://modapella.com
+📍 *العنوان:* شارع الإعدادية بنات، بني مزار، المنيا
+📞 *للتواصل والاستفسار:* 01090048832`;
+};
+
+/**
+ * Sends a WhatsApp debt settlement notification to the customer
+ */
+const sendDebtSettlementWhatsApp = async ({
+  customerName,
+  customerPhone,
+  amountPaid,
+  paymentMethod = 'Cash',
+  remainingDebt = 0,
+  settledOrders = [],
+  notes = ''
+}) => {
+  if (!customerPhone || customerPhone === 'بدون هاتف' || customerPhone.trim() === '') {
+    return { success: false, reason: 'No phone number available' };
+  }
+
+  const message = generateDebtSettlementMessage({
+    customerName,
+    amountPaid,
+    paymentMethod,
+    remainingDebt,
+    settledOrders,
+    notes
+  });
+
+  const directLink = generateDirectWhatsAppUrl(customerPhone, message);
+  const waResult = await sendWhatsAppMessage(customerPhone, message);
+
+  return {
+    ...waResult,
+    message,
+    directLink
+  };
+};
+
 module.exports = {
   sendWhatsAppMessage,
   sendWhatsAppOTP,
-  formatPhone
+  formatPhone,
+  generateDirectWhatsAppUrl,
+  generateOrderInvoiceMessage,
+  sendOrderInvoiceWhatsApp,
+  generateDebtSettlementMessage,
+  sendDebtSettlementWhatsApp
 };

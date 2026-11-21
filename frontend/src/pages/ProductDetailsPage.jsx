@@ -10,7 +10,7 @@ import { isDiscountActive, cleanProductName } from '../utils/discount';
 import QuickOrderModal from '../components/QuickOrderModal';
 import ShareOutfitModal from '../components/ShareOutfitModal';
 import MannequinComparisonSlider from '../components/MannequinComparisonSlider';
-import { getColorHex, registerCustomColors } from '../utils/colorSwatches';
+import { getColorHex, getColorStyle, registerCustomColors } from '../utils/colorSwatches';
 import { resolveImageUrl } from '../utils/imageUrl';
 
 const FALLBACK_PRODUCT_IMAGE =
@@ -335,8 +335,8 @@ function ProductColorSelector({ colors, selectedColor, onSelectColor }) {
         {selectedColor && (
           <span className="text-xs font-bold text-burgundy bg-white px-2.5 py-1 rounded-xl border border-burgundy/15 flex items-center gap-1.5 shadow-2xs">
             <span
-              className="w-2.5 h-2.5 rounded-full border border-black/20"
-              style={{ backgroundColor: getColorHex(selectedColor) }}
+              className="w-3 h-3 rounded-full border border-black/20"
+              style={getColorStyle(selectedColor)}
             />
             <span>اللون المختار: {selectedColor}</span>
           </span>
@@ -367,7 +367,7 @@ function ProductColorSelector({ colors, selectedColor, onSelectColor }) {
               >
                 <span
                   className="w-full h-full rounded-full border border-black/15 shadow-inner"
-                  style={{ backgroundColor: hex }}
+                  style={getColorStyle(c)}
                 />
                 {isSelected && (
                   <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold drop-shadow">

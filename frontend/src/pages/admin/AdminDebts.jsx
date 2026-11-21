@@ -18,6 +18,7 @@ function AdminDebts() {
  const [payNotes, setPayNotes] = useState('');
  const [submitting, setSubmitting] = useState(false);
  const [successMsg, setSuccessMsg] = useState('');
+ const [payWaLink, setPayWaLink] = useState('');
 
  // Manual Debt states
  const [manualDebtModal, setManualDebtModal] = useState(false);
@@ -58,16 +59,13 @@ function AdminDebts() {
         paymentMethod: payMethod,
         notes: payNotes
       });
- setSuccessMsg(` تم تسجيل السداد بنجاح! المبلغ المدفوع: ${EGP(payAmount)}`);
- setTimeout(() => {
- setSelectedCust(null);
- setSuccessMsg('');
- loadDebts();
- }, 2000);
- } catch (err) {
- console.error('Failed to record debt payment:', err);
- alert('فشل تسجيل السداد: ' + (err.response?.data?.message || err.message));
- } finally {
+      setPayWaLink(res.data?.whatsappDirectLink || '');
+      setSuccessMsg(`تم تسجيل السداد بنجاح! المبلغ المدفوع: ${EGP(payAmount)}`);
+      loadDebts();
+    } catch (err) {
+      console.error('Failed to record debt payment:', err);
+      alert('فشل تسجيل السداد: ' + (err.response?.data?.message || err.message));
+    } finally {
  setSubmitting(false);
  }
  };
@@ -274,9 +272,43 @@ function AdminDebts() {
 
  <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
  {successMsg ? (
- <div className="py-8 text-center space-y-2">
- <p className="text-lg font-bold text-emerald-700">{successMsg}</p>
- <p className="text-xs text-burgundy/50">جاري تحديث البيانات والصفحة...</p>
+ <div className="py-6 text-center space-y-3">
+ <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+ ✓
+ </div>
+ <p className="text-base font-bold text-emerald-800">{successMsg}</p>
+ <p className="text-xs font-semibold text-burgundy/70">طريقة الدفع: {payMethod === 'Cash' ? '💵 كاش' : '📱 إنستاباي'}</p>
+ 
+ <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-800 space-y-2 text-center mt-3">
+ <p className="font-bold flex items-center justify-center gap-1.5 text-xs text-emerald-900">
+ <span>📱</span>
+ <span>تم إرسال إشعار السداد وتفاصيل الفاتورة للعميل على الواتساب</span>
+ </p>
+ {payWaLink && (
+ <a
+ href={payWaLink}
+ target="_blank"
+ rel="noopener noreferrer"
+ className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 text-xs shadow-md transition"
+ >
+ <span>📱</span>
+ <span>فتح المحادثة ومشاركة الإشعار على واتساب</span>
+ </a>
+ )}
+ </div>
+
+ <button
+ type="button"
+ onClick={() => {
+ setSelectedCust(null);
+ setSuccessMsg('');
+ setPayWaLink('');
+ loadDebts();
+ }}
+ className="mt-4 w-full rounded-full bg-burgundy text-white font-bold py-2.5 text-xs hover:bg-[#650018] transition shadow-md"
+ >
+ تم / إغلاق
+ </button>
  </div>
  ) : (
  <form onSubmit={handlePaySubmit} className="space-y-4">

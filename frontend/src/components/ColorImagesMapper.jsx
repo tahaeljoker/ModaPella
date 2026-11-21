@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import api from '../services/api';
-import { getColorHex } from '../utils/colorSwatches';
+import { getColorHex, getColorStyle } from '../utils/colorSwatches';
 import { compressImage } from '../utils/imageCompressor';
 import { resolveImageUrl } from '../utils/imageUrl';
 
@@ -147,7 +147,7 @@ export default function ColorImagesMapper({
                 <div className="flex items-center gap-2">
                   <span
                     className="w-4 h-4 rounded-full border border-black/20 shadow-xs shrink-0"
-                    style={{ backgroundColor: hex }}
+                    style={getColorStyle(colorName)}
                   />
                   <span className="text-xs font-bold text-burgundy">{colorName}</span>
                 </div>

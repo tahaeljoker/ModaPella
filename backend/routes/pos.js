@@ -20,7 +20,30 @@ router.post('/sell', auth, async (req, res, next) => {
       req.app.locals.io?.emit('inventory:update', prod);
     });
 
-    res.status(201).json({ order, message: 'Sale completed' });
+    // Send customer invoice notification via WhatsApp
+    let whatsappDirectLink = '';
+    let whatsappSent = false;
+    if (order.customerPhone && order.customerPhone !== 'بدون هاتف' && order.customerPhone.trim() !== '') {
+      try {
+        const { sendOrderInvoiceWhatsApp } = require('../services/whatsappService');
+        const waResult = await sendOrderInvoiceWhatsApp({
+          order,
+          customerName: order.customerName,
+          customerPhone: order.customerPhone
+        });
+        whatsappDirectLink = waResult.directLink || '';
+        whatsappSent = Boolean(waResult && waResult.success);
+      } catch (waErr) {
+        console.error('⚠️ [POS WhatsApp] Failed to send receipt:', waErr.message);
+      }
+    }
+
+    res.status(201).json({
+      order,
+      message: 'Sale completed',
+      whatsappDirectLink,
+      whatsappSent
+    });
   } catch (error) {
     res.status(400).json({ message: 'Sale failed', error: error.message });
   }

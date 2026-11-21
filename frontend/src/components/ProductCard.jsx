@@ -4,7 +4,7 @@ import LazyImage from './LazyImage';
 import { isDiscountActive, cleanProductName } from '../utils/discount';
 import CompareContext from '../context/CompareContext';
 import { useFavorites } from '../context/FavoritesContext';
-import { getColorHex } from '../utils/colorSwatches';
+import { getColorHex, getColorStyle } from '../utils/colorSwatches';
 import { resolveImageUrl, getDefaultProductPlaceholder } from '../utils/imageUrl';
 import { saveScrollPosition } from './ScrollRestoration';
 
@@ -150,7 +150,7 @@ function ProductCard({ product }) {
         {/* Selected Color Badge */}
         {selectedColor && (
           <div className="absolute top-2 left-2 z-20 bg-burgundy/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 backdrop-blur-xs animate-fadeIn">
-            <span className="w-1.5 h-1.5 rounded-full border border-white" style={{ backgroundColor: getColorHex(selectedColor) }} />
+            <span className="w-2 h-2 rounded-full border border-white" style={getColorStyle(selectedColor)} />
             <span>{selectedColor}</span>
           </div>
         )}
@@ -204,7 +204,7 @@ function ProductCard({ product }) {
                     className={`w-3 h-3 rounded-full border transition-all duration-200 hover:scale-125 cursor-pointer shadow-2xs ${
                       selectedColor === c ? 'scale-125 ring-2 ring-burgundy border-white shadow-xs' : 'border-black/20'
                     }`}
-                    style={{ backgroundColor: getColorHex(c) }}
+                    style={getColorStyle(c)}
                     title={`عرض ${c}`}
                   />
                 ))}

@@ -517,7 +517,30 @@ router.post('/public-checkout', async (req, res) => {
       console.error('Failed to create order notification:', err);
     }
 
-    res.status(201).json({ success: true, order: result.order });
+    // Send WhatsApp order invoice confirmation to customer
+    let whatsappDirectLink = '';
+    let whatsappSent = false;
+    if (result.dbCustomer.phone && result.dbCustomer.phone !== 'بدون هاتف' && result.dbCustomer.phone.trim() !== '') {
+      try {
+        const { sendOrderInvoiceWhatsApp } = require('../services/whatsappService');
+        const waResult = await sendOrderInvoiceWhatsApp({
+          order: result.order,
+          customerName: result.dbCustomer.name,
+          customerPhone: result.dbCustomer.phone
+        });
+        whatsappDirectLink = waResult.directLink || '';
+        whatsappSent = Boolean(waResult && waResult.success);
+      } catch (waErr) {
+        console.error('⚠️ [Online Order WhatsApp] Notification error:', waErr.message);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      order: result.order,
+      whatsappDirectLink,
+      whatsappSent
+    });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

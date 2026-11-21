@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ImageUploader from '../../ImageUploader';
 import MannequinImageUploader from '../../MannequinImageUploader';
-import { getColorHex } from '../../../utils/colorSwatches';
+import { getColorHex, getColorStyle, PRESET_MULTI_COLORS, combineColors } from '../../../utils/colorSwatches';
 import { Icon } from '../../Icon';
 import { isDiscountActive } from '../../../utils/discount';
 import { renderBarcodeDataUrl } from '../../../utils/barcode';
@@ -722,8 +722,12 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/60">الألوان المتاحة للمنتج</label>
  <span className="text-[10px] text-burgundy/50 font-bold">{parsedColors.length > 0 ? `${parsedColors.length} ألوان` : 'لون واحد (افتراضي)'}</span>
  </div>
- <input name="colors" value={typeof form.colors === "string" ? form.colors : (form.colors || []).join(", ")} onChange={handleChange} className={inp} placeholder="أحمر, أخضر, بورجندي (أو اتركه فارغاً ليكون لون واحد)" />
- <div className="flex flex-wrap gap-1 mt-2">
+ <input name="colors" value={typeof form.colors === "string" ? form.colors : (form.colors || []).join(", ")} onChange={handleChange} className={inp} placeholder="أحمر, أخضر, أبيض × أسود, مشجر (أو اتركه فارغاً ليكون لون واحد)" />
+ 
+ {/* Single Colors Presets */}
+ <div className="mt-2">
+ <p className="text-[10px] font-bold text-burgundy/60 mb-1">الألوان الفردية الشائعة:</p>
+ <div className="flex flex-wrap gap-1">
  {["لون واحد", "أحمر", "أخضر", "بورجندي", "أسود", "أبيض", "بيج", "كحلي", "بترولي", "كشمير", "جنزاري", "سماوي", "زيتي", "سيمون", "لافندر", "أصفر"].map(clr => {
  const isSel = parsedColors.includes(clr);
  return (
@@ -738,12 +742,46 @@ images: form.images ? (typeof form.images === 'string' ? form.images.split('\n')
  isSel ? "bg-burgundy text-white border-burgundy shadow-xs" : "bg-white text-burgundy/70 border-burgundy/15 hover:bg-burgundy/5"
  }`}
  >
- <span className="w-2 h-2 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: getColorHex(clr) }} />
+ <span className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0" style={getColorStyle(clr)} />
  <span>{clr}</span>
  {isSel && <span>✓</span>}
  </button>
  );
  })}
+ </div>
+ </div>
+
+ {/* Multi-Colors & Patterns Presets */}
+ <div className="mt-3 pt-2 border-t border-burgundy/10">
+ <div className="flex items-center justify-between mb-1">
+ <p className="text-[10px] font-bold text-burgundy/70 flex items-center gap-1">
+ <span>🎨</span>
+ <span>ألوان متعددة ونقشات جاهزة (قطعة بأكثر من لون):</span>
+ </p>
+ <span className="text-[9px] text-burgundy/40">تظهر للعميل بدائرة مقسومة نصفين أو نقشة مميزة</span>
+ </div>
+ <div className="flex flex-wrap gap-1.5">
+ {PRESET_MULTI_COLORS.map(multiClr => {
+ const isSel = parsedColors.includes(multiClr);
+ return (
+ <button
+ key={multiClr}
+ type="button"
+ onClick={() => {
+ const updated = isSel ? parsedColors.filter(c => c !== multiClr) : [...parsedColors, multiClr];
+ setForm(p => ({ ...p, colors: updated.join(", ") }));
+ }}
+ className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+ isSel ? "bg-burgundy text-white border-burgundy shadow-xs" : "bg-white text-burgundy/80 border-burgundy/20 hover:bg-burgundy/5"
+ }`}
+ >
+ <span className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0 shadow-2xs" style={getColorStyle(multiClr)} />
+ <span>{multiClr}</span>
+ {isSel && <span>✓</span>}
+ </button>
+ );
+ })}
+ </div>
  </div>
  </div>
  </div>

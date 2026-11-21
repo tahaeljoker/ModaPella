@@ -365,14 +365,15 @@ router.delete('/:id', auth, requireRole(ADMIN), async (req, res) => {
   }
 });
 
-// POST /api/employees/:id/adjustments — add a discount, reward, or advance with WhatsApp notification
+// POST /api/employees/:id/adjustments — add a discount, reward, or advance with WhatsApp notification and Safe integration
 router.post('/:id/adjustments', auth, requireRole(ADMIN), async (req, res) => {
   try {
-    const { type, amount, reason, date, notifyWhatsapp = true } = req.body;
+    const { type, amount, reason, date, notifyWhatsapp = true, deductFromSafe = true, paymentMethod = 'Cash' } = req.body;
     if (!['discount', 'reward', 'advance'].includes(type)) {
       return res.status(400).json({ message: 'نوع التسوية غير صالح (يجب أن يكون مكافأة أو خصم أو سلفة)' });
     }
-    if (!amount || Number(amount) <= 0) {
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) {
       return res.status(400).json({ message: 'المبلغ يجب أن يكون أكبر من الصفر' });
     }
     if (!reason || reason.trim() === '') {
@@ -383,15 +384,69 @@ router.post('/:id/adjustments', auth, requireRole(ADMIN), async (req, res) => {
     if (!emp) return res.status(404).json({ message: 'الموظف غير موجود' });
 
     const adjDate = date ? new Date(date) : new Date();
+    const cleanPayMethod = ['Cash', 'Instapay'].includes(paymentMethod) ? paymentMethod : 'Cash';
+
     emp.adjustments.push({
       type,
-      amount: Number(amount),
+      amount: numAmount,
       reason: reason.trim(),
-      date: adjDate
+      date: adjDate,
+      paymentMethod: cleanPayMethod,
+      deductedFromSafe: false,
+      transactionId: null
     });
 
     await emp.save();
     const savedAdj = emp.adjustments[emp.adjustments.length - 1];
+
+    // ─── Safe / Treasury Transaction Sync ─────────────────────────────
+    if (deductFromSafe !== false) {
+      try {
+        const Transaction = require('../models/Transaction');
+        const Shift = require('../models/Shift');
+
+        let openShift = await Shift.findOne({ user: req.user.id, status: 'open' });
+        if (!openShift) {
+          openShift = await Shift.findOne({ status: 'open' }).sort({ createdAt: -1 });
+        }
+
+        // Rewards and Advances are money taken OUT of the safe.
+        // Discounts, if deducted/collected, are money IN (or salary deduction).
+        const txType = type === 'discount' ? 'IN' : 'OUT';
+        const typeLabelsDesc = {
+          reward: 'مكافأة / بونص',
+          advance: 'سلفة على الراتب',
+          discount: 'استقطاع / توريد جزاء'
+        };
+        const descPrefix = typeLabelsDesc[type] || 'تسوية موظف';
+        const description = `${descPrefix}: للموظف ${emp.name} - ${reason.trim()}`;
+
+        const transaction = new Transaction({
+          amount: numAmount,
+          type: txType,
+          category: 'صرف رواتب',
+          paymentMethod: cleanPayMethod,
+          description,
+          user: req.user.id,
+          shift: openShift?._id || null,
+          employee: emp._id,
+          metadata: {
+            adjustmentId: savedAdj._id,
+            adjustmentType: type,
+            employeeName: emp.name,
+            reason: reason.trim(),
+            date: adjDate
+          }
+        });
+
+        await transaction.save();
+        savedAdj.transactionId = transaction._id;
+        savedAdj.deductedFromSafe = true;
+        await emp.save();
+      } catch (safeErr) {
+        console.error('⚠️ [SafeSync] Failed to record safe transaction for adjustment:', safeErr.message);
+      }
+    }
 
     // Compute updated totals for employee summary
     const allAdj = emp.adjustments || [];
@@ -457,16 +512,31 @@ router.post('/:id/adjustments', auth, requireRole(ADMIN), async (req, res) => {
   }
 });
 
-// DELETE /api/employees/:id/adjustments/:adjId — remove adjustment
+// DELETE /api/employees/:id/adjustments/:adjId — remove adjustment and clean up Safe transaction
 router.delete('/:id/adjustments/:adjId', auth, requireRole(ADMIN), async (req, res) => {
   try {
     const emp = await Employee.findById(req.params.id);
     if (!emp) return res.status(404).json({ message: 'الموظف غير موجود' });
 
+    const adj = (emp.adjustments || []).find(a => a._id.toString() === req.params.adjId);
+    
+    // Clean up safe transaction if linked
+    if (adj) {
+      try {
+        const Transaction = require('../models/Transaction');
+        if (adj.transactionId) {
+          await Transaction.findByIdAndDelete(adj.transactionId);
+        }
+        await Transaction.deleteMany({ 'metadata.adjustmentId': adj._id });
+      } catch (delErr) {
+        console.error('⚠️ [SafeSync] Could not delete linked safe transaction:', delErr.message);
+      }
+    }
+
     emp.adjustments = emp.adjustments.filter(a => a._id.toString() !== req.params.adjId);
     await emp.save();
 
-    res.json({ message: 'تم حذف التسوية بنجاح' });
+    res.json({ message: 'تم حذف التسوية وحذف أثرها من الخزنة بنجاح' });
   } catch (e) {
     res.status(500).json({ message: 'فشل حذف التسوية', error: e.message });
   }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { renderBarcodeSVG } from '../../../utils/barcode';
+import { generateWhatsAppInvoiceUrl } from '../../../utils/whatsappInvoice';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
 
@@ -304,6 +305,20 @@ export default function InvoiceModal({ order, onClose }) {
  </div>
 
  {/* Actions */}
+ {order.customerPhone && order.customerPhone !== 'بدون هاتف' && (
+ <div className="p-3 bg-emerald-50 border-b border-emerald-200/60">
+ <a
+ href={generateWhatsAppInvoiceUrl(order)}
+ target="_blank"
+ rel="noopener noreferrer"
+ className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
+ >
+ <span>📱</span>
+ <span>إرسال الفاتورة وتفاصيلها للعميل عبر واتساب ({order.customerPhone})</span>
+ </a>
+ </div>
+ )}
+
  <div className="grid grid-cols-2 gap-2 p-4 bg-[#F7F0EC] border-b border-burgundy/10">
  <button
  onClick={onClose}

@@ -202,15 +202,9 @@ export const getCleanColorName = (colorStr) => {
 };
 
 /**
- * Resolves hex color for any given color name.
- * Priority:
- * 1. Hex code embedded in the name (e.g. "بترولي (#005f73)" or "#005f73")
- * 2. User defined custom colors (customColorCache)
- * 3. Base dictionary of 60+ fashion colors
- * 4. Fuzzy match (part of string matches a known color)
- * 5. Elegant neutral fallback
+ * Resolves single solid hex color for any given color name.
  */
-export const getColorHex = (colorName) => {
+export const getSingleColorHex = (colorName) => {
   if (!colorName) return '#999999';
   const raw = String(colorName).trim();
 
@@ -235,7 +229,6 @@ export const getColorHex = (colorName) => {
   if (BASE_COLOR_MAP[clean]) return BASE_COLOR_MAP[clean];
 
   // 4. Smart fuzzy match across dictionary
-  // e.g. "أخضر زيتوني" -> matches "زيتي" or "أخضر"
   const entries = Object.entries(BASE_COLOR_MAP);
   for (const [key, hex] of entries) {
     if (key.length >= 3 && (lower.includes(key) || key.includes(lower))) {
@@ -245,6 +238,201 @@ export const getColorHex = (colorName) => {
 
   // 5. Fallback neutral stylish beige
   return '#c7b299';
+};
+
+/**
+ * Resolves hex color for any given color name.
+ * For backwards compatibility, returns primary single hex.
+ */
+export const getColorHex = (colorName) => {
+  if (!colorName) return '#999999';
+  const raw = String(colorName).trim();
+
+  // Check if multi-color or compound
+  const parts = splitMultiColors(raw);
+  if (parts.length > 1) {
+    return getSingleColorHex(parts[0]);
+  }
+
+  return getSingleColorHex(raw);
+};
+
+/**
+ * Splits compound color names into distinct color components.
+ * Supports delimiters: '×', 'x', 'X', '*', ' في ', ' مع ', ' / ', '/', ' - ', '+', '&'
+ */
+export const splitMultiColors = (colorStr) => {
+  if (!colorStr) return [];
+  const raw = getCleanColorName(String(colorStr).trim());
+
+  // Check if string contains parentheses like "مشجر (أخضر × كشمير)"
+  const parenMatch = raw.match(/\(([^)]+)\)/);
+  if (parenMatch) {
+    const innerParts = splitMultiColors(parenMatch[1]);
+    if (innerParts.length > 0) return innerParts;
+  }
+
+  // Split by common multi-color separators
+  const parts = raw
+    .split(/\s*(?:[×xX*+/&]|\s+في\s+|\s+مع\s+|\s+-\s+|[\/\\])\s*/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  return parts;
+};
+
+/**
+ * Checks whether a color string represents a multi-color or special pattern.
+ */
+export const isMultiColor = (colorStr) => {
+  if (!colorStr) return false;
+  const raw = String(colorStr).trim().toLowerCase();
+
+  const patternKeywords = ['مشجر', 'ورود', 'زهور', 'ورد', 'floral', 'تايجر', 'نمر', 'tiger', 'leopard', 'كاروهات', 'plaid', 'checkered', 'مقلم', 'مخطط', 'striped', 'متعدد', 'متعدد الألوان', 'ألوان متداخلة', 'multicolor', 'rainbow'];
+  if (patternKeywords.some(kw => raw.includes(kw))) {
+    return true;
+  }
+
+  const parts = splitMultiColors(colorStr);
+  return parts.length > 1;
+};
+
+/**
+ * Generates an advanced CSS style object { background, backgroundColor }
+ * Supporting solid colors, split multi-colors (e.g. أبيض × أسود), and rich fashion patterns.
+ */
+export const getColorStyle = (colorName) => {
+  if (!colorName) {
+    return { background: '#999999', backgroundColor: '#999999' };
+  }
+
+  const raw = String(colorName).trim();
+  const lower = raw.toLowerCase();
+
+  // 1. Explicit bare hex
+  if (raw.startsWith('#')) {
+    return { background: raw, backgroundColor: raw };
+  }
+
+  // 2. Embedded hex (#123456)
+  const hexMatch = raw.match(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/);
+  if (hexMatch) {
+    const h = hexMatch[0];
+    return { background: h, backgroundColor: h };
+  }
+
+  // 3. Special Fashion Patterns
+  // 3a. مشجر / ورود (Floral Botanical)
+  if (lower.includes('مشجر') || lower.includes('ورود') || lower.includes('زهور') || lower.includes('ورد') || lower.includes('floral')) {
+    const parts = splitMultiColors(raw);
+    if (parts.length >= 2) {
+      const c1 = getSingleColorHex(parts[0]);
+      const c2 = getSingleColorHex(parts[1]);
+      return {
+        background: `linear-gradient(135deg, ${c1} 0%, #f472b6 40%, ${c2} 70%, #059669 100%)`,
+        backgroundColor: c1
+      };
+    }
+    return {
+      background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 35%, #a7f3d0 65%, #059669 100%)',
+      backgroundColor: '#ec4899'
+    };
+  }
+
+  // 3b. تايجر / نمر (Tiger / Leopard animal print)
+  if (lower.includes('تايجر') || lower.includes('نمر') || lower.includes('tiger') || lower.includes('leopard')) {
+    return {
+      background: 'linear-gradient(135deg, #d49b29 0%, #b45309 45%, #451a03 75%, #1c1917 100%)',
+      backgroundColor: '#b45309'
+    };
+  }
+
+  // 3c. كاروهات (Checkered / Tartan)
+  if (lower.includes('كاروهات') || lower.includes('plaid') || lower.includes('checkered')) {
+    const parts = splitMultiColors(raw);
+    const c1 = parts[0] ? getSingleColorHex(parts[0]) : '#991b1b';
+    const c2 = parts[1] ? getSingleColorHex(parts[1]) : '#1e293b';
+    return {
+      background: `repeating-linear-gradient(45deg, ${c1} 0, ${c1} 5px, ${c2} 5px, ${c2} 10px)`,
+      backgroundColor: c1
+    };
+  }
+
+  // 3d. مقلم / مخطط (Striped)
+  if (lower.includes('مقلم') || lower.includes('مخطط') || lower.includes('striped')) {
+    const parts = splitMultiColors(raw);
+    const c1 = parts[0] ? getSingleColorHex(parts[0]) : '#0f172a';
+    const c2 = parts[1] ? getSingleColorHex(parts[1]) : '#f8fafc';
+    return {
+      background: `repeating-linear-gradient(90deg, ${c1} 0, ${c1} 4px, ${c2} 4px, ${c2} 8px)`,
+      backgroundColor: c1
+    };
+  }
+
+  // 3e. متعدد الألوان / ألوان متداخلة (Rainbow / Multicolor)
+  if (lower.includes('متعدد') || lower.includes('ألوان متداخلة') || lower.includes('multicolor') || lower.includes('rainbow')) {
+    return {
+      background: 'linear-gradient(135deg, #ef4444 0%, #f59e0b 25%, #10b981 50%, #3b82f6 75%, #8b5cf6 100%)',
+      backgroundColor: '#3b82f6'
+    };
+  }
+
+  // 4. Split Multi-Colors (e.g. "أبيض × أسود" or "بيج في كحلي")
+  const parts = splitMultiColors(raw);
+  if (parts.length >= 2) {
+    const hexes = parts.map(p => getSingleColorHex(p));
+    let gradient = '';
+
+    if (hexes.length === 2) {
+      // 50% split sharp diagonal line
+      gradient = `linear-gradient(135deg, ${hexes[0]} 0% 50%, ${hexes[1]} 50% 100%)`;
+    } else if (hexes.length === 3) {
+      gradient = `linear-gradient(135deg, ${hexes[0]} 0% 33.3%, ${hexes[1]} 33.3% 66.6%, ${hexes[2]} 66.6% 100%)`;
+    } else if (hexes.length === 4) {
+      gradient = `linear-gradient(135deg, ${hexes[0]} 0% 25%, ${hexes[1]} 25% 50%, ${hexes[2]} 50% 75%, ${hexes[3]} 75% 100%)`;
+    } else {
+      const step = (100 / hexes.length).toFixed(1);
+      const stops = hexes.map((h, i) => `${h} ${(i * step)}% ${((i + 1) * step)}%`).join(', ');
+      gradient = `linear-gradient(135deg, ${stops})`;
+    }
+
+    return {
+      background: gradient,
+      backgroundColor: hexes[0]
+    };
+  }
+
+  // 5. Standard single color lookup
+  const singleHex = getSingleColorHex(raw);
+  return {
+    background: singleHex,
+    backgroundColor: singleHex
+  };
+};
+
+/**
+ * Suggested multi-color combinations and popular fashion patterns
+ */
+export const PRESET_MULTI_COLORS = [
+  'أبيض × أسود',
+  'بيج × كحلي',
+  'أبيض × سماوي',
+  'زيتي × بيج',
+  'كشمير × رمادي',
+  'مشجر',
+  'كاروهات',
+  'مقلم',
+  'تايجر',
+  'متعدد الألوان'
+];
+
+/**
+ * Helper to combine two color names cleanly
+ */
+export const combineColors = (c1, c2) => {
+  if (!c1) return c2 || '';
+  if (!c2) return c1 || '';
+  return `${c1.trim()} × ${c2.trim()}`;
 };
 
 export const extractProductColors = (product) => {

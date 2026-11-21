@@ -1063,7 +1063,47 @@ router.post('/debts/pay', auth, requireRole(['admin', 'cashier', 'manager']), as
       });
     });
 
-    res.json({ message: 'Payment recorded successfully', updatedOrders: result.updatedOrders, change: result.change });
+    // Send Debt Settlement notification via WhatsApp
+    let whatsappDirectLink = '';
+    let whatsappSent = false;
+    const phoneToNotify = (customerPhone && customerPhone !== 'بدون هاتف' && customerPhone.trim() !== '') ? customerPhone.trim() : null;
+
+    if (phoneToNotify) {
+      try {
+        const Customer = require('../models/Customer');
+        const cust = await Customer.findOne({
+          $or: [
+            { phone: phoneToNotify },
+            ...(customerName ? [{ name: customerName.trim() }] : [])
+          ]
+        });
+        const remainingDebt = cust ? (cust.debt || 0) : 0;
+        const { sendDebtSettlementWhatsApp } = require('../services/whatsappService');
+
+        const waRes = await sendDebtSettlementWhatsApp({
+          customerName: customerName || cust?.name,
+          customerPhone: phoneToNotify,
+          amountPaid: Number(amount),
+          paymentMethod,
+          remainingDebt,
+          settledOrders: result.updatedOrders || [],
+          notes
+        });
+
+        whatsappDirectLink = waRes.directLink || '';
+        whatsappSent = Boolean(waRes && waRes.success);
+      } catch (waErr) {
+        console.error('⚠️ [Debt WhatsApp] Notification error:', waErr.message);
+      }
+    }
+
+    res.json({
+      message: 'Payment recorded successfully',
+      updatedOrders: result.updatedOrders,
+      change: result.change,
+      whatsappDirectLink,
+      whatsappSent
+    });
   } catch (error) {
     const statusCode = error.statusCode || 500;
     res.status(statusCode).json({ message: error.message || 'Failed to record payment', error: error.message });

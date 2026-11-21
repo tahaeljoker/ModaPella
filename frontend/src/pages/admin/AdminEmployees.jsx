@@ -294,7 +294,15 @@ function EmployeeStatsModal({ employee, onClose }) {
  const [from, setFrom] = useState('');
  const [to, setTo] = useState('');
  const [showAdjForm, setShowAdjForm] = useState(false);
- const [adjForm, setAdjForm] = useState({ type: 'reward', amount: '', reason: '', date: '', notifyWhatsapp: true });
+ const [adjForm, setAdjForm] = useState({
+   type: 'reward',
+   amount: '',
+   reason: '',
+   date: '',
+   notifyWhatsapp: true,
+   deductFromSafe: true,
+   paymentMethod: 'Cash'
+ });
  const [adjSaving, setAdjSaving] = useState(false);
  const [adjError, setAdjError] = useState('');
 
@@ -515,7 +523,18 @@ function EmployeeStatsModal({ employee, onClose }) {
  </span>
  <span className="text-xs font-semibold text-burgundy">{adj.reason}</span>
  </div>
- <p className="text-[10px] text-burgundy/40 mt-0.5">{new Date(adj.date).toLocaleDateString('ar-EG-u-nu-latn')}</p>
+ <div className="flex items-center gap-2 mt-0.5">
+ <p className="text-[10px] text-burgundy/40">{new Date(adj.date).toLocaleDateString('ar-EG-u-nu-latn')}</p>
+ {(adj.deductedFromSafe || adj.transactionId) ? (
+ <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">
+  مسجل بالخزنة ({adj.paymentMethod === 'Instapay' ? 'إنستاباي' : 'كاش'})
+ </span>
+ ) : (
+ <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.2 rounded">
+ قيد تسوية حساب
+ </span>
+ )}
+ </div>
  </div>
  <div className="flex items-center gap-2.5">
  <span className={`font-bold text-sm ${amountClass}`}>
@@ -637,6 +656,43 @@ function EmployeeStatsModal({ employee, onClose }) {
  className="w-full rounded-xl border border-burgundy/20 bg-white px-4 py-2 text-sm text-burgundy outline-none focus:border-burgundy"
  />
  </div>
+
+ {/* Safe / Treasury Deduction & Payment Method */}
+ <div className="space-y-2 rounded-xl bg-amber-50/60 p-3 border border-amber-200/80">
+ <label className="flex items-center gap-2 cursor-pointer">
+ <input
+ type="checkbox"
+ checked={adjForm.deductFromSafe}
+ onChange={e => setAdjForm(p => ({ ...p, deductFromSafe: e.target.checked }))}
+ className="w-4 h-4 rounded text-burgundy accent-burgundy cursor-pointer"
+ />
+ <span className="text-xs font-bold text-burgundy">
+ {adjForm.type === 'discount' ? 'تسجيل كإيراد/توريد للخزنة فورياً 💰' : 'خصم/صرف المبلغ من الخزنة وسجلات الدرج فورياً 💰'}
+ </span>
+ </label>
+ {adjForm.deductFromSafe && (
+ <div className="pt-2 flex items-center justify-between border-t border-amber-200/50">
+ <span className="text-[11px] font-semibold text-burgundy/70">طريقة الصرف:</span>
+ <div className="flex gap-2">
+ {['Cash', 'Instapay'].map(m => (
+ <button
+ key={m}
+ type="button"
+ onClick={() => setAdjForm(p => ({ ...p, paymentMethod: m }))}
+ className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+ adjForm.paymentMethod === m
+ ? 'bg-burgundy text-white shadow-xs'
+ : 'bg-white text-burgundy/70 border border-burgundy/20 hover:bg-white/80'
+ }`}
+ >
+ {m === 'Cash' ? '💵 كاش الدرج' : '📱 إنستاباي'}
+ </button>
+ ))}
+ </div>
+ </div>
+ )}
+ </div>
+
  <label className="flex items-center gap-2 cursor-pointer bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80 transition hover:bg-emerald-50">
  <input
  type="checkbox"

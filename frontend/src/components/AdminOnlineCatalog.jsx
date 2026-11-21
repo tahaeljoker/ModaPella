@@ -5,7 +5,7 @@ import MannequinImageUploader from './MannequinImageUploader';
 import ColorImagesMapper from './ColorImagesMapper';
 import { cleanProductName } from '../utils/discount';
 import { resolveImageUrl } from '../utils/imageUrl';
-import { getColorHex, setCustomColor, registerCustomColors } from '../utils/colorSwatches';
+import { getColorHex, getColorStyle, setCustomColor, registerCustomColors, PRESET_MULTI_COLORS } from '../utils/colorSwatches';
 import { Icon } from './Icon';
 
 const EGP = (n) => `${Number(n || 0).toLocaleString('en-US')} ج.م`;
@@ -1071,8 +1071,8 @@ export default function AdminOnlineCatalog({ onToast }) {
                                 >
                                   {/* Interactive Color Circle on the Badge */}
                                   <label
-                                    className="relative w-4 h-4 rounded-full border border-white/60 shrink-0 cursor-pointer shadow-xs hover:scale-125 transition flex items-center justify-center"
-                                    style={{ backgroundColor: hex }}
+                                    className="relative w-4 h-4 rounded-full border border-white/60 shrink-0 cursor-pointer shadow-xs hover:scale-125 transition flex items-center justify-center overflow-hidden"
+                                    style={getColorStyle(clr)}
                                     title={`اضغط لتعديل درجة سيركل (${clr})`}
                                   >
                                     <input
@@ -1201,13 +1201,42 @@ export default function AdminOnlineCatalog({ onToast }) {
                               >
                                 <span
                                   className="w-2.5 h-2.5 rounded-full border border-black/15 shrink-0"
-                                  style={{ backgroundColor: hex }}
+                                  style={getColorStyle(clr)}
                                 />
                                 <span>{clr}</span>
                                 {isSel && <span className="text-[10px]">✓</span>}
                               </button>
                             );
                           })}
+                        </div>
+
+                        {/* Multi-Colors & Patterns */}
+                        <div className="mt-2 pt-2 border-t border-burgundy/10">
+                          <p className="text-[10px] font-bold text-burgundy/70 mb-1">نقشات وألوان متعددة (قطعة بأكثر من لون):</p>
+                          <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto scrollbar-thin">
+                            {PRESET_MULTI_COLORS.map(multiClr => {
+                              const isSel = editForm.colors.includes(multiClr);
+                              return (
+                                <button
+                                  key={multiClr}
+                                  type="button"
+                                  onClick={() => handleToggleColor(multiClr)}
+                                  className={`px-2 py-1 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                                    isSel
+                                      ? 'bg-burgundy text-white border-burgundy shadow-2xs ring-1 ring-burgundy/30'
+                                      : 'bg-white text-burgundy/80 border-burgundy/20 hover:bg-burgundy/5'
+                                  }`}
+                                >
+                                  <span
+                                    className="w-3 h-3 rounded-full border border-black/15 shrink-0 shadow-2xs"
+                                    style={getColorStyle(multiClr)}
+                                  />
+                                  <span>{multiClr}</span>
+                                  {isSel && <span className="text-[10px]">✓</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     </div>
